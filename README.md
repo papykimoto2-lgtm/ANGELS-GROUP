@@ -1,6 +1,6 @@
 # ANGEL'S GROUP ERP — V1 Livraisons à moto
 
-**Hub groupe** : `/hub` (`hub.html`) — Angel's Distributions, Angel's & Co Transport et Angel's Agro (actifs).
+**Hub groupe** : `/hub` (`hub.html`) — vue consolidée (trésorerie, chiffre d'affaires, encaissé, créances, résultat, alertes) calculée à partir des données locales des trois applications (test : `node tests/hub.js`) — Angel's Distributions, Angel's & Co Transport et Angel's Agro (actifs).
 
 **Application installable (PWA)** : Hub, Transport, Agro et Livraison ont chacun leur manifeste et leurs icônes (`manifest-*.webmanifest`, `icons/`, générées par `tools/gen-icons.py`) et fonctionnent hors ligne grâce à `sw.js`. Android/Chrome : bouton « Installer l'application » dans le menu ou sur l'écran de connexion ; iPhone : Safari → Partager → Sur l'écran d'accueil. Test : `node tests/pwa.js`. Prérequis : HTTPS (Vercel) — le service worker ne s'active pas en `file://`.
 
