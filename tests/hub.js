@@ -10,15 +10,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const t=(id,l,r)=>{if(r===true){ok++;console.log("PASS",id,l)}else{ko++;console.log("FAIL",id,l,"→",r)}};
  const page=async u=>{const p=await ctx.newPage();p.on("pageerror",e=>errs.push(u+" : "+e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/"+u);await p.waitForTimeout(400);return p};
  // 1. hub avant toute utilisation : « non ouvert »
- let h=await page("hub.html");const vide=await h.$eval("#tcons",e=>e.innerText);t("HUB-1","applications jamais ouvertes : « non ouvert », aucun chiffre inventé",/non ouvert/.test(vide)&&!/[1-9]\d* F/.test(vide.replace(/0 F/g,""))?true:vide.slice(0,200));await h.close();
+ let h=await page("index.html");const vide=await h.$eval("#tcons",e=>e.innerText);t("HUB-1","applications jamais ouvertes : « non ouvert », aucun chiffre inventé",/non ouvert/.test(vide)&&!/[1-9]\d* F/.test(vide.replace(/0 F/g,""))?true:vide.slice(0,200));await h.close();
  // 2. valeurs de référence calculées par chaque application
- const pl=await page("index.html"),pt=await page("transport.html"),pa=await page("agro.html");
+ const pl=await page("distribution.html"),pt=await page("transport.html"),pa=await page("agro.html");
  const ref={};
  ref.D=await pl.evaluate(()=>{const M=new Date().toISOString().slice(0,7),lv=S.commandes.filter(c=>c.statut==="livree");return{tres:(S.caisses||[]).reduce((s,c)=>s+cxSolde(c),0),ca:lv.filter(c=>String(c.date).startsWith(M)).reduce((s,c)=>s+c.total,0),cre:lv.reduce((s,c)=>s+soldeCmd(c),0)}});
  ref.T=await pt.evaluate(()=>{const M=today().slice(0,7);return{tres:sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte==="571"||l.compte==="521")),l=>(l.debit||0)-(l.credit||0)),ca:sum(S.entries.filter(e=>e.date.startsWith(M)).flatMap(e=>e.lines.filter(l=>l.compte==="706")),l=>(l.credit||0)-(l.debit||0)),enc:sum(S.payments.filter(p=>p.statut==="confirme"&&p.type!=="depot"&&p.date_valeur.startsWith(M)),p=>p.montant),cre:sum(S.tiers.filter(x=>x.type==="chauffeur"),x=>soldeTiers(x.id)),res:(()=>{let p=0,c=0;S.entries.filter(e=>e.date.startsWith(M)).forEach(e=>e.lines.forEach(l=>{if(l.compte[0]==="7")p+=(l.credit||0)-(l.debit||0);if(l.compte[0]==="6")c+=(l.debit||0)-(l.credit||0)}));return p-c})()}});
  ref.A=await pa.evaluate(()=>{const M=today().slice(0,7);return{tres:soldeCompte("571")+soldeCompte("521"),ca:sum(S.ventes.filter(v=>v.statut==="valide"&&v.date.startsWith(M)),v=>v.total),enc:sum(S.encaiss.filter(e=>e.statut==="valide"&&e.date.startsWith(M)),e=>e.montant),cre:sum(S.clients,c=>soldeClient(c.id)),res:(()=>{let p=0,c=0;S.entries.filter(e=>e.date.startsWith(M)).forEach(e=>e.lignes.forEach(l=>{if(l.compte[0]==="7")p+=(l.credit||0)-(l.debit||0);if(l.compte[0]==="6")c+=(l.debit||0)-(l.credit||0)}));return p-c})()}});
  console.log("références :",JSON.stringify(ref));
- h=await page("hub.html");
+ h=await page("index.html");
  const hub=await h.evaluate(()=>({D:distribution(lire("angels_erp_v1")),T:transport(lire("angels_transport_v3")),A:agro(lire("angels_agro_v1"))}));
  for(const[f,ks] of [["D",["tres","ca","cre"]],["T",["tres","ca","enc","cre","res"]],["A",["tres","ca","enc","cre","res"]]]){const bad=ks.filter(k=>Math.round(hub[f][k])!==Math.round(ref[f][k])).map(k=>k+" hub="+hub[f][k]+" app="+ref[f][k]);t("HUB-2-"+f,"chiffres égaux à ceux de l'application ("+ks.join(", ")+")",bad.length?bad.join("; "):true)}
  const tot=await h.evaluate(()=>[...document.querySelectorAll("#big b")].map(e=>e.textContent));const att=[ref.D.tres+ref.T.tres+ref.A.tres,ref.D.ca+ref.T.ca+ref.A.ca,hub.D.enc+ref.T.enc+ref.A.enc,ref.D.cre+ref.T.cre+ref.A.cre].map(n=>Math.round(n).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F");

@@ -3,7 +3,7 @@
   "short_name": "ANGEL'S GROUP",
   "description": "Gestion intégrée des livraisons à moto : commandes, livreurs, caisse, suivi client.",
   "lang": "fr",
-  "start_url": "./",
+  "start_url": "./distribution.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

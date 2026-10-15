@@ -11,7 +11,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const ctx=await b.newContext({viewport:{width:420,height:800}}),p=await ctx.newPage();let ok=0,ko=0;const errs=[];
  p.on("pageerror",e=>errs.push(e.message));p.on("dialog",d=>d.accept());
  const t=(id,label,r)=>{if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
- const APPS=[["hub","hub.html","manifest-hub.webmanifest"],["transport","transport.html","manifest-transport.webmanifest"],["agro","agro.html","manifest-agro.webmanifest"],["livraison","index.html","manifest.webmanifest"]];
+ const APPS=[["hub","index.html","manifest-hub.webmanifest"],["transport","transport.html","manifest-transport.webmanifest"],["agro","agro.html","manifest-agro.webmanifest"],["livraison","distribution.html","manifest.webmanifest"]];
  for(const[app,page,man] of APPS){
   const m=await (await p.request.get(base+"/"+man)).json();const bad=[];
   ["name","short_name","start_url","scope","display","icons","theme_color","background_color"].forEach(k=>{if(!m[k])bad.push("manque "+k)});
@@ -28,15 +28,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const mf=await pg.evaluate(()=>document.querySelector('link[rel=manifest]')?.getAttribute("href"));t("PWA-"+app+"-3","lien vers le manifeste de l'application",mf?true:"absent");
   await pg.close();
  }
- const keys=await p.goto(base+"/hub.html").then(()=>p.evaluate(async()=>{await navigator.serviceWorker.ready;const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v"))),r=await c.keys();return r.map(x=>new URL(x.url).pathname)}));
- const need=["/hub.html","/transport.html","/agro.html","/index.html","/icons/agro-512.png","/icons/transport-512.png","/manifest-agro.webmanifest"];
+ const keys=await p.goto(base+"/index.html").then(()=>p.evaluate(async()=>{await navigator.serviceWorker.ready;const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v"))),r=await c.keys();return r.map(x=>new URL(x.url).pathname)}));
+ const need=["/index.html","/transport.html","/agro.html","/distribution.html","/icons/agro-512.png","/icons/transport-512.png","/manifest-agro.webmanifest"];
  t("PWA-4","coque mise en cache à l'installation du service worker",need.every(x=>keys.includes(x))?true:"manquants : "+need.filter(x=>!keys.includes(x)));
  // hors ligne : chaque page se recharge, la navigation du hub vers les apps fonctionne
  const off=[];
  for(const[app,page] of APPS){const pg=await ctx.newPage();await pg.goto(base+"/"+page);await pg.evaluate(()=>navigator.serviceWorker.ready);await pg.waitForTimeout(300);await ctx.setOffline(true);
   try{await pg.reload();const h=await pg.evaluate(()=>document.body.innerText.length);if(h<50)off.push(app+" vide")}catch(e){off.push(app+" : "+e.message.slice(0,60))}await ctx.setOffline(false);await pg.close()}
  t("PWA-5","les quatre pages s'ouvrent hors ligne",off.length?off.join(" | "):true);
- await p.goto(base+"/hub.html");await p.evaluate(()=>navigator.serviceWorker.ready);await ctx.setOffline(true);
+ await p.goto(base+"/index.html");await p.evaluate(()=>navigator.serviceWorker.ready);await ctx.setOffline(true);
  let nav=true;try{await p.click('a[href="transport.html"]');await p.waitForLoadState("domcontentloaded");nav=(await p.title()).includes("Transport")||("titre: "+await p.title())}catch(e){nav=e.message.slice(0,80)}
  t("PWA-6","navigation hub → Transport hors ligne",nav);
  // fonctionnement de l'app hors ligne : connexion + saisie
@@ -49,7 +49,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const btn=await pg.$('[data-a="pwa.inst"]');let ins=btn?true:"bouton absent";if(btn){await btn.click();await pg.waitForTimeout(150);if(!(await pg.evaluate(()=>window.__prompted)))ins="prompt() non appelé"}
  t("PWA-8","bouton « Installer l'application » (Agro) déclenche l'invite d'installation",ins);
  // l'ancien défaut : une navigation ne doit pas écraser la page d'accueil en cache
- const idx=await p.evaluate(async()=>{const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v")));const a=await c.match("index.html"),h=await c.match("agro.html");return[(await a.text()).includes("ANGEL'S GROUP ERP"),(await h.text()).includes("ANGEL'S AGRO")]});
+ const idx=await p.evaluate(async()=>{const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v")));const a=await c.match("distribution.html"),h=await c.match("agro.html");return[(await a.text()).includes("ANGEL'S GROUP ERP"),(await h.text()).includes("ANGEL'S AGRO")]});
  t("PWA-9","chaque page garde sa propre entrée de cache",idx[0]&&idx[1]?true:JSON.stringify(idx));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);
  await b.close();srv.close();process.exit(ko||errs.length?1:0);

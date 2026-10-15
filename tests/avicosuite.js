@@ -12,7 +12,7 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright"),path=require("pat
  await p.goto("file://"+path.join(root,"avicosuite.html"),{waitUntil:"load"});await p.waitForTimeout(2500);
  t("AVI-04","l'application démarre sans erreur JavaScript (écran de configuration de l'organisation)",(errs.length===0&&/Configuration initiale requise|organisation/i.test(await p.evaluate(()=>document.body.innerText)))||errs.join("|"));
  t("AVI-05","titre de page Angel's Agro",(await p.title()).startsWith("Angel’s Agro")||await p.title());
- const hub=fs.readFileSync(path.join(root,"hub.html"),"utf8");
- t("AVI-06","hub : la carte Angel's Agro ouvre avicosuite.html ; la version locale reste accessible",(/href="avicosuite\.html" id="c-agro"/.test(hub)&&/href="agro\.html" id="c-agro-local"/.test(hub))||"hub");
+ const hub=fs.readFileSync(path.join(root,"index.html"),"utf8");
+ t("AVI-06","accueil (index) : la carte Angel's Agro ouvre avicosuite.html ; la version locale reste accessible",(/href="avicosuite\.html" id="c-agro"/.test(hub)&&/href="agro\.html" id="c-agro-local"/.test(hub))||"hub");
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();process.exit(ko?1:0);
 })();

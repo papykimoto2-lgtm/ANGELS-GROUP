@@ -1,6 +1,6 @@
 # Angel's Agro — ERP avicole (inspiré d'AviNest Pro)
 
-`agro.html` est développé comme `index.html` (Livraison) : un seul fichier HTML/CSS/JS, données dans le navigateur, connexion par PIN, menus par rôle, journal d'audit, sauvegarde/restauration. Il reprend le métier et le vocabulaire d'**AviNest Pro** (dépôt `AVICOSUITE_ERP`, https://avicosuite-erp.vercel.app/) : lots chair/ponte, suivi quotidien, calendrier prophylactique, couvoir, fabrication d'aliments, stock, ventes, charges, rentabilité par lot, plan comptable repris d'AviNest.
+`agro.html` est développé comme `distribution.html` (Livraison) : un seul fichier HTML/CSS/JS, données dans le navigateur, connexion par PIN, menus par rôle, journal d'audit, sauvegarde/restauration. Il reprend le métier et le vocabulaire d'**AviNest Pro** (dépôt `AVICOSUITE_ERP`, https://avicosuite-erp.vercel.app/) : lots chair/ponte, suivi quotidien, calendrier prophylactique, couvoir, fabrication d'aliments, stock, ventes, charges, rentabilité par lot, plan comptable repris d'AviNest.
 
 ## Modules
 | Menu | Contenu |

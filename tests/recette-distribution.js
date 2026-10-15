@@ -1,4 +1,4 @@
-/* Recette automatisée — ANGEL'S Distributions (index.html : commandes, livraisons, caisse, droits, sauvegarde, hors ligne).
+/* Recette automatisée — ANGEL'S Distributions (distribution.html : commandes, livraisons, caisse, droits, sauvegarde, hors ligne).
    Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/recette-distribution.js */
 const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
 const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
@@ -8,7 +8,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
  const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
  p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
- await p.goto(base+"/index.html");await p.waitForTimeout(300);
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
  await p.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};window.__last=()=>__T[__T.length-1]||"";
   window.__cl=()=>S.clients[0];window.__P=c=>S.produits.find(p=>p.code===c);window.__ln=(c,q)=>({produit_id:__P(c).id,qte:q,pu:__P(c).prix});
   window.__as_=(r,f)=>{const m=ME;ME=S.users.find(u=>u.role===r&&u.actif);try{return f()}finally{ME=m}};window.__mk=(L,o)=>__as_("admin",()=>creerCmd(Object.assign({client_id:__cl().id,adr:Object.assign({},__cl().adresses[0]),lignes:L,frais:2000,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Téléphone",confirmer:true},o||{})));
@@ -72,7 +72,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const n2=await p.evaluate(()=>({n:S.commandes.length,copie:!!localStorage.getItem(KEY+"_avant_import"),aud:S.audit.some(a=>/Import de données/.test(a.action))}));
  const r16=n2.n===n0&&n2.copie&&n2.aud;console.log(r16?"PASS":"FAIL","DIS-16 import valide : données restaurées, copie de sécurité conservée, import tracé",r16?"":JSON.stringify(n2)+" attendu "+n0);r16?ok++:ko++;
  // ---- hors ligne (service worker, bandeau)
- await p.goto(base+"/index.html");await p.evaluate(()=>navigator.serviceWorker.ready);await p.waitForTimeout(400);await ctx.setOffline(true);
+ await p.goto(base+"/distribution.html");await p.evaluate(()=>navigator.serviceWorker.ready);await p.waitForTimeout(400);await ctx.setOffline(true);
  let off="";try{await p.reload();await p.waitForTimeout(500);off=await p.evaluate(()=>(document.getElementById("pwaBar")||{}).textContent||"");const len=await p.evaluate(()=>document.body.innerText.length);if(len<50)off="page vide"}catch(e){off="rechargement impossible : "+e.message.slice(0,60)}
  const r17=/hors ligne/i.test(off);console.log(r17?"PASS":"FAIL","DIS-17 hors ligne : l'application s'ouvre avec le bandeau « Mode hors ligne »",r17?"":off);r17?ok++:ko++;await ctx.setOffline(false);
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
