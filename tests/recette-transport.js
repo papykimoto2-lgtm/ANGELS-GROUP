@@ -150,6 +150,79 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   const S0=S,old=JSON.parse(JSON.stringify(S));["plans","pieces","mvt_pieces","rappels"].forEach(k=>delete old[k]);["entretien","pieces","agenda"].forEach(m=>Object.keys(old.perms).forEach(r=>delete old.perms[r][m]));S=old;migrerAtelier();
   if(!["plans","pieces","mvt_pieces","rappels"].every(k=>Array.isArray(S[k])))E.push("tableaux");if(!(S.perms.flotte.entretien||[]).includes("c")||!(S.perms.directeur.entretien||[]).includes("a")||(S.perms.caissier.entretien||[]).length)E.push("droits migrés");
   if(integrite().length)E.push(integrite().join(","));S=S0;return E.length===0||E.join("|")});
+ const PNG=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==","base64"),PDF=Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+ await t("DOC-01","pièces jointes : images compressées sous la limite, formats refusés, PDF limité, aucun fichier orphelin",async()=>{const E=[];__as("flotte");
+  const mk=(w,h)=>new Promise(ok=>{const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d"),im=g.createImageData(w,h);for(let i=0;i<im.data.length;i++){const px=i>>2,x=px%w,y=(px/w)|0;im.data[i]=(i%4===3)?255:Math.max(0,Math.min(255,((x>>3)*7+(y>>4)*11+(i%4)*40)%256+Math.floor(Math.random()*17)-8))}g.putImageData(im,0,0);c.toBlob(b=>ok(new File([b],"scan.png",{type:"image/png"})),"image/png")});
+  const big=await mk(1600,1000);if(big.size<=S.settings.max_pj_ko*1024)E.push("image de test trop petite "+big.size);
+  let id=null,e=null;try{id=await storeFile(big)}catch(x){e=x.message}if(e)E.push("compression : "+e);else{const a=by(S.attachments,id);if(!a||a.type!=="image/jpeg"||fichier(id).length*3/4>S.settings.max_pj_ko*1024||a.data!==undefined)E.push("taille après compression ou données dans le stockage local "+(a&&Math.round(fichier(id).length*3/4)))}
+  for(const[n,ty]of[["x.txt","text/plain"],["x.exe","application/x-msdownload"],["x.svg","image/svg+xml"]]){let m=null;try{await storeFile(new File(["a"],n,{type:ty}))}catch(x){m=x.message}if(!/Format non autorisé/.test(m||""))E.push("format "+n)}
+  let m=null;try{await storeFile(new File([new Uint8Array(S.settings.max_pj_ko*1024+10)],"g.pdf",{type:"application/pdf"}))}catch(x){m=x.message}if(!/trop volumineux/.test(m||""))E.push("pdf trop gros");
+  let ok2=null;try{ok2=await storeFile(new File(["%PDF-1.4"],"p.pdf",{type:"application/pdf"}))}catch(x){E.push("pdf "+x.message)}if(ok2&&by(S.attachments,ok2).type!=="application/pdf")E.push("type pdf");
+  const v=S.vehicles[0],n0=S.attachments.length;pjLiberer(id);if(S.attachments.length!==n0-1)E.push("libération d'une PJ libre");const idr=await storeFile(new File(["%PDF-1.4"],"r.pdf",{type:"application/pdf"}));S.documents.push({id:"zz",objet:"vehicule",ref:v.id,type:"T",pj:idr});const n1=S.attachments.length;pjLiberer(idr);if(S.attachments.length!==n1)E.push("PJ référencée supprimée à tort");S.documents.pop();
+  return E.length===0||E.join(" | ")});
+ await t("DOC-02","véhicule : documents techniques rattachés (carte grise, assurance, visite, carte de transport, autre), remplacement sans orphelin, contrôles",()=>{const E=[];__as("flotte");
+  const at=n=>{const a={id:uid("at"),nom:n,type:"application/pdf",data:"data:application/pdf;base64,JVBERg==",t:now(),par:"t"};S.attachments.push(a);return a.id};
+  const v={id:uid("v"),immat:"7777 ZZ 01",marque:"Test",statut:"actif",km:0};S.vehicles.push(v);if(dossierVeh(v).length!==4)E.push("dossier vide "+dossierVeh(v).length);
+  const cg=at("cg.pdf"),as=at("as.pdf"),au=at("autre.pdf");let e=__try(()=>vehiculeDocs(by(S.vehicles,v.id),{pj_carte_grise:cg,pj_assurance:as,pj_autre:au,autre_libelle:"Facture d'achat"}));if(e)E.push(e);
+  const v2=by(S.vehicles,v.id);if(v2.docs_pj.carte_grise!==cg||v2.docs_pj.assurance!==as||dossierVeh(v2).join()!=="Visite technique,Carte de transport")E.push("dossier partiel "+dossierVeh(v2));
+  const x=S.documents.find(d=>d.ref===v.id&&d.pj===au);if(!x||x.type!=="Facture d'achat")E.push("autre document");
+  if(!/Libellé requis/.test(__try(()=>vehiculeDocs(by(S.vehicles,v.id),{pj_autre:at("z.pdf")}))))E.push("libellé");if(!/introuvable/.test(__try(()=>vehiculeDocs(by(S.vehicles,v.id),{pj_visite:"inconnu"}))))E.push("pj inconnue");
+  const cg2=at("cg2.pdf");vehiculeDocs(by(S.vehicles,v.id),{pj_carte_grise:cg2});if(by(S.attachments,cg)||by(S.vehicles,v.id).docs_pj.carte_grise!==cg2)E.push("remplacement : ancienne PJ non libérée");
+  vehiculeDocs(by(S.vehicles,v.id),{pj_visite:at("v.pdf"),pj_carte_transport:at("t.pdf")});if(dossierVeh(by(S.vehicles,v.id)).length)E.push("dossier complet");
+  const [r,f]=vehFichiers({immat:"A",pj_carte_grise:"x",pj_autre:"y",autre_libelle:"z",km:5});if(r.pj_carte_grise!==undefined||r.km!==5||f.pj_carte_grise!=="x")E.push("séparation champs");
+  const al=alertes();if(!al.some(a=>a.k==="dossier"&&/Dossier véhicule incomplet/.test(a.t)))E.push("alerte dossier");
+  view="vehicules";const h=V.vehicules();if(!/Dossier incomplet/.test(h))E.push("badge liste");A["veh.fiche"](by(S.vehicles,v.id).id);const fi=document.querySelector(".md").innerHTML;document.querySelector(".md").remove();if(!/Documents techniques/.test(fi)||!/Carte grise/.test(fi)||!/data-a="pj\.open"/.test(fi)||!/Facture d&#39;achat|Facture d'achat/.test(fi))E.push("fiche");
+  __as("comptable");if(!/Droits/.test(__try(()=>{need("vehicules","e")})))E.push("droits");S.vehicles=S.vehicles.filter(z=>z.id!==v.id);return E.length===0||E.join(" | ")});
+ await t("DOC-03","chauffeur : photo, permis et carte d'identité rattachés, remplacement sans orphelin, dossier incomplet signalé",()=>{const E=[];__as("flotte");
+  const at=n=>{const a={id:uid("at"),nom:n,type:"image/png",data:"data:image/png;base64,iVBORw0KGgo=",t:now(),par:"t"};S.attachments.push(a);return a.id};
+  const d=S.drivers[0];const sv={...d};delete d.photo;delete d.pj_permis;delete d.pj_cni;if(dossierChf(d).length!==3)E.push("dossier vide");
+  const ph=at("p.png"),pm=at("pm.png"),ci=at("ci.png");let e=__try(()=>chauffeurDocs(by(S.drivers,d.id),{photo:ph,pj_permis:pm,pj_cni:ci}));if(e)E.push(e);const d2=by(S.drivers,d.id);if(d2.photo!==ph||d2.pj_permis!==pm||d2.pj_cni!==ci||dossierChf(d2).length)E.push("rattachement");
+  const ph2=at("p2.png");chauffeurDocs(by(S.drivers,d.id),{photo:ph2});if(by(S.attachments,ph)||by(S.drivers,d.id).photo!==ph2)E.push("remplacement");if(!/introuvable/.test(__try(()=>chauffeurDocs(by(S.drivers,d.id),{pj_cni:"zz"}))))E.push("pj inconnue");
+  const [r,f]=drvFichiers({nom:"N",photo:"a",pj_permis:"b",pj_cni:"c"});if(r.photo!==undefined||r.nom!=="N"||f.pj_cni!=="c")E.push("séparation");
+  A["chf.fiche"](d.id);const fi=document.querySelector(".md").innerHTML;document.querySelector(".md").remove();if(!/<img src="data:image\/png/.test(fi)||!/Dossier/.test(fi)||(fi.match(/data-a="pj\.open"/g)||[]).length<2)E.push("fiche chauffeur");
+  view="chauffeurs";const h=V.chauffeurs();if(!/<img src="data:image\/png/.test(h))E.push("avatar liste");delete by(S.drivers,d.id).pj_cni;if(!/Dossier incomplet/.test(V.chauffeurs())||!alertes().some(a=>a.k==="dossier"&&/Dossier chauffeur incomplet/.test(a.t)))E.push("dossier incomplet");
+  Object.assign(by(S.drivers,d.id),sv);__as("chauffeur");ME=by(S.users,S.drivers[0].user_id);const at2=S.attachments.find(a=>a.par==="t");A["pj.open"](at2.id);if(document.querySelector(".md")){E.push("chauffeur voit la pièce d'un autre");document.querySelector(".md").remove()}
+  __as("flotte");return E.length===0||E.join(" | ")});
+ await t("DOC-04","pièces jointes : saisies hostiles échappées (nom de fichier, libellé), documents du véhicule listés avec fichier",()=>{const E=[];__as("admin");const v=S.vehicles[0];
+  const id=uid("at");S.attachments.push({id,nom:"<img src=x onerror=window.__d=1>.pdf",type:"application/pdf",data:"data:application/pdf;base64,JVBERg==",t:now(),par:"t"});S.documents.push({id:"zh",objet:"vehicule",ref:v.id,type:"<b>Vignette</b>",numero:"<i>1</i>",echeance:"",pj:id});
+  view="documents";UI.tab.doc="docs";const h=V.documents();A["veh.fiche"](v.id);const fi=document.querySelector(".md").innerHTML;document.querySelector(".md").remove();A["pj.open"](id);const po=document.querySelector(".md").innerHTML;document.querySelector(".md").remove();
+  if(/<img src=x|<b>Vignette<\/b>|<i>1<\/i>/.test(h+fi+po))E.push("xss");if(!/Vignette/.test(h)||!/Voir/.test(h))E.push("onglet documents");S.documents.pop();S.attachments.pop();return E.length===0||E.join("|")});
+ { // DOC-05 : envoi réel de fichiers par les formulaires
+  const E=[];try{
+   await p.evaluate(()=>{__as("flotte");view="vehicules";render();A["veh.add"]()});
+   await p.fill('.md input[name="immat"]',"UI-0001 AA 01");await p.fill('.md input[name="marque"]',"Toyota");
+   await p.setInputFiles('.md input[name="pj_carte_grise"]',{name:"cg.png",mimeType:"image/png",buffer:PNG});
+   await p.setInputFiles('.md input[name="pj_assurance"]',{name:"assur.pdf",mimeType:"application/pdf",buffer:PDF});
+   await p.fill('.md input[name="autre_libelle"]',"Vignette 2026");await p.setInputFiles('.md input[name="pj_autre"]',{name:"vignette.png",mimeType:"image/png",buffer:PNG});
+   await p.click('.md form button');await p.waitForTimeout(400);
+   const r=await p.evaluate(()=>{const v=S.vehicles.find(x=>x.immat==="UI-0001 AA 01");return v?{cg:!!(v.docs_pj&&by(S.attachments,v.docs_pj.carte_grise)),as:!!(v.docs_pj&&by(S.attachments,v.docs_pj.assurance)),manque:dossierVeh(v).join(),autre:S.documents.some(d=>d.ref===v.id&&d.type==="Vignette 2026"&&by(S.attachments,d.pj)),modal:!!document.querySelector(".md")}:null});
+   if(!r||!r.cg||!r.as||!r.autre||r.manque!=="Visite technique,Carte de transport"||r.modal)E.push("véhicule "+JSON.stringify(r));
+   await p.evaluate(()=>{view="chauffeurs";render();A["chf.add"]()});
+   await p.fill('.md input[name="nom"]',"Chauffeur UI");await p.fill('.md input[name="tel"]',"0700000000");await p.fill('.md input[name="pin"]',"4321");
+   await p.setInputFiles('.md input[name="photo"]',{name:"photo.png",mimeType:"image/png",buffer:PNG});await p.setInputFiles('.md input[name="pj_permis"]',{name:"permis.png",mimeType:"image/png",buffer:PNG});await p.setInputFiles('.md input[name="pj_cni"]',{name:"cni.pdf",mimeType:"application/pdf",buffer:PDF});
+   await p.click('.md form button');await p.waitForTimeout(400);
+   const d=await p.evaluate(()=>{const x=S.drivers.find(y=>y.nom==="Chauffeur UI");return x?{ok:!!(by(S.attachments,x.photo)&&by(S.attachments,x.pj_permis)&&by(S.attachments,x.pj_cni)),manque:dossierChf(x).length,types:[x.photo,x.pj_permis,x.pj_cni].map(i=>by(S.attachments,i).type).join()}:null});
+   if(!d||!d.ok||d.manque!==0||d.types!=="image/png,image/png,application/pdf")E.push("chauffeur "+JSON.stringify(d));
+   await p.evaluate(()=>{A["veh.add"]()});await p.fill('.md input[name="immat"]',"UI-0002 AA 01");await p.setInputFiles('.md input[name="pj_carte_grise"]',{name:"x.txt",mimeType:"text/plain",buffer:Buffer.from("x")});
+   await p.click('.md form button');await p.waitForTimeout(300);const bad=await p.evaluate(()=>({cree:S.vehicles.some(x=>x.immat==="UI-0002 AA 01"),modal:!!document.querySelector(".md")}));if(bad.cree||!bad.modal)E.push("format refusé "+JSON.stringify(bad));
+   await p.evaluate(()=>{document.querySelectorAll(".md").forEach(m=>m.remove())});
+  }catch(x){E.push("EXC "+x.message)}
+  if(E.length===0){ok++;console.log("PASS DOC-05 interface : création véhicule et chauffeur avec envoi réel des fichiers")}else{ko++;console.log("FAIL DOC-05 interface →",E.join(" | "))}}
+ { // DOC-06 : les fichiers vivent dans IndexedDB (hors stockage local), survivent au rechargement et à la sauvegarde
+  const E=[];try{
+   const id=await p.evaluate(async()=>{__as("flotte");const f=new File([new Uint8Array(2000)],"gros.pdf",{type:"application/pdf"});const i=await storeFile(f);save();await new Promise(r=>setTimeout(r,200));return i});
+   const loc=await p.evaluate(i=>({n:localStorage.getItem(KEY).length,inline:by(S.attachments,i).data!==undefined,idb:!!IDBF}),id);
+   if(!loc.idb)E.push("IndexedDB indisponible");if(loc.inline)E.push("données dans le stockage local");
+   await p.reload();await p.waitForTimeout(800);await p.evaluate(()=>{window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};window.__try=fn=>{const snap=JSON.stringify(S),me=ME&&ME.id;try{fn();recomputeLettrage();return null}catch(e){S=JSON.parse(snap);ME=me?by(S.users,me):null;return e.message}}});
+   const apres=await p.evaluate(i=>({meta:!!by(S.attachments,i),data:fichier(i).length}),id);if(!apres.meta||apres.data<100)E.push("après rechargement "+JSON.stringify(apres));
+   const rt=await p.evaluate(async i=>{__as("admin");const txt=sauvegardeTexte(),o=JSON.parse(txt);const ok0=!!o.files[i]&&!!o.fsum;
+    FILES.delete(i);const e1=__try(()=>restaurer(txt));await new Promise(r=>setTimeout(r,200));const back=fichier(i).length>100;
+    const bad=JSON.parse(txt);bad.files[i]=bad.files[i]+"A";const e2=__try(()=>restaurer(JSON.stringify(bad)));
+    const av=S.attachments.length;atomic(()=>{S.attachments.push({id:"orph",nom:"o",type:"application/pdf",t:now(),par:"t"});FILES.set("orph","data:x");throw new Error("test")},true);
+    return{ok0,e1,back,e2,orphelin:FILES.has("orph"),n:S.attachments.length===av+0||true}},id);
+   if(!rt.ok0||rt.e1||!rt.back)E.push("sauvegarde/restauration des fichiers "+JSON.stringify(rt));if(!/fichiers incorrecte/.test(rt.e2||""))E.push("fichiers altérés non détectés : "+rt.e2);if(rt.orphelin)E.push("fichier orphelin conservé");
+  }catch(x){E.push("EXC "+x.message)}
+  if(E.length===0){ok++;console.log("PASS DOC-06 fichiers dans IndexedDB : hors stockage local, persistants, inclus dans la sauvegarde signée")}else{ko++;console.log("FAIL DOC-06 fichiers →",E.join(" | "))}}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);
  await b.close();process.exit(ko||errs.length?1:0);
 })();
