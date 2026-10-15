@@ -1,0 +1,39 @@
+{
+  "id": "/transport.html",
+  "name": "ANGEL'S & CO Transport",
+  "short_name": "Transport",
+  "description": "Taxis wôrô-wôrô : contrats, encaissements, caisse, comptabilité, GPS, portail chauffeur.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./transport.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#7c2d12",
+  "theme_color": "#7c2d12",
+  "categories": [
+    "business",
+    "productivity",
+    "navigation"
+  ],
+  "icons": [
+    {
+      "src": "icons/transport-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/transport-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/transport-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

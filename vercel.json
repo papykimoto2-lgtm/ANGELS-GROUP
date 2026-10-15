@@ -39,7 +39,16 @@
       ]
     },
     {
-      "source": "/manifest.webmanifest",
+      "source": "/icons/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.webmanifest",
       "headers": [
         {
           "key": "Content-Type",
@@ -50,21 +59,20 @@
           "value": "public, max-age=3600"
         }
       ]
-    },
-    {
-      "source": "/icons/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400"
-        }
-      ]
     }
   ],
   "rewrites": [
     {
       "source": "/hub",
       "destination": "/hub.html"
+    },
+    {
+      "source": "/transport",
+      "destination": "/transport.html"
+    },
+    {
+      "source": "/agro",
+      "destination": "/agro.html"
     }
   ]
 }

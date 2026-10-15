@@ -2,6 +2,8 @@
 
 **Hub groupe** : `/hub` (`hub.html`) — Angel's Distributions, Angel's & Co Transport et Angel's Agro (actifs).
 
+**Application installable (PWA)** : Hub, Transport, Agro et Livraison ont chacun leur manifeste et leurs icônes (`manifest-*.webmanifest`, `icons/`, générées par `tools/gen-icons.py`) et fonctionnent hors ligne grâce à `sw.js`. Android/Chrome : bouton « Installer l'application » dans le menu ou sur l'écran de connexion ; iPhone : Safari → Partager → Sur l'écran d'accueil. Test : `node tests/pwa.js`. Prérequis : HTTPS (Vercel) — le service worker ne s'active pas en `file://`.
+
 **Agro** : `agro.html` — ERP avicole inspiré d'AviNest Pro, même style que Livraison (fichier unique, PIN, rôles). Détail, comptes de démo et limites : `docs/agro-avinest.md`. Tests : `node tests/recette-agro.js`.
 
 **Transport — V1 (cahier des charges Angel's & Co Transport)** : `transport.html` — contrats de recette et de location (avenants, résiliation, changement de mode), échéances, encaissements au bureau (paiement partiel, anti-doublon, vérification mobile money), reçus, caisse et clôture, dépenses, comptabilité en partie double (journaux, extourne, lettrage, périodes, balance, grand livre), GPS (carte, historique, zones, quarantaine), maintenance, sinistres, portail chauffeur (P01–P07), droits par module et par action, audit, sauvegarde. Couverture et points à valider : `docs/transport-couverture.md`. Backend PostgreSQL / RLS : `supabase/`. Tests : `node tests/recette-transport.js` et `bash tests/recette-supabase.sh`. Démo : admin `1234` · directeur `0000` · flotte `1111` · caissier `2222` · comptable `3333` · contrôleur `4444` · chauffeurs `0001`–`0004`. L'interface fonctionne encore sur le stockage local (raccordement Supabase = étape suivante).
