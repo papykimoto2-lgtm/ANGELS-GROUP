@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
-<title>ANGEL'S &amp; CO Transport</title>
+<title>ANGEL'S &amp; CO Transport — Taxi communal</title>
 <style>
 :root{--b:#c2410c;--b2:#7c2d12;--bg:#faf5f1;--card:#fff;--tx:#2a1a12;--mu:#7a6a60;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#ead9cd;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#ffe8db}
 @media(prefers-color-scheme:dark){:root{--bg:#1b110c;--card:#2a1b14;--tx:#f5e9e1;--mu:#b8a396;--bd:#4a3226;--okbg:#14351f;--wabg:#3d2e0c;--erbg:#431616;--bbg:#4a2615}}
@@ -58,65 +58,59 @@ label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8p
 <div id="app"></div>
 <script>
 "use strict";
-const KEY="angels_transport_v1",TVA=18;
+const KEY="angels_transport_v2";
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const fcfa=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const now=()=>new Date().toISOString(),today=()=>now().slice(0,10);
-const fd=d=>d?new Date(d).toLocaleDateString("fr-FR"):"—";
+const fd=d=>d?new Date(d).toLocaleDateString("fr-FR",{timeZone:"UTC"}):"—";
 const hashPin=(id,p)=>{let x=5381;for(const c of id+":"+p)x=((x<<5)+x+c.charCodeAt(0))|0;return x};
 const daysTo=d=>d?Math.ceil((new Date(d)-new Date(today()))/864e5):null;
 let S=null,ME=null,view="dashboard";
 
 /* ---------- Référentiels ---------- */
-const ST={devis:"Devis",planifie:"Planifié",en_cours:"En cours",livre:"Livré",facture:"Facturé",annule:"Annulé"};
-const STC={devis:"mu",planifie:"",en_cours:"wa",livre:"ok",facture:"ok",annule:"er"};
-const TR={devis:["planifie","annule"],planifie:["en_cours","annule"],en_cours:["livre","annule"],livre:["facture"],facture:[],annule:[]};
-const VST={disponible:"Disponible",en_mission:"En mission",maintenance:"En maintenance",hors_service:"Hors service"};
-const ROLES={admin:"Administrateur",direction:"Direction",exploitation:"Exploitation",comptable:"Comptable",chauffeur:"Chauffeur"};
+const VST={actif:"En service",immobilise:"Immobilisé (panne)",fourriere:"En fourrière",hors_service:"Hors service"};
+const ROLES={admin:"Administrateur",direction:"Direction",exploitation:"Exploitation",comptable:"Caisse / Comptable",chauffeur:"Chauffeur"};
 const NAV=[
  {v:"dashboard",l:"Tableau de bord",i:"📊",g:"Pilotage",r:["admin","direction","exploitation","comptable"]},
- {v:"mes",l:"Mes missions",i:"🧭",g:"Pilotage",r:["chauffeur"]},
- {v:"ots",l:"Ordres de transport",i:"📄",g:"Exploitation",r:["admin","exploitation","direction"]},
- {v:"clients",l:"Clients",i:"👥",g:"Exploitation",r:["admin","exploitation","comptable"]},
- {v:"vehicules",l:"Véhicules",i:"🚚",g:"Flotte",r:["admin","exploitation","direction"]},
+ {v:"mes",l:"Mon versement",i:"🧭",g:"Pilotage",r:["chauffeur"]},
+ {v:"versements",l:"Versements du jour",i:"💵",g:"Caisse",r:["admin","direction","exploitation","comptable"]},
+ {v:"frais",l:"Frais & amendes",i:"🧾",g:"Caisse",r:["admin","exploitation","comptable"]},
+ {v:"lignes",l:"Lignes & tarifs",i:"🛣️",g:"Exploitation",r:["admin","exploitation","direction"]},
+ {v:"vehicules",l:"Taxis",i:"🚕",g:"Flotte",r:["admin","exploitation","direction"]},
  {v:"chauffeurs",l:"Chauffeurs",i:"🧑‍✈️",g:"Flotte",r:["admin","exploitation","direction"]},
  {v:"carburant",l:"Carburant",i:"⛽",g:"Flotte",r:["admin","exploitation","comptable"]},
- {v:"entretiens",l:"Maintenance",i:"🔧",g:"Flotte",r:["admin","exploitation"]},
- {v:"depenses",l:"Frais de route",i:"🧾",g:"Argent",r:["admin","exploitation","comptable","chauffeur"]},
- {v:"factures",l:"Facturation",i:"💰",g:"Argent",r:["admin","direction","comptable"]},
- {v:"renta",l:"Rentabilité",i:"📈",g:"Argent",r:["admin","direction","comptable"]},
+ {v:"entretiens",l:"Pannes & entretien",i:"🔧",g:"Flotte",r:["admin","exploitation"]},
+ {v:"renta",l:"Rentabilité",i:"📈",g:"Pilotage",r:["admin","direction","comptable"]},
  {v:"users",l:"Utilisateurs & audit",i:"🛡️",g:"Administration",r:["admin"]}
 ];
 
 /* ---------- Données ---------- */
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){alert("Stockage plein ou indisponible.")}};
 const audit=(a,d)=>{S.audit.unshift({t:now(),u:ME?ME.nom:"système",a,d:d||""});S.audit.length=Math.min(S.audit.length,500)};
-const seq=(k,pref)=>{S.seq[k]=(S.seq[k]||0)+1;return pref+"-"+new Date().getFullYear()+"-"+String(S.seq[k]).padStart(4,"0")};
+const seq=(k,pref)=>{S.seq[k]=(S.seq[k]||0)+1;return pref+"-"+new Date().getFullYear()+"-"+String(S.seq[k]).padStart(5,"0")};
 function seed(){
  const d=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10);
- S={seq:{},audit:[],users:[],clients:[],vehicules:[],chauffeurs:[],ots:[],carburant:[],entretiens:[],depenses:[],factures:[],paiements:[]};
+ S={seq:{},audit:[],users:[],lignes:[],vehicules:[],chauffeurs:[],versements:[],recus:[],carburant:[],entretiens:[],frais:[]};
  const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u);return u};
- mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Exploitation","exploitation","1111");mkU("Comptable","comptable","2222");
- const mkV=(im,ty,ma,cap,km,ass,vis)=>{const v={id:uid("v"),immat:im,type:ty,marque:ma,capacite:cap,km,statut:"disponible",assurance_fin:ass,visite_fin:vis,prochain_km:km+5000};S.vehicules.push(v);return v};
- const v1=mkV("1234 AB 01","Camion benne","Renault",18,120400,d(200),d(15)),v2=mkV("5678 CD 01","Semi-remorque","Mercedes",32,210800,d(12),d(120)),v3=mkV("9012 EF 01","Fourgon","Toyota",3,64500,d(300),d(300));
- const mkC=(nom,tel,pin)=>{const u=mkU(nom,"chauffeur",pin);const c={id:uid("ch"),user_id:u.id,nom,tel,permis_no:"P"+pin,permis_fin:d(400),statut:"actif"};S.chauffeurs.push(c);return c};
- const c1=mkC("Moussa Koné","0707000001","0001"),c2=mkC("Yao Kouassi","0707000002","0002");
- const mkK=(nom,tel,adr)=>{const c={id:uid("c"),nom,tel,adresse:adr};S.clients.push(c);return c};
- const k1=mkK("SIFCA Négoce","0102030405","Abidjan, Zone 4"),k2=mkK("Ets Diallo & Fils","0506070809","Bouaké");
- const mkO=(c,v,ch,dep,arr,km,tarif,st)=>{S.ots.push({id:uid("o"),numero:seq("ot","OT"),date:today(),client_id:c.id,nature:"marchandises",depart:dep,arrivee:arr,vehicule_id:v.id,chauffeur_id:ch.id,km_prevu:km,km_reel:st==="livre"?km:0,tarif,avance:20000,statut:st,notes:"",hist:[{t:now(),s:st,u:"système"}]})};
- mkO(k1,v1,c1,"Abidjan","Yamoussoukro",240,350000,"livre");mkO(k2,v2,c2,"Abidjan","Bouaké",350,520000,"en_cours");mkO(k1,v3,c1,"Abidjan","San-Pédro",370,300000,"planifie");
- S.carburant.push({id:uid("f"),date:today(),vehicule_id:v1.id,litres:90,montant:85500,km:120400});
- S.entretiens.push({id:uid("e"),date:today(),vehicule_id:v2.id,type:"Vidange + filtres",cout:95000,km:210000,prochain_km:220000});
+ mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Exploitation","exploitation","1111");mkU("Caisse","comptable","2222");
+ const mkL=(nom,dep,arr,t)=>{const l={id:uid("l"),nom,depart:dep,arrivee:arr,tarif_place:t,places:4};S.lignes.push(l);return l};
+ const l1=mkL("Yopougon – Adjamé","Yopougon Siporex","Adjamé Liberté",300),l2=mkL("Cocody Angré – Riviera","Angré 8e tranche","Riviera Palmeraie",200);
+ const mkC=(nom,tel,pin)=>{const u=mkU(nom,"chauffeur",pin);const c={id:uid("ch"),user_id:u.id,nom,tel,permis_no:"P"+pin,permis_fin:d(400),cni:"",caution:50000};S.chauffeurs.push(c);return c};
+ const c1=mkC("Moussa Koné","0707000001","0001"),c2=mkC("Yao Kouassi","0707000002","0002"),c3=mkC("Issouf Traoré","0707000003","0003");
+ const mkV=(im,ma,l,c,vj,km,ass,vis,pat)=>{const v={id:uid("v"),immat:im,marque:ma,places:4,ligne_id:l.id,chauffeur_id:c.id,versement_jour:vj,repos:"dimanche",carb_charge:"chauffeur",statut:"actif",km,prochain_km:km+5000,assurance_fin:ass,visite_fin:vis,patente_fin:pat};S.vehicules.push(v);return v};
+ mkV("1234 AB 01","Toyota Corolla",l1,c1,15000,184000,d(200),d(15),d(300));mkV("5678 CD 01","Hyundai Accent",l1,c2,14000,152500,d(12),d(120),d(300));mkV("9012 EF 01","Kia Rio",l2,c3,12000,98700,d(300),d(300),d(300));
+ S.entretiens.push({id:uid("e"),date:today(),vehicule_id:S.vehicules[1].id,type:"Vidange + filtres",cout:35000,km:152000,prochain_km:157000,jours_immo:0});
  save();
 }
 function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed()}
 const by=(arr,id)=>arr.find(x=>x.id===id);
-const cli=id=>(by(S.clients,id)||{}).nom||"—",veh=id=>(by(S.vehicules,id)||{}).immat||"—",chf=id=>(by(S.chauffeurs,id)||{}).nom||"—";
+const lig=id=>(by(S.lignes,id)||{}).nom||"—",veh=id=>(by(S.vehicules,id)||{}).immat||"—",chf=id=>(by(S.chauffeurs,id)||{}).nom||"—";
 const total=(arr,k)=>arr.reduce((s,x)=>s+(+x[k]||0),0);
-const paye=f=>S.paiements.filter(p=>p.facture_id===f.id).reduce((s,p)=>s+p.montant,0);
-const solde=f=>f.ttc-paye(f);
+const reste=x=>Math.max(0,x.du-x.verse);
+const stv=x=>x.du===0?["Dispensé","mu"]:x.verse>=x.du?["Payé","ok"]:x.verse>0?["Partiel","wa"]:["Impayé","er"];
+const soldeChf=id=>total(S.versements.filter(x=>x.chauffeur_id===id).map(x=>({r:reste(x)})),"r");
 
 /* ---------- UI de base ---------- */
 const can=v=>NAV.find(n=>n.v===v&&n.r.includes(ME.role));
@@ -141,91 +135,100 @@ const dateBadge=d=>{const n=daysTo(d);return n==null?"—":badge(fd(d),n<0?"er":
 function alertes(){
  const a=[];
  S.vehicules.forEach(v=>{
-  [["assurance_fin","Assurance"],["visite_fin","Visite technique"]].forEach(([k,l])=>{const n=daysTo(v[k]);if(n!=null&&n<=30)a.push([n<0,`${l} ${n<0?"expirée":"à renouveler (J-"+n+")"} : ${v.immat}`])});
+  [["assurance_fin","Assurance"],["visite_fin","Visite technique"],["patente_fin","Carte de transport"]].forEach(([k,l])=>{const n=daysTo(v[k]);if(n!=null&&n<=30)a.push([n<0,`${l} ${n<0?"expirée":"à renouveler (J-"+n+")"} : ${v.immat}`])});
   if(v.prochain_km&&v.km>=v.prochain_km-500)a.push([v.km>=v.prochain_km,`Entretien dû : ${v.immat} (${v.km} / ${v.prochain_km} km)`]);
+  if(v.statut!=="actif")a.push([false,`${VST[v.statut]} : ${v.immat}`]);
  });
- S.chauffeurs.forEach(c=>{const n=daysTo(c.permis_fin);if(n!=null&&n<=30)a.push([n<0,`Permis ${n<0?"expiré":"à renouveler (J-"+n+")"} : ${c.nom}`])});
- S.factures.forEach(f=>{if(solde(f)>0&&daysTo(f.echeance)<0)a.push([true,`Facture échue : ${f.numero} (${fcfa(solde(f))})`])});
+ S.chauffeurs.forEach(c=>{
+  const n=daysTo(c.permis_fin);if(n!=null&&n<=30)a.push([n<0,`Permis ${n<0?"expiré":"à renouveler (J-"+n+")"} : ${c.nom}`]);
+  const v=S.vehicules.find(x=>x.chauffeur_id===c.id),s=soldeChf(c.id);
+  if(v&&v.versement_jour&&s>=3*v.versement_jour)a.push([true,`Arriérés ${c.nom} : ${fcfa(s)} (${Math.floor(s/v.versement_jour)} jours)`]);
+ });
  return a;
 }
 
-/* ---------- Vues ---------- */
-const V={};
-V.dashboard=()=>{
- const mois=today().slice(0,7),ots=S.ots.filter(o=>o.statut!=="annule");
- const ca=total(ots.filter(o=>["livre","facture"].includes(o.statut)&&o.date.startsWith(mois)),"tarif");
- const imp=S.factures.reduce((s,f)=>s+Math.max(0,solde(f)),0);
- const al=alertes();
- return `<h1>Tableau de bord</h1><div class="grid">
- <div class="kpi"><div class="v">${S.ots.filter(o=>o.statut==="en_cours").length}</div><div class="l">Missions en cours</div></div>
- <div class="kpi"><div class="v">${S.ots.filter(o=>o.statut==="planifie").length}</div><div class="l">À démarrer</div></div>
- <div class="kpi o"><div class="v">${fcfa(ca)}</div><div class="l">CA du mois (HT)</div></div>
- <div class="kpi w"><div class="v">${fcfa(imp)}</div><div class="l">Impayés clients</div></div>
- <div class="kpi"><div class="v">${S.vehicules.filter(v=>v.statut==="disponible").length}/${S.vehicules.length}</div><div class="l">Véhicules disponibles</div></div>
- <div class="kpi ${al.length?"e":"o"}"><div class="v">${al.length}</div><div class="l">Alertes</div></div></div>
- <h2>Alertes</h2>${al.length?al.map(x=>`<div class="al ${x[0]?"er":""}">${esc(x[1])}</div>`).join(""):'<div class="card mu">Aucune alerte.</div>'}`;
-};
-function otForm(o){
- const sel=(arr,f)=>[["","—"],...arr.map(x=>[x.id,f(x)])];
- form(o?"Modifier l'ordre "+o.numero:"Nouvel ordre de transport",[
-  {k:"date",l:"Date",t:"date",req:1},{k:"client_id",l:"Client",t:"select",o:sel(S.clients,c=>c.nom),req:1},
-  {k:"nature",l:"Nature",t:"select",o:[["marchandises","Marchandises"],["personnes","Personnes"]]},
-  {k:"depart",l:"Départ",req:1},{k:"arrivee",l:"Arrivée",req:1},
-  {k:"vehicule_id",l:"Véhicule",t:"select",o:sel(S.vehicules,v=>v.immat+" · "+v.type)},
-  {k:"chauffeur_id",l:"Chauffeur",t:"select",o:sel(S.chauffeurs,c=>c.nom)},
-  {k:"km_prevu",l:"Km prévus",t:"number"},{k:"tarif",l:"Tarif HT (F)",t:"number",req:1},{k:"avance",l:"Avance chauffeur (F)",t:"number"},
-  {k:"notes",l:"Notes",t:"area"}],o||{date:today()},d=>{
-  if(!d.client_id)return alert("Client requis."),false;
-  if(d.vehicule_id&&S.ots.some(x=>x.id!==(o&&o.id)&&x.vehicule_id===d.vehicule_id&&x.statut==="en_cours"))return alert("Véhicule déjà en mission."),false;
-  if(o){Object.assign(o,d);audit("OT modifié",o.numero)}
-  else{const n={id:uid("o"),numero:seq("ot","OT"),statut:"devis",km_reel:0,hist:[{t:now(),s:"devis",u:ME.nom}],...d};S.ots.unshift(n);audit("OT créé",n.numero)}
+/* ---------- Versements ---------- */
+function genererJour(d){
+ let n=0;
+ S.vehicules.forEach(v=>{
+  if(v.statut!=="actif"||!v.chauffeur_id||!(v.versement_jour>0))return;
+  if(v.repos==="dimanche"&&new Date(d).getUTCDay()===0)return;
+  if(S.versements.some(x=>x.vehicule_id===v.id&&x.date===d))return;
+  S.versements.push({id:uid("vs"),date:d,vehicule_id:v.id,chauffeur_id:v.chauffeur_id,du:v.versement_jour,verse:0});n++;
+ });
+ audit("Versements générés",d+" ("+n+")");save();return n;
+}
+function encaisser(x){
+ form("Encaissement — "+chf(x.chauffeur_id)+" · "+fd(x.date),[{k:"montant",l:"Montant reçu (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["mobile","Mobile Money"],["virement","Virement"]]}],{montant:reste(x)},d=>{
+  if(d.montant<=0||d.montant>reste(x))return alert("Montant invalide (reste "+fcfa(reste(x))+")."),false;
+  const r={id:uid("r"),numero:seq("rc","RV"),versement_id:x.id,date:today(),montant:d.montant,mode:d.mode,par:ME.nom};
+  S.recus.push(r);x.verse+=d.montant;audit("Encaissement",r.numero+" "+d.montant+" F");setTimeout(()=>recu(r),0);
  });
 }
-function setStatut(o,s){
- if(!TR[o.statut].includes(s))return;
- if(s==="planifie"&&(!o.vehicule_id||!o.chauffeur_id))return alert("Affecter véhicule et chauffeur d'abord.");
- if(s==="en_cours"){
-  if(S.ots.some(x=>x.id!==o.id&&x.statut==="en_cours"&&(x.vehicule_id===o.vehicule_id||x.chauffeur_id===o.chauffeur_id)))return alert("Véhicule ou chauffeur déjà en mission.");
-  const v=by(S.vehicules,o.vehicule_id);if(v)v.statut="en_mission";
- }
- if(s==="livre"){
-  const k=+prompt("Km réels du trajet ?",o.km_prevu||0);if(!(k>=0))return;
-  o.km_reel=k;const v=by(S.vehicules,o.vehicule_id);if(v){v.km+=k;v.statut="disponible"}
- }
- if(s==="annule"&&o.statut==="en_cours"){const v=by(S.vehicules,o.vehicule_id);if(v)v.statut="disponible"}
- if(s==="annule"&&!confirm("Annuler cet ordre ?"))return;
- o.statut=s;o.hist.push({t:now(),s,u:ME.nom});audit("OT "+ST[s],o.numero);save();render();
+function recu(r){
+ const x=by(S.versements,r.versement_id)||{},v=by(S.vehicules,x.vehicule_id)||{};
+ modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <h1>REÇU DE VERSEMENT ${esc(r.numero)}</h1><p><b>ANGEL'S &amp; CO TRANSPORT — Taxi communal</b></p>
+ <p>Date : ${fd(r.date)}<br>Chauffeur : <b>${esc(chf(x.chauffeur_id))}</b><br>Taxi : ${esc(v.immat)} · Ligne : ${esc(lig(v.ligne_id))}<br>Versement du : ${fd(x.date)}</p>
+ <p>Montant reçu : <b>${fcfa(r.montant)}</b> (${esc(r.mode)})<br>Dû du jour : ${fcfa(x.du)} · Déjà versé : ${fcfa(x.verse)} · Reste : <b>${fcfa(reste(x))}</b><br>Solde total chauffeur : <b>${fcfa(soldeChf(x.chauffeur_id))}</b></p><p class="mu sm">Encaissé par ${esc(r.par)}</p>`);
 }
-V.ots=()=>{
- const f=window._f||"";const rows=S.ots.filter(o=>!f||o.statut===f).map(o=>tr([esc(o.numero),fd(o.date),esc(cli(o.client_id)),esc(o.depart+" → "+o.arrivee),esc(veh(o.vehicule_id)),esc(chf(o.chauffeur_id)),fcfa(o.tarif),badge(ST[o.statut],STC[o.statut]),
-  `<div class="flex">${TR[o.statut].map(s=>`<button class="btn sm ${s==="annule"?"er":""}" data-st="${o.id}:${s}">${esc(ST[s])}</button>`).join("")}${["devis","planifie"].includes(o.statut)?`<button class="btn sm ghost" data-ed="${o.id}">✏️</button>`:""}</div>`]));
- return `<div class="between"><h1>Ordres de transport</h1><div class="flex"><select id="flt" style="width:auto"><option value="">Tous</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${f===k?"selected":""}>${v}</option>`).join("")}</select><button class="btn" id="new">+ Nouvel ordre</button><button class="btn ghost" id="exp">CSV</button></div></div>`+
- table(["N°","Date","Client","Trajet","Véhicule","Chauffeur","Tarif HT","Statut","Actions"],rows,"Aucun ordre.");
+
+const V={};
+V.versements=()=>{
+ const d=window._d||today(),rows=S.versements.filter(x=>x.date===d);
+ return `<div class="between"><h1>Versements</h1><div class="flex"><input id="vd" type="date" value="${d}" style="width:auto"><button class="btn" id="gen">Générer les versements du jour</button><button class="btn ghost" data-csv="versements">CSV</button></div></div>
+ <div class="grid" style="margin-bottom:14px"><div class="kpi"><div class="v">${fcfa(total(rows,"du"))}</div><div class="l">Attendu</div></div><div class="kpi o"><div class="v">${fcfa(total(rows,"verse"))}</div><div class="l">Encaissé</div></div><div class="kpi e"><div class="v">${fcfa(rows.reduce((s,x)=>s+reste(x),0))}</div><div class="l">Reste à encaisser</div></div></div>`+
+ table(["Taxi","Chauffeur","Ligne","Dû","Versé","Reste","État","Solde total","Actions"],rows.map(x=>{const v=by(S.vehicules,x.vehicule_id)||{},[t,c]=stv(x);return tr([esc(v.immat),esc(chf(x.chauffeur_id)),esc(lig(v.ligne_id)),fcfa(x.du),fcfa(x.verse),fcfa(reste(x)),badge(t,c),fcfa(soldeChf(x.chauffeur_id)),
+  `<div class="flex">${reste(x)>0?`<button class="btn sm ok" data-enc="${x.id}">Encaisser</button>`:""}${reste(x)>0&&["admin","direction","exploitation"].includes(ME.role)?`<button class="btn sm ghost" data-disp="${x.id}">Dispenser</button>`:""}${S.recus.some(r=>r.versement_id===x.id)?`<button class="btn sm ghost" data-rc="${x.id}">🖨</button>`:""}</div>`])}),"Aucun versement ce jour — cliquer sur « Générer ».")+
+ `<h2>Chauffeurs avec arriérés</h2>`+table(["Chauffeur","Taxi","Arriérés"],S.chauffeurs.filter(c=>soldeChf(c.id)>0).map(c=>tr([esc(c.nom),esc((S.vehicules.find(v=>v.chauffeur_id===c.id)||{}).immat||"—"),`<b style="color:var(--er)">${fcfa(soldeChf(c.id))}</b>`])),"Aucun arriéré.");
 };
-function crud(key,title,cols,fields,mk,extra){
+V.dashboard=()=>{
+ const d=today(),j=S.versements.filter(x=>x.date===d),al=alertes(),mois=S.versements.filter(x=>x.date.startsWith(d.slice(0,7)));
+ return `<h1>Tableau de bord</h1><div class="grid">
+ <div class="kpi"><div class="v">${S.vehicules.filter(v=>v.statut==="actif").length}/${S.vehicules.length}</div><div class="l">Taxis en service</div></div>
+ <div class="kpi o"><div class="v">${fcfa(total(j,"verse"))}</div><div class="l">Encaissé aujourd'hui</div></div>
+ <div class="kpi w"><div class="v">${fcfa(j.reduce((s,x)=>s+reste(x),0))}</div><div class="l">Reste à encaisser aujourd'hui</div></div>
+ <div class="kpi o"><div class="v">${fcfa(total(mois,"verse"))}</div><div class="l">Encaissé ce mois</div></div>
+ <div class="kpi e"><div class="v">${fcfa(S.versements.reduce((s,x)=>s+reste(x),0))}</div><div class="l">Arriérés totaux</div></div>
+ <div class="kpi ${al.length?"e":"o"}"><div class="v">${al.length}</div><div class="l">Alertes</div></div></div>
+ ${j.length?"":'<div class="al">Versements du jour non générés — menu « Versements du jour ».</div>'}
+ <h2>Alertes</h2>${al.length?al.map(x=>`<div class="al ${x[0]?"er":""}">${esc(x[1])}</div>`).join(""):'<div class="card mu">Aucune alerte.</div>'}`;
+};
+V.mes=()=>{
+ const me=S.chauffeurs.find(c=>c.user_id===ME.id);if(!me)return "<h1>Mon versement</h1><div class='card'>Profil chauffeur introuvable.</div>";
+ const v=S.vehicules.find(x=>x.chauffeur_id===me.id)||{},rows=S.versements.filter(x=>x.chauffeur_id===me.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30),j=rows.find(x=>x.date===today());
+ return `<h1>Mon versement</h1><div class="grid"><div class="kpi"><div class="v">${esc(v.immat||"—")}</div><div class="l">Mon taxi · ${esc(lig(v.ligne_id))}</div></div>
+ <div class="kpi"><div class="v">${fcfa(v.versement_jour)}</div><div class="l">Versement par jour</div></div>
+ <div class="kpi ${j&&reste(j)?"w":"o"}"><div class="v">${j?fcfa(reste(j)):"—"}</div><div class="l">Reste aujourd'hui</div></div>
+ <div class="kpi ${soldeChf(me.id)?"e":"o"}"><div class="v">${fcfa(soldeChf(me.id))}</div><div class="l">Mes arriérés</div></div></div>
+ <h2>Historique</h2>`+table(["Date","Dû","Versé","État"],rows.map(x=>{const[t,c]=stv(x);return tr([fd(x.date),fcfa(x.du),fcfa(x.verse),badge(t,c)])}),"Aucun versement.");
+};
+function crud(key,title,cols,fields){
  V[key]=()=>`<div class="between"><h1>${title}</h1><div class="flex"><button class="btn" data-add="${key}">+ Ajouter</button><button class="btn ghost" data-csv="${key}">CSV</button></div></div>`+
   table([...cols.map(c=>c[0]),"Actions"],S[key].map(x=>tr([...cols.map(c=>c[1](x)),`<button class="btn sm ghost" data-edit="${key}:${x.id}">✏️</button>`])),"Aucune donnée.");
- CR[key]={fields,mk,cols,title};
+ CR[key]={fields,cols,title};
 }
 const CR={};
-const VSEL=()=>[["","—"],...S.vehicules.map(v=>[v.id,v.immat])];
-crud("clients","Clients",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Adresse",x=>esc(x.adresse)],["Facturé",x=>fcfa(total(S.factures.filter(f=>f.client_id===x.id),"ttc"))]],
- ()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"},{k:"adresse",l:"Adresse"}],"c");
-crud("vehicules","Véhicules",[["Immat.",x=>esc(x.immat)],["Type",x=>esc(x.type+" · "+x.marque)],["Cap. (t)",x=>x.capacite],["Km",x=>x.km.toLocaleString("fr-FR")],["Statut",x=>badge(VST[x.statut],x.statut==="disponible"?"ok":x.statut==="hors_service"?"er":"wa")],["Assurance",x=>dateBadge(x.assurance_fin)],["Visite",x=>dateBadge(x.visite_fin)]],
- ()=>[{k:"immat",l:"Immatriculation",req:1},{k:"type",l:"Type",t:"select",o:["Camion benne","Semi-remorque","Fourgon","Pick-up","Bus","Autre"].map(x=>[x,x])},{k:"marque",l:"Marque"},{k:"capacite",l:"Capacité (t)",t:"number"},{k:"km",l:"Kilométrage",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"},{k:"statut",l:"Statut",t:"select",o:Object.entries(VST)},{k:"assurance_fin",l:"Fin assurance",t:"date"},{k:"visite_fin",l:"Fin visite technique",t:"date"}],"v");
-crud("chauffeurs","Chauffeurs",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Permis",x=>esc(x.permis_no)],["Fin permis",x=>dateBadge(x.permis_fin)],["Missions",x=>S.ots.filter(o=>o.chauffeur_id===x.id&&["livre","facture"].includes(o.statut)).length]],
- ()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"},{k:"permis_no",l:"N° permis"},{k:"permis_fin",l:"Fin de validité du permis",t:"date"},{k:"pin",l:"PIN de connexion (4 chiffres)"}],"ch");
-crud("carburant","Carburant",[["Date",x=>fd(x.date)],["Véhicule",x=>esc(veh(x.vehicule_id))],["Litres",x=>x.litres],["Montant",x=>fcfa(x.montant)],["Km",x=>x.km],["F/L",x=>x.litres?Math.round(x.montant/x.litres):"—"]],
- ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Véhicule",t:"select",o:VSEL(),req:1},{k:"litres",l:"Litres",t:"number",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"km",l:"Km compteur",t:"number"}],"f");
-crud("entretiens","Maintenance",[["Date",x=>fd(x.date)],["Véhicule",x=>esc(veh(x.vehicule_id))],["Type",x=>esc(x.type)],["Coût",x=>fcfa(x.cout)],["Km",x=>x.km],["Prochain",x=>x.prochain_km||"—"]],
- ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Véhicule",t:"select",o:VSEL(),req:1},{k:"type",l:"Nature (vidange, pneus…)",req:1},{k:"cout",l:"Coût (F)",t:"number",req:1},{k:"km",l:"Km",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"}],"e");
-crud("depenses","Frais de route",[["Date",x=>fd(x.date)],["Ordre",x=>esc((by(S.ots,x.ot_id)||{}).numero||"—")],["Type",x=>esc(x.type)],["Montant",x=>fcfa(x.montant)],["Saisi par",x=>esc(x.par||"")]],
- ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"ot_id",l:"Ordre de transport",t:"select",o:[["","—"],...S.ots.filter(o=>o.statut==="en_cours"||ME.role!=="chauffeur").map(o=>[o.id,o.numero+" "+o.depart+"→"+o.arrivee])],req:1},{k:"type",l:"Type",t:"select",o:["Péage","Repas","Parking","Amende","Réparation de route","Autre"].map(x=>[x,x])},{k:"montant",l:"Montant (F)",t:"number",req:1}],"d");
-const ST_ID={clients:"c",vehicules:"v",chauffeurs:"ch",carburant:"f",entretiens:"e",depenses:"d"};
+const VSEL=()=>[["","—"],...S.vehicules.map(v=>[v.immat?v.id:v.id,v.immat])];
+const SEL=(arr,f)=>[["","—"],...arr.map(x=>[x.id,f(x)])];
+crud("lignes","Lignes & tarifs",[["Ligne",x=>esc(x.nom)],["Départ → Arrivée",x=>esc(x.depart+" → "+x.arrivee)],["Tarif / place",x=>fcfa(x.tarif_place)],["Places",x=>x.places],["Taxis",x=>S.vehicules.filter(v=>v.ligne_id===x.id).length]],
+ ()=>[{k:"nom",l:"Nom de la ligne",req:1},{k:"depart",l:"Départ"},{k:"arrivee",l:"Arrivée"},{k:"tarif_place",l:"Tarif par place (F)",t:"number",req:1},{k:"places",l:"Places par taxi",t:"number"}]);
+crud("vehicules","Taxis",[["Immat.",x=>esc(x.immat)],["Marque",x=>esc(x.marque)],["Ligne",x=>esc(lig(x.ligne_id))],["Chauffeur",x=>esc(chf(x.chauffeur_id))],["Versement/jour",x=>fcfa(x.versement_jour)],["Statut",x=>badge(VST[x.statut],x.statut==="actif"?"ok":x.statut==="hors_service"?"er":"wa")],["Assurance",x=>dateBadge(x.assurance_fin)],["Visite",x=>dateBadge(x.visite_fin)],["Carte transp.",x=>dateBadge(x.patente_fin)]],
+ ()=>[{k:"immat",l:"Immatriculation",req:1},{k:"marque",l:"Marque / modèle"},{k:"places",l:"Places",t:"number"},{k:"ligne_id",l:"Ligne",t:"select",o:SEL(S.lignes,l=>l.nom)},{k:"chauffeur_id",l:"Chauffeur affecté",t:"select",o:SEL(S.chauffeurs,c=>c.nom)},{k:"versement_jour",l:"Versement journalier (F)",t:"number"},{k:"repos",l:"Jour de repos",t:"select",o:[["dimanche","Dimanche"],["aucun","Aucun"]]},{k:"carb_charge",l:"Carburant à la charge de",t:"select",o:[["chauffeur","Chauffeur"],["proprietaire","Propriétaire"]]},{k:"statut",l:"Statut",t:"select",o:Object.entries(VST)},{k:"km",l:"Kilométrage",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"},{k:"assurance_fin",l:"Fin assurance",t:"date"},{k:"visite_fin",l:"Fin visite technique",t:"date"},{k:"patente_fin",l:"Fin carte de transport",t:"date"}]);
+crud("chauffeurs","Chauffeurs",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Taxi",x=>esc((S.vehicules.find(v=>v.chauffeur_id===x.id)||{}).immat||"—")],["Permis",x=>esc(x.permis_no)],["Fin permis",x=>dateBadge(x.permis_fin)],["Caution",x=>fcfa(x.caution)],["Arriérés",x=>soldeChf(x.id)?`<b style="color:var(--er)">${fcfa(soldeChf(x.id))}</b>`:"—"]],
+ ()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"},{k:"cni",l:"N° CNI"},{k:"permis_no",l:"N° permis"},{k:"permis_fin",l:"Fin de validité du permis",t:"date"},{k:"caution",l:"Caution versée (F)",t:"number"},{k:"pin",l:"PIN de connexion (4 chiffres)"}]);
+crud("carburant","Carburant",[["Date",x=>fd(x.date)],["Taxi",x=>esc(veh(x.vehicule_id))],["Litres",x=>x.litres],["Montant",x=>fcfa(x.montant)],["Km",x=>x.km]],
+ ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Taxi",t:"select",o:VSEL(),req:1},{k:"litres",l:"Litres",t:"number",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"km",l:"Km compteur",t:"number"}]);
+crud("entretiens","Pannes & entretien",[["Date",x=>fd(x.date)],["Taxi",x=>esc(veh(x.vehicule_id))],["Nature",x=>esc(x.type)],["Coût",x=>fcfa(x.cout)],["Jours immobilisé",x=>x.jours_immo||0],["Manque à gagner",x=>fcfa((x.jours_immo||0)*((by(S.vehicules,x.vehicule_id)||{}).versement_jour||0))],["Km",x=>x.km]],
+ ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Taxi",t:"select",o:VSEL(),req:1},{k:"type",l:"Nature (vidange, pneus, moteur…)",req:1},{k:"cout",l:"Coût (F)",t:"number",req:1},{k:"jours_immo",l:"Jours d'immobilisation",t:"number"},{k:"immobilise",l:"Mettre le taxi à l'arrêt maintenant ?",t:"select",o:[["non","Non"],["oui","Oui (stoppe les versements)"]]},{k:"km",l:"Km",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"}]);
+crud("frais","Frais & amendes",[["Date",x=>fd(x.date)],["Taxi",x=>esc(veh(x.vehicule_id))],["Type",x=>esc(x.type)],["Montant",x=>fcfa(x.montant)],["À la charge de",x=>esc(x.a_charge==="chauffeur"?"Chauffeur":"Propriétaire")]],
+ ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Taxi",t:"select",o:VSEL(),req:1},{k:"type",l:"Type",t:"select",o:["Amende","Police / contrôle","Fourrière","Parking","Syndicat / gare","Autre"].map(x=>[x,x])},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"a_charge",l:"À la charge de",t:"select",o:[["proprietaire","Propriétaire"],["chauffeur","Chauffeur"]]}]);
+const PFX={lignes:"l",vehicules:"v",chauffeurs:"ch",carburant:"f",entretiens:"e",frais:"d"};
 function addEdit(key,x){
  const c=CR[key];
- form((x?"Modifier — ":"Ajouter — ")+c.title,c.fields(),x||{date:today(),statut:"disponible",type:undefined},d=>{
-  if(key==="depenses"&&!d.ot_id)return alert("Ordre requis."),false;
+ form((x?"Modifier — ":"Ajouter — ")+c.title,c.fields(),x||{date:today(),statut:"actif",repos:"dimanche",carb_charge:"chauffeur",a_charge:"proprietaire",places:4,immobilise:"non"},d=>{
+  if(key==="vehicules"&&d.chauffeur_id&&S.vehicules.some(v=>v.id!==(x&&x.id)&&v.chauffeur_id===d.chauffeur_id))return alert("Ce chauffeur conduit déjà un autre taxi."),false;
+  if(key==="vehicules"&&S.vehicules.some(v=>v.id!==(x&&x.id)&&v.immat.toLowerCase()===d.immat.toLowerCase()))return alert("Immatriculation déjà enregistrée."),false;
   if(key==="chauffeurs"){
    if(d.pin&&!/^\d{4}$/.test(d.pin))return alert("PIN : 4 chiffres."),false;
    let u=x&&by(S.users,x.user_id);
@@ -233,57 +236,23 @@ function addEdit(key,x){
    if(u){u.nom=d.nom;if(d.pin)u.h=hashPin(u.id,d.pin)}
    delete d.pin;
   }
-  if(key==="entretiens"){const v=by(S.vehicules,d.vehicule_id);if(v&&d.prochain_km)v.prochain_km=d.prochain_km}
+  if(key==="entretiens"){const v=by(S.vehicules,d.vehicule_id);if(v){if(d.prochain_km)v.prochain_km=d.prochain_km;if(d.immobilise==="oui")v.statut="immobilise"}delete d.immobilise}
   if(key==="carburant"){const v=by(S.vehicules,d.vehicule_id);if(v&&d.km>v.km)v.km=d.km}
-  if(key==="depenses")d.par=ME.nom;
-  if(x)Object.assign(x,d);else S[key].unshift({id:uid(ST_ID[key]),...d});
+  if(x)Object.assign(x,d);else S[key].unshift({id:uid(PFX[key]),...d});
   audit((x?"Modifié ":"Ajouté ")+key,d.nom||d.immat||d.type||"");
  });
 }
-V.mes=()=>{
- const me=S.chauffeurs.find(c=>c.user_id===ME.id);if(!me)return "<h1>Mes missions</h1><div class='card'>Profil chauffeur introuvable.</div>";
- const rows=S.ots.filter(o=>o.chauffeur_id===me.id&&["planifie","en_cours"].includes(o.statut));
- return `<h1>Mes missions</h1>`+(rows.length?rows.map(o=>`<div class="card"><div class="between"><b>${esc(o.numero)}</b>${badge(ST[o.statut],STC[o.statut])}</div>
-  <div style="font-size:16px;margin:6px 0">${esc(o.depart)} → ${esc(o.arrivee)}</div><div class="mu sm">Client : ${esc(cli(o.client_id))} · Véhicule : ${esc(veh(o.vehicule_id))} · Avance : ${fcfa(o.avance)}</div>
-  <div class="flex" style="margin-top:10px">${TR[o.statut].filter(s=>s!=="annule").map(s=>`<button class="btn" data-st="${o.id}:${s}">${s==="en_cours"?"▶ Démarrer":"✔ Terminer"}</button>`).join("")}<button class="btn ghost" data-add="depenses">+ Frais</button></div></div>`).join(""):'<div class="card mu">Aucune mission.</div>');
-};
-V.factures=()=>{
- const rows=S.factures.map(f=>{const s=solde(f);return tr([esc(f.numero),fd(f.date),esc(cli(f.client_id)),fcfa(f.ht),fcfa(f.ttc),fcfa(paye(f)),badge(s<=0?"Soldée":daysTo(f.echeance)<0?"Échue":"À payer",s<=0?"ok":daysTo(f.echeance)<0?"er":"wa"),
-  `<div class="flex"><button class="btn sm ghost" data-print="${f.id}">🖨</button>${s>0?`<button class="btn sm ok" data-pay="${f.id}">Encaisser</button>`:""}</div>`])});
- return `<div class="between"><h1>Facturation</h1><div class="flex"><button class="btn" id="nfac">+ Facturer des ordres livrés</button><button class="btn ghost" data-csv="factures">CSV</button></div></div>`+
- table(["N°","Date","Client","HT","TTC","Encaissé","État","Actions"],rows,"Aucune facture.");
-};
-function factureForm(){
- const dispo=S.ots.filter(o=>o.statut==="livre");if(!dispo.length)return alert("Aucun ordre livré à facturer.");
- const m=modal(`<h2 style="margin-top:0">Facturer</h2><form><label>Ordres livrés (même client)</label>${dispo.map(o=>`<label style="display:flex;gap:8px;align-items:center;color:var(--tx);font-weight:400"><input type="checkbox" style="width:auto" value="${o.id}">${esc(o.numero)} · ${esc(cli(o.client_id))} · ${fcfa(o.tarif)}</label>`).join("")}
- <label>Échéance (jours)</label><input name="j" type="number" value="30" min="0"><label>TVA (%)</label><input name="tva" type="number" value="${TVA}" min="0" max="30"><div class="flex" style="margin-top:12px"><button class="btn">Créer</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
- $("[data-x]",m).onclick=()=>m.remove();
- $("form",m).onsubmit=e=>{e.preventDefault();const f=e.target,ids=[...f.querySelectorAll("input[type=checkbox]:checked")].map(i=>i.value),os=ids.map(i=>by(S.ots,i));
-  if(!os.length)return alert("Sélectionner un ordre.");if(new Set(os.map(o=>o.client_id)).size>1)return alert("Un seul client par facture.");
-  const ht=total(os,"tarif"),tva=Math.round(ht*(+f.tva.value||0)/100),fa={id:uid("fa"),numero:seq("fa","FAC"),date:today(),echeance:new Date(Date.now()+(+f.j.value||0)*864e5).toISOString().slice(0,10),client_id:os[0].client_id,ot_ids:ids,ht,tva,ttc:ht+tva};
-  S.factures.unshift(fa);os.forEach(o=>{o.statut="facture";o.hist.push({t:now(),s:"facture",u:ME.nom})});audit("Facture créée",fa.numero);save();m.remove();render()};
-}
-function payForm(f){form("Encaissement "+f.numero,[{k:"date",l:"Date",t:"date",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["virement","Virement"],["mobile","Mobile Money"],["cheque","Chèque"]]}],{date:today(),montant:solde(f)},d=>{
- if(d.montant<=0||d.montant>solde(f))return alert("Montant invalide (max "+fcfa(solde(f))+")."),false;
- S.paiements.push({id:uid("p"),facture_id:f.id,...d});audit("Encaissement",f.numero+" "+d.montant)})}
-function printFacture(f){
- const c=by(S.clients,f.client_id)||{},os=f.ot_ids.map(i=>by(S.ots,i)).filter(Boolean);
- modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer / PDF</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
- <h1>FACTURE ${esc(f.numero)}</h1><p><b>ANGEL'S &amp; CO TRANSPORT</b><br>Date : ${fd(f.date)} · Échéance : ${fd(f.echeance)}</p><p><b>Client :</b> ${esc(c.nom)}<br>${esc(c.adresse||"")} ${esc(c.tel||"")}</p>
- ${table(["Ordre","Trajet","Véhicule","Montant HT"],os.map(o=>tr([esc(o.numero),esc(o.depart+" → "+o.arrivee),esc(veh(o.vehicule_id)),fcfa(o.tarif)])))}
- <p style="text-align:right">Total HT : <b>${fcfa(f.ht)}</b><br>TVA : ${fcfa(f.tva)}<br>Net à payer TTC : <b>${fcfa(f.ttc)}</b><br>Déjà réglé : ${fcfa(paye(f))} · Reste : <b>${fcfa(solde(f))}</b></p>`);
-}
-V.renta=()=>{
- const rows=S.vehicules.map(v=>{
-  const rev=total(S.ots.filter(o=>o.vehicule_id===v.id&&["livre","facture"].includes(o.statut)),"tarif"),
-   car=total(S.carburant.filter(x=>x.vehicule_id===v.id),"montant"),ent=total(S.entretiens.filter(x=>x.vehicule_id===v.id),"cout"),
-   dep=total(S.depenses.filter(x=>(by(S.ots,x.ot_id)||{}).vehicule_id===v.id),"montant"),m=rev-car-ent-dep;
-  const km=total(S.ots.filter(o=>o.vehicule_id===v.id&&["livre","facture"].includes(o.statut)),"km_reel");
-  return {v,rev,car,ent,dep,m,km};});
- return `<div class="between"><h1>Rentabilité par véhicule</h1><button class="btn ghost" data-csv="renta">CSV</button></div>`+
- table(["Véhicule","Produits HT","Carburant","Maintenance","Frais route","Marge","Km","Marge / km"],rows.map(r=>tr([esc(r.v.immat),fcfa(r.rev),fcfa(r.car),fcfa(r.ent),fcfa(r.dep),`<b style="color:var(--${r.m>=0?"ok":"er"})">${fcfa(r.m)}</b>`,r.km,r.km?fcfa(r.m/r.km):"—"])))+
- `<p class="mu sm">Hors amortissement, assurance et salaires. Comptabilité SYSCOHADA : à raccorder (comptes 706 prestations de services, 6051 carburant, 6241 entretien).</p>`;
-};
+const rentaRows=()=>S.vehicules.map(v=>{
+ const vs=S.versements.filter(x=>x.vehicule_id===v.id),rev=total(vs,"verse"),
+  car=v.carb_charge==="proprietaire"?total(S.carburant.filter(x=>x.vehicule_id===v.id),"montant"):0,
+  ent=total(S.entretiens.filter(x=>x.vehicule_id===v.id),"cout"),
+  fr=total(S.frais.filter(x=>x.vehicule_id===v.id&&x.a_charge!=="chauffeur"),"montant"),
+  imm=S.entretiens.filter(x=>x.vehicule_id===v.id).reduce((s,x)=>s+(x.jours_immo||0),0),
+  arr=vs.reduce((s,x)=>s+reste(x),0);
+ return {v,rev,car,ent,fr,imm,arr,m:rev-car-ent-fr};});
+V.renta=()=>`<div class="between"><h1>Rentabilité par taxi</h1><button class="btn ghost" data-csv="renta">CSV</button></div>`+
+ table(["Taxi","Versements encaissés","Carburant (prop.)","Entretien","Frais & amendes","Marge nette","Jours immobilisés","Arriérés"],rentaRows().map(r=>tr([esc(r.v.immat),fcfa(r.rev),fcfa(r.car),fcfa(r.ent),fcfa(r.fr),`<b style="color:var(--${r.m>=0?"ok":"er"})">${fcfa(r.m)}</b>`,r.imm,fcfa(r.arr)])))+
+ `<p class="mu sm">Hors amortissement, assurance et taxes. Comptabilité SYSCOHADA à raccorder : versements = 706 prestations de services, carburant 6051, entretien 6241, amendes 6581.</p>`;
 V.users=()=>"<h1>Utilisateurs</h1>"+table(["Nom","Rôle","État",""],S.users.map(u=>tr([esc(u.nom),esc(ROLES[u.role]),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),u.id===ME.id?"":`<button class="btn sm ghost" data-tg="${u.id}">${u.actif?"Désactiver":"Activer"}</button>`])))+
  `<h2>Journal d'audit</h2>`+table(["Date","Utilisateur","Action","Détail"],S.audit.slice(0,100).map(a=>tr([new Date(a.t).toLocaleString("fr-FR"),esc(a.u),esc(a.a),esc(a.d)])));
 
@@ -291,8 +260,8 @@ V.users=()=>"<h1>Utilisateurs</h1>"+table(["Nom","Rôle","État",""],S.users.map
 function render(){
  const app=$("#app");
  if(!ME){
-  app.innerHTML=`<div class="login card"><h1>🚚 ANGEL'S &amp; CO Transport</h1><form id="lf"><label>Compte</label><select name="u">${S.users.filter(u=>u.actif).map(u=>`<option value="${u.id}">${esc(u.nom)} (${esc(ROLES[u.role])})</option>`).join("")}</select><label>PIN</label><input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Connexion</button></form><p class="mu sm">Démo — admin 1234 · direction 0000 · exploitation 1111 · comptable 2222 · chauffeurs 0001 / 0002</p><p><a href="hub.html">← Hub</a></p></div>`;
-  $("#lf").onsubmit=e=>{e.preventDefault();const f=e.target,u=by(S.users,f.u.value),k="try_"+u.id;
+  app.innerHTML=`<div class="login card"><h1>🚕 ANGEL'S &amp; CO Transport</h1><p class="mu sm" style="margin-top:-8px">Taxi communal</p><form id="lf"><label>Compte</label><select name="u">${S.users.filter(u=>u.actif).map(u=>`<option value="${u.id}">${esc(u.nom)} (${esc(ROLES[u.role])})</option>`).join("")}</select><label>PIN</label><input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Connexion</button></form><p class="mu sm">Démo — admin 1234 · direction 0000 · exploitation 1111 · caisse 2222 · chauffeurs 0001 / 0002 / 0003</p><p><a href="hub.html">← Hub</a></p></div>`;
+  $("#lf").onsubmit=e=>{e.preventDefault();const f=e.target,u=by(S.users,f.u.value);
    S.tries=S.tries||{};const t=S.tries[u.id]||{n:0,until:0};
    if(Date.now()<t.until){$("#le").textContent="Compte bloqué 1 min.";return}
    if(u.h===hashPin(u.id,f.p.value)){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("tr_me",u.id)}catch(x){}view=can("dashboard")?"dashboard":"mes";audit("Connexion");save();render()}
@@ -301,31 +270,28 @@ function render(){
  }
  if(!can(view))view=NAV.find(n=>n.r.includes(ME.role)).v;
  let g="",nav="";NAV.filter(n=>n.r.includes(ME.role)).forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-v="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
- app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🚚 ANGEL'S &amp; CO<small>Transport</small></div>${nav}<a href="hub.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br><a id="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" id="bg">☰ Menu</button>${V[view]()}</main></div>`;
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🚕 ANGEL'S &amp; CO<small>Transport · Taxi communal</small></div>${nav}<a href="hub.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br><a id="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" id="bg">☰ Menu</button>${V[view]()}</main></div>`;
 }
 document.addEventListener("click",e=>{
- const t=e.target.closest("[data-v],[data-st],[data-ed],[data-add],[data-edit],[data-csv],[data-print],[data-pay],[data-tg],#new,#exp,#nfac,#out,#bg");if(!t||!S)return;
+ const t=e.target.closest("[data-v],[data-add],[data-edit],[data-csv],[data-enc],[data-disp],[data-rc],[data-tg],#gen,#out,#bg");if(!t||!S)return;
  if(t.id==="out"){audit("Déconnexion");ME=null;try{sessionStorage.removeItem("tr_me")}catch(x){}save();return render()}
  if(t.id==="bg")return $("#sb").classList.toggle("open");
  if(t.dataset.v){view=t.dataset.v;return render()}
  if(!ME)return;
- if(t.dataset.st){const[i,s]=t.dataset.st.split(":"),o=by(S.ots,i);if(o&&(ME.role!=="chauffeur"||(by(S.chauffeurs,o.chauffeur_id)||{}).user_id===ME.id))setStatut(o,s);return}
- if(t.id==="new")return otForm();
- if(t.dataset.ed)return otForm(by(S.ots,t.dataset.ed));
+ if(t.id==="gen"){const n=genererJour(window._d||today());alert(n+" versement(s) généré(s).");return render()}
+ if(t.dataset.enc)return encaisser(by(S.versements,t.dataset.enc));
+ if(t.dataset.disp){const x=by(S.versements,t.dataset.disp);if(x&&confirm("Dispenser le reste ("+fcfa(reste(x))+") ?")){x.du=x.verse;x.dispense=true;audit("Versement dispensé",chf(x.chauffeur_id)+" "+x.date);save();render()}return}
+ if(t.dataset.rc){const r=S.recus.filter(r=>r.versement_id===t.dataset.rc).pop();return r&&recu(r)}
  if(t.dataset.add)return addEdit(t.dataset.add);
  if(t.dataset.edit){const[k,i]=t.dataset.edit.split(":");return addEdit(k,by(S[k],i))}
- if(t.id==="nfac")return factureForm();
- if(t.dataset.pay)return payForm(by(S.factures,t.dataset.pay));
- if(t.dataset.print)return printFacture(by(S.factures,t.dataset.print));
  if(t.dataset.tg){const u=by(S.users,t.dataset.tg);u.actif=!u.actif;audit("Compte "+(u.actif?"activé":"désactivé"),u.nom);save();return render()}
- if(t.id==="exp")return csv("ordres",["N°","Date","Client","Départ","Arrivée","Tarif","Statut"],S.ots.map(o=>[o.numero,o.date,cli(o.client_id),o.depart,o.arrivee,o.tarif,ST[o.statut]]));
  if(t.dataset.csv){const k=t.dataset.csv;
-  if(k==="factures")return csv(k,["N°","Date","Client","HT","TVA","TTC","Encaissé"],S.factures.map(f=>[f.numero,f.date,cli(f.client_id),f.ht,f.tva,f.ttc,paye(f)]));
-  if(k==="renta")return csv(k,["Véhicule","Produits","Carburant","Maintenance","Frais route","Marge"],S.vehicules.map(v=>{const rev=total(S.ots.filter(o=>o.vehicule_id===v.id&&["livre","facture"].includes(o.statut)),"tarif"),car=total(S.carburant.filter(x=>x.vehicule_id===v.id),"montant"),en=total(S.entretiens.filter(x=>x.vehicule_id===v.id),"cout"),dp=total(S.depenses.filter(x=>(by(S.ots,x.ot_id)||{}).vehicule_id===v.id),"montant");return[v.immat,rev,car,en,dp,rev-car-en-dp]}));
+  if(k==="versements")return csv(k,["Date","Taxi","Chauffeur","Dû","Versé","Reste"],S.versements.map(x=>[x.date,veh(x.vehicule_id),chf(x.chauffeur_id),x.du,x.verse,reste(x)]));
+  if(k==="renta")return csv(k,["Taxi","Versements","Carburant","Entretien","Frais","Marge","Jours immobilisés","Arriérés"],rentaRows().map(r=>[r.v.immat,r.rev,r.car,r.ent,r.fr,r.m,r.imm,r.arr]));
   const c=CR[k];return csv(k,c.cols.map(x=>x[0]),S[k].map(x=>c.cols.map(col=>col[1](x).replace(/<[^>]*>/g,"").replace(/&amp;/g,"&"))))}
 });
-document.addEventListener("change",e=>{if(e.target.id==="flt"){window._f=e.target.value;render()}});
-window.addEventListener("storage",e=>{if(e.key===KEY&&!document.querySelector(".md")){try{S=JSON.parse(e.newValue);if(ME)ME=by(S.users,ME.id)||null;if(ME&&!ME.actif)ME=null;render()}catch(x){}}});
+document.addEventListener("change",e=>{if(e.target.id==="vd"&&e.target.value){window._d=e.target.value;render()}});
+window.addEventListener("storage",e=>{if(e.key===KEY&&e.newValue&&!document.querySelector(".md")){try{S=JSON.parse(e.newValue);if(ME)ME=by(S.users,ME.id)||null;if(ME&&!ME.actif)ME=null;render()}catch(x){}}});
 load();
 try{const id=sessionStorage.getItem("tr_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
 render();

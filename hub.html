@@ -49,9 +49,9 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
   <span class="btn">Ouvrir l'ERP</span>
  </a>
  <a class="card" style="--c:var(--g2)" href="transport.html">
-  <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Transport de marchandises et de personnes : flotte, trajets, chauffeurs, maintenance.</p>
+  <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Taxi communal : lignes, taxis, chauffeurs, versements journaliers, arriérés, rentabilité.</p>
   <span class="badge">Actif</span>
-  <div class="kp"><div><b id="t-ot">—</b><span>Missions en cours</span></div><div><b id="t-v">—</b><span>Véhicules</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
+  <div class="kp"><div><b id="t-ot">—</b><span>Encaissé du jour</span></div><div><b id="t-v">—</b><span>Taxis</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
  <div class="card" style="--c:var(--g3)">
@@ -83,8 +83,8 @@ try{
  }
 }catch(e){}
 try{
- const T=JSON.parse(localStorage.getItem("angels_transport_v1")||"null");
- if(T){$("t-ot").textContent=(T.ots||[]).filter(o=>o.statut==="en_cours").length;$("t-v").textContent=(T.vehicules||[]).length;$("t-c").textContent=(T.chauffeurs||[]).length}
+ const T=JSON.parse(localStorage.getItem("angels_transport_v2")||"null");
+ if(T){$("t-ot").textContent=((T.versements||[]).filter(x=>x.date===new Date().toISOString().slice(0,10)).reduce((s,x)=>s+(+x.verse||0),0)).toLocaleString("fr-FR")+" F";$("t-v").textContent=(T.vehicules||[]).length;$("t-c").textContent=(T.chauffeurs||[]).length}
 }catch(e){}
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

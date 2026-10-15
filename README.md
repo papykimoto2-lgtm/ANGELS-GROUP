@@ -2,7 +2,7 @@
 
 **Hub groupe** : `/hub` (`hub.html`) — Angel's Distributions et Angel's & Co Transport (actifs), Angel's Agro (à venir).
 
-**Transport** : `transport.html` — ordres de transport (devis → planifié → en cours → livré → facturé), véhicules (assurance, visite, entretien), chauffeurs (permis, app mobile), carburant, maintenance, frais de route, facturation TVA + encaissements, rentabilité par véhicule, audit. Démo : admin `1234` · direction `0000` · exploitation `1111` · comptable `2222` · chauffeurs `0001`/`0002`. Mêmes limites que Distributions : données locales, droits côté interface seulement, backend Supabase requis avant production.
+**Transport — Taxi communal** : `transport.html` — lignes et tarifs, taxis (assurance, visite, carte de transport, entretien), chauffeurs (permis, caution), versements journaliers (génération du jour, encaissement partiel, reçu numéroté, dispense, arriérés), carburant, pannes et immobilisations (manque à gagner), frais et amendes, rentabilité par taxi, audit. Démo : admin `1234` · direction `0000` · exploitation `1111` · caisse `2222` · chauffeurs `0001`/`0002`/`0003`. Mêmes limites que Distributions : données locales, droits côté interface seulement, backend Supabase requis avant production.
 
 Fichier unique : `index.html` (aucune dépendance, ouvrable par double-clic ; la carte OpenStreetMap demande Internet).
 
