@@ -48,12 +48,12 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
   <div class="kp"><div><b id="k-cmd">—</b><span>Commandes en cours</span></div><div><b id="k-liv">—</b><span>Livrées</span></div><div><b id="k-lvr">—</b><span>Livreurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <div class="card" style="--c:var(--g2)">
+ <a class="card" style="--c:var(--g2)" href="transport.html">
   <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Transport de marchandises et de personnes : flotte, trajets, chauffeurs, maintenance.</p>
-  <span class="badge soon">En préparation</span>
-  <div class="kp"><div><b>—</b><span>Trajets</span></div><div><b>—</b><span>Véhicules</span></div><div><b>—</b><span>Chauffeurs</span></div></div>
-  <span class="btn" aria-disabled="true">Bientôt disponible</span>
- </div>
+  <span class="badge">Actif</span>
+  <div class="kp"><div><b id="t-ot">—</b><span>Missions en cours</span></div><div><b id="t-v">—</b><span>Véhicules</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
+  <span class="btn">Ouvrir l'ERP</span>
+ </a>
  <div class="card" style="--c:var(--g3)">
   <div class="ic">🌾</div><h2>Angel's Agro</h2><p>Production et négoce agricole : parcelles, campagnes, récoltes, stocks, ventes.</p>
   <span class="badge soon">En préparation</span>
@@ -81,6 +81,10 @@ try{
   $("k-liv").textContent=(S.commandes||[]).filter(c=>c.statut==="livree").length;
   $("k-lvr").textContent=(S.livreurs||[]).length;
  }
+}catch(e){}
+try{
+ const T=JSON.parse(localStorage.getItem("angels_transport_v1")||"null");
+ if(T){$("t-ot").textContent=(T.ots||[]).filter(o=>o.statut==="en_cours").length;$("t-v").textContent=(T.vehicules||[]).length;$("t-c").textContent=(T.chauffeurs||[]).length}
 }catch(e){}
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

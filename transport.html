@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#9a3412">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>ANGEL'S &amp; CO Transport</title>
+<style>
+:root{--b:#c2410c;--b2:#7c2d12;--bg:#faf5f1;--card:#fff;--tx:#2a1a12;--mu:#7a6a60;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#ead9cd;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#ffe8db}
+@media(prefers-color-scheme:dark){:root{--bg:#1b110c;--card:#2a1b14;--tx:#f5e9e1;--mu:#b8a396;--bd:#4a3226;--okbg:#14351f;--wabg:#3d2e0c;--erbg:#431616;--bbg:#4a2615}}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+button,input,select,textarea{font:inherit;color:inherit}
+.hide{display:none!important}
+.shell{display:flex;min-height:100vh}
+aside{width:230px;background:var(--b2);color:#fff;padding:14px 10px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
+aside .brand{font-weight:800;font-size:16px;padding:6px 8px 12px;line-height:1.2}
+aside .brand small{display:block;font-weight:400;opacity:.7;font-size:11px}
+aside .gt{margin:12px 10px 3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.55;font-weight:700}
+aside a{display:flex;gap:8px;align-items:center;padding:9px 10px;border-radius:8px;color:#ffe8db;cursor:pointer;text-decoration:none}
+aside a:hover{background:rgba(255,255,255,.12)}aside a.on{background:#fff;color:var(--b2);font-weight:700}
+aside .who{margin-top:14px;padding:10px;border-top:1px solid rgba(255,255,255,.2);font-size:12px}
+main{flex:1;padding:18px;min-width:0}
+h1{font-size:20px;margin:0 0 14px}h2{font-size:15px;margin:18px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.kpi .v{font-size:22px;font-weight:800}.kpi .l{color:var(--mu);font-size:12px}
+.kpi.w .v{color:var(--wa)}.kpi.e .v{color:var(--er)}.kpi.o .v{color:var(--ok)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 9px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mu);white-space:nowrap}
+.tw{overflow:auto;border:1px solid var(--bd);border-radius:12px;background:var(--card);margin-bottom:14px}
+.btn{background:var(--b);color:#fff;border:0;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;min-height:38px}
+.btn:hover{background:var(--b2)}.btn.sm{padding:4px 9px;font-size:12px;min-height:0}
+.btn.ghost{background:transparent;color:var(--b);border:1px solid var(--b)}
+.btn.ok{background:var(--ok)}.btn.er{background:var(--er)}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;background:var(--bbg);color:var(--b);white-space:nowrap}
+.badge.ok{background:var(--okbg);color:var(--ok)}.badge.wa{background:var(--wabg);color:var(--wa)}.badge.er{background:var(--erbg);color:var(--er)}.badge.mu{background:var(--bd);color:var(--mu)}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.between{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mu{color:var(--mu)}.sm{font-size:12px}
+input,select,textarea{border:1px solid var(--bd);border-radius:8px;padding:8px 9px;background:var(--card);width:100%}
+label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8px}
+.fg{display:grid;gap:0 10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.md{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:12px}
+.md>div{background:var(--card);border-radius:14px;padding:16px;max-width:760px;width:100%;max-height:92vh;overflow:auto}
+.login{max-width:340px;margin:12vh auto;padding:0 16px}
+.burger{display:none}
+.al{padding:8px 10px;border-radius:8px;margin-bottom:6px;background:var(--wabg);color:var(--wa);font-weight:600}.al.er{background:var(--erbg);color:var(--er)}
+@media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
+@media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none;box-shadow:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const KEY="angels_transport_v1",TVA=18;
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const fcfa=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+const now=()=>new Date().toISOString(),today=()=>now().slice(0,10);
+const fd=d=>d?new Date(d).toLocaleDateString("fr-FR"):"—";
+const hashPin=(id,p)=>{let x=5381;for(const c of id+":"+p)x=((x<<5)+x+c.charCodeAt(0))|0;return x};
+const daysTo=d=>d?Math.ceil((new Date(d)-new Date(today()))/864e5):null;
+let S=null,ME=null,view="dashboard";
+
+/* ---------- Référentiels ---------- */
+const ST={devis:"Devis",planifie:"Planifié",en_cours:"En cours",livre:"Livré",facture:"Facturé",annule:"Annulé"};
+const STC={devis:"mu",planifie:"",en_cours:"wa",livre:"ok",facture:"ok",annule:"er"};
+const TR={devis:["planifie","annule"],planifie:["en_cours","annule"],en_cours:["livre","annule"],livre:["facture"],facture:[],annule:[]};
+const VST={disponible:"Disponible",en_mission:"En mission",maintenance:"En maintenance",hors_service:"Hors service"};
+const ROLES={admin:"Administrateur",direction:"Direction",exploitation:"Exploitation",comptable:"Comptable",chauffeur:"Chauffeur"};
+const NAV=[
+ {v:"dashboard",l:"Tableau de bord",i:"📊",g:"Pilotage",r:["admin","direction","exploitation","comptable"]},
+ {v:"mes",l:"Mes missions",i:"🧭",g:"Pilotage",r:["chauffeur"]},
+ {v:"ots",l:"Ordres de transport",i:"📄",g:"Exploitation",r:["admin","exploitation","direction"]},
+ {v:"clients",l:"Clients",i:"👥",g:"Exploitation",r:["admin","exploitation","comptable"]},
+ {v:"vehicules",l:"Véhicules",i:"🚚",g:"Flotte",r:["admin","exploitation","direction"]},
+ {v:"chauffeurs",l:"Chauffeurs",i:"🧑‍✈️",g:"Flotte",r:["admin","exploitation","direction"]},
+ {v:"carburant",l:"Carburant",i:"⛽",g:"Flotte",r:["admin","exploitation","comptable"]},
+ {v:"entretiens",l:"Maintenance",i:"🔧",g:"Flotte",r:["admin","exploitation"]},
+ {v:"depenses",l:"Frais de route",i:"🧾",g:"Argent",r:["admin","exploitation","comptable","chauffeur"]},
+ {v:"factures",l:"Facturation",i:"💰",g:"Argent",r:["admin","direction","comptable"]},
+ {v:"renta",l:"Rentabilité",i:"📈",g:"Argent",r:["admin","direction","comptable"]},
+ {v:"users",l:"Utilisateurs & audit",i:"🛡️",g:"Administration",r:["admin"]}
+];
+
+/* ---------- Données ---------- */
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){alert("Stockage plein ou indisponible.")}};
+const audit=(a,d)=>{S.audit.unshift({t:now(),u:ME?ME.nom:"système",a,d:d||""});S.audit.length=Math.min(S.audit.length,500)};
+const seq=(k,pref)=>{S.seq[k]=(S.seq[k]||0)+1;return pref+"-"+new Date().getFullYear()+"-"+String(S.seq[k]).padStart(4,"0")};
+function seed(){
+ const d=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10);
+ S={seq:{},audit:[],users:[],clients:[],vehicules:[],chauffeurs:[],ots:[],carburant:[],entretiens:[],depenses:[],factures:[],paiements:[]};
+ const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u);return u};
+ mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Exploitation","exploitation","1111");mkU("Comptable","comptable","2222");
+ const mkV=(im,ty,ma,cap,km,ass,vis)=>{const v={id:uid("v"),immat:im,type:ty,marque:ma,capacite:cap,km,statut:"disponible",assurance_fin:ass,visite_fin:vis,prochain_km:km+5000};S.vehicules.push(v);return v};
+ const v1=mkV("1234 AB 01","Camion benne","Renault",18,120400,d(200),d(15)),v2=mkV("5678 CD 01","Semi-remorque","Mercedes",32,210800,d(12),d(120)),v3=mkV("9012 EF 01","Fourgon","Toyota",3,64500,d(300),d(300));
+ const mkC=(nom,tel,pin)=>{const u=mkU(nom,"chauffeur",pin);const c={id:uid("ch"),user_id:u.id,nom,tel,permis_no:"P"+pin,permis_fin:d(400),statut:"actif"};S.chauffeurs.push(c);return c};
+ const c1=mkC("Moussa Koné","0707000001","0001"),c2=mkC("Yao Kouassi","0707000002","0002");
+ const mkK=(nom,tel,adr)=>{const c={id:uid("c"),nom,tel,adresse:adr};S.clients.push(c);return c};
+ const k1=mkK("SIFCA Négoce","0102030405","Abidjan, Zone 4"),k2=mkK("Ets Diallo & Fils","0506070809","Bouaké");
+ const mkO=(c,v,ch,dep,arr,km,tarif,st)=>{S.ots.push({id:uid("o"),numero:seq("ot","OT"),date:today(),client_id:c.id,nature:"marchandises",depart:dep,arrivee:arr,vehicule_id:v.id,chauffeur_id:ch.id,km_prevu:km,km_reel:st==="livre"?km:0,tarif,avance:20000,statut:st,notes:"",hist:[{t:now(),s:st,u:"système"}]})};
+ mkO(k1,v1,c1,"Abidjan","Yamoussoukro",240,350000,"livre");mkO(k2,v2,c2,"Abidjan","Bouaké",350,520000,"en_cours");mkO(k1,v3,c1,"Abidjan","San-Pédro",370,300000,"planifie");
+ S.carburant.push({id:uid("f"),date:today(),vehicule_id:v1.id,litres:90,montant:85500,km:120400});
+ S.entretiens.push({id:uid("e"),date:today(),vehicule_id:v2.id,type:"Vidange + filtres",cout:95000,km:210000,prochain_km:220000});
+ save();
+}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed()}
+const by=(arr,id)=>arr.find(x=>x.id===id);
+const cli=id=>(by(S.clients,id)||{}).nom||"—",veh=id=>(by(S.vehicules,id)||{}).immat||"—",chf=id=>(by(S.chauffeurs,id)||{}).nom||"—";
+const total=(arr,k)=>arr.reduce((s,x)=>s+(+x[k]||0),0);
+const paye=f=>S.paiements.filter(p=>p.facture_id===f.id).reduce((s,p)=>s+p.montant,0);
+const solde=f=>f.ttc-paye(f);
+
+/* ---------- UI de base ---------- */
+const can=v=>NAV.find(n=>n.v===v&&n.r.includes(ME.role));
+function modal(html){const m=document.createElement("div");m.className="md";m.innerHTML="<div>"+html+"</div>";m.addEventListener("mousedown",e=>{if(e.target===m)m.remove()});document.body.appendChild(m);return m}
+function form(title,fields,init,onSave){
+ const m=modal(`<h2 style="margin-top:0">${esc(title)}</h2><form class="fg">${fields.map(f=>`<div><label>${esc(f.l)}${f.req?" *":""}</label>${
+  f.t==="select"?`<select name="${f.k}">${f.o.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("")}</select>`:
+  f.t==="area"?`<textarea name="${f.k}" rows="2"></textarea>`:`<input name="${f.k}" type="${f.t||"text"}" ${f.t==="number"?'step="any" min="0"':""} ${f.req?"required":""} autocomplete="off">`}</div>`).join("")}
+  <div style="grid-column:1/-1" class="flex"><button class="btn">Enregistrer</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
+ const fm=$("form",m);fields.forEach(f=>{const e=fm.elements[f.k];if(e&&init&&init[f.k]!=null)e.value=init[f.k]});
+ $("[data-x]",m).onclick=()=>m.remove();
+ fm.onsubmit=e=>{e.preventDefault();const o={};fields.forEach(f=>{let v=fm.elements[f.k].value.trim();o[f.k]=f.t==="number"?(+v||0):v});if(onSave(o)!==false){m.remove();save();render()}};
+}
+function csv(name,head,rows){const q=v=>'"'+String(v??"").replace(/"/g,'""').replace(/^([=+\-@])/,"'$1")+'"';
+ const b=new Blob(["﻿"+[head,...rows].map(r=>r.map(q).join(";")).join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
+function table(cols,rows,empty){return `<div class="tw"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.join(""):`<tr><td colspan="${cols.length}" class="mu">${esc(empty||"Aucune donnée")}</td></tr>`}</tbody></table></div>`}
+const tr=cells=>"<tr>"+cells.map(c=>`<td>${c}</td>`).join("")+"</tr>";
+const dateBadge=d=>{const n=daysTo(d);return n==null?"—":badge(fd(d),n<0?"er":n<=30?"wa":"ok")};
+
+/* ---------- Alertes ---------- */
+function alertes(){
+ const a=[];
+ S.vehicules.forEach(v=>{
+  [["assurance_fin","Assurance"],["visite_fin","Visite technique"]].forEach(([k,l])=>{const n=daysTo(v[k]);if(n!=null&&n<=30)a.push([n<0,`${l} ${n<0?"expirée":"à renouveler (J-"+n+")"} : ${v.immat}`])});
+  if(v.prochain_km&&v.km>=v.prochain_km-500)a.push([v.km>=v.prochain_km,`Entretien dû : ${v.immat} (${v.km} / ${v.prochain_km} km)`]);
+ });
+ S.chauffeurs.forEach(c=>{const n=daysTo(c.permis_fin);if(n!=null&&n<=30)a.push([n<0,`Permis ${n<0?"expiré":"à renouveler (J-"+n+")"} : ${c.nom}`])});
+ S.factures.forEach(f=>{if(solde(f)>0&&daysTo(f.echeance)<0)a.push([true,`Facture échue : ${f.numero} (${fcfa(solde(f))})`])});
+ return a;
+}
+
+/* ---------- Vues ---------- */
+const V={};
+V.dashboard=()=>{
+ const mois=today().slice(0,7),ots=S.ots.filter(o=>o.statut!=="annule");
+ const ca=total(ots.filter(o=>["livre","facture"].includes(o.statut)&&o.date.startsWith(mois)),"tarif");
+ const imp=S.factures.reduce((s,f)=>s+Math.max(0,solde(f)),0);
+ const al=alertes();
+ return `<h1>Tableau de bord</h1><div class="grid">
+ <div class="kpi"><div class="v">${S.ots.filter(o=>o.statut==="en_cours").length}</div><div class="l">Missions en cours</div></div>
+ <div class="kpi"><div class="v">${S.ots.filter(o=>o.statut==="planifie").length}</div><div class="l">À démarrer</div></div>
+ <div class="kpi o"><div class="v">${fcfa(ca)}</div><div class="l">CA du mois (HT)</div></div>
+ <div class="kpi w"><div class="v">${fcfa(imp)}</div><div class="l">Impayés clients</div></div>
+ <div class="kpi"><div class="v">${S.vehicules.filter(v=>v.statut==="disponible").length}/${S.vehicules.length}</div><div class="l">Véhicules disponibles</div></div>
+ <div class="kpi ${al.length?"e":"o"}"><div class="v">${al.length}</div><div class="l">Alertes</div></div></div>
+ <h2>Alertes</h2>${al.length?al.map(x=>`<div class="al ${x[0]?"er":""}">${esc(x[1])}</div>`).join(""):'<div class="card mu">Aucune alerte.</div>'}`;
+};
+function otForm(o){
+ const sel=(arr,f)=>[["","—"],...arr.map(x=>[x.id,f(x)])];
+ form(o?"Modifier l'ordre "+o.numero:"Nouvel ordre de transport",[
+  {k:"date",l:"Date",t:"date",req:1},{k:"client_id",l:"Client",t:"select",o:sel(S.clients,c=>c.nom),req:1},
+  {k:"nature",l:"Nature",t:"select",o:[["marchandises","Marchandises"],["personnes","Personnes"]]},
+  {k:"depart",l:"Départ",req:1},{k:"arrivee",l:"Arrivée",req:1},
+  {k:"vehicule_id",l:"Véhicule",t:"select",o:sel(S.vehicules,v=>v.immat+" · "+v.type)},
+  {k:"chauffeur_id",l:"Chauffeur",t:"select",o:sel(S.chauffeurs,c=>c.nom)},
+  {k:"km_prevu",l:"Km prévus",t:"number"},{k:"tarif",l:"Tarif HT (F)",t:"number",req:1},{k:"avance",l:"Avance chauffeur (F)",t:"number"},
+  {k:"notes",l:"Notes",t:"area"}],o||{date:today()},d=>{
+  if(!d.client_id)return alert("Client requis."),false;
+  if(d.vehicule_id&&S.ots.some(x=>x.id!==(o&&o.id)&&x.vehicule_id===d.vehicule_id&&x.statut==="en_cours"))return alert("Véhicule déjà en mission."),false;
+  if(o){Object.assign(o,d);audit("OT modifié",o.numero)}
+  else{const n={id:uid("o"),numero:seq("ot","OT"),statut:"devis",km_reel:0,hist:[{t:now(),s:"devis",u:ME.nom}],...d};S.ots.unshift(n);audit("OT créé",n.numero)}
+ });
+}
+function setStatut(o,s){
+ if(!TR[o.statut].includes(s))return;
+ if(s==="planifie"&&(!o.vehicule_id||!o.chauffeur_id))return alert("Affecter véhicule et chauffeur d'abord.");
+ if(s==="en_cours"){
+  if(S.ots.some(x=>x.id!==o.id&&x.statut==="en_cours"&&(x.vehicule_id===o.vehicule_id||x.chauffeur_id===o.chauffeur_id)))return alert("Véhicule ou chauffeur déjà en mission.");
+  const v=by(S.vehicules,o.vehicule_id);if(v)v.statut="en_mission";
+ }
+ if(s==="livre"){
+  const k=+prompt("Km réels du trajet ?",o.km_prevu||0);if(!(k>=0))return;
+  o.km_reel=k;const v=by(S.vehicules,o.vehicule_id);if(v){v.km+=k;v.statut="disponible"}
+ }
+ if(s==="annule"&&o.statut==="en_cours"){const v=by(S.vehicules,o.vehicule_id);if(v)v.statut="disponible"}
+ if(s==="annule"&&!confirm("Annuler cet ordre ?"))return;
+ o.statut=s;o.hist.push({t:now(),s,u:ME.nom});audit("OT "+ST[s],o.numero);save();render();
+}
+V.ots=()=>{
+ const f=window._f||"";const rows=S.ots.filter(o=>!f||o.statut===f).map(o=>tr([esc(o.numero),fd(o.date),esc(cli(o.client_id)),esc(o.depart+" → "+o.arrivee),esc(veh(o.vehicule_id)),esc(chf(o.chauffeur_id)),fcfa(o.tarif),badge(ST[o.statut],STC[o.statut]),
+  `<div class="flex">${TR[o.statut].map(s=>`<button class="btn sm ${s==="annule"?"er":""}" data-st="${o.id}:${s}">${esc(ST[s])}</button>`).join("")}${["devis","planifie"].includes(o.statut)?`<button class="btn sm ghost" data-ed="${o.id}">✏️</button>`:""}</div>`]));
+ return `<div class="between"><h1>Ordres de transport</h1><div class="flex"><select id="flt" style="width:auto"><option value="">Tous</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${f===k?"selected":""}>${v}</option>`).join("")}</select><button class="btn" id="new">+ Nouvel ordre</button><button class="btn ghost" id="exp">CSV</button></div></div>`+
+ table(["N°","Date","Client","Trajet","Véhicule","Chauffeur","Tarif HT","Statut","Actions"],rows,"Aucun ordre.");
+};
+function crud(key,title,cols,fields,mk,extra){
+ V[key]=()=>`<div class="between"><h1>${title}</h1><div class="flex"><button class="btn" data-add="${key}">+ Ajouter</button><button class="btn ghost" data-csv="${key}">CSV</button></div></div>`+
+  table([...cols.map(c=>c[0]),"Actions"],S[key].map(x=>tr([...cols.map(c=>c[1](x)),`<button class="btn sm ghost" data-edit="${key}:${x.id}">✏️</button>`])),"Aucune donnée.");
+ CR[key]={fields,mk,cols,title};
+}
+const CR={};
+const VSEL=()=>[["","—"],...S.vehicules.map(v=>[v.id,v.immat])];
+crud("clients","Clients",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Adresse",x=>esc(x.adresse)],["Facturé",x=>fcfa(total(S.factures.filter(f=>f.client_id===x.id),"ttc"))]],
+ ()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"},{k:"adresse",l:"Adresse"}],"c");
+crud("vehicules","Véhicules",[["Immat.",x=>esc(x.immat)],["Type",x=>esc(x.type+" · "+x.marque)],["Cap. (t)",x=>x.capacite],["Km",x=>x.km.toLocaleString("fr-FR")],["Statut",x=>badge(VST[x.statut],x.statut==="disponible"?"ok":x.statut==="hors_service"?"er":"wa")],["Assurance",x=>dateBadge(x.assurance_fin)],["Visite",x=>dateBadge(x.visite_fin)]],
+ ()=>[{k:"immat",l:"Immatriculation",req:1},{k:"type",l:"Type",t:"select",o:["Camion benne","Semi-remorque","Fourgon","Pick-up","Bus","Autre"].map(x=>[x,x])},{k:"marque",l:"Marque"},{k:"capacite",l:"Capacité (t)",t:"number"},{k:"km",l:"Kilométrage",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"},{k:"statut",l:"Statut",t:"select",o:Object.entries(VST)},{k:"assurance_fin",l:"Fin assurance",t:"date"},{k:"visite_fin",l:"Fin visite technique",t:"date"}],"v");
+crud("chauffeurs","Chauffeurs",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Permis",x=>esc(x.permis_no)],["Fin permis",x=>dateBadge(x.permis_fin)],["Missions",x=>S.ots.filter(o=>o.chauffeur_id===x.id&&["livre","facture"].includes(o.statut)).length]],
+ ()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"},{k:"permis_no",l:"N° permis"},{k:"permis_fin",l:"Fin de validité du permis",t:"date"},{k:"pin",l:"PIN de connexion (4 chiffres)"}],"ch");
+crud("carburant","Carburant",[["Date",x=>fd(x.date)],["Véhicule",x=>esc(veh(x.vehicule_id))],["Litres",x=>x.litres],["Montant",x=>fcfa(x.montant)],["Km",x=>x.km],["F/L",x=>x.litres?Math.round(x.montant/x.litres):"—"]],
+ ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Véhicule",t:"select",o:VSEL(),req:1},{k:"litres",l:"Litres",t:"number",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"km",l:"Km compteur",t:"number"}],"f");
+crud("entretiens","Maintenance",[["Date",x=>fd(x.date)],["Véhicule",x=>esc(veh(x.vehicule_id))],["Type",x=>esc(x.type)],["Coût",x=>fcfa(x.cout)],["Km",x=>x.km],["Prochain",x=>x.prochain_km||"—"]],
+ ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"vehicule_id",l:"Véhicule",t:"select",o:VSEL(),req:1},{k:"type",l:"Nature (vidange, pneus…)",req:1},{k:"cout",l:"Coût (F)",t:"number",req:1},{k:"km",l:"Km",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"}],"e");
+crud("depenses","Frais de route",[["Date",x=>fd(x.date)],["Ordre",x=>esc((by(S.ots,x.ot_id)||{}).numero||"—")],["Type",x=>esc(x.type)],["Montant",x=>fcfa(x.montant)],["Saisi par",x=>esc(x.par||"")]],
+ ()=>[{k:"date",l:"Date",t:"date",req:1},{k:"ot_id",l:"Ordre de transport",t:"select",o:[["","—"],...S.ots.filter(o=>o.statut==="en_cours"||ME.role!=="chauffeur").map(o=>[o.id,o.numero+" "+o.depart+"→"+o.arrivee])],req:1},{k:"type",l:"Type",t:"select",o:["Péage","Repas","Parking","Amende","Réparation de route","Autre"].map(x=>[x,x])},{k:"montant",l:"Montant (F)",t:"number",req:1}],"d");
+const ST_ID={clients:"c",vehicules:"v",chauffeurs:"ch",carburant:"f",entretiens:"e",depenses:"d"};
+function addEdit(key,x){
+ const c=CR[key];
+ form((x?"Modifier — ":"Ajouter — ")+c.title,c.fields(),x||{date:today(),statut:"disponible",type:undefined},d=>{
+  if(key==="depenses"&&!d.ot_id)return alert("Ordre requis."),false;
+  if(key==="chauffeurs"){
+   if(d.pin&&!/^\d{4}$/.test(d.pin))return alert("PIN : 4 chiffres."),false;
+   let u=x&&by(S.users,x.user_id);
+   if(!u&&d.pin){u={id:uid("u"),nom:d.nom,role:"chauffeur",actif:true};S.users.push(u);d.user_id=u.id}
+   if(u){u.nom=d.nom;if(d.pin)u.h=hashPin(u.id,d.pin)}
+   delete d.pin;
+  }
+  if(key==="entretiens"){const v=by(S.vehicules,d.vehicule_id);if(v&&d.prochain_km)v.prochain_km=d.prochain_km}
+  if(key==="carburant"){const v=by(S.vehicules,d.vehicule_id);if(v&&d.km>v.km)v.km=d.km}
+  if(key==="depenses")d.par=ME.nom;
+  if(x)Object.assign(x,d);else S[key].unshift({id:uid(ST_ID[key]),...d});
+  audit((x?"Modifié ":"Ajouté ")+key,d.nom||d.immat||d.type||"");
+ });
+}
+V.mes=()=>{
+ const me=S.chauffeurs.find(c=>c.user_id===ME.id);if(!me)return "<h1>Mes missions</h1><div class='card'>Profil chauffeur introuvable.</div>";
+ const rows=S.ots.filter(o=>o.chauffeur_id===me.id&&["planifie","en_cours"].includes(o.statut));
+ return `<h1>Mes missions</h1>`+(rows.length?rows.map(o=>`<div class="card"><div class="between"><b>${esc(o.numero)}</b>${badge(ST[o.statut],STC[o.statut])}</div>
+  <div style="font-size:16px;margin:6px 0">${esc(o.depart)} → ${esc(o.arrivee)}</div><div class="mu sm">Client : ${esc(cli(o.client_id))} · Véhicule : ${esc(veh(o.vehicule_id))} · Avance : ${fcfa(o.avance)}</div>
+  <div class="flex" style="margin-top:10px">${TR[o.statut].filter(s=>s!=="annule").map(s=>`<button class="btn" data-st="${o.id}:${s}">${s==="en_cours"?"▶ Démarrer":"✔ Terminer"}</button>`).join("")}<button class="btn ghost" data-add="depenses">+ Frais</button></div></div>`).join(""):'<div class="card mu">Aucune mission.</div>');
+};
+V.factures=()=>{
+ const rows=S.factures.map(f=>{const s=solde(f);return tr([esc(f.numero),fd(f.date),esc(cli(f.client_id)),fcfa(f.ht),fcfa(f.ttc),fcfa(paye(f)),badge(s<=0?"Soldée":daysTo(f.echeance)<0?"Échue":"À payer",s<=0?"ok":daysTo(f.echeance)<0?"er":"wa"),
+  `<div class="flex"><button class="btn sm ghost" data-print="${f.id}">🖨</button>${s>0?`<button class="btn sm ok" data-pay="${f.id}">Encaisser</button>`:""}</div>`])});
+ return `<div class="between"><h1>Facturation</h1><div class="flex"><button class="btn" id="nfac">+ Facturer des ordres livrés</button><button class="btn ghost" data-csv="factures">CSV</button></div></div>`+
+ table(["N°","Date","Client","HT","TTC","Encaissé","État","Actions"],rows,"Aucune facture.");
+};
+function factureForm(){
+ const dispo=S.ots.filter(o=>o.statut==="livre");if(!dispo.length)return alert("Aucun ordre livré à facturer.");
+ const m=modal(`<h2 style="margin-top:0">Facturer</h2><form><label>Ordres livrés (même client)</label>${dispo.map(o=>`<label style="display:flex;gap:8px;align-items:center;color:var(--tx);font-weight:400"><input type="checkbox" style="width:auto" value="${o.id}">${esc(o.numero)} · ${esc(cli(o.client_id))} · ${fcfa(o.tarif)}</label>`).join("")}
+ <label>Échéance (jours)</label><input name="j" type="number" value="30" min="0"><label>TVA (%)</label><input name="tva" type="number" value="${TVA}" min="0" max="30"><div class="flex" style="margin-top:12px"><button class="btn">Créer</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
+ $("[data-x]",m).onclick=()=>m.remove();
+ $("form",m).onsubmit=e=>{e.preventDefault();const f=e.target,ids=[...f.querySelectorAll("input[type=checkbox]:checked")].map(i=>i.value),os=ids.map(i=>by(S.ots,i));
+  if(!os.length)return alert("Sélectionner un ordre.");if(new Set(os.map(o=>o.client_id)).size>1)return alert("Un seul client par facture.");
+  const ht=total(os,"tarif"),tva=Math.round(ht*(+f.tva.value||0)/100),fa={id:uid("fa"),numero:seq("fa","FAC"),date:today(),echeance:new Date(Date.now()+(+f.j.value||0)*864e5).toISOString().slice(0,10),client_id:os[0].client_id,ot_ids:ids,ht,tva,ttc:ht+tva};
+  S.factures.unshift(fa);os.forEach(o=>{o.statut="facture";o.hist.push({t:now(),s:"facture",u:ME.nom})});audit("Facture créée",fa.numero);save();m.remove();render()};
+}
+function payForm(f){form("Encaissement "+f.numero,[{k:"date",l:"Date",t:"date",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["virement","Virement"],["mobile","Mobile Money"],["cheque","Chèque"]]}],{date:today(),montant:solde(f)},d=>{
+ if(d.montant<=0||d.montant>solde(f))return alert("Montant invalide (max "+fcfa(solde(f))+")."),false;
+ S.paiements.push({id:uid("p"),facture_id:f.id,...d});audit("Encaissement",f.numero+" "+d.montant)})}
+function printFacture(f){
+ const c=by(S.clients,f.client_id)||{},os=f.ot_ids.map(i=>by(S.ots,i)).filter(Boolean);
+ modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer / PDF</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <h1>FACTURE ${esc(f.numero)}</h1><p><b>ANGEL'S &amp; CO TRANSPORT</b><br>Date : ${fd(f.date)} · Échéance : ${fd(f.echeance)}</p><p><b>Client :</b> ${esc(c.nom)}<br>${esc(c.adresse||"")} ${esc(c.tel||"")}</p>
+ ${table(["Ordre","Trajet","Véhicule","Montant HT"],os.map(o=>tr([esc(o.numero),esc(o.depart+" → "+o.arrivee),esc(veh(o.vehicule_id)),fcfa(o.tarif)])))}
+ <p style="text-align:right">Total HT : <b>${fcfa(f.ht)}</b><br>TVA : ${fcfa(f.tva)}<br>Net à payer TTC : <b>${fcfa(f.ttc)}</b><br>Déjà réglé : ${fcfa(paye(f))} · Reste : <b>${fcfa(solde(f))}</b></p>`);
+}
+V.renta=()=>{
+ const rows=S.vehicules.map(v=>{
+  const rev=total(S.ots.filter(o=>o.vehicule_id===v.id&&["livre","facture"].includes(o.statut)),"tarif"),
+   car=total(S.carburant.filter(x=>x.vehicule_id===v.id),"montant"),ent=total(S.entretiens.filter(x=>x.vehicule_id===v.id),"cout"),
+   dep=total(S.depenses.filter(x=>(by(S.ots,x.ot_id)||{}).vehicule_id===v.id),"montant"),m=rev-car-ent-dep;
+  const km=total(S.ots.filter(o=>o.vehicule_id===v.id&&["livre","facture"].includes(o.statut)),"km_reel");
+  return {v,rev,car,ent,dep,m,km};});
+ return `<div class="between"><h1>Rentabilité par véhicule</h1><button class="btn ghost" data-csv="renta">CSV</button></div>`+
+ table(["Véhicule","Produits HT","Carburant","Maintenance","Frais route","Marge","Km","Marge / km"],rows.map(r=>tr([esc(r.v.immat),fcfa(r.rev),fcfa(r.car),fcfa(r.ent),fcfa(r.dep),`<b style="color:var(--${r.m>=0?"ok":"er"})">${fcfa(r.m)}</b>`,r.km,r.km?fcfa(r.m/r.km):"—"])))+
+ `<p class="mu sm">Hors amortissement, assurance et salaires. Comptabilité SYSCOHADA : à raccorder (comptes 706 prestations de services, 6051 carburant, 6241 entretien).</p>`;
+};
+V.users=()=>"<h1>Utilisateurs</h1>"+table(["Nom","Rôle","État",""],S.users.map(u=>tr([esc(u.nom),esc(ROLES[u.role]),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),u.id===ME.id?"":`<button class="btn sm ghost" data-tg="${u.id}">${u.actif?"Désactiver":"Activer"}</button>`])))+
+ `<h2>Journal d'audit</h2>`+table(["Date","Utilisateur","Action","Détail"],S.audit.slice(0,100).map(a=>tr([new Date(a.t).toLocaleString("fr-FR"),esc(a.u),esc(a.a),esc(a.d)])));
+
+/* ---------- Rendu & événements ---------- */
+function render(){
+ const app=$("#app");
+ if(!ME){
+  app.innerHTML=`<div class="login card"><h1>🚚 ANGEL'S &amp; CO Transport</h1><form id="lf"><label>Compte</label><select name="u">${S.users.filter(u=>u.actif).map(u=>`<option value="${u.id}">${esc(u.nom)} (${esc(ROLES[u.role])})</option>`).join("")}</select><label>PIN</label><input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Connexion</button></form><p class="mu sm">Démo — admin 1234 · direction 0000 · exploitation 1111 · comptable 2222 · chauffeurs 0001 / 0002</p><p><a href="hub.html">← Hub</a></p></div>`;
+  $("#lf").onsubmit=e=>{e.preventDefault();const f=e.target,u=by(S.users,f.u.value),k="try_"+u.id;
+   S.tries=S.tries||{};const t=S.tries[u.id]||{n:0,until:0};
+   if(Date.now()<t.until){$("#le").textContent="Compte bloqué 1 min.";return}
+   if(u.h===hashPin(u.id,f.p.value)){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("tr_me",u.id)}catch(x){}view=can("dashboard")?"dashboard":"mes";audit("Connexion");save();render()}
+   else{t.n++;if(t.n>=5){t.until=Date.now()+6e4;t.n=0}S.tries[u.id]=t;save();$("#le").textContent="PIN incorrect."}};
+  return;
+ }
+ if(!can(view))view=NAV.find(n=>n.r.includes(ME.role)).v;
+ let g="",nav="";NAV.filter(n=>n.r.includes(ME.role)).forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-v="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🚚 ANGEL'S &amp; CO<small>Transport</small></div>${nav}<a href="hub.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br><a id="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" id="bg">☰ Menu</button>${V[view]()}</main></div>`;
+}
+document.addEventListener("click",e=>{
+ const t=e.target.closest("[data-v],[data-st],[data-ed],[data-add],[data-edit],[data-csv],[data-print],[data-pay],[data-tg],#new,#exp,#nfac,#out,#bg");if(!t||!S)return;
+ if(t.id==="out"){audit("Déconnexion");ME=null;try{sessionStorage.removeItem("tr_me")}catch(x){}save();return render()}
+ if(t.id==="bg")return $("#sb").classList.toggle("open");
+ if(t.dataset.v){view=t.dataset.v;return render()}
+ if(!ME)return;
+ if(t.dataset.st){const[i,s]=t.dataset.st.split(":"),o=by(S.ots,i);if(o&&(ME.role!=="chauffeur"||(by(S.chauffeurs,o.chauffeur_id)||{}).user_id===ME.id))setStatut(o,s);return}
+ if(t.id==="new")return otForm();
+ if(t.dataset.ed)return otForm(by(S.ots,t.dataset.ed));
+ if(t.dataset.add)return addEdit(t.dataset.add);
+ if(t.dataset.edit){const[k,i]=t.dataset.edit.split(":");return addEdit(k,by(S[k],i))}
+ if(t.id==="nfac")return factureForm();
+ if(t.dataset.pay)return payForm(by(S.factures,t.dataset.pay));
+ if(t.dataset.print)return printFacture(by(S.factures,t.dataset.print));
+ if(t.dataset.tg){const u=by(S.users,t.dataset.tg);u.actif=!u.actif;audit("Compte "+(u.actif?"activé":"désactivé"),u.nom);save();return render()}
+ if(t.id==="exp")return csv("ordres",["N°","Date","Client","Départ","Arrivée","Tarif","Statut"],S.ots.map(o=>[o.numero,o.date,cli(o.client_id),o.depart,o.arrivee,o.tarif,ST[o.statut]]));
+ if(t.dataset.csv){const k=t.dataset.csv;
+  if(k==="factures")return csv(k,["N°","Date","Client","HT","TVA","TTC","Encaissé"],S.factures.map(f=>[f.numero,f.date,cli(f.client_id),f.ht,f.tva,f.ttc,paye(f)]));
+  if(k==="renta")return csv(k,["Véhicule","Produits","Carburant","Maintenance","Frais route","Marge"],S.vehicules.map(v=>{const rev=total(S.ots.filter(o=>o.vehicule_id===v.id&&["livre","facture"].includes(o.statut)),"tarif"),car=total(S.carburant.filter(x=>x.vehicule_id===v.id),"montant"),en=total(S.entretiens.filter(x=>x.vehicule_id===v.id),"cout"),dp=total(S.depenses.filter(x=>(by(S.ots,x.ot_id)||{}).vehicule_id===v.id),"montant");return[v.immat,rev,car,en,dp,rev-car-en-dp]}));
+  const c=CR[k];return csv(k,c.cols.map(x=>x[0]),S[k].map(x=>c.cols.map(col=>col[1](x).replace(/<[^>]*>/g,"").replace(/&amp;/g,"&"))))}
+});
+document.addEventListener("change",e=>{if(e.target.id==="flt"){window._f=e.target.value;render()}});
+window.addEventListener("storage",e=>{if(e.key===KEY&&!document.querySelector(".md")){try{S=JSON.parse(e.newValue);if(ME)ME=by(S.users,ME.id)||null;if(ME&&!ME.actif)ME=null;render()}catch(x){}}});
+load();
+try{const id=sessionStorage.getItem("tr_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
+render();
+</script>
+</body>
+</html>
