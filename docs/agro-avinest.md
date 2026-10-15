@@ -6,7 +6,7 @@
 | Menu | Contenu |
 |---|---|
 | Tableau de bord | Effectifs, mortalité, œufs, aliment, ventes, créances, trésorerie, résultat, alertes |
-| Lots & élevage | Création (capacité du bâtiment contrôlée, poussins sortis du stock), fiche (économie du lot), clôture |
+| Lots & élevage | Fiche lot façon AvicoSuite : liste des lots, en-tête, alertes, indicateurs, score, courbes (ponte/poids/mortalité/aliment), onglets Vue d’ensemble · Suivi semaine · Saisie du jour · Prophylaxie · Alimentation · Historique · Sortie/Réforme · Rentabilité. Non repris : conditionnement, Copilote |
 | Suivi quotidien | Mortalité, aliment (déduit du stock), eau, pesée, œufs/casses (versés au stock de plateaux) |
 | Santé & prophylaxie | Calendrier généré par protocole, soins réalisés (stock), traitements avec **délai d'attente** qui bloque la vente |
 | Couvoir | Incubation → mirage J18 → éclosion J21, taux, création du lot depuis l'éclosion |

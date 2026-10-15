@@ -58,6 +58,7 @@ label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8p
 .note{background:var(--wabg);color:var(--wa);padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:12px}
 canvas{max-width:100%}
 @media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
+.ml{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}.ml>div{min-width:0}@media(max-width:860px){.ml{grid-template-columns:1fr}}.ml2{display:grid;grid-template-columns:1fr 220px;gap:14px}@media(max-width:700px){.ml2{grid-template-columns:1fr}}.lotcard{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}.lotcard.on{border-color:var(--b);box-shadow:0 0 0 2px var(--b) inset}.lotcard.clos{opacity:.6}.albar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.score{--p:0;width:96px;height:96px;margin:10px auto;border-radius:50%;background:conic-gradient(var(--b) calc(var(--p)*1%),var(--bd) 0);display:grid;place-items:center}.score span{width:70px;height:70px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:800;font-size:22px}
 @media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none}body{background:#fff;color:#000}}
 </style>
 </head>
@@ -493,34 +494,124 @@ V.dash=()=>{
  <h2>Lots en cours</h2>${tbl(["Lot","Type","Âge","Phase","Vivants","Mortalité","Ponte / IC"],en.map((l,i)=>{const s=st[i];return tr([esc(l.code+" — "+l.nom),LOTTYPE[l.type],"J"+s.age,esc(s.phase),nf(s.vivants),badge(nf(s.mortPct,1)+" %",s.mortPct>S.settings.seuil_mort_cum?"er":"ok"),l.type==="ponte"?(s.tp!=null?nf(s.tp,1)+" %":"—"):(s.IC?nf(s.IC,2):"—")])}))}`;
 };
 const lotFields=()=>[{k:"nom",l:"Nom du lot",req:1},{k:"type",l:"Type",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"breed",l:"Souche"},{k:"batiment_id",l:"Bâtiment",t:"select",o:()=>S.batiments.map(b=>[b.id,b.nom+" ("+b.capacite+")"])},{k:"debut",l:"Date de mise en place",t:"date",req:1},{k:"initial",l:"Effectif initial",t:"number",req:1},{k:"produit_id",l:"Poussins pris sur stock",t:"select",o:()=>[["","— Non (autre source) —"],...prodOpts(["poussin"])]},{k:"cout_poussin",l:"Coût unitaire du poussin (F)",t:"number",h:"Vide : coût moyen du stock"},{k:"incub_id",l:"Issu d'une éclosion",t:"select",o:()=>[["","—"],...S.incubations.filter(i=>i.eclosion_faite&&!i.lot_id).map(i=>[i.id,i.code+" ("+i.eclos+" poussins)"])]}];
+/* ---- Lots & élevage : fiche lot (liste + synthèse + onglets), même organisation qu'AvicoSuite ---- */
+const lotWeek=(l,d)=>Math.floor(diffDays(d,l.debut)/7)+1;
+const effAt=(l,d)=>Math.max(0,l.initial-sum(S.suivis.filter(x=>x.lot_id===l.id&&x.date<=d),x=>x.morts)-sum(lotSorties(l).filter(s=>s.date<=d),s=>s.tetes));
+function lotAlertes(l,s){
+ const a=[],td=today(),st=S.settings,so=S.soins.filter(x=>x.lot_id===l.id&&!x.annule&&!x.realise_le),ret=so.filter(x=>x.prevue<td),nx=so.filter(x=>x.prevue>=td&&x.prevue<=addDays(td,7)).sort((p,q)=>p.prevue.localeCompare(q.prevue))[0],last=s.ds[s.ds.length-1];
+ if(l.statut==="clos")return[{c:"mu",t:"Lot clos"+(l.cloture?" le "+fd(l.cloture):"")}];
+ if(ret.length)a.push({c:"er",t:ret.length+" soin(s) en retard"});
+ if(l.type==="ponte"&&s.tp!=null&&s.tp<st.seuil_ponte)a.push({c:"er",t:"Taux de ponte faible : "+nf(s.tp,1)+" %"});
+ if(last&&last.date>=addDays(td,-1)&&s.vivants>0&&last.morts/s.vivants*100>st.seuil_mort_jour)a.push({c:"er",t:"Mortalité anormale le "+fd(last.date)+" : "+last.morts+" sujets"});
+ if(s.mortPct>st.seuil_mort_cum)a.push({c:"wa",t:"Mortalité cumulée élevée : "+nf(s.mortPct,1)+" %"});
+ if(l.type==="chair"&&s.IC!=null&&s.IC>st.ic_max)a.push({c:"wa",t:"Indice de consommation élevé : "+nf(s.IC,2)});
+ if(l.type==="ponte"&&s.casse>5)a.push({c:"wa",t:"Taux de casse élevé : "+nf(s.casse,1)+" %"});
+ if(s.attente)a.push({c:"wa",t:"Délai d'attente sanitaire jusqu'au "+fd(s.attente)});
+ if(l.statut==="en_cours"&&!s.ds.some(x=>x.date===td))a.push({c:"wa",t:"Suivi du jour non saisi"});
+ if(nx)a.push({c:"b",t:"Prochain soin : "+nx.action+" ("+fd(nx.prevue)+")"});
+ return a.length?a:[{c:"ok",t:"Lot sans alerte — tout est nominal"}];
+}
+function lotScore(l,s){
+ let sc=55;if(l.type==="ponte"&&s.tp!=null)sc=s.tp>=90?95:s.tp>=80?80:s.tp>=70?65:45;else if(l.type==="chair"&&s.IC!=null)sc=s.IC<=1.6?95:s.IC<=1.9?80:s.IC<=2.2?65:45;
+ if(s.mortPct>S.settings.seuil_mort_cum)sc-=15;const ret=S.soins.filter(x=>x.lot_id===l.id&&!x.annule&&!x.realise_le&&x.prevue<today()).length;if(ret)sc-=10*Math.min(ret,3);return Math.max(0,sc)}
+function svgLine(pts,u){
+ if(pts.length<2)return `<div class="mu" style="text-align:center;padding:30px">Pas assez de données</div>`;
+ const W=640,H=210,P=40,mx=Math.max(...pts.map(p=>p.y),1e-9),mn=Math.min(0,...pts.map(p=>p.y)),X=i=>P+i*(W-P-10)/(pts.length-1),Y=v=>H-24-(v-mn)/((mx-mn)||1)*(H-44),
+  d=pts.map((p,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(p.y).toFixed(1)).join(""),g=[0,1,2,3].map(k=>{const v=mn+(mx-mn)*k/3;return `<line x1="${P}" x2="${W-10}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" style="stroke:var(--bd)"/><text x="${P-4}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="10" style="fill:var(--mu)">${nf(v,mx<10?1:0)}</text>`}).join(""),
+  xl=[0,Math.floor((pts.length-1)/2),pts.length-1].map(i=>`<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="${i===0?"start":i===pts.length-1?"end":"middle"}" font-size="10" style="fill:var(--mu)">${esc(pts[i].x)}</text>`).join("");
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Courbe ${esc(u||"")}">${g}<path d="${d} L${X(pts.length-1).toFixed(1)} ${Y(mn)} L${P} ${Y(mn)}Z" style="fill:var(--b);opacity:.12"/><path d="${d}" style="fill:none;stroke:var(--b);stroke-width:2.2"/>${pts.map((p,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="2.6" style="fill:var(--b)"><title>${esc(p.x)} : ${nf(p.y,1)} ${esc(u||"")}</title></circle>`).join("")}${xl}</svg>`;
+}
+function suiviForm(l,f){
+ const r=S.suivis.find(x=>x.lot_id===l.id&&x.date===f.date)||{};
+ return `<form id="sf" class="card fg"><div><label>Mortalité (têtes)</label><input name="morts" type="number" min="0" value="${r.morts??""}"></div><div><label>Cause</label><input name="cause" value="${esc(r.cause||"")}"></div>
+ <div><label>Aliment consommé (kg)</label><input name="aliment_kg" type="number" step="any" min="0" value="${r.aliment_kg??""}"></div><div><label>Aliment utilisé</label><select name="produit_id">${opt(S.produits.filter(p=>p.categorie==="aliment"&&!p.mp).map(p=>[p.id,p.nom+" — stock "+nf(qteStock(p.id),0)+" "+p.unite]),r.produit_id||"","—")}</select></div>
+ <div><label>Eau (L)</label><input name="eau_l" type="number" step="any" min="0" value="${r.eau_l??""}"></div><div><label>Poids moyen (g, pesée)</label><input name="poids_g" type="number" min="0" value="${r.poids_g||""}"></div>
+ ${l.type==="ponte"?`<div><label>Œufs ramassés</label><input name="oeufs" type="number" min="0" value="${r.oeufs??""}"></div><div><label>Œufs cassés</label><input name="casses" type="number" min="0" value="${r.casses??""}"></div>`:""}
+ <div><label>Température (°C)</label><input name="temp" type="number" step="any" value="${r.temp??""}"></div><div style="grid-column:1/-1"><label>Observation</label><input name="note" value="${esc(r.note||"")}"></div>
+ <div style="grid-column:1/-1" class="flex"><button class="btn">${r.id?"Mettre à jour":"Enregistrer"}</button><span class="mu sm">Effectif vivant : ${vivantsLot(l)} · J${lotStats(l).age}</span></div></form>`;
+}
+const lotSel=()=>{const f=UI.f.lots||(UI.f.lots={s:"en_cours"});let l=by(S.lots,UI.lotSel);if(!l){l=S.lots.filter(x=>!f.s||x.statut===f.s)[0]||S.lots[0];UI.lotSel=l?l.id:null}return l};
 V.lots=()=>{
- const f=UI.f.lots||(UI.f.lots={s:"en_cours"});
- return head("Lots & élevage",`<select data-f="lots:s" style="width:auto">${opt([["en_cours","En cours"],["clos","Clos"],["","Tous"]],f.s)}</select>${can("lot")?`<button class="btn" data-a="lot.add">+ Nouveau lot</button>`:""}${csvBtn("lots")}`)+
- tbl(["Lot","Type","Bâtiment","Mise en place","Âge","Phase","Initial","Vivants","Mortalité","Indicateur","Statut",""],S.lots.filter(l=>!f.s||l.statut===f.s).slice().reverse().map(l=>{const s=lotStats(l);return tr([esc(l.code+" — "+l.nom),LOTTYPE[l.type],esc((by(S.batiments,l.batiment_id)||{}).nom),fd(l.debut),"J"+s.age,esc(s.phase),l.initial,nf(s.vivants),badge(nf(s.mortPct,1)+" %",s.mortPct>S.settings.seuil_mort_cum?"er":"ok"),l.type==="ponte"?(s.tp!=null?"Ponte "+nf(s.tp,1)+" %":"—"):(s.IC?"IC "+nf(s.IC,2):"—"),badge(l.statut==="clos"?"Clos":"En cours",l.statut==="clos"?"mu":"ok"),btn("lot.fiche",l.id,"Fiche","ghost")])}));
+ const f=UI.f.lots||(UI.f.lots={s:"en_cours"}),L=S.lots.filter(l=>!f.s||l.statut===f.s).slice().sort((a,b)=>(a.statut===b.statut?0:a.statut==="clos"?1:-1)||b.debut.localeCompare(a.debut)),l=lotSel();
+ const side=`<div class="lside"><select data-f="lots:s" style="width:100%;margin-bottom:8px">${opt([["en_cours","En cours"],["clos","Clos"],["","Tous"]],f.s)}</select>${L.map(x=>{const s=lotStats(x);return `<div class="lotcard ${l&&x.id===l.id?"on":""} ${x.statut==="clos"?"clos":""}" data-a="lot.sel" data-id="${x.id}" role="button" tabindex="0"><div style="font-weight:700">${x.type==="ponte"?"🥚":"🍗"} ${esc(x.nom)} ${x.statut==="clos"?badge("Clos","mu"):""}</div><div class="mu sm">${esc(x.code)} · ${esc(s.phase)}<br>🐣 ${nf(x.initial)} · J${s.age} · ${esc(x.breed||"—")}</div></div>`}).join("")||`<div class="mu sm">Aucun lot.</div>`}</div>`;
+ const act=`<div class="flex">${can("lot")?`<button class="btn" data-a="lot.add">+ Nouveau lot</button>`:""}${csvBtn("lots")}</div>`;
+ if(!l)return head("Lots & élevage",act)+`<div class="ml">${side}<div class="card mu" style="text-align:center;padding:40px">Sélectionnez un lot ou créez-en un.</div></div>`;
+ const s=lotStats(l),al=lotAlertes(l,s),b=by(S.batiments,l.batiment_id)||{},t=tabOf("lot","ov"),ret=S.soins.filter(x=>x.lot_id===l.id&&!x.annule&&!x.realise_le&&x.prevue<today()).length;
+ const kp=[l.type==="ponte"?kpi(s.tp!=null?nf(s.tp,1)+" %":"—","Taux de ponte (7 j)",s.tp==null?"":s.tp<S.settings.seuil_ponte?"e":s.tp>=85?"o":"w")+kpi(s.vivants>0&&s.feed>0&&s.oeufs>0?nf(s.feed/s.oeufs*1000,0)+" g":"—","Aliment par œuf")+kpi(nf(s.casse,1)+" %","Taux de casse",s.casse>5?"e":s.casse>2?"w":"o"):kpi(s.IC?nf(s.IC,2):"—","Indice de consommation",s.IC==null?"":s.IC<=1.9?"o":s.IC<=S.settings.ic_max?"w":"e")+kpi(s.poids?nf(s.poids/1000,2)+" kg":"—","Poids moyen (dernière pesée)"),
+  kpi(nf(s.mortPct,1)+" %","Mortalité cumulée · "+nf(s.morts)+" sujets",s.mortPct>S.settings.seuil_mort_cum?"e":s.mortPct>2?"w":"o"),kpi(nf(s.vivants)+" / "+nf(l.initial),"Effectif vivant","o"),kpi(nf(s.feed,0)+" kg","Aliment total (depuis J0)","w")].join("");
+ const hd=`<div class="card"><div class="between"><div><h2 style="margin:0">${l.type==="ponte"?"🥚":"🍗"} ${esc(l.code+" — "+l.nom)} ${badge(s.phase)}</h2><div class="mu sm" style="margin-top:4px">🧬 ${esc(l.breed||"—")} · 📅 J0 : ${fd(l.debut)} · 🏗️ ${esc(b.nom||"—")} · J${s.age}</div></div><div class="flex"><button class="btn sm ghost" data-a="lot.csv" data-id="${l.id}">CSV</button><button class="btn sm ghost" data-a="lot.print" data-id="${l.id}">🖨 Rapport</button>${l.statut==="en_cours"&&can("lot")?btn("lot.close",l.id,"Clore le lot","er"):""}</div></div></div>`;
+ const bar=`<div class="albar">${al.map(x=>`<span class="badge ${x.c}">${esc(x.t)}</span>`).join("")}</div><div class="grid">${kp}</div>`;
+ const tb=tabs("lot",[["ov","📊 Vue d'ensemble"],["sem","📅 Suivi semaine"],["sai","✏️ Saisie du jour"],["pro","💊 Prophylaxie"+(ret?` (${ret})`:"")],["ali","🥗 Alimentation"],["his","📋 Historique"],["sor",l.type==="ponte"?"🔄 Réforme / sorties":"🏁 Sortie du lot"],["ren","💰 Rentabilité"]]);
+ return head("Lots & élevage",act)+`<div class="ml">${side}<div>${hd}${bar}${tb}${lotTab(l,s,t)}</div></div>`;
 };
+function lotTab(l,s,t){
+ const td=today(),ds=s.ds;
+ if(t==="ov"){
+  const ch=UI.f.lotch||"p",n=l.type==="ponte"?30:35,
+   pts=ch==="m"?ds.slice(-n).map(x=>({x:fd(x.date).slice(0,5),y:x.morts})):ch==="f"?ds.slice(-n).map(x=>({x:fd(x.date).slice(0,5),y:x.aliment_kg})):l.type==="ponte"?ds.filter(x=>x.oeufs>0).slice(-n).map(x=>{const e=effAt(l,x.date);return{x:fd(x.date).slice(0,5),y:e?x.oeufs/e*100:0}}):ds.filter(x=>x.poids_g>0).slice(-n).map(x=>({x:fd(x.date).slice(0,5),y:x.poids_g})),
+   u=ch==="m"?"morts":ch==="f"?"kg":l.type==="ponte"?"%":"g",sc=lotScore(l,s),ok=(c)=>c?"ok":"er";
+  const crit=[[l.type==="ponte"?"Ponte":"IC",l.type==="ponte"?(s.tp!=null?nf(s.tp,1)+" %":"—"):(s.IC?nf(s.IC,2):"—"),l.type==="ponte"?s.tp>=85:s.IC&&s.IC<=1.9],["Mortalité",nf(s.mortPct,1)+" %",s.mortPct<3],["Soins en retard",String(S.soins.filter(x=>x.lot_id===l.id&&!x.annule&&!x.realise_le&&x.prevue<td).length),!S.soins.some(x=>x.lot_id===l.id&&!x.annule&&!x.realise_le&&x.prevue<td)]];
+  const last=ds.slice(-7).reverse();
+  return `<div class="ml2"><div class="card"><div class="between"><b>${l.type==="ponte"?"📈 Courbe de ponte":"📈 Courbe de croissance"}</b><div class="flex">${[["p",l.type==="ponte"?"Ponte":"Poids"],["m","Mortalité"],["f","Aliment"]].map(([k,lb])=>`<button class="btn sm ${ch===k?"":"ghost"}" data-a="lot.ch" data-id="${k}">${lb}</button>`).join("")}</div></div>${svgLine(pts,u)}</div>
+  <div class="card" style="text-align:center"><b>🏆 Performance</b><div class="score" style="--p:${sc}"><span>${sc}</span></div><div class="mu sm">Score global /100</div>${crit.map(c=>`<div class="between sm" style="padding:4px 0;border-bottom:1px solid var(--bd)"><span>${c[0]}</span>${badge(c[1],ok(c[2]))}</div>`).join("")}</div></div>
+  <h2>7 dernières saisies</h2>`+(l.type==="ponte"?tbl(["Sem.","Date","Œufs","Taux ponte","Casses","Morts","Effectif"],last.map(x=>{const e=effAt(l,x.date);return tr(["S"+lotWeek(l,x.date),fd(x.date),nf(x.oeufs),e&&x.oeufs?badge(nf(x.oeufs/e*100,1)+" %",x.oeufs/e*100>=85?"ok":x.oeufs/e*100<S.settings.seuil_ponte?"er":"wa"):"—",x.casses||0,x.morts,nf(e)])}),{empty:"Aucune saisie."}):tbl(["Sem.","Date","Poids moy.","Aliment","Eau","Morts","Effectif"],last.map(x=>tr(["S"+lotWeek(l,x.date),fd(x.date),x.poids_g?nf(x.poids_g)+" g":"—",nf(x.aliment_kg,1)+" kg",nf(x.eau_l),x.morts,nf(effAt(l,x.date))])),{empty:"Aucune saisie."}));
+ }
+ if(t==="sem"){
+  const cur=Math.max(1,lotWeek(l,l.statut==="clos"&&l.cloture?l.cloture:td)),f=UI.f.lotsem||(UI.f.lotsem={});let n=f.n?+f.n:cur;n=Math.min(Math.max(1,n),cur);
+  const days=[...Array(7)].map((_,i)=>addDays(l.debut,(n-1)*7+i)),rows=days.map(d=>ds.find(x=>x.date===d)||null),R=rows.filter(Boolean),prev=ds.filter(x=>x.date<days[0]&&x.poids_g>0).slice(-1)[0],fin=R.filter(x=>x.poids_g>0).slice(-1)[0];
+  const ef=effAt(l,days[6]<td?days[6]:td),kw=l.type==="ponte"?[kpi(nf(sum(R,x=>x.oeufs)),"Œufs S"+n,"o"),kpi(R.length&&ef?nf(sum(R,x=>x.oeufs)/(R.length*ef)*100,1)+" %":"—","Taux de ponte moyen"),kpi(nf(sum(R,x=>x.casses)),"Casses")]:[kpi(fin?nf(fin.poids_g)+" g":"—","Poids fin S"+n,"o"),kpi(fin&&prev?(fin.poids_g>=prev.poids_g?"+":"")+nf(fin.poids_g-prev.poids_g)+" g":"—","Gain vs pesée précédente")];
+  kw.push(kpi(nf(sum(R,x=>x.morts)),"Morts S"+n,sum(R,x=>x.morts)>0?"w":"o"),kpi(nf(sum(R,x=>x.aliment_kg),1)+" kg","Aliment S"+n),kpi(R.length&&ef?nf(sum(R,x=>x.aliment_kg)/(R.length*ef)*1000,0)+" g":"—","Aliment / sujet / jour"));
+  const jr=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+  return `<div class="card flex"><button class="btn sm ghost" data-a="lot.sem" data-id="${n-1}" ${n<=1?"disabled":""}>◀</button><b>Semaine S${n}</b> <span class="mu sm">${fd(days[0])} → ${fd(days[6])}</span><button class="btn sm ghost" data-a="lot.sem" data-id="${n+1}" ${n>=cur?"disabled":""}>▶</button><select data-f="lotsem:n" style="width:auto">${[...Array(cur)].map((_,i)=>`<option value="${i+1}" ${i+1===n?"selected":""}>S${i+1}</option>`).join("")}</select></div><div class="grid">${kw.join("")}</div>`+
+   tbl(["Jour","Date","Morts","Aliment (kg)","Eau (L)","Poids (g)",...(l.type==="ponte"?["Œufs","Taux","Casses"]:[]),"Note"],days.map((d,i)=>{const x=rows[i],e=effAt(l,d);return tr([jr[new Date(d+"T00:00:00Z").getUTCDay()],fd(d),x?x.morts:"—",x?nf(x.aliment_kg,1):"—",x?x.eau_l:"—",x&&x.poids_g?x.poids_g:"—",...(l.type==="ponte"?[x?nf(x.oeufs):"—",x&&x.oeufs&&e?badge(nf(x.oeufs/e*100,1)+" %",x.oeufs/e*100>=85?"ok":x.oeufs/e*100<S.settings.seuil_ponte?"er":"wa"):"—",x?x.casses||0:"—"]:[]),x?esc(x.note||x.cause||""):d>td?"":"<span class='mu'>Non saisi</span>"])}),{empty:""});
+ }
+ if(t==="sai"){
+  if(l.statut!=="en_cours")return `<div class="card mu">Lot clos : plus de saisie.</div>`;
+  if(!can("suivi"))return `<div class="card mu">Saisie réservée au chef d'exploitation et aux soigneurs.</div>`;
+  const f=UI.f.suivi=Object.assign(UI.f.suivi||{},{lot:l.id});if(!f.date)f.date=td;
+  return `<div class="card flex"><div><label>Date</label><input type="date" data-f="suivi:date" value="${f.date}" max="${td}"></div><span class="mu sm">Effectif vivant : ${nf(s.vivants)} · J${s.age}</span></div>`+suiviForm(l,f);
+ }
+ if(t==="pro"){
+  const so=S.soins.filter(x=>x.lot_id===l.id&&!x.annule).sort((a,b)=>a.prevue.localeCompare(b.prevue)),tr_=S.traitements.filter(x=>x.lot_id===l.id).slice().reverse();
+  return `<div class="between"><h2 style="margin:0">Calendrier vaccinal</h2>${can("sante")&&l.statut==="en_cours"?btn("tr.add",l.id,"+ Traitement"):""}</div>`+tbl(["Âge","Prévu","Soin","Produit","Statut",""],so.map(x=>{const n=diffDays(x.prevue,td);return tr(["J"+x.age_j,fd(x.prevue),esc(x.action),x.produit_id?esc(prod(x.produit_id).nom+" × "+nf(x.qte)):"—",x.realise_le?badge("Fait le "+fd(x.realise_le),"ok"):badge(n<0?"En retard ("+(-n)+" j)":n===0?"Aujourd'hui":"Dans "+n+" j",n<0?"er":n<=3?"wa":""),!x.realise_le&&can("sante")&&l.statut==="en_cours"?btn("so.do",x.id,"Réaliser","ok"):""])}),{empty:"Aucun soin planifié."})+
+   `<h2>Traitements</h2>`+tbl(["Date","Motif","Produit","Délai d'attente","Jusqu'au","Par"],tr_.map(x=>tr([fd(x.date),esc(x.motif),x.produit_id?esc(prod(x.produit_id).nom+" × "+nf(x.qte)):"—",x.delai+" j",badge(fd(x.jusqua),x.jusqua>=td?"wa":"mu"),esc(x.par)])),{empty:"Aucun traitement."});
+ }
+ if(t==="ali"){
+  const pp={},sw={};ds.forEach(x=>{if(x.aliment_kg>0){const k=x.produit_id||"?";pp[k]=pp[k]||{kg:0,c:0};pp[k].kg+=x.aliment_kg;pp[k].c+=x.produit_id?x.aliment_kg*pmp(x.produit_id):0;const w=lotWeek(l,x.date);sw[w]=sw[w]||{kg:0,j:0,eau:0};sw[w].kg+=x.aliment_kg;sw[w].j++;sw[w].eau+=x.eau_l||0}});
+  return kpi(nf(s.feed,0)+" kg","Total consommé")+`<h2>Par aliment</h2>`+tbl(["Aliment","Quantité (kg)","Coût (PMP)"],Object.entries(pp).map(([k,v])=>tr([k==="?"?"Non précisé":esc(prod(k).nom),nf(v.kg,1),fcfa(v.c)])),{empty:"Aucune consommation saisie."})+
+   `<h2>Par semaine</h2>`+tbl(["Semaine","Aliment (kg)","g / sujet / jour","Eau (L)","Eau / aliment"],Object.entries(sw).map(([w,v])=>{const e=effAt(l,addDays(l.debut,w*7-1)<td?addDays(l.debut,w*7-1):td);return tr(["S"+w,nf(v.kg,1),e&&v.j?nf(v.kg/(v.j*e)*1000,0):"—",nf(v.eau),v.kg?nf(v.eau/v.kg,2):"—"])}),{empty:"—"});
+ }
+ if(t==="his"){
+  const ev=S.audit.filter(a=>(a.a+" "+a.d).includes(l.code)).slice(0,60);
+  return `<h2 style="margin-top:0">Saisies quotidiennes</h2>`+tbl(["Date","Morts","Cause","Aliment","Eau","Poids","Œufs","Casses","Temp.","Note","Par"],ds.slice().reverse().map(x=>tr([fd(x.date),x.morts,esc(x.cause||""),nf(x.aliment_kg,1),x.eau_l,x.poids_g||"—",x.oeufs||"—",x.casses||"—",x.temp??"—",esc(x.note||""),esc(x.par||"")])),{empty:"Aucune saisie.",max:200})+`<h2>Journal des actions</h2>`+tbl(["Date","Utilisateur","Action","Détail"],ev.map(a=>tr([fdt(a.t),esc(a.u),esc(a.a),esc(a.d)])),{empty:"Aucune action tracée."});
+ }
+ if(t==="sor"){
+  const so=lotSorties(l).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="grid">${kpi(nf(s.vivants),"Sujets restants","o")}${kpi(nf(s.sortis),"Sortis (ventes, réformes)")}${kpi(nf(s.morts),"Morts","w")}${kpi(l.type==="chair"?nf(s.kgVendus,1)+" kg":"—",l.type==="chair"?"Poids vendu":"")}</div>`+tbl(["Date","Type","Têtes","Poids (kg)","Note"],so.map(x=>tr([fd(x.date),esc(x.type),nf(x.tetes),nf(x.poids_kg,1),esc(x.note||"")])),{empty:"Aucune sortie."})+
+   `<div class="flex" style="margin-top:10px">${l.statut==="en_cours"&&can("vente")?btn("go.ventes",l.id,"Vendre des sujets / œufs"):""}${l.statut==="en_cours"&&can("lot")?btn("lot.close",l.id,l.type==="ponte"?"Réformer et clore le lot":"Clore le lot","er"):""}</div>`;
+ }
+ if(t==="ren"){
+  const ch=S.charges.filter(c=>c.lot_id===l.id&&c.statut==="valide");
+  return `<div class="grid">${kpi(fcfa(s.cout),"Coût total","w")}${kpi(fcfa(s.rec),"Recettes"+(l.type==="ponte"?" (œufs valorisés)":""),"o")}${kpi(fcfa(s.marge),"Marge",s.marge>=0?"o":"e")}${kpi(s.vivants+s.sortis>0?fcfa(s.cout/(l.initial)):"—","Coût par sujet mis en place")}${kpi(s.coutKg?fcfa(s.coutKg):"—","Coût par kg vendu")}</div>`+
+   tbl(["Poste","Montant","Part"],[["Poussins",s.cPou],["Aliment",s.cAl],["Santé (vaccins, traitements)",s.cSa],["Charges directes",s.cCh]].map(([n,m])=>tr([n,fcfa(m),s.cout?nf(m/s.cout*100,1)+" %":"—"])))+
+   `<h2>Charges directes du lot</h2>`+tbl(["N°","Date","Nature","Libellé","Montant"],ch.map(c=>tr([esc(c.numero),fd(c.date),esc((CHARGES[c.categorie]||[c.categorie])[0]),esc(c.libelle),fcfa(c.montant)])),{empty:"Aucune charge imputée."});
+ }
+ return "";
+}
+A["lot.sel"]=id=>{UI.lotSel=id;UI.tab.lot="ov";UI.f.lotsem=null;render()};
+A["lot.ch"]=id=>{UI.f.lotch=id;render()};
+A["lot.sem"]=n=>{UI.f.lotsem={n:+n};render()};
+A["go.ventes"]=()=>{view="ventes";render()};
+A["lot.csv"]=id=>{const l=by(S.lots,id);csvOut("lot-"+l.code,["Date","Morts","Cause","Aliment kg","Eau L","Poids g","Œufs","Casses","Temp","Note"],S.suivis.filter(x=>x.lot_id===l.id).sort((a,b)=>a.date.localeCompare(b.date)).map(x=>[x.date,x.morts,x.cause||"",x.aliment_kg,x.eau_l,x.poids_g||"",x.oeufs||"",x.casses||"",x.temp??"",x.note||""]))};
 CSVS.lots=()=>[["Lot","Type","Début","Initial","Vivants","Mortalité %","Aliment kg","Coût","Recettes","Marge"],S.lots.map(l=>{const s=lotStats(l);return[l.code,l.type,l.debut,l.initial,s.vivants,nf(s.mortPct,2),nf(s.feed,1),s.cout,s.rec,s.marge]})];
 A["lot.add"]=()=>form("Nouveau lot",lotFields(),{type:"chair",debut:today()},o=>{creerLot(o)});
-A["lot.fiche"]=id=>{
- const l=by(S.lots,id),s=lotStats(l),last=s.ds.slice(-14).reverse();
- modal(`<div class="between"><h2 style="margin:0">${esc(l.code+" — "+l.nom)} ${badge(LOTTYPE[l.type])}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
- <p class="mu">${esc(l.breed||"")} · ${esc((by(S.batiments,l.batiment_id)||{}).nom)} · mis en place le ${fd(l.debut)} · J${s.age} · ${esc(s.phase)} ${s.attente?badge("Délai d'attente → "+fd(s.attente),"wa"):""}</p>
- <div class="grid">${kpi(nf(s.vivants)+" / "+l.initial,"Sujets vivants","o")}${kpi(nf(s.mortPct,1)+" %","Mortalité cumulée",s.mortPct>S.settings.seuil_mort_cum?"e":"")}${l.type==="ponte"?kpi(s.tp!=null?nf(s.tp,1)+" %":"—","Taux de ponte (7 j)")+kpi(nf(s.casse,1)+" %","Casse"):kpi(s.IC?nf(s.IC,2):"—","Indice de consommation")+kpi(s.poids?nf(s.poids/1000,2)+" kg":"—","Poids moyen")}${kpi(nf(s.feed,0)+" kg","Aliment total")}</div>
- <h2>Économie du lot</h2>${tbl(["Poussins","Aliment","Santé","Charges directes","Coût total","Recettes","Marge","Coût / kg vendu"],[tr([fcfa(s.cPou),fcfa(s.cAl),fcfa(s.cSa),fcfa(s.cCh),`<b>${fcfa(s.cout)}</b>`,fcfa(s.rec)+(l.type==="ponte"?" <span class='mu sm'>(œufs valorisés)</span>":""),`<b style="color:var(--${s.marge>=0?"ok":"er"})">${fcfa(s.marge)}</b>`,s.coutKg?fcfa(s.coutKg):"—"])])}
- <h2>14 derniers jours</h2>${tbl(["Date","Morts","Aliment (kg)","Eau (L)","Poids (g)","Œufs","Casses"],last.map(x=>tr([fd(x.date),x.morts,nf(x.aliment_kg,1),x.eau_l,x.poids_g||"—",x.oeufs||"—",x.casses||"—"])),{empty:"Aucune saisie."})}
- <div class="flex" style="margin-top:10px">${l.statut==="en_cours"&&can("suivi")?btn("su.go",l.id,"Saisir le suivi"):""}${l.statut==="en_cours"&&can("sante")?btn("tr.add",l.id,"Traitement","ghost"):""}${l.statut==="en_cours"&&can("lot")?btn("lot.close",l.id,"Clore le lot","er"):""}<button class="btn sm ghost" data-a="lot.print" data-id="${l.id}">Rapport</button></div>`);
-};
 A["lot.close"]=id=>{const l=by(S.lots,id),v=vivantsLot(l);form("Clore "+l.code,[{k:"motif",l:v>0?"Motif (reste "+v+" sujets : réforme, abattage…)":"Motif",req:v>0,t:"area",full:1}],{},o=>cloturerLot(id,o.motif),"Clore")};
 A["lot.print"]=id=>{const l=by(S.lots,id),s=lotStats(l);modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>Rapport de lot ${esc(l.code)}</h1><p><b>ANGEL'S AGRO</b> — ${esc(l.nom)} (${LOTTYPE[l.type]}, ${esc(l.breed||"")})<br>Mise en place : ${fd(l.debut)} · Âge : J${s.age} · Phase : ${esc(s.phase)}</p>${tbl(["Indicateur","Valeur"],[["Effectif initial",l.initial],["Mortalité",s.morts+" ("+nf(s.mortPct,2)+" %)"],["Sorties (ventes, réformes)",s.sortis],["Vivants",s.vivants],["Aliment consommé",nf(s.feed,1)+" kg"],["Eau",nf(s.eau)+" L"],l.type==="ponte"?["Œufs produits",nf(s.oeufs)+" (casse "+nf(s.casse,1)+" %)"]:["Indice de consommation",s.IC?nf(s.IC,2):"—"],["Coût total",fcfa(s.cout)],["Recettes",fcfa(s.rec)],["Marge",fcfa(s.marge)]].map(r=>tr(r)))}`)};
 V.suivi=()=>{
  const f=UI.f.suivi||(UI.f.suivi={lot:"",date:today()});const ls=S.lots.filter(l=>l.statut==="en_cours");if(!f.lot||!ls.some(l=>l.id===f.lot))f.lot=ls[0]?ls[0].id:"";
  const l=by(S.lots,f.lot),r=l&&S.suivis.find(x=>x.lot_id===l.id&&x.date===f.date)||{};
  return head("Suivi quotidien")+`<div class="card flex"><div><label>Lot</label><select data-f="suivi:lot">${opt(lotsOpts(),f.lot)}</select></div><div><label>Date</label><input type="date" data-f="suivi:date" value="${f.date}" max="${today()}"></div></div>`+
- (l?`<form id="sf" class="card fg"><div><label>Mortalité (têtes)</label><input name="morts" type="number" min="0" value="${r.morts??""}"></div><div><label>Cause</label><input name="cause" value="${esc(r.cause||"")}"></div>
- <div><label>Aliment consommé (kg)</label><input name="aliment_kg" type="number" step="any" min="0" value="${r.aliment_kg??""}"></div><div><label>Aliment utilisé</label><select name="produit_id">${opt(S.produits.filter(p=>p.categorie==="aliment"&&!p.mp).map(p=>[p.id,p.nom+" — stock "+nf(qteStock(p.id),0)+" "+p.unite]),r.produit_id||"","—")}</select></div>
- <div><label>Eau (L)</label><input name="eau_l" type="number" step="any" min="0" value="${r.eau_l??""}"></div><div><label>Poids moyen (g, pesée)</label><input name="poids_g" type="number" min="0" value="${r.poids_g||""}"></div>
- ${l.type==="ponte"?`<div><label>Œufs ramassés</label><input name="oeufs" type="number" min="0" value="${r.oeufs??""}"></div><div><label>Œufs cassés</label><input name="casses" type="number" min="0" value="${r.casses??""}"></div>`:""}
- <div><label>Température (°C)</label><input name="temp" type="number" step="any" value="${r.temp??""}"></div><div style="grid-column:1/-1"><label>Observation</label><input name="note" value="${esc(r.note||"")}"></div>
- <div style="grid-column:1/-1" class="flex"><button class="btn">${r.id?"Mettre à jour":"Enregistrer"}</button><span class="mu sm">Effectif vivant : ${vivantsLot(l)} · J${lotStats(l).age}</span></div></form>`:'<div class="card mu">Aucun lot en cours.</div>')+
+ (l?suiviForm(l,f):'<div class="card mu">Aucun lot en cours.</div>')+
  `<h2>Dernières saisies</h2>`+tbl(["Date","Lot","Morts","Aliment","Eau","Poids","Œufs","Casses","Par"],S.suivis.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40).map(x=>tr([fd(x.date),esc(lot(x.lot_id).code),x.morts,nf(x.aliment_kg,1)+" kg",x.eau_l,x.poids_g||"—",x.oeufs||"—",x.casses||"—",esc(x.par)])));
 };
 A["su.go"]=id=>{UI.f.suivi={lot:id,date:today()};document.querySelectorAll(".md").forEach(m=>m.remove());view="suivi";render()};
