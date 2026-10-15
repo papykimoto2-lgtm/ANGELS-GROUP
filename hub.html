@@ -36,12 +36,20 @@ main{padding:0 16px 40px;margin-top:-16px}
 h3{margin:26px 0 10px;font-size:15px}
 .mod{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 .mod div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:13px}
+.cons{margin:0 0 6px;padding-top:26px}td.act{white-space:normal;font-size:12px;min-width:150px;line-height:1.35}.cons h2{margin:22px 0 10px;font-size:16px}
+.big{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:12px}
+.big div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.big b{display:block;font-size:20px}.big span{font-size:12px;color:var(--mu)}
+.tw{overflow:auto;border:1px solid var(--bd);border-radius:12px;background:var(--card)}table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--mu)}tr.t td{font-weight:800}
+.nd{color:var(--mu);font-weight:400}.er{color:#c62828;font-weight:700}.ok{color:var(--ok);font-weight:700}
+.note{font-size:12px;color:var(--mu);margin:8px 0 0}
 footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </style>
 </head>
 <body>
 <header><div class="w top"><div><h1>🅰️ ANGEL'S GROUP — Hub</h1><p>Pilotage unique des filiales · <span id="date"></span></p></div></div></header>
 <main><div class="w">
+<section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="tw"><table id="tcons"></table></div><p class="note" id="ncons"></p></section>
+<h3 style="margin-top:22px">Filiales</h3>
 <div class="cards">
  <a class="card" style="--c:var(--g1)" href="./" id="c-dist">
   <div class="ic">🏍️</div><h2>Angel's Distributions</h2><p>Livraison à moto : commandes, livreurs, caisse, comptabilité SYSCOHADA.</p>
@@ -98,6 +106,60 @@ window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();DEF=e;$("in
 window.addEventListener("appinstalled",()=>{DEF=null;$("inst").hidden=true});
 $("inst").onclick=async e=>{e.preventDefault();if(DEF){DEF.prompt();try{await DEF.userChoice}catch(x){}DEF=null;$("inst").hidden=true}};
 if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&navigator.standalone!==true){$("inst").hidden=false;$("inst").onclick=e=>{e.preventDefault();alert("Sur iPhone / iPad : toucher « Partager », puis « Sur l'écran d'accueil ».")}}
+
+/* ---------- Vue consolidée : lecture des données locales des trois applications ---------- */
+const lire=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
+const som=(a,f)=>(a||[]).reduce((s,x)=>s+(+f(x)||0),0);
+const AUJ=new Date().toISOString().slice(0,10),MOIS=AUJ.slice(0,7),jmoins=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
+const F=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+const lignes=(G,cmp)=>(G.entries||[]).flatMap(e=>(e.lignes||e.lines||[]).filter(l=>cmp(l)).map(l=>({e,l})));
+function resCompta(G){const dm=e=>String(e.date).startsWith(MOIS);let p=0,c=0;(G.entries||[]).filter(dm).forEach(e=>(e.lignes||e.lines||[]).forEach(l=>{if(l.compte[0]==="7")p+=(l.credit||0)-(l.debit||0);if(l.compte[0]==="6")c+=(l.debit||0)-(l.credit||0)}));return p-c}
+function treso(G){return som(lignes(G,l=>l.compte==="571"||l.compte==="521"),x=>(x.l.debit||0)-(x.l.credit||0))}
+function distribution(G){
+ if(!G||!G.commandes)return null;
+ const paye=c=>som((G.fonds||[]).filter(f=>f.commande_id===c.id&&(f.type==="acompte"||f.type==="encaissement")),f=>f.montant),livrees=G.commandes.filter(c=>c.statut==="livree");
+ const tres=som(G.caisses||[],c=>{const ss=(G.caisse_sessions||[]).filter(s=>s.caisse_id===c.id).sort((a,b)=>String(b.ouverte_le).localeCompare(String(a.ouverte_le))),o=ss.find(s=>s.statut==="ouverte");
+  if(o)return o.fond_ouverture+som((G.caisse_mvts||[]).filter(m=>m.session_id===o.id&&m.statut==="valide"),m=>m.type==="entree"?m.montant:-m.montant);const l=ss.find(s=>s.statut==="cloturee");return l?l.fond_cloture_reel||0:0});
+ const ouv=G.commandes.filter(c=>!["livree","annulee","echouee","brouillon","retour_recu"].includes(c.statut)).length;
+ return{tres,ca:som(livrees.filter(c=>String(c.date).startsWith(MOIS)),c=>c.total),enc:som((G.fonds||[]).filter(f=>(f.type==="acompte"||f.type==="encaissement")&&String(f.ts).startsWith(MOIS)),f=>f.montant),
+  cre:som(livrees,c=>Math.max(0,c.total-paye(c))),res:null,
+  alt:(G.versements||[]).filter(v=>v.statut==="declare").length+(G.incidents||[]).filter(i=>i.statut==="ouvert").length+(G.caisse_sessions||[]).filter(s=>s.statut==="cloturee"&&s.ecart&&!s.ecart_regularise).length,
+  act:ouv+" commande(s) en cours · "+livrees.length+" livrée(s)"};
+}
+function transport(G){
+ if(!G||!G.obligations)return null;
+ const am={};(G.allocs||[]).forEach(a=>{if(a.actif)am[a.obligation_id]=(am[a.obligation_id]||0)+a.montant});const solde=o=>o.exo?0:o.montant-(am[o.id]||0);
+ const ret={};(G.obligations||[]).forEach(o=>{if(solde(o)>0&&o.date_ech<jmoins(3))ret[o.driver_id]=1});
+ const dl=n=>Math.round((new Date(n+"T00:00:00Z")-new Date(AUJ+"T00:00:00Z"))/864e5);let docs=0;
+ (G.vehicles||[]).filter(v=>v.statut!=="sorti").forEach(v=>["assurance_fin","visite_fin","carte_fin"].forEach(k=>{if(v[k]&&dl(v[k])<=30)docs++}));(G.drivers||[]).forEach(d=>{if(d.permis_fin&&dl(d.permis_fin)<=30)docs++});
+ return{tres:treso(G),ca:som(lignes(G,l=>l.compte==="706").filter(x=>String(x.e.date).startsWith(MOIS)),x=>(x.l.credit||0)-(x.l.debit||0)),
+  enc:som((G.payments||[]).filter(p=>p.statut==="confirme"&&p.type!=="depot"&&String(p.date_valeur).startsWith(MOIS)),p=>p.montant),cre:som(G.obligations,solde),res:resCompta(G),
+  alt:docs+Object.keys(ret).length,act:(G.vehicles||[]).filter(v=>v.statut==="actif").length+"/"+(G.vehicles||[]).filter(v=>v.statut!=="sorti").length+" taxis en service · "+Object.keys(ret).length+" chauffeur(s) en retard"};
+}
+function agro(G){
+ if(!G||!G.lots)return null;
+ const sold=v=>v.total-som((G.encaiss||[]).filter(e=>e.vente_id===v.id&&e.statut==="valide"),e=>e.montant),V=(G.ventes||[]).filter(v=>v.statut==="valide");
+ const q=p=>som((G.mvts||[]).filter(m=>m.produit_id===p.id),m=>m.sens==="entree"?m.qte:-m.qte);
+ const lotOk={};(G.lots||[]).forEach(l=>lotOk[l.id]=l.statut==="en_cours");
+ const stockBas=(G.produits||[]).filter(p=>p.categorie!=="fini"&&p.seuil>0&&q(p)<=p.seuil).length;
+ const soins=(G.soins||[]).filter(s=>!s.realise_le&&!s.annule&&lotOk[s.lot_id]&&s.prevue<AUJ).length;
+ const crean=V.filter(v=>sold(v)>0&&v.date<jmoins((G.settings||{}).delai_creance||30)).length;
+ const en=(G.lots||[]).filter(l=>l.statut==="en_cours"),viv=l=>Math.max(0,l.initial-som((G.suivis||[]).filter(x=>x.lot_id===l.id),x=>x.morts)-som((G.sorties||[]).filter(s=>s.lot_id===l.id&&!s.annule),s=>s.tetes));
+ return{tres:treso(G),ca:som(V.filter(v=>String(v.date).startsWith(MOIS)),v=>v.total),enc:som((G.encaiss||[]).filter(e=>e.statut==="valide"&&String(e.date).startsWith(MOIS)),e=>e.montant),cre:som(V,sold),res:resCompta(G),
+  alt:stockBas+soins+crean,act:som(en,viv).toLocaleString("fr-FR")+" sujets vivants · "+en.length+" lot(s) en cours"};
+}
+function consolide(){
+ const D=distribution(lire("angels_erp_v1")),T=transport(lire("angels_transport_v3")),A=agro(lire("angels_agro_v1")),X=[["Distributions",D],["Transport",T],["Agro",A]];
+ const tot=k=>som(X.filter(x=>x[1]&&x[1][k]!=null),x=>x[1][k]),cell=(x,k,f)=>!x?'<span class="nd">non ouvert</span>':x[k]==null?'<span class="nd">—</span>':(f?f(x[k]):F(x[k]));
+ $("big").innerHTML=[["Trésorerie du groupe",tot("tres")],["Chiffre d'affaires du mois",tot("ca")],["Encaissé du mois",tot("enc")],["Créances à recouvrer",tot("cre")]].map(([l,v])=>`<div><b>${F(v)}</b><span>${l}</span></div>`).join("");
+ const row=(l,k,f)=>`<tr><td>${l}</td>${X.map(x=>`<td>${cell(x[1],k,f)}</td>`).join("")}<td><b>${F(tot(k))}</b></td></tr>`;
+ $("tcons").innerHTML=`<thead><tr><th></th>${X.map(x=>`<th>${x[0]}</th>`).join("")}<th>Groupe</th></tr></thead><tbody>${row("Trésorerie (caisse + banque)","tres")}${row("Chiffre d'affaires du mois","ca")}${row("Encaissé du mois","enc")}${row("Créances à recouvrer","cre")}
+  <tr><td>Résultat comptable du mois</td>${X.map(x=>`<td>${!x[1]?'<span class="nd">non ouvert</span>':x[1].res==null?'<span class="nd">dans son module</span>':'<span class="'+(x[1].res>=0?"ok":"er")+'">'+F(x[1].res)+'</span>'}</td>`).join("")}<td><b>${F(som(X.filter(x=>x[1]&&x[1].res!=null),x=>x[1].res))}</b></td></tr>
+  <tr><td>Activité</td>${X.map(x=>`<td class="nd act">${x[1]?x[1].act:"—"}</td>`).join("")}<td></td></tr>
+  <tr><td>Alertes à traiter</td>${X.map(x=>`<td>${x[1]?'<span class="'+(x[1].alt?"er":"ok")+'">'+x[1].alt+'</span>':'<span class="nd">—</span>'}</td>`).join("")}<td><b>${tot("alt")}</b></td></tr></tbody>`;
+ $("ncons").textContent="Chiffres lus sur cet appareil (données locales de chaque application). « Non ouvert » : l'application n'a pas encore été utilisée ici. Résultat de Distributions : voir son module Comptabilité.";
+}
+$("maj").onclick=consolide;window.addEventListener("storage",consolide);document.addEventListener("visibilitychange",()=>{if(!document.hidden)consolide()});consolide();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
