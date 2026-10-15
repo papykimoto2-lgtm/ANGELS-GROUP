@@ -1,5 +1,7 @@
 # ANGEL'S GROUP ERP — V1 Livraisons à moto
 
+**Hub groupe** : `/hub` (`hub.html`) — Angel's Distributions (actif), Angel's & Co Transport et Angel's Agro (à venir).
+
 Fichier unique : `index.html` (aucune dépendance, ouvrable par double-clic ; la carte OpenStreetMap demande Internet).
 
 ## Démonstration

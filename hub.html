@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b3b4c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Hub ANGEL'S GROUP</title>
+<style>
+:root{--b:#0e7490;--b2:#0b3b4c;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--bd:#d6e4ea;--g1:#0e7490;--g2:#c2410c;--g3:#15803d}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a21;--card:#112832;--tx:#e6f0f3;--mu:#93a9b2;--bd:#1f3a46}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+header{background:linear-gradient(135deg,var(--b2),var(--b));color:#fff;padding:calc(18px + env(safe-area-inset-top)) 16px 28px}
+.w{max-width:1100px;margin:0 auto}
+header h1{margin:0;font-size:22px;letter-spacing:.3px}
+header p{margin:4px 0 0;opacity:.8;font-size:13px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+main{padding:0 16px 40px;margin-top:-16px}
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;border-top:5px solid var(--c);text-decoration:none;color:inherit}
+.card h2{margin:0;font-size:17px}
+.card .ic{font-size:30px}
+.card p{margin:0;color:var(--mu);font-size:13px}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kp div{background:var(--bg);border-radius:10px;padding:8px;text-align:center}
+.kp b{display:block;font-size:19px}
+.kp span{font-size:11px;color:var(--mu)}
+.badge{align-self:flex-start;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:#e3f5ea;color:var(--ok)}
+.badge.soon{background:#fff1d6;color:var(--wa)}
+.btn{display:block;text-align:center;padding:12px;border-radius:10px;background:var(--c);color:#fff;font-weight:700;text-decoration:none;min-height:44px}
+.btn[aria-disabled=true]{opacity:.45;pointer-events:none}
+h3{margin:26px 0 10px;font-size:15px}
+.mod{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.mod div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:13px}
+footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
+</style>
+</head>
+<body>
+<header><div class="w top"><div><h1>🅰️ ANGEL'S GROUP — Hub</h1><p>Pilotage unique des filiales · <span id="date"></span></p></div></div></header>
+<main><div class="w">
+<div class="cards">
+ <a class="card" style="--c:var(--g1)" href="./" id="c-dist">
+  <div class="ic">🏍️</div><h2>Angel's Distributions</h2><p>Livraison à moto : commandes, livreurs, caisse, comptabilité SYSCOHADA.</p>
+  <span class="badge">Actif</span>
+  <div class="kp"><div><b id="k-cmd">—</b><span>Commandes en cours</span></div><div><b id="k-liv">—</b><span>Livrées</span></div><div><b id="k-lvr">—</b><span>Livreurs</span></div></div>
+  <span class="btn">Ouvrir l'ERP</span>
+ </a>
+ <div class="card" style="--c:var(--g2)">
+  <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Transport de marchandises et de personnes : flotte, trajets, chauffeurs, maintenance.</p>
+  <span class="badge soon">En préparation</span>
+  <div class="kp"><div><b>—</b><span>Trajets</span></div><div><b>—</b><span>Véhicules</span></div><div><b>—</b><span>Chauffeurs</span></div></div>
+  <span class="btn" aria-disabled="true">Bientôt disponible</span>
+ </div>
+ <div class="card" style="--c:var(--g3)">
+  <div class="ic">🌾</div><h2>Angel's Agro</h2><p>Production et négoce agricole : parcelles, campagnes, récoltes, stocks, ventes.</p>
+  <span class="badge soon">En préparation</span>
+  <div class="kp"><div><b>—</b><span>Parcelles</span></div><div><b>—</b><span>Campagnes</span></div><div><b>—</b><span>Stock</span></div></div>
+  <span class="btn" aria-disabled="true">Bientôt disponible</span>
+ </div>
+</div>
+<h3>Socle commun du groupe (à mutualiser)</h3>
+<div class="mod">
+ <div>👤 Utilisateurs, rôles, permissions</div><div>📒 Comptabilité SYSCOHADA consolidée</div>
+ <div>💰 Trésorerie et caisses</div><div>🧾 Facturation et documents</div>
+ <div>🔔 Notifications</div><div>🛡️ Journal d'audit</div>
+ <div>📊 Tableau de bord consolidé</div><div>📎 Pièces jointes, exports PDF/Excel</div>
+</div>
+</div></main>
+<footer>© ANGEL'S GROUP · Hub</footer>
+<script>
+const KEY="angels_erp_v1",$=s=>document.getElementById(s);
+$("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+try{
+ const S=JSON.parse(localStorage.getItem(KEY)||"null");
+ if(S){
+  const fin=["livree","retour_recu","echouee","annulee","brouillon"];
+  $("k-cmd").textContent=(S.commandes||[]).filter(c=>!fin.includes(c.statut)).length;
+  $("k-liv").textContent=(S.commandes||[]).filter(c=>c.statut==="livree").length;
+  $("k-lvr").textContent=(S.livreurs||[]).length;
+ }
+}catch(e){}
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
