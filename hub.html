@@ -54,11 +54,11 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
   <div class="kp"><div><b id="t-ot">—</b><span>Encaissé du jour</span></div><div><b id="t-v">—</b><span>Taxis</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <a class="card" style="--c:var(--g3)" href="https://avicosuite-erp.vercel.app/" target="_blank" rel="noopener noreferrer" id="c-agro">
-  <div class="ic">🐔</div><h2>Angel's Agro</h2><p>Production avicole (AviNest Pro) : lots et élevage, reproduction et couvoir, aliments, stock, distribution, finance et comptabilité SYSCOHADA.</p>
-  <span class="badge">Actif · AviNest Pro</span>
-  <div class="kp"><div><b>🥚</b><span>Couvoir</span></div><div><b>🐓</b><span>Élevage</span></div><div><b>🌽</b><span>Aliments</span></div></div>
-  <span class="btn">Ouvrir AviNest Pro</span>
+ <a class="card" style="--c:var(--g3)" href="agro.html" id="c-agro">
+  <div class="ic">🐔</div><h2>Angel's Agro</h2><p>Élevage avicole : lots, suivi quotidien, santé, couvoir, aliments, stock, ventes, rentabilité et comptabilité SYSCOHADA.</p>
+  <span class="badge">Actif</span>
+  <div class="kp"><div><b id="a-v">—</b><span>Sujets vivants</span></div><div><b id="a-l">—</b><span>Lots en cours</span></div><div><b id="a-s">—</b><span>Alertes stock</span></div></div>
+  <span class="btn">Ouvrir l'ERP</span>
  </a>
 </div>
 <h3>Socle commun du groupe (à mutualiser)</h3>
@@ -85,6 +85,12 @@ try{
 try{
  const T=JSON.parse(localStorage.getItem("angels_transport_v3")||"null");
  if(T){const j=new Date().toISOString().slice(0,10);$("t-ot").textContent=((T.payments||[]).filter(x=>x.statut==="confirme"&&x.date_valeur===j).reduce((s,x)=>s+(+x.montant||0),0)).toLocaleString("fr-FR")+" F";$("t-v").textContent=(T.vehicles||[]).length;$("t-c").textContent=(T.drivers||[]).length}
+}catch(e){}
+try{
+ const G=JSON.parse(localStorage.getItem("angels_agro_v1")||"null");
+ if(G){const en=(G.lots||[]).filter(l=>l.statut==="en_cours"),sor=l=>(G.sorties||[]).filter(s=>s.lot_id===l.id&&!s.annule).reduce((s,x)=>s+(+x.tetes||0),0),mor=l=>(G.suivis||[]).filter(x=>x.lot_id===l.id).reduce((s,x)=>s+(+x.morts||0),0);
+  $("a-v").textContent=en.reduce((s,l)=>s+Math.max(0,l.initial-mor(l)-sor(l)),0).toLocaleString("fr-FR");$("a-l").textContent=en.length;
+  const q=p=>(G.mvts||[]).filter(m=>m.produit_id===p.id).reduce((s,m)=>s+(m.sens==="entree"?m.qte:-m.qte),0);$("a-s").textContent=(G.produits||[]).filter(p=>p.categorie!=="fini"&&p.seuil>0&&q(p)<=p.seuil).length}
 }catch(e){}
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

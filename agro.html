@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a4731">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>ANGEL'S AGRO — Élevage avicole</title>
+<style>
+:root{--b:#2d6a4f;--b2:#1a4731;--bg:#f3f8f4;--card:#fff;--tx:#15251c;--mu:#7a6a60;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d5e5da;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3e6}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1a14;--card:#182a20;--tx:#e8f3ec;--mu:#9bb5a5;--bd:#2c4637;--okbg:#14351f;--wabg:#3d2e0c;--erbg:#431616;--bbg:#1e4030}}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+button,input,select,textarea{font:inherit;color:inherit}
+.shell{display:flex;min-height:100vh}
+aside{width:236px;background:var(--b2);color:#fff;padding:14px 10px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
+aside .brand{font-weight:800;font-size:16px;padding:6px 8px 12px;line-height:1.2}
+aside .brand small{display:block;font-weight:400;opacity:.7;font-size:11px}
+aside .gt{margin:12px 10px 3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.55;font-weight:700}
+aside a{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:8px;color:#ffe8db;cursor:pointer;text-decoration:none}
+aside a:hover{background:rgba(255,255,255,.12)}aside a.on{background:#fff;color:var(--b2);font-weight:700}
+aside .who{margin-top:14px;padding:10px;border-top:1px solid rgba(255,255,255,.2);font-size:12px}
+main{flex:1;padding:18px;min-width:0}
+h1{font-size:20px;margin:0 0 14px}h2{font-size:15px;margin:18px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.kpi .v{font-size:21px;font-weight:800}.kpi .l{color:var(--mu);font-size:12px}
+.kpi.w .v{color:var(--wa)}.kpi.e .v{color:var(--er)}.kpi.o .v{color:var(--ok)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:7px 9px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mu);white-space:nowrap}
+.tw{overflow:auto;border:1px solid var(--bd);border-radius:12px;background:var(--card);margin-bottom:14px}
+.btn{background:var(--b);color:#fff;border:0;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;min-height:38px}
+.btn:hover{background:var(--b2)}.btn.sm{padding:4px 9px;font-size:12px;min-height:0}
+.btn.ghost{background:transparent;color:var(--b);border:1px solid var(--b)}
+.btn.ok{background:var(--ok)}.btn.er{background:var(--er)}.btn:disabled{opacity:.5}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;background:var(--bbg);color:var(--b);white-space:nowrap}
+.badge.ok{background:var(--okbg);color:var(--ok)}.badge.wa{background:var(--wabg);color:var(--wa)}.badge.er{background:var(--erbg);color:var(--er)}.badge.mu{background:var(--bd);color:var(--mu)}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.between{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mu{color:var(--mu)}.sm{font-size:12px}.r{text-align:right}
+input,select,textarea{border:1px solid var(--bd);border-radius:8px;padding:8px 9px;background:var(--card);width:100%}
+input[type=checkbox]{width:auto}
+label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8px}
+.fg{display:grid;gap:0 10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.md{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:12px}
+.md>div{background:var(--card);border-radius:14px;padding:16px;max-width:880px;width:100%;max-height:92vh;overflow:auto}
+.login{max-width:350px;margin:10vh auto;padding:0 16px}
+.burger{display:none}
+.al{padding:8px 10px;border-radius:8px;margin-bottom:6px;background:var(--wabg);color:var(--wa);font-weight:600}.al.er{background:var(--erbg);color:var(--er)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid var(--bd)}
+.tabs button{background:none;border:0;padding:8px 12px;cursor:pointer;color:var(--mu);font-weight:600;border-bottom:3px solid transparent}
+.tabs button.on{color:var(--b);border-color:var(--b)}
+.note{background:var(--wabg);color:var(--wa);padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:12px}
+canvas{max-width:100%}
+@media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
+@media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const KEY="angels_agro_v1";
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fcfa=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+const nf=(n,d=0)=>(Math.round((n||0)*10**d)/10**d).toLocaleString("fr-FR",{maximumFractionDigits:d});
+const now=()=>new Date().toISOString(),today=()=>now().slice(0,10);
+const fd=d=>d?new Date(d.length>10?d:d+"T00:00:00Z").toLocaleDateString("fr-FR",{timeZone:"UTC"}):"—";
+const fdt=t=>t?new Date(t).toLocaleString("fr-FR",{timeZone:"UTC"}):"—";
+const hashPin=(id,p)=>{let x=5381;for(const c of id+":"+p)x=((x<<5)+x+c.charCodeAt(0))|0;return x};
+const addDays=(d,n)=>{const x=new Date(d+"T00:00:00Z");x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
+const diffDays=(a,b)=>Math.round((new Date(a+"T00:00:00Z")-new Date(b+"T00:00:00Z"))/864e5);
+const by=(arr,id,k="id")=>arr.find(x=>x[k]===id);
+const sum=(arr,f)=>arr.reduce((s,x)=>s+(+f(x)||0),0);
+let S=null,ME=null,view="dash";
+const UI={tab:{},f:{}};
+
+/* ---------- Référentiels ---------- */
+const ROLES={admin:"Administrateur",direction:"Direction générale",chef:"Chef d'exploitation",soigneur:"Soigneur",magasinier:"Magasinier",commercial:"Commercial",caissier:"Caissier",comptable:"Comptable"};
+const ALL=Object.keys(ROLES);
+const ACL={ // qui peut faire quoi (appliqué aussi dans les fonctions, pas seulement dans les menus)
+ lot:["admin","chef"],suivi:["admin","chef","soigneur"],sante:["admin","chef","soigneur"],couvoir:["admin","chef"],batiment:["admin","chef"],
+ stock:["admin","chef","magasinier"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
+ vente:["admin","commercial","caissier"],annulvente:["admin","direction"],paiement:["admin","caissier","commercial"],
+ charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],extourne:["admin","comptable","direction"],
+ periode:["admin","comptable","direction"],perso:["admin","direction","chef"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
+const can=a=>!!ME&&(ME.role==="seed"||(ACL[a]||[]).includes(ME.role));
+const need=(a,msg)=>{if(!can(a))throw new Error(msg||"Droits insuffisants pour cette action.")};
+const NAV=[
+ {v:"dash",l:"Tableau de bord",i:"📊",g:"Pilotage",r:ALL},{v:"rapports",l:"Rapports",i:"📨",g:"Pilotage",r:["admin","direction","chef","comptable"]},
+ {v:"lots",l:"Lots & élevage",i:"🐔",g:"Élevage",r:["admin","direction","chef","soigneur"]},{v:"suivi",l:"Suivi quotidien",i:"📝",g:"Élevage",r:["admin","chef","soigneur"]},
+ {v:"sante",l:"Santé & prophylaxie",i:"💉",g:"Élevage",r:["admin","chef","soigneur"]},{v:"couvoir",l:"Couvoir",i:"🥚",g:"Élevage",r:["admin","chef"]},
+ {v:"batiments",l:"Bâtiments",i:"🏠",g:"Élevage",r:["admin","chef","direction"]},
+ {v:"stock",l:"Stock",i:"📦",g:"Stock & achats",r:["admin","direction","chef","magasinier","comptable"]},{v:"fab",l:"Fabrication aliments",i:"🌽",g:"Stock & achats",r:["admin","chef","magasinier"]},
+ {v:"achats",l:"Achats & fournisseurs",i:"🛒",g:"Stock & achats",r:["admin","direction","magasinier","comptable"]},
+ {v:"ventes",l:"Ventes & clients",i:"🧾",g:"Ventes",r:["admin","direction","commercial","caissier","comptable"]},
+ {v:"tresor",l:"Trésorerie",i:"🏦",g:"Argent",r:["admin","direction","caissier","comptable"]},{v:"charges",l:"Charges",i:"💸",g:"Argent",r:["admin","direction","chef","caissier","comptable"]},
+ {v:"finance",l:"Rentabilité",i:"📈",g:"Argent",r:["admin","direction","chef","comptable"]},{v:"compta",l:"Comptabilité SYSCOHADA",i:"📒",g:"Argent",r:["admin","direction","comptable"]},
+ {v:"perso",l:"Personnel",i:"👥",g:"Administration",r:["admin","direction","chef"]},{v:"users",l:"Utilisateurs & audit",i:"🛡️",g:"Administration",r:["admin"]},
+ {v:"params",l:"Paramétrage",i:"⚙️",g:"Administration",r:["admin","direction"]}
+];
+const LOTTYPE={chair:"Chair",ponte:"Ponte"};
+const CATP={aliment:"Aliment",medicament:"Médicament / vaccin",poussin:"Poussin",emballage:"Emballage",fini:"Produit fini",autre:"Autre"};
+const CPT_ACHAT={poussin:"6011",aliment:"6013",medicament:"6015",emballage:"6022",autre:"628",fini:"628"};
+const CHARGES={main_oeuvre:["Main-d'œuvre","6410"],energie:["Énergie","6052"],eau:["Eau","6051"],entretien:["Entretien, réparations","6224"],transport:["Transport","6222"],assurance:["Assurance","6161"],loyer:["Loyer","622"],impot:["Impôts et taxes","646"],autre:["Charges diverses","628"]};
+const PLAN=[["101","Capital — apport","Capitaux"],["162","Emprunts","Capitaux"],["401","Fournisseurs","Tiers"],["411","Clients","Tiers"],["422","Personnel — rémunérations dues","Tiers"],["521","Banque et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["6011","Achats poussins","Charge"],["6013","Achats aliment","Charge"],["6015","Achats médicaments / vaccins","Charge"],["6022","Achats emballages","Charge"],["6051","Achats eau","Charge"],["6052","Achats énergie","Charge"],["6161","Primes d'assurance","Charge"],["622","Locations","Charge"],["6222","Transport","Charge"],["6224","Entretien, réparations","Charge"],["628","Charges diverses","Charge"],["646","Impôts et taxes","Charge"],["6410","Charges de personnel — salaires","Charge"],["701","Ventes — produits avicoles","Produit"],["758","Autres produits divers","Produit"]];
+const JOURNAUX=[["VE","Ventes"],["AC","Achats et charges"],["TR","Trésorerie"],["PAIE","Paie"],["OD","Opérations diverses"]];
+const PROTOCOLES=[["chair",1,"Vaccin Marek"],["chair",7,"Vaccin Gumboro"],["chair",14,"Vaccin Newcastle + IB"],["chair",21,"Rappel Gumboro"],["chair",28,"Anticoccidien"],["chair",35,"Rappel Newcastle"],["ponte",1,"Vaccin Marek"],["ponte",7,"Vaccin Gumboro"],["ponte",14,"Vaccin Newcastle + IB"],["ponte",28,"Rappel Gumboro"],["ponte",42,"Rappel Newcastle"],["ponte",56,"Vaccin EDS"],["ponte",112,"Rappel EDS avant ponte"]];
+const phase=(t,a)=>t==="ponte"?(a<84?"Démarrage":a<126?"Pré-ponte":a<350?"Pic de ponte":a<500?"Déclin":"Réforme"):(a<10?"Démarrage":a<28?"Croissance":a<42?"Finition":"Prêt à vendre");
+
+/* ---------- Persistance, audit, transactions ---------- */
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend (Supabase) est requis.")}};
+const audit=(a,d)=>{S.audit.unshift({t:now(),u:ME?ME.nom:"système",r:ME?ME.role:"",a,d:d||""});if(S.audit.length>2000)S.audit.length=2000};
+function atomic(fn,quiet){
+ const snap=JSON.stringify(S),me=ME&&ME.id;
+ try{const r=fn();save();return r===undefined?true:r}
+ catch(e){S=JSON.parse(snap);if(me)ME=by(S.users,me)||null;if(!quiet)alert(e.message);return false}
+}
+const seq=(k,p)=>{S.seq[k]=(S.seq[k]||0)+1;return p+"-"+new Date().getFullYear()+"-"+String(S.seq[k]).padStart(4,"0")};
+
+/* ---------- Comptabilité (partie double) ---------- */
+const per=d=>d.slice(0,7);
+function periodOpen(d){const p=by(S.periods,per(d));if(p&&p.statut==="cloturee")throw new Error("Période comptable clôturée : "+per(d)+".");if(!p)S.periods.push({id:per(d),statut:"ouverte"})}
+function postEntry({journal,date,libelle,piece,source,lignes}){
+ lignes=lignes.filter(l=>l.debit||l.credit);
+ const d=sum(lignes,l=>l.debit),c=sum(lignes,l=>l.credit);
+ if(lignes.length<2||d!==c||d<=0)throw new Error("Écriture déséquilibrée ou incomplète (débit "+fcfa(d)+" / crédit "+fcfa(c)+").");
+ lignes.forEach(l=>{if(!by(S.accounts,l.compte,"num"))throw new Error("Compte inconnu : "+l.compte);if(l.debit&&l.credit)throw new Error("Ligne à la fois au débit et au crédit.")});
+ periodOpen(date);
+ const e={id:uid("je"),numero:seq("je","EC"),journal,date,libelle,piece:piece||"",source:source||null,lignes,par:ME?ME.nom:"système",t:now()};
+ S.entries.push(e);return e;
+}
+function extournerSource(type,id,motif){
+ S.entries.filter(e=>e.source&&e.source.type===type&&e.source.id===id&&!e.extournee).forEach(e=>{
+  postEntry({journal:e.journal,date:today(),libelle:"Extourne "+e.numero+" — "+motif,piece:e.piece,source:{type:"extourne",id:e.id},lignes:e.lignes.map(l=>({compte:l.compte,tiers:l.tiers,debit:l.credit||0,credit:l.debit||0,lot:l.lot}))});
+  e.extournee=true;
+ });
+}
+const cptTreso=m=>m==="especes"?"571":"521";
+const soldeCompte=(c,tiers)=>sum(S.entries.flatMap(e=>e.lignes.filter(l=>l.compte===c&&(!tiers||l.tiers===tiers))),l=>(l.debit||0)-(l.credit||0));
+
+/* ---------- Stock ---------- */
+const prod=id=>by(S.produits,id)||{nom:"?",unite:""};
+const qteStock=pid=>sum(S.mvts.filter(m=>m.produit_id===pid),m=>m.sens==="entree"?m.qte:-m.qte);
+function pmp(pid){ // coût moyen pondéré des entrées valorisées
+ const en=S.mvts.filter(m=>m.produit_id===pid&&m.sens==="entree"&&m.pu>0),q=sum(en,m=>m.qte);return q>0?sum(en,m=>m.qte*m.pu)/q:((by(S.produits,pid)||{}).prix_ref||0);
+}
+function mouvement({produit_id,sens,qte,pu,motif,source,date,lot_id}){
+ const p=by(S.produits,produit_id);if(!p)throw new Error("Produit introuvable.");
+ qte=+qte;if(!(qte>0))throw new Error("Quantité invalide.");
+ if(sens==="sortie"&&qte>qteStock(produit_id)+1e-9)throw new Error("Stock insuffisant : "+p.nom+" ("+nf(qteStock(produit_id),2)+" "+p.unite+" disponibles).");
+ const m={id:uid("mv"),date:date||today(),produit_id,sens,qte,pu:sens==="sortie"?pmp(produit_id):(+pu||0),motif:motif||"",source:source||null,lot_id:lot_id||null,par:ME?ME.nom:"système"};
+ S.mvts.push(m);return m;
+}
+function ajusterSource(type,id,cible,cfg){ // aligne le stock sur la quantité cible d'une saisie (modification d'un suivi)
+ const cur=sum(S.mvts.filter(m=>m.source&&m.source.type===type&&m.source.id===id&&m.produit_id===cfg.produit_id),m=>m.sens===cfg.sens?m.qte:-m.qte);
+ const d=cible-cur;if(Math.abs(d)<1e-9)return;
+ mouvement({produit_id:cfg.produit_id,sens:d>0?cfg.sens:(cfg.sens==="sortie"?"entree":"sortie"),qte:Math.abs(d),pu:cfg.pu,motif:cfg.motif,source:{type,id},date:cfg.date,lot_id:cfg.lot_id});
+}
+function ajusterStock(pid,reel,motif){
+ need("ajust");if(!String(motif||"").trim())throw new Error("Motif obligatoire pour un ajustement.");
+ const d=reel-qteStock(pid);if(Math.abs(d)<1e-9)throw new Error("Aucun écart.");
+ mouvement({produit_id:pid,sens:d>0?"entree":"sortie",qte:Math.abs(d),pu:d>0?pmp(pid):0,motif:"Inventaire : "+motif,source:{type:"ajust",id:uid("aj")}});audit("Ajustement de stock",prod(pid).nom+" "+nf(d,2));
+}
+
+/* ---------- Lots & suivi quotidien ---------- */
+const lot=id=>by(S.lots,id)||{code:"?",nom:"?"};
+const lotSorties=l=>S.sorties.filter(s=>s.lot_id===l.id&&!s.annule);
+const vivantsLot=l=>Math.max(0,l.initial-sum(S.suivis.filter(x=>x.lot_id===l.id),x=>x.morts)-sum(lotSorties(l),s=>s.tetes));
+function lotStats(l){
+ const ds=S.suivis.filter(x=>x.lot_id===l.id).sort((a,b)=>a.date.localeCompare(b.date)),so=lotSorties(l);
+ const morts=sum(ds,x=>x.morts),sortis=sum(so,s=>s.tetes),vivants=Math.max(0,l.initial-morts-sortis);
+ const feed=sum(ds,x=>x.aliment_kg),eau=sum(ds,x=>x.eau_l),oeufs=sum(ds,x=>x.oeufs),casses=sum(ds,x=>x.casses);
+ const age=Math.max(0,diffDays(l.statut==="clos"&&l.cloture?l.cloture:today(),l.debut))+1;
+ const pes=ds.filter(x=>x.poids_g>0).slice(-1)[0],poids=pes?pes.poids_g:null,kgVendus=sum(so.filter(s=>s.type==="vente"),s=>s.poids_kg);
+ const bio=(poids?poids/1000*vivants:0)+kgVendus,IC=l.type==="chair"&&bio>0&&feed>0?feed/bio:null;
+ const l7=ds.filter(x=>x.oeufs>0||x.casses>0).slice(-7),tp=l.type==="ponte"&&l7.length&&vivants>0?sum(l7,x=>x.oeufs)/(l7.length*vivants)*100:null;
+ const pl=S.settings.plateau,cPou=l.initial*(l.cout_poussin||0),cAl=sum(ds,x=>x.produit_id?x.aliment_kg*pmp(x.produit_id):0);
+ const cSa=sum(S.soins.filter(s=>s.lot_id===l.id&&s.realise_le&&s.produit_id),s=>s.qte*pmp(s.produit_id))+sum(S.traitements.filter(t=>t.lot_id===l.id),t=>t.qte*pmp(t.produit_id));
+ const cCh=sum(S.charges.filter(c=>c.lot_id===l.id&&c.statut==="valide"),c=>c.montant),cout=cPou+cAl+cSa+cCh;
+ const recV=sum(S.ventes.filter(v=>v.statut==="valide").flatMap(v=>v.lignes.filter(x=>x.lot_id===l.id)),x=>x.total);
+ const recO=l.type==="ponte"?Math.round((oeufs-casses)/pl*S.settings.prix_plateau):0;
+ return{ds,morts,sortis,vivants,feed,eau,oeufs,casses,age,poids,kgVendus,IC,tp,mortPct:l.initial?morts/l.initial*100:0,casse:oeufs+casses>0?casses/(oeufs+casses)*100:0,
+  cPou,cAl,cSa,cCh,cout,recV,recO,rec:recV+recO,marge:recV+recO-cout,coutKg:kgVendus>0?cout/kgVendus:null,phase:phase(l.type,age),attente:l.attente_jusqua&&l.attente_jusqua>=today()?l.attente_jusqua:null};
+}
+function creerLot(f){
+ need("lot");if(!String(f.nom||"").trim())throw new Error("Nom du lot requis.");
+ if(!(f.initial>0)||!Number.isInteger(+f.initial))throw new Error("Effectif initial invalide.");
+ if(f.debut>today())throw new Error("Date de mise en place dans le futur.");
+ const b=by(S.batiments,f.batiment_id);if(!b)throw new Error("Choisir un bâtiment.");
+ const occ=sum(S.lots.filter(l=>l.batiment_id===b.id&&l.statut==="en_cours"),l=>vivantsLot(l));
+ if(occ+ +f.initial>b.capacite)throw new Error("Capacité du bâtiment dépassée ("+occ+" + "+f.initial+" > "+b.capacite+").");
+ const code=seq("lot","LOT");let cp=+f.cout_poussin||0;
+ if(f.produit_id){const p=by(S.produits,f.produit_id);if(!p||p.categorie!=="poussin")throw new Error("Produit « poussin » invalide.");mouvement({produit_id:p.id,sens:"sortie",qte:f.initial,motif:"Mise en place "+code,date:f.debut});cp=cp||pmp(p.id)}
+ const l={id:uid("lt"),code,nom:f.nom,type:f.type,breed:f.breed||"",batiment_id:b.id,debut:f.debut,initial:+f.initial,cout_poussin:cp,statut:"en_cours",origine:f.produit_id?"stock":(f.incub_id?"couvoir":"autre"),incub_id:f.incub_id||null,attente_jusqua:null};
+ S.lots.push(l);planifierSante(l);if(f.incub_id){const i=by(S.incubations,f.incub_id);if(i)i.lot_id=l.id}
+ audit("Lot créé",code+" "+f.nom);return l;
+}
+function planifierSante(l){PROTOCOLES_ACTIFS().filter(p=>p.type===l.type).forEach(p=>S.soins.push({id:uid("so"),lot_id:l.id,age_j:p.age,prevue:addDays(l.debut,p.age-1),action:p.action,produit_id:null,qte:0,realise_le:null}))}
+const PROTOCOLES_ACTIFS=()=>S.protocoles;
+function cloturerLot(id,motif){
+ need("lot");const l=by(S.lots,id);if(!l||l.statut==="clos")throw new Error("Lot introuvable ou déjà clos.");
+ const v=vivantsLot(l);if(v>0&&!String(motif||"").trim())throw new Error("Il reste "+v+" sujets : motif de clôture obligatoire (réforme, abattage…).");
+ if(v>0)S.sorties.push({id:uid("sr"),lot_id:id,date:today(),type:"reforme",tetes:v,poids_kg:0,note:motif});
+ l.statut="clos";l.cloture=today();S.soins.filter(s=>s.lot_id===id&&!s.realise_le).forEach(s=>s.annule=true);audit("Lot clos",l.code);
+}
+function saisirSuivi(f){
+ need("suivi");const l=by(S.lots,f.lot_id);if(!l||l.statut==="clos")throw new Error("Lot introuvable ou clos.");
+ if(f.date>today())throw new Error("Date dans le futur.");if(f.date<l.debut)throw new Error("Date antérieure à la mise en place.");
+ const n=k=>{const v=+f[k]||0;if(v<0)throw new Error("Valeur négative interdite ("+k+").");return v};
+ const morts=n("morts"),al=n("aliment_kg"),eau=n("eau_l"),pg=n("poids_g"),oe=n("oeufs"),ca=n("casses"),tp=f.temp===""||f.temp==null?null:+f.temp;
+ if(!Number.isInteger(morts)||!Number.isInteger(oe)||!Number.isInteger(ca))throw new Error("Mortalité et œufs : nombres entiers.");
+ if(l.type==="chair"&&(oe||ca))throw new Error("Pas de ponte sur un lot de chair.");
+ if(al>0&&!f.produit_id)throw new Error("Choisir l'aliment consommé.");
+ let r=S.suivis.find(x=>x.lot_id===l.id&&x.date===f.date);
+ const autres=Math.max(0,l.initial-sum(S.suivis.filter(x=>x.lot_id===l.id&&x!==r),x=>x.morts)-sum(lotSorties(l),s=>s.tetes));
+ if(morts>autres)throw new Error("Mortalité supérieure à l'effectif vivant ("+autres+").");
+ if(!r){r={id:uid("su"),lot_id:l.id,date:f.date};S.suivis.push(r)}
+ const old=r.produit_id;Object.assign(r,{morts,cause:f.cause||"",aliment_kg:al,produit_id:f.produit_id||null,eau_l:eau,poids_g:pg,oeufs:oe,casses:ca,temp:tp,note:f.note||"",par:ME.nom});
+ if(old&&old!==r.produit_id)ajusterSource("suivi",r.id,0,{produit_id:old,sens:"sortie",motif:"Correction suivi",date:f.date,lot_id:l.id});
+ if(r.produit_id)ajusterSource("suivi",r.id,al,{produit_id:r.produit_id,sens:"sortie",motif:"Consommation "+l.code,date:f.date,lot_id:l.id});
+ if(l.type==="ponte"){const po=S.produits.find(p=>p.code==="OEUFS");if(po)ajusterSource("suivi-oeufs",r.id,Math.max(0,(oe-ca)/S.settings.plateau),{produit_id:po.id,sens:"entree",pu:0,motif:"Production "+l.code,date:f.date,lot_id:l.id})}
+ audit("Suivi quotidien",l.code+" "+f.date);return r;
+}
+/* ---------- Santé ---------- */
+function realiserSoin(id,f){
+ need("sante");const s=by(S.soins,id);if(!s||s.realise_le||s.annule)throw new Error("Soin introuvable ou déjà réalisé.");
+ const d=f.date||today();if(d>today())throw new Error("Date dans le futur.");
+ if(f.produit_id&&+f.qte>0)mouvement({produit_id:f.produit_id,sens:"sortie",qte:+f.qte,motif:s.action+" — "+lot(s.lot_id).code,date:d,lot_id:s.lot_id,source:{type:"soin",id}});
+ Object.assign(s,{produit_id:f.produit_id||null,qte:+f.qte||0,realise_le:d,par:ME.nom,note:f.note||""});audit("Soin réalisé",s.action+" "+lot(s.lot_id).code);
+}
+function traiter(f){
+ need("sante");const l=by(S.lots,f.lot_id);if(!l||l.statut==="clos")throw new Error("Lot introuvable ou clos.");
+ if(!String(f.motif||"").trim())throw new Error("Motif du traitement requis.");if(!(+f.delai>=0))throw new Error("Délai d'attente invalide.");
+ if(f.produit_id&&+f.qte>0)mouvement({produit_id:f.produit_id,sens:"sortie",qte:+f.qte,motif:"Traitement : "+f.motif,date:f.date,lot_id:l.id});
+ const t={id:uid("tr"),lot_id:l.id,date:f.date,produit_id:f.produit_id||null,qte:+f.qte||0,motif:f.motif,delai:+f.delai,jusqua:addDays(f.date,+f.delai),par:ME.nom};
+ S.traitements.push(t);if(!l.attente_jusqua||t.jusqua>l.attente_jusqua)l.attente_jusqua=t.jusqua;audit("Traitement",l.code+" "+f.motif);return t;
+}
+/* ---------- Couvoir ---------- */
+const tauxCouv=i=>{const fer=i.oeufs-(i.infertiles||0);return{fert:i.mirage_fait?fer/i.oeufs*100:null,eclo:i.eclosion_faite?(i.eclos||0)/i.oeufs*100:null,eclosFertiles:i.eclosion_faite&&fer>0?(i.eclos||0)/fer*100:null}};
+function creerIncubation(f){
+ need("couvoir");if(!(f.oeufs>0)||!Number.isInteger(+f.oeufs))throw new Error("Nombre d'œufs invalide.");if(f.date_mise>today())throw new Error("Date dans le futur.");
+ const i={id:uid("ic"),code:seq("inc","INC"),reproducteur:f.reproducteur||"",date_mise:f.date_mise,oeufs:+f.oeufs,infertiles:0,eclos:0,mirage_fait:false,eclosion_faite:false,date_mirage:addDays(f.date_mise,18),date_eclosion:addDays(f.date_mise,21),lot_id:null};
+ S.incubations.push(i);audit("Incubation",i.code);return i;
+}
+function mirage(id,inf){need("couvoir");const i=by(S.incubations,id);if(!i||i.mirage_fait)throw new Error("Mirage déjà fait ou introuvable.");inf=+inf;if(!(inf>=0&&inf<=i.oeufs)||!Number.isInteger(inf))throw new Error("Infertiles invalides.");i.infertiles=inf;i.mirage_fait=true;audit("Mirage",i.code)}
+function eclosion(id,n){need("couvoir");const i=by(S.incubations,id);if(!i||!i.mirage_fait||i.eclosion_faite)throw new Error("Faire le mirage d'abord (ou éclosion déjà saisie).");n=+n;if(!(n>=0&&n<=i.oeufs-i.infertiles)||!Number.isInteger(n))throw new Error("Éclos : maximum "+(i.oeufs-i.infertiles)+" (œufs fertiles).");i.eclos=n;i.eclosion_faite=true;audit("Éclosion",i.code+" "+n)}
+/* ---------- Fabrication d'aliments ---------- */
+function creerRecette(f){
+ need("fab");if(!String(f.nom||"").trim())throw new Error("Nom requis.");const L=f.lignes.filter(l=>l.produit_id&&+l.pct>0);
+ if(L.length<2)throw new Error("Au moins 2 ingrédients.");if(Math.abs(sum(L,l=>l.pct)-100)>0.01)throw new Error("Les pourcentages doivent totaliser 100 (actuel "+nf(sum(L,l=>l.pct),2)+").");
+ const fin=by(S.produits,f.produit_id);if(!fin||fin.categorie!=="aliment")throw new Error("Produit fini (aliment) requis.");
+ S.recettes.push({id:uid("rc"),nom:f.nom,produit_id:fin.id,lignes:L.map(l=>({produit_id:l.produit_id,pct:+l.pct}))});audit("Recette",f.nom);
+}
+function fabriquer(rid,kg,date){
+ need("fab");const r=by(S.recettes,rid);if(!r)throw new Error("Recette introuvable.");kg=+kg;if(!(kg>0))throw new Error("Quantité invalide.");
+ const id=uid("fb");let cout=0;
+ r.lignes.forEach(l=>{const q=kg*l.pct/100;cout+=q*pmp(l.produit_id);mouvement({produit_id:l.produit_id,sens:"sortie",qte:q,motif:"Fabrication "+r.nom,date,source:{type:"fab",id}})});
+ mouvement({produit_id:r.produit_id,sens:"entree",qte:kg,pu:cout/kg,motif:"Fabrication "+r.nom,date,source:{type:"fab",id}});
+ S.fabs.push({id,numero:seq("fab","FAB"),date,recette_id:r.id,kg,cout,par:ME.nom});audit("Fabrication",r.nom+" "+kg+" kg");
+}
+/* ---------- Achats ---------- */
+const tiers=(type,id)=>by(type==="c"?S.clients:S.fournisseurs,id)||{nom:"?"};
+function creerAchat(f){
+ need("achat");const L=f.lignes.filter(l=>l.produit_id&&+l.qte>0);if(!f.fournisseur_id||!L.length)throw new Error("Fournisseur et au moins une ligne requis.");
+ L.forEach(l=>{if(!(+l.pu>=0))throw new Error("Prix invalide.")});
+ const a={id:uid("ac"),numero:seq("ac","BC"),date:f.date,fournisseur_id:f.fournisseur_id,lignes:L.map(l=>({produit_id:l.produit_id,qte:+l.qte,pu:+l.pu})),total:Math.round(sum(L,l=>l.qte*l.pu)),statut:"commande",paye:0};
+ S.achats.push(a);audit("Bon de commande",a.numero);return a;
+}
+function recevoirAchat(id,date){
+ need("achat");const a=by(S.achats,id);if(!a||a.statut!=="commande")throw new Error("Commande non réceptionnable.");date=date||today();
+ a.lignes.forEach(l=>mouvement({produit_id:l.produit_id,sens:"entree",qte:l.qte,pu:l.pu,motif:"Réception "+a.numero,date,source:{type:"achat",id}}));
+ const par={};a.lignes.forEach(l=>{const c=CPT_ACHAT[prod(l.produit_id).categorie]||"628";par[c]=(par[c]||0)+Math.round(l.qte*l.pu)});
+ const tot=sum(Object.values(par),x=>x),ecart=a.total-tot;if(ecart)par[Object.keys(par)[0]]+=ecart;
+ postEntry({journal:"AC",date,libelle:"Achat "+a.numero+" — "+tiers("f",a.fournisseur_id).nom,piece:a.numero,source:{type:"achat",id},lignes:[...Object.entries(par).map(([c,m])=>({compte:c,debit:m})),{compte:"401",tiers:a.fournisseur_id,credit:a.total}]});
+ a.statut="recu";a.recu_le=date;audit("Achat réceptionné",a.numero);
+}
+function annulerAchat(id,motif){need("achat");const a=by(S.achats,id);if(!a||a.statut!=="commande")throw new Error("Seule une commande non reçue peut être annulée.");if(!motif)throw new Error("Motif obligatoire.");a.statut="annule";a.motif=motif;audit("Commande annulée",a.numero)}
+function payerFournisseur(id,f){
+ need("achat");const a=by(S.achats,id);if(!a||a.statut!=="recu")throw new Error("Commande non reçue.");
+ const m=Math.round(+f.montant);if(!(m>0))throw new Error("Montant invalide.");if(m>a.total-a.paye)throw new Error("Montant supérieur au solde ("+fcfa(a.total-a.paye)+").");
+ if(f.mode!=="especes"&&!String(f.ref||"").trim())throw new Error("Référence de transaction obligatoire.");
+ if(f.mode==="especes"&&m>soldeCompte("571"))throw new Error("Caisse insuffisante ("+fcfa(soldeCompte("571"))+").");
+ const r={id:uid("rg"),numero:seq("rg","RGF"),achat_id:id,date:f.date,montant:m,mode:f.mode,ref:f.ref||""};S.reglements.push(r);
+ postEntry({journal:"TR",date:f.date,libelle:"Règlement "+a.numero,piece:r.numero,source:{type:"reglement",id:r.id},lignes:[{compte:"401",tiers:a.fournisseur_id,debit:m},{compte:cptTreso(f.mode),credit:m}]});
+ a.paye+=m;audit("Règlement fournisseur",a.numero+" "+m);return r;
+}
+/* ---------- Ventes & encaissements ---------- */
+const soldeVente=v=>v.total-sum(S.encaiss.filter(e=>e.vente_id===v.id&&e.statut==="valide"),e=>e.montant);
+const soldeClient=cid=>sum(S.ventes.filter(v=>v.client_id===cid&&v.statut==="valide"),soldeVente);
+function creerVente(f){
+ need("vente");const c=by(S.clients,f.client_id);if(!c)throw new Error("Client requis.");if(f.date>today())throw new Error("Date dans le futur.");
+ const L=f.lignes.filter(l=>(l.type==="vif"?+l.tetes>0:+l.qte>0));if(!L.length)throw new Error("Ajouter au moins une ligne.");
+ const id=uid("vt"),lignes=[];
+ L.forEach(l=>{
+  if(l.type==="vif"){
+   const lt=by(S.lots,l.lot_id);if(!lt)throw new Error("Lot requis pour une vente de sujets vivants.");if(lt.statut==="clos")throw new Error("Lot clos.");
+   const t=+l.tetes,kg=+l.poids_kg,pu=+l.pu;if(!Number.isInteger(t)||t<=0)throw new Error("Nombre de têtes invalide.");if(!(kg>0)||!(pu>=0))throw new Error("Poids et prix requis.");
+   if(t>vivantsLot(lt))throw new Error("Seulement "+vivantsLot(lt)+" sujets vivants dans "+lt.code+".");
+   if(lt.attente_jusqua&&lt.attente_jusqua>=f.date)throw new Error("Vente interdite : délai d'attente sanitaire de "+lt.code+" jusqu'au "+fd(lt.attente_jusqua)+".");
+   S.sorties.push({id:uid("sr"),lot_id:lt.id,date:f.date,type:"vente",tetes:t,poids_kg:kg,source_vente:id});
+   lignes.push({type:"vif",lot_id:lt.id,designation:"Poulets vifs — "+lt.code,tetes:t,poids_kg:kg,qte:kg,pu,total:Math.round(kg*pu)});
+  }else{
+   const p=by(S.produits,l.produit_id);if(!p||p.categorie!=="fini")throw new Error("Produit fini requis.");const q=+l.qte,pu=+l.pu;if(!(pu>=0))throw new Error("Prix invalide.");
+   mouvement({produit_id:p.id,sens:"sortie",qte:q,motif:"Vente",date:f.date,source:{type:"vente",id}});
+   lignes.push({type:"stock",produit_id:p.id,designation:p.nom,qte:q,pu,total:Math.round(q*pu)});
+  }
+ });
+ const total=sum(lignes,l=>l.total);if(total<=0)throw new Error("Montant total nul.");
+ const v={id,numero:seq("vt","FAC"),date:f.date,client_id:c.id,lignes,total,statut:"valide",par:ME.nom};S.ventes.push(v);
+ postEntry({journal:"VE",date:f.date,libelle:"Vente "+v.numero+" — "+c.nom,piece:v.numero,source:{type:"vente",id},lignes:[{compte:"411",tiers:c.id,debit:total},{compte:"701",credit:total,lot:lignes.find(l=>l.lot_id)?.lot_id}]});
+ audit("Vente",v.numero+" "+total+" F");
+ if(+f.paye>0)encaisserVente(id,{montant:+f.paye,mode:f.mode||"especes",ref:f.ref,date:f.date});
+ return v;
+}
+function encaisserVente(vid,f){
+ need("paiement");const v=by(S.ventes,vid);if(!v||v.statut!=="valide")throw new Error("Vente introuvable ou annulée.");
+ const m=Math.round(+f.montant);if(!(m>0))throw new Error("Montant invalide.");if(m>soldeVente(v))throw new Error("Montant supérieur au solde ("+fcfa(soldeVente(v))+").");
+ if(f.mode!=="especes"&&!String(f.ref||"").trim())throw new Error("Référence de transaction obligatoire (mobile money / virement).");
+ if((f.date||today())>today())throw new Error("Date dans le futur.");
+ const e={id:uid("en"),numero:seq("rc","REC"),vente_id:vid,client_id:v.client_id,date:f.date||today(),montant:m,mode:f.mode,ref:f.ref||"",statut:"valide",par:ME.nom};S.encaiss.push(e);
+ postEntry({journal:"TR",date:e.date,libelle:"Encaissement "+e.numero+" — "+tiers("c",v.client_id).nom,piece:e.numero,source:{type:"encaiss",id:e.id},lignes:[{compte:cptTreso(e.mode),debit:m},{compte:"411",tiers:v.client_id,credit:m}]});
+ audit("Encaissement",e.numero+" "+m+" F");return e;
+}
+function annulerEncaissement(id,motif){
+ need("annulvente");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const e=by(S.encaiss,id);if(!e||e.statut!=="valide")throw new Error("Encaissement introuvable ou déjà annulé.");
+extournerSource("encaiss",id,motif);e.statut="annule";e.motif=motif;audit("Encaissement annulé",e.numero+" : "+motif);
+}
+function annulerVente(id,motif){
+ need("annulvente");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const v=by(S.ventes,id);if(!v||v.statut!=="valide")throw new Error("Vente introuvable ou déjà annulée.");
+ if(S.encaiss.some(e=>e.vente_id===id&&e.statut==="valide"))throw new Error("Annuler d'abord les encaissements liés.");
+ extournerSource("vente",id,motif);
+ S.mvts.filter(m=>m.source&&m.source.type==="vente"&&m.source.id===id&&m.sens==="sortie").forEach(m=>mouvement({produit_id:m.produit_id,sens:"entree",qte:m.qte,pu:m.pu,motif:"Annulation "+v.numero,source:{type:"vente-annul",id}}));
+ S.sorties.filter(s=>s.source_vente===id).forEach(s=>s.annule=true);v.statut="annule";v.motif=motif;audit("Vente annulée",v.numero+" : "+motif);
+}
+/* ---------- Charges, trésorerie, paie ---------- */
+function ajouterCharge(f){
+ need("charge");const m=Math.round(+f.montant);if(!(m>0))throw new Error("Montant invalide.");if(!CHARGES[f.categorie])throw new Error("Catégorie invalide.");
+ if(f.date>today())throw new Error("Date dans le futur.");if(f.mode!=="especes"&&f.mode!=="banque"&&f.mode!=="mobile")throw new Error("Mode de règlement invalide.");
+ if(f.mode==="especes"&&m>soldeCompte("571"))throw new Error("Caisse insuffisante ("+fcfa(soldeCompte("571"))+").");
+ if(f.lot_id&&!by(S.lots,f.lot_id))throw new Error("Lot inconnu.");
+ const c={id:uid("ch"),numero:seq("ch","CHG"),date:f.date,lot_id:f.lot_id||null,categorie:f.categorie,libelle:f.libelle||CHARGES[f.categorie][0],montant:m,mode:f.mode,statut:"valide",par:ME.nom};S.charges.push(c);
+ postEntry({journal:"AC",date:c.date,libelle:c.libelle,piece:c.numero,source:{type:"charge",id:c.id},lignes:[{compte:CHARGES[c.categorie][1],debit:m,lot:c.lot_id||undefined},{compte:cptTreso(c.mode==="especes"?"especes":"banque"),credit:m}]});
+ audit("Charge",c.numero+" "+m+" F");return c;
+}
+function annulerCharge(id,motif){need("charge");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const c=by(S.charges,id);if(!c||c.statut!=="valide")throw new Error("Charge introuvable ou annulée.");if(!can("extourne")&&ME.role!=="chef")throw new Error("Droits insuffisants.");extournerSource("charge",id,motif);c.statut="annule";c.motif=motif;audit("Charge annulée",c.numero)}
+const TRESO={apport:["Apport en capital","101","in"],emprunt:["Emprunt reçu","162","in"],subvention:["Subvention / prime","758","in"],remb_emprunt:["Remboursement d'emprunt","162","out"],retrait:["Prélèvement de l'exploitant","101","out"]};
+function mouvTreso(f){
+ need("treso");const m=Math.round(+f.montant);if(!(m>0))throw new Error("Montant invalide.");
+ if(f.categorie==="virement"){ // caisse ↔ banque
+  const from=f.sens==="vers_banque"?"571":"521",to=f.sens==="vers_banque"?"521":"571";if(m>soldeCompte(from))throw new Error("Solde insuffisant ("+fcfa(soldeCompte(from))+").");
+  postEntry({journal:"TR",date:f.date,libelle:f.sens==="vers_banque"?"Versement caisse → banque":"Retrait banque → caisse",piece:seq("tr","TRS"),source:{type:"treso"},lignes:[{compte:to,debit:m},{compte:from,credit:m}]});audit("Virement interne",m+" F");return;
+ }
+ const c=TRESO[f.categorie];if(!c)throw new Error("Catégorie invalide.");const cpt=cptTreso(f.mode==="especes"?"especes":"banque");
+ if(c[2]==="out"&&m>soldeCompte(cpt))throw new Error("Solde insuffisant ("+fcfa(soldeCompte(cpt))+").");
+ postEntry({journal:"TR",date:f.date,libelle:c[0]+(f.libelle?" — "+f.libelle:""),piece:seq("tr","TRS"),source:{type:"treso"},lignes:c[2]==="in"?[{compte:cpt,debit:m},{compte:c[1],credit:m}]:[{compte:c[1],debit:m},{compte:cpt,credit:m}]});audit("Trésorerie",c[0]+" "+m+" F");
+}
+function payerSalaires(mois,mode){
+ need("perso");if(S.paies.some(p=>p.mois===mois))throw new Error("Salaires de "+mois+" déjà passés.");
+ const st=S.staff.filter(s=>s.actif&&s.salaire>0);if(!st.length)throw new Error("Aucun salarié actif.");const tot=sum(st,s=>s.salaire),cpt=cptTreso(mode==="especes"?"especes":"banque");
+ if(tot>soldeCompte(cpt))throw new Error("Trésorerie insuffisante ("+fcfa(soldeCompte(cpt))+" pour "+fcfa(tot)+").");
+ const id=uid("pa"),d=mois+"-"+String(Math.min(28,new Date().getUTCDate())).padStart(2,"0");
+ postEntry({journal:"PAIE",date:d>today()?today():d,libelle:"Salaires "+mois,piece:"PAIE-"+mois,source:{type:"paie",id},lignes:[{compte:"6410",debit:tot},{compte:cpt,credit:tot}]});
+ S.paies.push({id,mois,total:tot,mode,detail:st.map(s=>({id:s.id,nom:s.nom,montant:s.salaire})),par:ME.nom});audit("Salaires payés",mois+" "+tot+" F");
+}
+function periodeAction(id,act){
+ need("periode");let p=by(S.periods,id);if(!p){p={id,statut:"ouverte"};S.periods.push(p)}p.statut=act==="close"?"cloturee":"ouverte";audit("Période "+(act==="close"?"clôturée":"rouverte"),id);
+}
+function saisirOD(f){
+ need("compta");if(!String(f.libelle||"").trim())throw new Error("Libellé obligatoire.");return postEntry({journal:"OD",date:f.date,libelle:f.libelle,piece:f.piece||"",source:{type:"manual"},lignes:f.lignes});
+}
+function extournerOD(id,motif){
+ need("extourne");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const e=by(S.entries,id);if(!e||!e.source||e.source.type!=="manual"||e.extournee)throw new Error("Seules les écritures manuelles non extournées peuvent l'être (annuler l'opération source sinon).");
+ extournerSource("manual",id,motif);audit("Écriture extournée",e.numero);
+}
+/* ---------- Alertes & intégrité ---------- */
+function alertes(){
+ const a=[],st=S.settings,td=today();
+ S.produits.filter(p=>p.categorie!=="fini"&&p.seuil>0&&qteStock(p.id)<=p.seuil).forEach(p=>a.push({er:qteStock(p.id)<=0,t:`Stock bas : ${p.nom} (${nf(qteStock(p.id),1)} ${p.unite}, seuil ${p.seuil})`}));
+ S.lots.filter(l=>l.statut==="en_cours").forEach(l=>{
+  const s=lotStats(l),last=s.ds[s.ds.length-1];
+  if(!S.suivis.some(x=>x.lot_id===l.id&&x.date===td))a.push({er:false,t:`Suivi du jour non saisi : ${l.code}`});
+  if(last&&last.date>=addDays(td,-1)&&s.vivants>0&&last.morts/s.vivants*100>st.seuil_mort_jour)a.push({er:true,t:`Mortalité anormale le ${fd(last.date)} : ${last.morts} sujets (${nf(last.morts/s.vivants*100,2)} %) — ${l.code}`});
+  if(s.mortPct>st.seuil_mort_cum)a.push({er:true,t:`Mortalité cumulée ${nf(s.mortPct,1)} % > ${st.seuil_mort_cum} % — ${l.code}`});
+  if(s.tp!==null&&s.age>=126&&s.tp<st.seuil_ponte)a.push({er:false,t:`Taux de ponte ${nf(s.tp,1)} % < ${st.seuil_ponte} % — ${l.code}`});
+  if(s.IC!==null&&s.age>=21&&s.IC>st.ic_max)a.push({er:false,t:`Indice de consommation ${nf(s.IC,2)} > ${st.ic_max} — ${l.code}`});
+  if(l.type==="chair"&&s.age>=42&&s.vivants>0)a.push({er:false,t:`${l.code} prêt à vendre (J${s.age}, ${s.vivants} sujets)`});
+  if(s.attente)a.push({er:false,t:`Délai d'attente sanitaire jusqu'au ${fd(s.attente)} — ${l.code} : vente interdite`});
+ });
+ S.soins.filter(s=>!s.realise_le&&!s.annule&&lot(s.lot_id).statut==="en_cours").forEach(s=>{const n=diffDays(s.prevue,td);if(n<0)a.push({er:true,t:`Soin en retard (${-n} j) : ${s.action} — ${lot(s.lot_id).code}`});else if(n<=3)a.push({er:false,t:`Soin à faire ${n===0?"aujourd'hui":"dans "+n+" j"} : ${s.action} — ${lot(s.lot_id).code}`})});
+ S.incubations.forEach(i=>{if(!i.mirage_fait&&i.date_mirage<=td)a.push({er:false,t:`Mirage à faire : ${i.code} (prévu ${fd(i.date_mirage)})`});if(i.mirage_fait&&!i.eclosion_faite&&i.date_eclosion<=td)a.push({er:false,t:`Éclosion à saisir : ${i.code}`})});
+ S.clients.forEach(c=>{const old=S.ventes.filter(v=>v.client_id===c.id&&v.statut==="valide"&&soldeVente(v)>0&&diffDays(td,v.date)>st.delai_creance);if(old.length)a.push({er:true,t:`Créance en retard (> ${st.delai_creance} j) : ${c.nom} — ${fcfa(sum(old,soldeVente))}`})});
+ return a;
+}
+function integrite(){
+ const o=[];S.entries.forEach(e=>{if(sum(e.lignes,l=>l.debit)!==sum(e.lignes,l=>l.credit))o.push("Écriture déséquilibrée : "+e.numero)});
+ S.produits.forEach(p=>{if(qteStock(p.id)<-1e-9)o.push("Stock négatif : "+p.nom)});
+ const cl=sum(S.clients,c=>soldeCompte("411",c.id)),cv=sum(S.clients,c=>soldeClient(c.id));if(Math.round(cl)!==Math.round(cv))o.push("Comptes clients 411 ("+fcfa(cl)+") ≠ soldes des ventes ("+fcfa(cv)+")");
+ const fo=-sum(S.fournisseurs,f=>soldeCompte("401",f.id)),dv=sum(S.achats.filter(a=>a.statut==="recu"),a=>a.total-a.paye);if(Math.round(fo)!==Math.round(dv))o.push("Comptes fournisseurs 401 ("+fcfa(fo)+") ≠ dettes ("+fcfa(dv)+")");
+ if(soldeCompte("571")<0)o.push("Caisse négative : "+fcfa(soldeCompte("571")));
+ return o;
+}
+
+/* ---------- Données initiales ---------- */
+const SETTINGS0={seuil_mort_jour:0.5,seuil_mort_cum:5,seuil_ponte:75,ic_max:2.2,delai_creance:30,plateau:30,prix_plateau:2500,max_pj_ko:300};
+function seed(){
+ const d=n=>addDays(today(),n);
+ S={seq:{},audit:[],users:[],batiments:[],lots:[],suivis:[],sorties:[],soins:[],traitements:[],incubations:[],produits:[],mvts:[],recettes:[],fabs:[],fournisseurs:[],clients:[],achats:[],reglements:[],ventes:[],encaiss:[],charges:[],staff:[],paies:[],
+  accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action})),settings:{...SETTINGS0},tries:{}};
+ ME={id:"seed",nom:"Initialisation",role:"seed"};
+ const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u)};
+ mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Chef d'exploitation","chef","1111");mkU("Soigneur","soigneur","2222");mkU("Magasinier","magasinier","3333");mkU("Commercial","commercial","4444");mkU("Caissier","caissier","5555");mkU("Comptable","comptable","6666");
+ const bA={id:uid("b"),nom:"Poulailler A",capacite:1000,usage:"Chair"},bB={id:uid("b"),nom:"Poulailler B",capacite:600,usage:"Ponte"};S.batiments.push(bA,bB);
+ const P=(code,nom,categorie,unite,seuil,prix,x)=>{const p={id:uid("p"),code,nom,categorie,unite,seuil,prix_ref:prix,...x};S.produits.push(p);return p};
+ const pDem=P("ALI-DEM","Aliment démarrage chair","aliment","kg",200,420),pCro=P("ALI-CRO","Aliment croissance chair","aliment","kg",300,400),pPon=P("ALI-PON","Aliment pondeuse","aliment","kg",300,380),
+  pMais=P("MAIS","Maïs grain","aliment","kg",300,230,{mp:true}),pSoja=P("SOJA","Tourteau de soja","aliment","kg",150,420,{mp:true}),pCmv=P("CMV","Concentré minéral vitaminé","aliment","kg",50,900,{mp:true}),
+  vMar=P("VAC-MAR","Vaccin Marek","medicament","dose",500,12),vGum=P("VAC-GUM","Vaccin Gumboro","medicament","dose",500,10),vNd=P("VAC-ND","Vaccin Newcastle + IB","medicament","dose",500,9),vEds=P("VAC-EDS","Vaccin EDS","medicament","dose",300,25),ant=P("ANTICOC","Anticoccidien","medicament","dose",300,6),
+  pouss=P("POUSSIN","Poussin chair d'un jour","poussin","tête",0,450),oeufs=P("OEUFS","Plateau de 30 œufs","fini","plateau",0,0),fiente=P("FIENTE","Fientes (sac)","fini","sac",0,0),
+  alv=P("ALVEOLE","Alvéoles / plateaux carton","emballage","unité",100,80);
+ const fo=(nom,tel)=>{const f={id:uid("f"),nom,tel};S.fournisseurs.push(f);return f},cl=(nom,tel,type)=>{const c={id:uid("c"),nom,tel,type};S.clients.push(c);return c};
+ const fP=fo("Provenderie Ivoire","0707010101"),fV=fo("Pharmavet CI","0707020202"),fC=fo("Couvoir Sanaga","0707030303"),c1=cl("Restaurant Chez Awa","0505040404","Restaurant"),c2=cl("Grossiste marché Yopougon","0505050505","Grossiste");
+ mouvTreso({date:d(-45),categorie:"apport",mode:"banque",montant:6000000,libelle:"Capital de démarrage"});mouvTreso({date:d(-45),categorie:"apport",mode:"especes",montant:1500000,libelle:"Fonds de caisse"});
+ const ach=(f,date,L)=>{const a=creerAchat({fournisseur_id:f.id,date,lignes:L});recevoirAchat(a.id,date);return a};
+ const a1=ach(fP,d(-40),[{produit_id:pDem.id,qte:400,pu:420},{produit_id:pCro.id,qte:1800,pu:400},{produit_id:pPon.id,qte:1500,pu:380},{produit_id:pMais.id,qte:1500,pu:230},{produit_id:pSoja.id,qte:600,pu:420},{produit_id:pCmv.id,qte:150,pu:900}]);
+ const a2=ach(fV,d(-40),[{produit_id:vMar.id,qte:2000,pu:12},{produit_id:vGum.id,qte:2000,pu:10},{produit_id:vNd.id,qte:2000,pu:9},{produit_id:vEds.id,qte:800,pu:25},{produit_id:ant.id,qte:1500,pu:6}]);
+ const a3=ach(fC,d(-30),[{produit_id:pouss.id,qte:500,pu:450}]);ach(fP,d(-20),[{produit_id:alv.id,qte:300,pu:80}]);
+ payerFournisseur(a1.id,{montant:300000,mode:"especes",date:d(-39)});payerFournisseur(a1.id,{montant:a1.total-300000,mode:"virement",ref:"VIR-0001",date:d(-38)});payerFournisseur(a2.id,{montant:a2.total,mode:"mobile",ref:"MM-7788",date:d(-38)});payerFournisseur(a3.id,{montant:100000,mode:"especes",date:d(-29)});
+ const inc=creerIncubation({reproducteur:"Reproductrices lot R1",oeufs:400,date_mise:d(-26)});mirage(inc.id,38);eclosion(inc.id,328);
+ const lc=creerLot({nom:"Bande chair 01",type:"chair",breed:"Cobb 500",batiment_id:bA.id,debut:d(-22),initial:500,produit_id:pouss.id});
+ const lp=creerLot({nom:"Pondeuses série 1",type:"ponte",breed:"ISA Brown",batiment_id:bB.id,debut:d(-200),initial:300,cout_poussin:1800});
+ S.soins.filter(s=>s.prevue<=today()).forEach(s=>{const k=/Marek/.test(s.action)?vMar:/Gumboro/.test(s.action)?vGum:/Newcastle/.test(s.action)?vNd:/EDS/.test(s.action)?vEds:ant,l=by(S.lots,s.lot_id);realiserSoin(s.id,{produit_id:k.id,qte:vivantsLot(l),date:s.prevue,note:"RAS"})});
+ let seedn=7;const rnd=()=>(seedn=(seedn*9301+49297)%233280)/233280;
+ for(let i=-13;i<=0;i++){
+  const date=d(i),ageC=diffDays(date,lc.debut)+1,vC=vivantsLot(lc);
+  saisirSuivi({lot_id:lc.id,date,morts:Math.floor(rnd()*3),cause:"",aliment_kg:Math.round(vC*(ageC*3.6+12)/1000*10)/10,produit_id:pCro.id,eau_l:Math.round(vC*0.2),poids_g:Math.round(40+ageC*ageC*0.22+ageC*9),temp:28});
+  const vP=vivantsLot(lp);saisirSuivi({lot_id:lp.id,date,morts:rnd()<0.1?1:0,aliment_kg:Math.round(vP*0.115*10)/10,produit_id:pPon.id,eau_l:Math.round(vP*0.24),oeufs:Math.round(vP*(0.84+rnd()*0.05)),casses:Math.round(vP*0.012),temp:27});
+ }
+ const rc={nom:"Croissance maison",produit_id:pCro.id,lignes:[{produit_id:pMais.id,pct:60},{produit_id:pSoja.id,pct:30},{produit_id:pCmv.id,pct:10}]};creerRecette(rc);fabriquer(S.recettes[0].id,500,d(-5));
+ creerVente({date:d(-3),client_id:c1.id,lignes:[{type:"stock",produit_id:oeufs.id,qte:40,pu:2600}],paye:104000,mode:"especes"});
+ creerVente({date:d(-1),client_id:c2.id,lignes:[{type:"stock",produit_id:oeufs.id,qte:50,pu:2400}],paye:60000,mode:"mobile",ref:"MM-1234"});
+ ajouterCharge({date:d(-10),categorie:"energie",libelle:"Électricité (CIE)",montant:48000,mode:"especes"});ajouterCharge({date:d(-6),categorie:"eau",libelle:"Eau (SODECI)",montant:18500,mode:"especes",lot_id:lc.id});ajouterCharge({date:d(-4),categorie:"transport",libelle:"Transport aliment",montant:35000,mode:"especes",lot_id:lc.id});
+ S.staff.push({id:uid("s"),nom:"Koffi Yao",poste:"Soigneur",tel:"0707111111",salaire:75000,actif:true},{id:uid("s"),nom:"Aya Konan",poste:"Magasinière",tel:"0707222222",salaire:70000,actif:true});
+ payerSalaires(today().slice(0,7),"especes");
+ ME=null;save();
+}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed()}
+
+/* ---------- Composants UI ---------- */
+const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
+const tr=c=>"<tr>"+c.map(x=>`<td>${x}</td>`).join("")+"</tr>";
+function tbl(cols,rows,o={}){const max=o.max||150;return `<div class="tw"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.slice(0,max).join(""):`<tr><td colspan="${cols.length}" class="mu">${esc(o.empty||"Aucune donnée")}</td></tr>`}</tbody></table>${rows.length>max?`<p class="mu sm" style="padding:6px 10px">${max} premières lignes sur ${rows.length} : affiner les filtres.</p>`:""}</div>`}
+const btn=(a,id,l,c="")=>`<button class="btn sm ${c}" data-a="${a}" data-id="${esc(id??"")}">${l}</button>`;
+const tabs=(k,items)=>{const cur=UI.tab[k]||items[0][0];return `<div class="tabs">${items.map(([i,l])=>`<button class="${cur===i?"on":""}" data-a="tab" data-id="${k}:${i}">${l}</button>`).join("")}</div>`};
+const tabOf=(k,def)=>UI.tab[k]||def;
+const opt=(arr,val,empty)=>(empty!==undefined?`<option value="">${esc(empty)}</option>`:"")+arr.map(([v,l])=>`<option value="${esc(v)}" ${v===val?"selected":""}>${esc(l)}</option>`).join("");
+const head=(t,x)=>`<div class="between"><h1>${t}</h1><div class="flex">${x||""}</div></div>`;
+const lotsOpts=(all)=>S.lots.filter(l=>all||l.statut==="en_cours").map(l=>[l.id,l.code+" — "+l.nom]);
+const prodOpts=(cat)=>S.produits.filter(p=>!cat||cat.includes(p.categorie)).map(p=>[p.id,p.nom+" ("+p.unite+")"]);
+function modal(html){const m=document.createElement("div");m.className="md";m.innerHTML="<div>"+html+"</div>";m.addEventListener("mousedown",e=>{if(e.target===m)m.remove()});document.body.appendChild(m);return m}
+function form(title,fields,init,onSave,ok){
+ const m=modal(`<h2 style="margin-top:0">${esc(title)}</h2><form class="fg" novalidate>${fields.map(f=>{const o=typeof f.o==="function"?f.o():f.o;return `<div ${f.full?'style="grid-column:1/-1"':""}><label>${esc(f.l)}${f.req?" *":""}</label>${f.t==="select"?`<select name="${f.k}">${o.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("")}</select>`:f.t==="area"?`<textarea name="${f.k}" rows="2"></textarea>`:`<input name="${f.k}" type="${f.t||"text"}" ${f.t==="number"?'step="any" min="0"':""} autocomplete="off">`}${f.h?`<span class="mu sm">${esc(f.h)}</span>`:""}</div>`}).join("")}<div style="grid-column:1/-1" class="flex"><button class="btn">${ok||"Enregistrer"}</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
+ const fm=$("form",m);fields.forEach(f=>{const e=fm.elements[f.k];if(e&&init&&init[f.k]!=null)e.value=init[f.k]});
+ $("[data-x]",m).onclick=()=>m.remove();
+ fm.onsubmit=e=>{e.preventDefault();const o={};try{for(const f of fields){const v=fm.elements[f.k].value.trim();if(f.req&&v==="")throw new Error(f.l+" requis.");o[f.k]=f.t==="number"?(v===""?0:+v):v}}catch(x){return alert(x.message)}
+  if(atomic(()=>onSave(o))!==false){m.remove();render()}};
+ return m;
+}
+const motifForm=(title,fn)=>form(title,[{k:"motif",l:"Motif",t:"area",req:1,full:1}],{},o=>fn(o.motif));
+function csvOut(name,h,rows){const q=v=>'"'+String(v??"").replace(/"/g,'""').replace(/^([=+\-@])/,"'$1")+'"';const b=new Blob(["﻿"+[h,...rows].map(r=>r.map(q).join(";")).join("\n")],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+const CSVS={},A={};
+const csvBtn=k=>`<button class="btn ghost" data-a="csv" data-id="${k}">CSV</button>`;
+A.csv=k=>{const[h,r]=CSVS[k]();csvOut(k,h,r)};A.tab=id=>{const[k,v]=id.split(":");UI.tab[k]=v;render()};A.nav=id=>{view=id;render()};
+const kpi=(v,l,c="")=>`<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+const bars=(vals,color="var(--b)")=>{const mx=Math.max(1,...vals.map(v=>v[1]));return `<div style="display:flex;gap:3px;align-items:flex-end;height:70px">${vals.map(([l,v])=>`<div title="${esc(l)} : ${v}" style="flex:1;background:${color};height:${Math.max(2,v/mx*100)}%;border-radius:3px 3px 0 0"></div>`).join("")}</div>`};
+/* ---------- Écrans ---------- */
+const V={};
+V.dash=()=>{
+ const td=today(),en=S.lots.filter(l=>l.statut==="en_cours"),st=en.map(l=>lotStats(l)),mois=td.slice(0,7),al=alertes();
+ const vivants=sum(st,s=>s.vivants),morts=sum(S.suivis.filter(x=>x.date===td),x=>x.morts),oeufs=sum(S.suivis.filter(x=>x.date===td),x=>x.oeufs),feed=sum(S.suivis.filter(x=>x.date===td),x=>x.aliment_kg);
+ const ca=sum(S.ventes.filter(v=>v.statut==="valide"&&v.date.startsWith(mois)),v=>v.total),creances=sum(S.clients,c=>soldeClient(c.id)),tre=soldeCompte("571")+soldeCompte("521");
+ const rs=sum(S.entries.filter(e=>e.date.startsWith(mois)).flatMap(e=>e.lignes),l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):l.compte[0]==="6"?-((l.debit||0)-(l.credit||0)):0);
+ const days=[...Array(14)].map((_,i)=>addDays(td,i-13)),ponte=days.map(d=>[fd(d),sum(S.suivis.filter(x=>x.date===d),x=>x.oeufs)]),mort=days.map(d=>[fd(d),sum(S.suivis.filter(x=>x.date===d),x=>x.morts)]);
+ return head("Tableau de bord")+`<div class="grid">${kpi(en.length,"Lots en cours")}${kpi(nf(vivants),"Sujets vivants","o")}${kpi(morts,"Morts aujourd'hui",morts?"w":"")}${kpi(nf(oeufs),"Œufs aujourd'hui")}${kpi(nf(feed,1)+" kg","Aliment aujourd'hui")}${kpi(fcfa(ca),"Ventes du mois","o")}${kpi(fcfa(creances),"Créances clients",creances?"w":"")}${kpi(fcfa(tre),"Trésorerie (caisse + banque)")}${can("compta")||ME.role==="direction"?kpi(fcfa(rs),"Résultat du mois",rs>=0?"o":"e"):""}</div>
+ <div class="grid"><div class="card"><b>Œufs / jour (14 j)</b>${bars(ponte)}</div><div class="card"><b>Mortalité / jour (14 j)</b>${bars(mort,"var(--er)")}</div></div>
+ <h2>Alertes (${al.length})</h2>${al.length?al.slice(0,40).map(x=>`<div class="al ${x.er?"er":""}">${esc(x.t)}</div>`).join(""):'<div class="card mu">Aucune alerte.</div>'}
+ <h2>Lots en cours</h2>${tbl(["Lot","Type","Âge","Phase","Vivants","Mortalité","Ponte / IC"],en.map((l,i)=>{const s=st[i];return tr([esc(l.code+" — "+l.nom),LOTTYPE[l.type],"J"+s.age,esc(s.phase),nf(s.vivants),badge(nf(s.mortPct,1)+" %",s.mortPct>S.settings.seuil_mort_cum?"er":"ok"),l.type==="ponte"?(s.tp!=null?nf(s.tp,1)+" %":"—"):(s.IC?nf(s.IC,2):"—")])}))}`;
+};
+const lotFields=()=>[{k:"nom",l:"Nom du lot",req:1},{k:"type",l:"Type",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"breed",l:"Souche"},{k:"batiment_id",l:"Bâtiment",t:"select",o:()=>S.batiments.map(b=>[b.id,b.nom+" ("+b.capacite+")"])},{k:"debut",l:"Date de mise en place",t:"date",req:1},{k:"initial",l:"Effectif initial",t:"number",req:1},{k:"produit_id",l:"Poussins pris sur stock",t:"select",o:()=>[["","— Non (autre source) —"],...prodOpts(["poussin"])]},{k:"cout_poussin",l:"Coût unitaire du poussin (F)",t:"number",h:"Vide : coût moyen du stock"},{k:"incub_id",l:"Issu d'une éclosion",t:"select",o:()=>[["","—"],...S.incubations.filter(i=>i.eclosion_faite&&!i.lot_id).map(i=>[i.id,i.code+" ("+i.eclos+" poussins)"])]}];
+V.lots=()=>{
+ const f=UI.f.lots||(UI.f.lots={s:"en_cours"});
+ return head("Lots & élevage",`<select data-f="lots:s" style="width:auto">${opt([["en_cours","En cours"],["clos","Clos"],["","Tous"]],f.s)}</select>${can("lot")?`<button class="btn" data-a="lot.add">+ Nouveau lot</button>`:""}${csvBtn("lots")}`)+
+ tbl(["Lot","Type","Bâtiment","Mise en place","Âge","Phase","Initial","Vivants","Mortalité","Indicateur","Statut",""],S.lots.filter(l=>!f.s||l.statut===f.s).slice().reverse().map(l=>{const s=lotStats(l);return tr([esc(l.code+" — "+l.nom),LOTTYPE[l.type],esc((by(S.batiments,l.batiment_id)||{}).nom),fd(l.debut),"J"+s.age,esc(s.phase),l.initial,nf(s.vivants),badge(nf(s.mortPct,1)+" %",s.mortPct>S.settings.seuil_mort_cum?"er":"ok"),l.type==="ponte"?(s.tp!=null?"Ponte "+nf(s.tp,1)+" %":"—"):(s.IC?"IC "+nf(s.IC,2):"—"),badge(l.statut==="clos"?"Clos":"En cours",l.statut==="clos"?"mu":"ok"),btn("lot.fiche",l.id,"Fiche","ghost")])}));
+};
+CSVS.lots=()=>[["Lot","Type","Début","Initial","Vivants","Mortalité %","Aliment kg","Coût","Recettes","Marge"],S.lots.map(l=>{const s=lotStats(l);return[l.code,l.type,l.debut,l.initial,s.vivants,nf(s.mortPct,2),nf(s.feed,1),s.cout,s.rec,s.marge]})];
+A["lot.add"]=()=>form("Nouveau lot",lotFields(),{type:"chair",debut:today()},o=>{creerLot(o)});
+A["lot.fiche"]=id=>{
+ const l=by(S.lots,id),s=lotStats(l),last=s.ds.slice(-14).reverse();
+ modal(`<div class="between"><h2 style="margin:0">${esc(l.code+" — "+l.nom)} ${badge(LOTTYPE[l.type])}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <p class="mu">${esc(l.breed||"")} · ${esc((by(S.batiments,l.batiment_id)||{}).nom)} · mis en place le ${fd(l.debut)} · J${s.age} · ${esc(s.phase)} ${s.attente?badge("Délai d'attente → "+fd(s.attente),"wa"):""}</p>
+ <div class="grid">${kpi(nf(s.vivants)+" / "+l.initial,"Sujets vivants","o")}${kpi(nf(s.mortPct,1)+" %","Mortalité cumulée",s.mortPct>S.settings.seuil_mort_cum?"e":"")}${l.type==="ponte"?kpi(s.tp!=null?nf(s.tp,1)+" %":"—","Taux de ponte (7 j)")+kpi(nf(s.casse,1)+" %","Casse"):kpi(s.IC?nf(s.IC,2):"—","Indice de consommation")+kpi(s.poids?nf(s.poids/1000,2)+" kg":"—","Poids moyen")}${kpi(nf(s.feed,0)+" kg","Aliment total")}</div>
+ <h2>Économie du lot</h2>${tbl(["Poussins","Aliment","Santé","Charges directes","Coût total","Recettes","Marge","Coût / kg vendu"],[tr([fcfa(s.cPou),fcfa(s.cAl),fcfa(s.cSa),fcfa(s.cCh),`<b>${fcfa(s.cout)}</b>`,fcfa(s.rec)+(l.type==="ponte"?" <span class='mu sm'>(œufs valorisés)</span>":""),`<b style="color:var(--${s.marge>=0?"ok":"er"})">${fcfa(s.marge)}</b>`,s.coutKg?fcfa(s.coutKg):"—"])])}
+ <h2>14 derniers jours</h2>${tbl(["Date","Morts","Aliment (kg)","Eau (L)","Poids (g)","Œufs","Casses"],last.map(x=>tr([fd(x.date),x.morts,nf(x.aliment_kg,1),x.eau_l,x.poids_g||"—",x.oeufs||"—",x.casses||"—"])),{empty:"Aucune saisie."})}
+ <div class="flex" style="margin-top:10px">${l.statut==="en_cours"&&can("suivi")?btn("su.go",l.id,"Saisir le suivi"):""}${l.statut==="en_cours"&&can("sante")?btn("tr.add",l.id,"Traitement","ghost"):""}${l.statut==="en_cours"&&can("lot")?btn("lot.close",l.id,"Clore le lot","er"):""}<button class="btn sm ghost" data-a="lot.print" data-id="${l.id}">Rapport</button></div>`);
+};
+A["lot.close"]=id=>{const l=by(S.lots,id),v=vivantsLot(l);form("Clore "+l.code,[{k:"motif",l:v>0?"Motif (reste "+v+" sujets : réforme, abattage…)":"Motif",req:v>0,t:"area",full:1}],{},o=>cloturerLot(id,o.motif),"Clore")};
+A["lot.print"]=id=>{const l=by(S.lots,id),s=lotStats(l);modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>Rapport de lot ${esc(l.code)}</h1><p><b>ANGEL'S AGRO</b> — ${esc(l.nom)} (${LOTTYPE[l.type]}, ${esc(l.breed||"")})<br>Mise en place : ${fd(l.debut)} · Âge : J${s.age} · Phase : ${esc(s.phase)}</p>${tbl(["Indicateur","Valeur"],[["Effectif initial",l.initial],["Mortalité",s.morts+" ("+nf(s.mortPct,2)+" %)"],["Sorties (ventes, réformes)",s.sortis],["Vivants",s.vivants],["Aliment consommé",nf(s.feed,1)+" kg"],["Eau",nf(s.eau)+" L"],l.type==="ponte"?["Œufs produits",nf(s.oeufs)+" (casse "+nf(s.casse,1)+" %)"]:["Indice de consommation",s.IC?nf(s.IC,2):"—"],["Coût total",fcfa(s.cout)],["Recettes",fcfa(s.rec)],["Marge",fcfa(s.marge)]].map(r=>tr(r)))}`)};
+V.suivi=()=>{
+ const f=UI.f.suivi||(UI.f.suivi={lot:"",date:today()});const ls=S.lots.filter(l=>l.statut==="en_cours");if(!f.lot||!ls.some(l=>l.id===f.lot))f.lot=ls[0]?ls[0].id:"";
+ const l=by(S.lots,f.lot),r=l&&S.suivis.find(x=>x.lot_id===l.id&&x.date===f.date)||{};
+ return head("Suivi quotidien")+`<div class="card flex"><div><label>Lot</label><select data-f="suivi:lot">${opt(lotsOpts(),f.lot)}</select></div><div><label>Date</label><input type="date" data-f="suivi:date" value="${f.date}" max="${today()}"></div></div>`+
+ (l?`<form id="sf" class="card fg"><div><label>Mortalité (têtes)</label><input name="morts" type="number" min="0" value="${r.morts??""}"></div><div><label>Cause</label><input name="cause" value="${esc(r.cause||"")}"></div>
+ <div><label>Aliment consommé (kg)</label><input name="aliment_kg" type="number" step="any" min="0" value="${r.aliment_kg??""}"></div><div><label>Aliment utilisé</label><select name="produit_id">${opt(S.produits.filter(p=>p.categorie==="aliment"&&!p.mp).map(p=>[p.id,p.nom+" — stock "+nf(qteStock(p.id),0)+" "+p.unite]),r.produit_id||"","—")}</select></div>
+ <div><label>Eau (L)</label><input name="eau_l" type="number" step="any" min="0" value="${r.eau_l??""}"></div><div><label>Poids moyen (g, pesée)</label><input name="poids_g" type="number" min="0" value="${r.poids_g||""}"></div>
+ ${l.type==="ponte"?`<div><label>Œufs ramassés</label><input name="oeufs" type="number" min="0" value="${r.oeufs??""}"></div><div><label>Œufs cassés</label><input name="casses" type="number" min="0" value="${r.casses??""}"></div>`:""}
+ <div><label>Température (°C)</label><input name="temp" type="number" step="any" value="${r.temp??""}"></div><div style="grid-column:1/-1"><label>Observation</label><input name="note" value="${esc(r.note||"")}"></div>
+ <div style="grid-column:1/-1" class="flex"><button class="btn">${r.id?"Mettre à jour":"Enregistrer"}</button><span class="mu sm">Effectif vivant : ${vivantsLot(l)} · J${lotStats(l).age}</span></div></form>`:'<div class="card mu">Aucun lot en cours.</div>')+
+ `<h2>Dernières saisies</h2>`+tbl(["Date","Lot","Morts","Aliment","Eau","Poids","Œufs","Casses","Par"],S.suivis.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40).map(x=>tr([fd(x.date),esc(lot(x.lot_id).code),x.morts,nf(x.aliment_kg,1)+" kg",x.eau_l,x.poids_g||"—",x.oeufs||"—",x.casses||"—",esc(x.par)])));
+};
+A["su.go"]=id=>{UI.f.suivi={lot:id,date:today()};document.querySelectorAll(".md").forEach(m=>m.remove());view="suivi";render()};
+document.addEventListener("submit",e=>{if(e.target.id!=="sf")return;e.preventDefault();const f=UI.f.suivi,o={lot_id:f.lot,date:f.date};new FormData(e.target).forEach((v,k)=>o[k]=v);if(atomic(()=>saisirSuivi(o))!==false)render()});
+V.sante=()=>{
+ const t=tabOf("sante","plan"),f=UI.f.sante||(UI.f.sante={s:"a_faire"}),td=today();
+ let h=head("Santé & prophylaxie",can("sante")?`<button class="btn" data-a="tr.add">+ Traitement</button>`:"")+tabs("sante",[["plan","Calendrier vaccinal"],["trait","Traitements"]]);
+ if(t==="plan"){const L=S.soins.filter(s=>!s.annule&&(f.s===""||(f.s==="a_faire"?!s.realise_le:!!s.realise_le))).filter(s=>lot(s.lot_id).statut==="en_cours"||s.realise_le).sort((a,b)=>a.prevue.localeCompare(b.prevue));
+  h+=`<div class="card"><select data-f="sante:s" style="width:auto">${opt([["a_faire","À faire"],["fait","Réalisés"],["","Tous"]],f.s)}</select></div>`+tbl(["Lot","Âge","Prévu","Soin","Produit","Statut",""],L.map(s=>{const n=diffDays(s.prevue,td);return tr([esc(lot(s.lot_id).code),"J"+s.age_j,fd(s.prevue),esc(s.action),s.produit_id?esc(prod(s.produit_id).nom+" × "+nf(s.qte)):"—",s.realise_le?badge("Fait le "+fd(s.realise_le),"ok"):badge(n<0?"En retard ("+(-n)+" j)":n===0?"Aujourd'hui":"Dans "+n+" j",n<0?"er":n<=3?"wa":""),!s.realise_le&&can("sante")?btn("so.do",s.id,"Réaliser","ok"):""])}),{empty:"Rien à afficher."});}
+ else h+=tbl(["Date","Lot","Motif","Produit","Délai d'attente","Jusqu'au","Par"],S.traitements.slice().reverse().map(x=>tr([fd(x.date),esc(lot(x.lot_id).code),esc(x.motif),x.produit_id?esc(prod(x.produit_id).nom+" × "+nf(x.qte)):"—",x.delai+" j",badge(fd(x.jusqua),x.jusqua>=td?"wa":"mu"),esc(x.par)])));
+ return h;
+};
+A["so.do"]=id=>{const s=by(S.soins,id),l=by(S.lots,s.lot_id),guess=S.produits.find(p=>p.categorie==="medicament"&&s.action.toLowerCase().includes(p.nom.toLowerCase().replace("vaccin ","").split(" ")[0]));form("Réaliser : "+s.action+" — "+l.code,[{k:"date",l:"Date",t:"date",req:1},{k:"produit_id",l:"Produit utilisé (stock)",t:"select",o:()=>[["","— Aucun —"],...prodOpts(["medicament"])]},{k:"qte",l:"Quantité",t:"number"},{k:"note",l:"Observation"}],{date:today(),produit_id:guess?guess.id:"",qte:vivantsLot(l)},o=>realiserSoin(id,o))};
+A["tr.add"]=id=>form("Traitement",[{k:"lot_id",l:"Lot",t:"select",o:()=>lotsOpts()},{k:"date",l:"Date",t:"date",req:1},{k:"motif",l:"Motif (maladie, traitement)",req:1},{k:"produit_id",l:"Produit (stock)",t:"select",o:()=>[["","— Aucun —"],...prodOpts(["medicament"])]},{k:"qte",l:"Quantité",t:"number"},{k:"delai",l:"Délai d'attente avant vente (jours)",t:"number",req:1}],{lot_id:id||"",date:today(),delai:0},o=>traiter(o));
+V.couvoir=()=>head("Couvoir",can("couvoir")?`<button class="btn" data-a="ic.add">+ Mise en incubation</button>`:"")+tbl(["Code","Reproducteurs","Mise","Œufs","Mirage (J18)","Infertiles","Fertilité","Éclosion (J21)","Éclos","Éclosabilité","Lot",""],S.incubations.slice().reverse().map(i=>{const t=tauxCouv(i);return tr([esc(i.code),esc(i.reproducteur),fd(i.date_mise),i.oeufs,i.mirage_fait?badge("Fait","ok"):badge(fd(i.date_mirage),i.date_mirage<=today()?"er":""),i.mirage_fait?i.infertiles:"—",t.fert!=null?nf(t.fert,1)+" %":"—",i.eclosion_faite?badge("Fait","ok"):badge(fd(i.date_eclosion),i.mirage_fait&&i.date_eclosion<=today()?"er":""),i.eclosion_faite?i.eclos:"—",t.eclo!=null?nf(t.eclo,1)+" % (fertiles "+nf(t.eclosFertiles,1)+" %)":"—",i.lot_id?esc(lot(i.lot_id).code):"—",can("couvoir")?(!i.mirage_fait?btn("ic.mir",i.id,"Mirage"):!i.eclosion_faite?btn("ic.ecl",i.id,"Éclosion"):!i.lot_id?btn("ic.lot",i.id,"Créer le lot","ok"):""):""])}));
+A["ic.add"]=()=>form("Mise en incubation",[{k:"reproducteur",l:"Reproducteurs (lot / origine)"},{k:"oeufs",l:"Œufs mis en incubation",t:"number",req:1},{k:"date_mise",l:"Date de mise",t:"date",req:1}],{date_mise:today()},o=>creerIncubation(o));
+A["ic.mir"]=id=>form("Mirage",[{k:"inf",l:"Œufs clairs / infertiles",t:"number",req:1}],{},o=>mirage(id,o.inf));
+A["ic.ecl"]=id=>form("Éclosion",[{k:"n",l:"Poussins éclos",t:"number",req:1}],{},o=>eclosion(id,o.n));
+A["ic.lot"]=id=>{const i=by(S.incubations,id);form("Créer un lot depuis "+i.code,lotFields(),{type:"chair",debut:today(),initial:i.eclos,incub_id:id},o=>creerLot(o))};
+function crud(key,title,cols,fields,perm,pre){
+ VB[key]=()=>`<p class="flex">${can(perm)?`<button class="btn" data-a="cr.add" data-id="${key}">+ Ajouter</button>`:""}${csvBtn(key)}</p>`+tbl([...cols.map(c=>c[0]),""],S[key].map(x=>tr([...cols.map(c=>c[1](x)),can(perm)?btn("cr.edit",key+":"+x.id,"✏️","ghost"):""])));
+ V[key]=()=>head(title)+VB[key]();
+ CR[key]={title,fields,perm,pre};CSVS[key]=()=>[cols.map(c=>c[0]),S[key].map(x=>cols.map(c=>String(c[1](x)).replace(/<[^>]*>/g,"")))];
+}
+const VB={};
+const CR={};
+A["cr.add"]=k=>{const c=CR[k];form("Ajouter — "+c.title,c.fields(),c.pre||{},o=>{need(c.perm);S[k].push({id:uid(k[0]),actif:true,...o});audit("Ajout "+k,o.nom||"")})};
+A["cr.edit"]=id=>{const[k,i]=id.split(":"),c=CR[k],x=by(S[k],i);form("Modifier — "+c.title,c.fields(),x,o=>{need(c.perm);Object.assign(x,o);audit("Modif. "+k,x.nom||"")})};
+crud("batiments","Bâtiments",[["Nom",x=>esc(x.nom)],["Capacité",x=>x.capacite],["Usage",x=>esc(x.usage)],["Occupation",x=>{const o=sum(S.lots.filter(l=>l.batiment_id===x.id&&l.statut==="en_cours"),l=>vivantsLot(l));return nf(o)+" ("+nf(o/x.capacite*100)+" %)"}]],()=>[{k:"nom",l:"Nom",req:1},{k:"capacite",l:"Capacité (sujets)",t:"number",req:1},{k:"usage",l:"Usage (chair, ponte…)"}],"batiment");
+crud("fournisseurs","Fournisseurs",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Dette",x=>fcfa(-soldeCompte("401",x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"}],"tiers");
+crud("clients","Clients",[["Nom",x=>esc(x.nom)],["Type",x=>esc(x.type||"")],["Téléphone",x=>esc(x.tel)],["Créance",x=>fcfa(soldeClient(x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"type",l:"Type (restaurant, grossiste…)"},{k:"tel",l:"Téléphone"}],"tiers");
+crud("staff","Personnel",[["Nom",x=>esc(x.nom)],["Poste",x=>esc(x.poste)],["Téléphone",x=>esc(x.tel)],["Salaire mensuel",x=>fcfa(x.salaire)],["Actif",x=>x.actif?"Oui":"Non"]],()=>[{k:"nom",l:"Nom",req:1},{k:"poste",l:"Poste"},{k:"tel",l:"Téléphone"},{k:"salaire",l:"Salaire mensuel (F)",t:"number"}],"perso");
+V.perso=()=>{const mois=today().slice(0,7);return head("Personnel")+VB.staff()+`<div class="card flex"><b>Salaires ${mois}</b> ${S.paies.some(p=>p.mois===mois)?badge("Payés","ok"):(can("perso")?btn("pa.pay",mois,"Payer les salaires","ok"):badge("À payer","wa"))} <span class="mu sm">Total mensuel : ${fcfa(sum(S.staff.filter(s=>s.actif),s=>s.salaire))}</span></div>`};
+A["pa.pay"]=m=>form("Payer les salaires "+m,[{k:"mode",l:"Règlement",t:"select",o:[["especes","Espèces (caisse)"],["banque","Banque / mobile money"]]}],{},o=>payerSalaires(m,o.mode),"Payer");
+
+/* ---- Stock, fabrication, achats ---- */
+V.stock=()=>{
+ const t=tabOf("stock","prod");let h=head("Stock",(can("stock")?`<button class="btn" data-a="pr.add">+ Produit</button>`:"")+csvBtn("stock"))+tabs("stock",[["prod","Produits"],["mv","Mouvements"]]);
+ if(t==="prod")h+=tbl(["Code","Produit","Catégorie","Stock","Unité","Coût moyen","Valeur","Seuil",""],S.produits.map(p=>{const q=qteStock(p.id),bas=p.seuil>0&&q<=p.seuil;return tr([esc(p.code),esc(p.nom),CATP[p.categorie],badge(nf(q,1),bas?"er":"ok"),esc(p.unite),p.categorie==="fini"?"—":fcfa(pmp(p.id)),p.categorie==="fini"?"—":fcfa(q*pmp(p.id)),p.seuil||"—",`<div class="flex">${can("stock")?btn("pr.edit",p.id,"✏️","ghost"):""}${can("ajust")?btn("pr.aj",p.id,"Inventaire","ghost"):""}</div>`])}))+`<p class="mu sm">Valeur du stock : ${fcfa(sum(S.produits.filter(p=>p.categorie!=="fini"),p=>qteStock(p.id)*pmp(p.id)))}</p>`;
+ else h+=tbl(["Date","Produit","Sens","Quantité","P.U.","Motif","Par"],S.mvts.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,200).map(m=>tr([fd(m.date),esc(prod(m.produit_id).nom),badge(m.sens==="entree"?"Entrée":"Sortie",m.sens==="entree"?"ok":"er"),nf(m.qte,2),m.pu?fcfa(m.pu):"—",esc(m.motif),esc(m.par)])));
+ return h;
+};
+CSVS.stock=()=>[["Code","Produit","Stock","Unité","Coût moyen"],S.produits.map(p=>[p.code,p.nom,nf(qteStock(p.id),2),p.unite,Math.round(pmp(p.id))])];
+const prFields=()=>[{k:"code",l:"Code",req:1},{k:"nom",l:"Désignation",req:1},{k:"categorie",l:"Catégorie",t:"select",o:Object.entries(CATP)},{k:"unite",l:"Unité",req:1},{k:"seuil",l:"Seuil d'alerte",t:"number"},{k:"prix_ref",l:"Prix de référence (F)",t:"number"}];
+A["pr.add"]=()=>form("Nouveau produit",prFields(),{categorie:"aliment",unite:"kg"},o=>{need("stock");if(S.produits.some(p=>p.code.toLowerCase()===o.code.toLowerCase()))throw new Error("Code déjà utilisé.");S.produits.push({id:uid("p"),...o});audit("Produit créé",o.nom)});
+A["pr.edit"]=id=>{const p=by(S.produits,id);form("Modifier "+p.nom,prFields(),p,o=>{need("stock");Object.assign(p,o);audit("Produit modifié",p.nom)})};
+A["pr.aj"]=id=>{const p=by(S.produits,id);form("Inventaire — "+p.nom,[{k:"reel",l:"Quantité comptée ("+p.unite+")",t:"number",req:1,h:"Stock théorique : "+nf(qteStock(id),2)},{k:"motif",l:"Motif de l'écart",req:1}],{},o=>ajusterStock(id,o.reel,o.motif))};
+V.fab=()=>head("Fabrication d'aliments",can("fab")?`<button class="btn" data-a="rec.add">+ Recette</button>`:"")+
+ tbl(["Recette","Produit fini","Composition","Stock fini",""],S.recettes.map(r=>tr([esc(r.nom),esc(prod(r.produit_id).nom),esc(r.lignes.map(l=>prod(l.produit_id).nom+" "+l.pct+" %").join(" · ")),nf(qteStock(r.produit_id),0)+" kg",can("fab")?btn("fab.go",r.id,"Fabriquer","ok"):""])),{empty:"Aucune recette."})+
+ `<h2>Fabrications</h2>`+tbl(["N°","Date","Recette","Quantité","Coût","Coût / kg","Par"],S.fabs.slice().reverse().map(f=>tr([esc(f.numero),fd(f.date),esc(by(S.recettes,f.recette_id).nom),nf(f.kg)+" kg",fcfa(f.cout),fcfa(f.cout/f.kg),esc(f.par)])));
+A["rec.add"]=()=>{
+ const m=modal(""),box=m.firstChild,L=[{},{},{}];
+ const draw=()=>{const tot=sum(L,l=>+l.pct);box.innerHTML=`<div class="between"><h2 style="margin:0">Nouvelle recette</h2><button class="btn ghost" data-x>Fermer</button></div><div class="fg"><div><label>Nom</label><input id="rn" value="${esc(box.dataset.n||"")}"></div><div><label>Produit fini</label><select id="rp">${opt(prodOpts(["aliment"]).filter(x=>!prod(x[0]).mp),box.dataset.p||"")}</select></div></div>
+  <table><thead><tr><th>Ingrédient</th><th>%</th></tr></thead><tbody>${L.map((l,i)=>`<tr><td><select data-i="${i}" data-k="produit_id">${opt(S.produits.filter(p=>p.categorie==="aliment").map(p=>[p.id,p.nom]),l.produit_id||"","—")}</select></td><td><input type="number" step="any" min="0" data-i="${i}" data-k="pct" value="${l.pct||""}"></td></tr>`).join("")}</tbody></table>
+  <p><button class="btn ghost sm" id="al">+ Ingrédient</button> <b>Total ${nf(tot,2)} %</b> ${Math.abs(tot-100)<0.01?badge("100 %","ok"):badge("≠ 100 %","er")}</p><button class="btn" id="sv">Enregistrer</button>`;
+  const keep=()=>{box.dataset.n=$("#rn",box).value;box.dataset.p=$("#rp",box).value};
+  $("[data-x]",box).onclick=()=>m.remove();$("#al",box).onclick=()=>{keep();L.push({});draw()};
+  box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.value;draw()});
+  $("#sv",box).onclick=()=>{keep();if(atomic(()=>creerRecette({nom:box.dataset.n,produit_id:box.dataset.p,lignes:L}))!==false){m.remove();render()}};};draw();
+};
+A["fab.go"]=id=>{const r=by(S.recettes,id);form("Fabriquer — "+r.nom,[{k:"kg",l:"Quantité à fabriquer (kg)",t:"number",req:1},{k:"date",l:"Date",t:"date",req:1}],{date:today()},o=>fabriquer(id,o.kg,o.date),"Fabriquer")};
+V.achats=()=>{
+ const t=tabOf("achats","bc");let h=head("Achats & fournisseurs",t==="bc"&&can("achat")?`<button class="btn" data-a="ac.add">+ Bon de commande</button>`:"")+tabs("achats",[["bc","Commandes"],["f","Fournisseurs"]]);
+ if(t==="f")return h+VB.fournisseurs();
+ return h+tbl(["N°","Date","Fournisseur","Total","Payé","Reste","Statut",""],S.achats.slice().reverse().map(a=>tr([esc(a.numero),fd(a.date),esc(tiers("f",a.fournisseur_id).nom),fcfa(a.total),fcfa(a.paye),fcfa(a.total-a.paye),badge({commande:"Commandé",recu:"Reçu",annule:"Annulé"}[a.statut],a.statut==="recu"?"ok":a.statut==="annule"?"mu":"wa"),`<div class="flex">${btn("ac.det",a.id,"Détail","ghost")}${a.statut==="commande"&&can("achat")?btn("ac.rec",a.id,"Réceptionner","ok")+btn("ac.ann",a.id,"Annuler","er"):""}${a.statut==="recu"&&a.total>a.paye&&can("achat")?btn("ac.pay",a.id,"Payer","ok"):""}</div>`])));
+};
+function lignesForm(title,kinds,onSave,extra,init){
+ const m=modal(""),box=m.firstChild,L=[{type:kinds[0]},{type:kinds[0]}];
+ const draw=()=>{
+  const tot=Math.round(sum(L,l=>l.type==="vif"?(+l.poids_kg||0)*(+l.pu||0):(+l.qte||0)*(+l.pu||0)));
+  box.innerHTML=`<div class="between"><h2 style="margin:0">${title}</h2><button class="btn ghost" data-x>Fermer</button></div><div class="fg">${extra.map(f=>`<div><label>${f.l}</label>${f.t==="select"?`<select data-h="${f.k}">${opt(f.o(),box.dataset[f.k]||(init&&init[f.k])||"")}</select>`:`<input data-h="${f.k}" type="${f.t||"text"}" value="${esc(box.dataset[f.k]??(init&&init[f.k])??"")}">`}</label></div>`).join("")}</div>
+  <table><thead><tr><th>Ligne</th><th>Détail</th><th>Qté / poids</th><th>P.U.</th></tr></thead><tbody>${L.map((l,i)=>`<tr>${kinds.length>1?`<td><select data-i="${i}" data-k="type">${opt([["stock","Produit en stock"],["vif","Sujets vivants"]],l.type)}</select></td>`:`<td>${i+1}</td>`}<td>${l.type==="vif"?`<select data-i="${i}" data-k="lot_id">${opt(lotsOpts(),l.lot_id||"","— Lot —")}</select><input data-i="${i}" data-k="tetes" type="number" min="0" placeholder="Têtes" value="${l.tetes||""}">`:`<select data-i="${i}" data-k="produit_id">${opt(l.type==="stock"&&kinds.includes("vif")?S.produits.filter(p=>p.categorie==="fini").map(p=>[p.id,p.nom+" — stock "+nf(qteStock(p.id),1)]):S.produits.map(p=>[p.id,p.nom+" ("+p.unite+")"]),l.produit_id||"","— Produit —")}</select>`}</td><td><input data-i="${i}" data-k="${l.type==="vif"?"poids_kg":"qte"}" type="number" step="any" min="0" value="${(l.type==="vif"?l.poids_kg:l.qte)||""}"></td><td><input data-i="${i}" data-k="pu" type="number" step="any" min="0" value="${l.pu||""}"></td></tr>`).join("")}</tbody></table>
+  <p><button class="btn ghost sm" id="al">+ Ligne</button> <b>Total : ${fcfa(tot)}</b></p><button class="btn" id="sv">Enregistrer</button>`;
+  const keep=()=>box.querySelectorAll("[data-h]").forEach(e=>box.dataset[e.dataset.h]=e.value);
+  $("[data-x]",box).onclick=()=>m.remove();$("#al",box).onclick=()=>{keep();L.push({type:kinds[0]});draw()};
+  box.querySelectorAll("[data-h]").forEach(e=>e.onchange=keep);
+  box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.value;if(e.dataset.k==="type"){const t=e.value;L[+e.dataset.i]={type:t}}draw()});
+  $("#sv",box).onclick=()=>{keep();const o={lignes:L};extra.forEach(f=>o[f.k]=box.dataset[f.k]??"");if(atomic(()=>onSave(o))!==false){m.remove();render()}};
+ };draw();
+}
+A["ac.add"]=()=>lignesForm("Bon de commande",["stock"],o=>creerAchat(o),[{k:"fournisseur_id",l:"Fournisseur",t:"select",o:()=>S.fournisseurs.map(f=>[f.id,f.nom])},{k:"date",l:"Date",t:"date"}],{date:today()});
+A["ac.det"]=id=>{const a=by(S.achats,id);modal(`<div class="between"><h2 style="margin:0">${esc(a.numero)} — ${esc(tiers("f",a.fournisseur_id).nom)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>${tbl(["Produit","Qté","P.U.","Total"],a.lignes.map(l=>tr([esc(prod(l.produit_id).nom),nf(l.qte,1)+" "+prod(l.produit_id).unite,fcfa(l.pu),fcfa(l.qte*l.pu)])))}<p>Total <b>${fcfa(a.total)}</b> · Payé ${fcfa(a.paye)} · Reste <b>${fcfa(a.total-a.paye)}</b></p>${tbl(["Règlement","Date","Montant","Mode"],S.reglements.filter(r=>r.achat_id===id).map(r=>tr([esc(r.numero),fd(r.date),fcfa(r.montant),esc(r.mode)])),{empty:"Aucun règlement."})}`)};
+A["ac.rec"]=id=>{if(atomic(()=>recevoirAchat(id)))render()};
+A["ac.ann"]=id=>motifForm("Annuler la commande",m=>annulerAchat(id,m));
+A["ac.pay"]=id=>{const a=by(S.achats,id);form("Règlement — "+a.numero,[{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"},{k:"date",l:"Date",t:"date",req:1}],{montant:a.total-a.paye,date:today()},o=>payerFournisseur(id,o))};
+/* ---- Ventes ---- */
+V.ventes=()=>{
+ const t=tabOf("ventes","v");let h=head("Ventes & clients",t==="v"&&can("vente")?`<button class="btn" data-a="vt.add">+ Nouvelle vente</button>`:"")+tabs("ventes",[["v","Ventes"],["e","Encaissements"],["c","Clients"]]);
+ if(t==="c")return h+VB.clients();
+ if(t==="e")return h+tbl(["Reçu","Date","Client","Vente","Montant","Mode","Statut",""],S.encaiss.slice().reverse().map(e=>tr([esc(e.numero),fd(e.date),esc(tiers("c",e.client_id).nom),esc((by(S.ventes,e.vente_id)||{}).numero),fcfa(e.montant),esc(e.mode),badge(e.statut==="valide"?"Valide":"Annulé",e.statut==="valide"?"ok":"er"),`<div class="flex">${btn("en.print",e.id,"🖨","ghost")}${e.statut==="valide"&&can("annulvente")?btn("en.ann",e.id,"Annuler","er"):""}</div>`])));
+ return h+tbl(["Facture","Date","Client","Total","Encaissé","Reste","Statut",""],S.ventes.slice().reverse().map(v=>{const r=soldeVente(v);return tr([esc(v.numero),fd(v.date),esc(tiers("c",v.client_id).nom),fcfa(v.total),fcfa(v.total-r),fcfa(v.statut==="valide"?r:0),v.statut==="annule"?badge("Annulée","mu"):r<=0?badge("Soldée","ok"):badge(r<v.total?"Partielle":"À payer",r<v.total?"wa":"er"),`<div class="flex">${btn("vt.print",v.id,"🖨","ghost")}${v.statut==="valide"&&r>0&&can("paiement")?btn("vt.pay",v.id,"Encaisser","ok"):""}${v.statut==="valide"&&can("annulvente")?btn("vt.ann",v.id,"Annuler","er"):""}</div>`])}));
+};
+A["vt.add"]=()=>lignesForm("Nouvelle vente",["stock","vif"],o=>creerVente({date:o.date,client_id:o.client_id,lignes:o.lignes,paye:+o.paye||0,mode:o.mode,ref:o.ref}),[{k:"client_id",l:"Client",t:"select",o:()=>S.clients.map(c=>[c.id,c.nom])},{k:"date",l:"Date",t:"date"},{k:"paye",l:"Acompte encaissé (F)",t:"number"},{k:"mode",l:"Mode",t:"select",o:()=>[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"}],{date:today(),mode:"especes"});
+A["vt.pay"]=id=>{const v=by(S.ventes,id);form("Encaissement — "+v.numero,[{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"},{k:"date",l:"Date",t:"date",req:1}],{montant:soldeVente(v),date:today()},o=>{const e=encaisserVente(id,o);setTimeout(()=>A["en.print"](e.id),0)})};
+A["vt.ann"]=id=>motifForm("Annuler la vente",m=>annulerVente(id,m));A["en.ann"]=id=>motifForm("Annuler l'encaissement",m=>annulerEncaissement(id,m));
+A["vt.print"]=id=>{const v=by(S.ventes,id),c=tiers("c",v.client_id);modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>FACTURE ${esc(v.numero)} ${v.statut==="annule"?"— ANNULÉE":""}</h1><p><b>ANGEL'S AGRO</b> — Élevage avicole<br>Date : ${fd(v.date)}<br>Client : <b>${esc(c.nom)}</b> ${esc(c.tel||"")}</p>${tbl(["Désignation","Quantité","P.U.","Total"],v.lignes.map(l=>tr([esc(l.designation),l.type==="vif"?l.tetes+" têtes · "+nf(l.poids_kg,1)+" kg":nf(l.qte,1),fcfa(l.pu),fcfa(l.total)])))}<p style="text-align:right;font-size:18px">Total : <b>${fcfa(v.total)}</b><br>Encaissé : ${fcfa(v.total-soldeVente(v))} · Reste : <b>${fcfa(soldeVente(v))}</b></p>`)};
+A["en.print"]=id=>{const e=by(S.encaiss,id),v=by(S.ventes,e.vente_id);modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>REÇU ${esc(e.numero)} ${e.statut==="annule"?"— ANNULÉ":""}</h1><p><b>ANGEL'S AGRO</b><br>Date : ${fd(e.date)}<br>Reçu de : <b>${esc(tiers("c",e.client_id).nom)}</b><br>Facture : ${esc(v.numero)}<br>Mode : ${esc(e.mode)} ${e.ref?"· Réf. "+esc(e.ref):""}</p><p style="font-size:18px">Montant reçu : <b>${fcfa(e.montant)}</b></p><p>Solde restant sur la facture : <b>${fcfa(soldeVente(v))}</b> · Solde client : ${fcfa(soldeClient(e.client_id))}</p><p class="mu sm">Encaissé par ${esc(e.par)}</p>`)};
+/* ---- Trésorerie, charges ---- */
+V.tresor=()=>{
+ const l=S.entries.flatMap(e=>e.lignes.filter(x=>x.compte==="571"||x.compte==="521").map(x=>({e,x}))).sort((a,b)=>b.e.date.localeCompare(a.e.date)||b.e.numero.localeCompare(a.e.numero));
+ return head("Trésorerie",can("treso")?`<button class="btn" data-a="tz.add">+ Mouvement</button>`:"")+`<div class="grid">${kpi(fcfa(soldeCompte("571")),"Caisse","o")}${kpi(fcfa(soldeCompte("521")),"Banque / mobile money","o")}${kpi(fcfa(soldeCompte("571")+soldeCompte("521")),"Total")}</div>`+tbl(["Date","Pièce","Libellé","Compte","Entrée","Sortie"],l.slice(0,150).map(({e,x})=>tr([fd(e.date),esc(e.piece),esc(e.libelle),x.compte==="571"?"Caisse":"Banque",x.debit?fcfa(x.debit):"",x.credit?fcfa(x.credit):""])));
+};
+A["tz.add"]=()=>form("Mouvement de trésorerie",[{k:"categorie",l:"Nature",t:"select",o:[...Object.entries(TRESO).map(([k,v])=>[k,v[0]]),["virement","Virement caisse ↔ banque"]]},{k:"mode",l:"Compte",t:"select",o:[["especes","Caisse"],["banque","Banque / mobile money"]]},{k:"sens",l:"Sens (virement)",t:"select",o:[["vers_banque","Caisse → banque"],["vers_caisse","Banque → caisse"]]},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"date",l:"Date",t:"date",req:1},{k:"libelle",l:"Libellé"}],{date:today()},o=>mouvTreso(o));
+V.charges=()=>{const f=UI.f.chg||(UI.f.chg={lot:""});return head("Charges",`<select data-f="chg:lot" style="width:auto">${opt(lotsOpts(true),f.lot,"Tous les lots")}</select>${can("charge")?`<button class="btn" data-a="ch.add">+ Charge</button>`:""}${csvBtn("charges")}`)+tbl(["N°","Date","Lot","Catégorie","Libellé","Montant","Règlement","Statut",""],S.charges.filter(c=>!f.lot||c.lot_id===f.lot).slice().reverse().map(c=>tr([esc(c.numero),fd(c.date),c.lot_id?esc(lot(c.lot_id).code):"Exploitation",esc(CHARGES[c.categorie][0]),esc(c.libelle),fcfa(c.montant),esc(c.mode),badge(c.statut==="valide"?"Valide":"Annulée",c.statut==="valide"?"ok":"mu"),c.statut==="valide"&&(can("extourne")||ME.role==="chef")?btn("ch.ann",c.id,"Annuler","er"):""])))};
+CSVS.charges=()=>[["N°","Date","Lot","Catégorie","Montant","Statut"],S.charges.map(c=>[c.numero,c.date,c.lot_id?lot(c.lot_id).code:"",CHARGES[c.categorie][0],c.montant,c.statut])];
+A["ch.add"]=()=>form("Nouvelle charge",[{k:"date",l:"Date",t:"date",req:1},{k:"categorie",l:"Catégorie",t:"select",o:Object.entries(CHARGES).map(([k,v])=>[k,v[0]])},{k:"lot_id",l:"Imputer au lot",t:"select",o:()=>[["","— Exploitation —"],...lotsOpts(true)]},{k:"libelle",l:"Libellé"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Règlement",t:"select",o:[["especes","Espèces (caisse)"],["banque","Banque"],["mobile","Mobile money"]]}],{date:today()},o=>ajouterCharge(o));
+A["ch.ann"]=id=>motifForm("Annuler la charge",m=>annulerCharge(id,m));
+V.finance=()=>{
+ const rows=S.lots.map(l=>({l,s:lotStats(l)})),mois=today().slice(0,7);
+ const prod_=sum(S.entries.flatMap(e=>e.lignes),l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):0),chg=sum(S.entries.flatMap(e=>e.lignes),l=>l.compte[0]==="6"?(l.debit||0)-(l.credit||0):0);
+ return head("Rentabilité",csvBtn("lots"))+`<div class="grid">${kpi(fcfa(prod_),"Produits comptabilisés","o")}${kpi(fcfa(chg),"Charges comptabilisées","w")}${kpi(fcfa(prod_-chg),"Résultat (comptabilité)",prod_-chg>=0?"o":"e")}</div><div class="note">Les achats sont passés en charges à l'achat (comme AviNest Pro) ; le résultat comptable n'intègre pas de variation de stock. La marge par lot valorise la consommation réelle au coût moyen.</div>`+
+ tbl(["Lot","Poussins","Aliment","Santé","Charges","Coût total","Recettes","Marge","Coût / kg vendu","Statut"],rows.map(({l,s})=>tr([esc(l.code+" — "+l.nom),fcfa(s.cPou),fcfa(s.cAl),fcfa(s.cSa),fcfa(s.cCh),`<b>${fcfa(s.cout)}</b>`,fcfa(s.rec),`<b style="color:var(--${s.marge>=0?"ok":"er"})">${fcfa(s.marge)}</b>`,s.coutKg?fcfa(s.coutKg):"—",badge(l.statut==="clos"?"Clos":"En cours",l.statut==="clos"?"mu":"ok")])))+`<p class="mu sm">Recettes d'un lot de ponte : œufs produits valorisés au prix du plateau paramétré (${fcfa(S.settings.prix_plateau)}) — estimation de gestion.</p>`;
+};
+
+/* ---- Comptabilité ---- */
+const dc=(l,k)=>l[k]?fcfa(l[k]):"";
+V.compta=()=>{
+ const t=tabOf("compta","ecr"),f=UI.f.cp||(UI.f.cp={j:"",p:today().slice(0,7),from:today().slice(0,4)+"-01-01",to:today(),cpt:"571"});
+ let h=head("Comptabilité SYSCOHADA",csvBtn("ecritures"))+`<div class="note">Plan comptable repris d'AviNest Pro — indicatif : à valider par le comptable (SYSCOHADA révisé, fiscalité ivoirienne) avant production. Pas de variation de stocks automatique.</div>`+tabs("compta",[["ecr","Écritures"],["plan","Plan comptable"],["bal","Balance"],["gl","Grand livre"],["jr","Journaux"],["res","Résultat"],["per","Périodes"],["ctl","Contrôles"]]);
+ const ins=e=>e.date>=f.from&&e.date<=f.to,flt=`<div class="card flex"><div><label>Du</label><input type="date" data-f="cp:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="cp:to" value="${f.to}"></div></div>`;
+ if(t==="ecr"){const L=S.entries.filter(e=>(!f.j||e.journal===f.j)&&(!f.p||per(e.date)===f.p)).sort((a,b)=>b.date.localeCompare(a.date)||b.numero.localeCompare(a.numero));
+  h+=`<div class="card flex"><select data-f="cp:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input type="month" data-f="cp:p" value="${f.p}" style="width:auto">${can("compta")?`<button class="btn" data-a="od.new">+ Opération diverse</button>`:""}</div>`+tbl(["N°","Date","Journal","Libellé","Pièce","Montant","État",""],L.map(e=>tr([esc(e.numero),fd(e.date),esc(e.journal),esc(e.libelle),esc(e.piece),fcfa(sum(e.lignes,l=>l.debit)),e.extournee?badge("Extournée","mu"):badge("Validée","ok"),`<div class="flex">${btn("ec.det",e.id,"Détail","ghost")}${e.source&&e.source.type==="manual"&&!e.extournee&&can("extourne")?btn("ec.ext",e.id,"Extourner","er"):""}</div>`])));}
+ if(t==="plan")h+=tbl(["N°","Intitulé","Type","Solde"],S.accounts.slice().sort((a,b)=>a.num.localeCompare(b.num)).map(a=>{const s=soldeCompte(a.num);return tr([a.num,esc(a.nom),esc(a.type),fcfa(Math.abs(s))+(s<0?" C":s>0?" D":"")])}));
+ if(t==="bal"){const R=S.accounts.slice().sort((a,b)=>a.num.localeCompare(b.num)).map(a=>{const ls=S.entries.filter(ins).flatMap(e=>e.lignes.filter(l=>l.compte===a.num));return{a,d:sum(ls,l=>l.debit),c:sum(ls,l=>l.credit)}}).filter(r=>r.d||r.c),D=sum(R,r=>r.d),C=sum(R,r=>r.c);
+  h+=flt+tbl(["Compte","Intitulé","Débit","Crédit","Solde débiteur","Solde créditeur"],[...R.map(r=>tr([r.a.num,esc(r.a.nom),fcfa(r.d),fcfa(r.c),r.d>r.c?fcfa(r.d-r.c):"",r.c>r.d?fcfa(r.c-r.d):""])),tr(["","<b>TOTAUX</b>",`<b>${fcfa(D)}</b>`,`<b>${fcfa(C)}</b>`,"",""])])+(D===C?`<div class="al" style="background:var(--okbg);color:var(--ok)">Balance équilibrée.</div>`:`<div class="al er">Balance déséquilibrée !</div>`);}
+ if(t==="gl"){let run=0;const ls=S.entries.filter(ins).sort((a,b)=>a.date.localeCompare(b.date)||a.numero.localeCompare(b.numero)).flatMap(e=>e.lignes.filter(l=>l.compte===f.cpt).map(l=>({e,l})));
+  h+=flt+`<div class="card"><label>Compte</label><select data-f="cp:cpt">${opt(S.accounts.map(a=>[a.num,a.num+" "+a.nom]),f.cpt)}</select></div>`+tbl(["Date","Écriture","Libellé","Tiers","Débit","Crédit","Solde"],ls.map(({e,l})=>{run+=(l.debit||0)-(l.credit||0);return tr([fd(e.date),esc(e.numero),esc(e.libelle),esc(l.tiers?(by(S.clients,l.tiers)||by(S.fournisseurs,l.tiers)||{}).nom:""),dc(l,"debit"),dc(l,"credit"),fcfa(Math.abs(run))+(run<0?" C":" D")])}),{max:400});}
+ if(t==="jr"){const es=S.entries.filter(e=>ins(e)&&(!f.j||e.journal===f.j)).sort((a,b)=>a.date.localeCompare(b.date));h+=flt+`<div class="card"><select data-f="cp:j">${opt(JOURNAUX,f.j,"Tous journaux")}</select></div>`+tbl(["Date","Écriture","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lignes.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.libelle),esc(l.compte),dc(l,"debit"),dc(l,"credit")]))),{max:400})+`<p><b>Total débit ${fcfa(sum(es,e=>sum(e.lignes,l=>l.debit)))} · Total crédit ${fcfa(sum(es,e=>sum(e.lignes,l=>l.credit)))}</b></p>`;}
+ if(t==="res"){const ls=S.entries.filter(ins).flatMap(e=>e.lignes),p=sum(ls,l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):0),c=sum(ls,l=>l.compte[0]==="6"?(l.debit||0)-(l.credit||0):0);h+=flt+`<div class="grid">${kpi(fcfa(p),"Produits (classe 7)","o")}${kpi(fcfa(c),"Charges (classe 6)","w")}${kpi(fcfa(p-c),"Résultat",p-c>=0?"o":"e")}</div>`;}
+ if(t==="per"){const c=today().slice(0,7);if(!by(S.periods,c))S.periods.push({id:c,statut:"ouverte"});h+=tbl(["Période","État",""],S.periods.slice().sort((a,b)=>b.id.localeCompare(a.id)).map(p=>tr([p.id,badge(p.statut==="ouverte"?"Ouverte":"Clôturée",p.statut==="ouverte"?"ok":"mu"),can("periode")?btn("per.tg",p.id,p.statut==="ouverte"?"Clôturer":"Rouvrir",p.statut==="ouverte"?"er":"ghost"):""])))}
+ if(t==="ctl"){const pb=integrite();h+=pb.length?pb.map(x=>`<div class="al er">${esc(x)}</div>`).join(""):`<div class="al" style="background:var(--okbg);color:var(--ok)">Contrôles réussis : écritures équilibrées, stocks positifs, clients et fournisseurs = comptabilité, caisse ≥ 0.</div>`}
+ return h;
+};
+CSVS.ecritures=()=>[["N°","Date","Journal","Libellé","Compte","Débit","Crédit"],S.entries.flatMap(e=>e.lignes.map(l=>[e.numero,e.date,e.journal,e.libelle,l.compte,l.debit||0,l.credit||0]))];
+A["ec.det"]=id=>{const e=by(S.entries,id);modal(`<div class="between"><h2 style="margin:0">${esc(e.numero)} — ${esc(e.libelle)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>${fd(e.date)} · ${esc(e.journal)} · pièce ${esc(e.piece)} · ${esc(e.par)}</p>${tbl(["Compte","Tiers","Débit","Crédit"],e.lignes.map(l=>tr([esc(l.compte+" "+(by(S.accounts,l.compte,"num")||{}).nom),esc(l.tiers?(by(S.clients,l.tiers)||by(S.fournisseurs,l.tiers)||{}).nom:""),dc(l,"debit"),dc(l,"credit")])))}`)};
+A["ec.ext"]=id=>motifForm("Extourner l'écriture",m=>extournerOD(id,m));A["per.tg"]=id=>{const p=by(S.periods,id);if(atomic(()=>periodeAction(id,p.statut==="ouverte"?"close":"open")))render()};
+A["od.new"]=()=>{
+ const m=modal(""),box=m.firstChild,L=[{},{}];
+ const draw=()=>{const d=sum(L,l=>+l.debit),c=sum(L,l=>+l.credit);box.innerHTML=`<div class="between"><h2 style="margin:0">Opération diverse</h2><button class="btn ghost" data-x>Fermer</button></div><div class="fg"><div><label>Date</label><input id="dt" type="date" value="${box.dataset.dt||today()}"></div><div><label>Pièce</label><input id="pc" value="${esc(box.dataset.pc||"")}"></div><div style="grid-column:1/-1"><label>Libellé</label><input id="lb" value="${esc(box.dataset.lb||"")}"></div></div>
+  <table><thead><tr><th>Compte</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${L.map((l,i)=>`<tr><td><select data-i="${i}" data-k="compte">${opt(S.accounts.map(a=>[a.num,a.num+" "+a.nom]),l.compte||"","—")}</select></td><td><input type="number" min="0" data-i="${i}" data-k="debit" value="${l.debit||""}"></td><td><input type="number" min="0" data-i="${i}" data-k="credit" value="${l.credit||""}"></td></tr>`).join("")}</tbody></table>
+  <p><button class="btn ghost sm" id="al">+ Ligne</button> <b>Débit ${fcfa(d)} · Crédit ${fcfa(c)}</b> ${d===c&&d>0?badge("Équilibrée","ok"):badge("Non équilibrée","er")}</p><button class="btn" id="sv">Valider</button>`;
+  const keep=()=>{box.dataset.dt=$("#dt",box).value;box.dataset.pc=$("#pc",box).value;box.dataset.lb=$("#lb",box).value};
+  $("[data-x]",box).onclick=()=>m.remove();$("#al",box).onclick=()=>{keep();L.push({});draw()};
+  box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.dataset.k==="compte"?e.value:(+e.value||0);draw()});
+  $("#sv",box).onclick=()=>{keep();if(atomic(()=>saisirOD({date:box.dataset.dt,piece:box.dataset.pc,libelle:box.dataset.lb,lignes:L.filter(l=>l.compte).map(l=>({compte:l.compte,debit:+l.debit||0,credit:+l.credit||0}))}))!==false){m.remove();render()}};};draw();
+};
+/* ---- Rapports ---- */
+function rapportJour(d){
+ const en=S.lots.filter(l=>l.statut==="en_cours"),sv=S.suivis.filter(x=>x.date===d),L=[`ANGEL'S AGRO — Rapport du ${fd(d)}`,`Lots en cours : ${en.length} · sujets vivants : ${nf(sum(en,l=>vivantsLot(l)))}`,`Mortalité du jour : ${sum(sv,x=>x.morts)} · Œufs : ${nf(sum(sv,x=>x.oeufs))} (casses ${sum(sv,x=>x.casses)}) · Aliment : ${nf(sum(sv,x=>x.aliment_kg),1)} kg`];
+ en.forEach(l=>{const s=lotStats(l);L.push(`• ${l.code} ${l.nom} — J${s.age}, ${nf(s.vivants)} vivants, mortalité cumulée ${nf(s.mortPct,1)} %${l.type==="ponte"&&s.tp!=null?", ponte "+nf(s.tp,1)+" %":""}${l.type==="chair"&&s.IC?", IC "+nf(s.IC,2):""}`)});
+ L.push(`Ventes du jour : ${fcfa(sum(S.ventes.filter(v=>v.statut==="valide"&&v.date===d),v=>v.total))} · Encaissé : ${fcfa(sum(S.encaiss.filter(e=>e.statut==="valide"&&e.date===d),e=>e.montant))}`,`Trésorerie : caisse ${fcfa(soldeCompte("571"))}, banque ${fcfa(soldeCompte("521"))}`);
+ const al=alertes().filter(a=>a.er);if(al.length){L.push("Alertes critiques :");al.slice(0,8).forEach(a=>L.push("⚠ "+a.t))}return L.join("\n");
+}
+V.rapports=()=>{const d=(UI.f.rap||(UI.f.rap={d:today()})).d,txt=rapportJour(d);return head("Rapports")+`<div class="card"><label>Date</label><input type="date" data-f="rap:d" value="${d}" max="${today()}" style="width:auto"><pre style="white-space:pre-wrap;font:inherit;margin:12px 0">${esc(txt)}</pre><div class="flex"><a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=${encodeURIComponent(txt)}">Envoyer par WhatsApp</a><button class="btn ghost" data-a="rp.print">Imprimer</button></div></div><h2>Exports</h2><div class="flex">${csvBtn("lots")}${csvBtn("stock")}${csvBtn("charges")}${csvBtn("ecritures")}</div>`};
+A["rp.print"]=()=>modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><pre style="white-space:pre-wrap;font:inherit">${esc(rapportJour(UI.f.rap.d))}</pre>`);
+/* ---- Administration ---- */
+V.users=()=>{const t=tabOf("users","u");let h=head("Utilisateurs & audit",t==="u"?`<button class="btn" data-a="us.add">+ Utilisateur</button>`:"")+tabs("users",[["u","Utilisateurs"],["a","Journal d'audit"]]);
+ if(t==="u")return h+tbl(["Nom","Rôle","État",""],S.users.map(u=>tr([esc(u.nom),esc(ROLES[u.role]),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),`<div class="flex">${btn("us.pin",u.id,"Réinitialiser le PIN","ghost")}${u.id!==ME.id?btn("us.tg",u.id,u.actif?"Désactiver":"Activer","ghost"):""}</div>`])));
+ const q=(UI.f.au&&UI.f.au.q||"").toLowerCase();return h+`<div class="card"><input data-f="au:q" placeholder="Filtrer…" value="${esc(UI.f.au&&UI.f.au.q||"")}"></div>`+tbl(["Date","Utilisateur","Rôle","Action","Détail"],S.audit.filter(a=>!q||(a.u+a.a+a.d).toLowerCase().includes(q)).map(a=>tr([fdt(a.t),esc(a.u),esc(a.r),esc(a.a),esc(a.d)])))};
+A["us.add"]=()=>form("Nouvel utilisateur",[{k:"nom",l:"Nom",req:1},{k:"role",l:"Rôle",t:"select",o:Object.entries(ROLES)},{k:"pin",l:"PIN (4 chiffres)",req:1}],{},o=>{need("users");if(!/^\d{4}$/.test(o.pin))throw new Error("PIN : 4 chiffres.");const u={id:uid("u"),nom:o.nom,role:o.role,actif:true};u.h=hashPin(u.id,o.pin);S.users.push(u);audit("Utilisateur créé",o.nom)});
+A["us.pin"]=id=>form("Réinitialiser le PIN",[{k:"pin",l:"Nouveau PIN (4 chiffres)",req:1}],{},o=>{need("users");if(!/^\d{4}$/.test(o.pin))throw new Error("PIN : 4 chiffres.");const u=by(S.users,id);u.h=hashPin(u.id,o.pin);S.tries[u.id]={n:0,until:0};audit("PIN réinitialisé",u.nom)});
+A["us.tg"]=id=>{if(atomic(()=>{need("users");const u=by(S.users,id);if(u.id===ME.id)throw new Error("Impossible de se désactiver soi-même.");u.actif=!u.actif;audit("Compte "+(u.actif?"activé":"désactivé"),u.nom)}))render()};
+const PARAMS=[["seuil_mort_jour","Alerte mortalité du jour (% de l'effectif)"],["seuil_mort_cum","Alerte mortalité cumulée (%)"],["seuil_ponte","Taux de ponte minimal (%)"],["ic_max","Indice de consommation maximal (chair)"],["delai_creance","Délai de créance client (jours)"],["plateau","Œufs par plateau"],["prix_plateau","Prix du plateau pour valoriser la ponte (F)"],["max_pj_ko","Taille max pièces jointes (Ko)"]];
+V.params=()=>{const t=tabOf("par","p");let h=head("Paramétrage")+tabs("par",[["p","Seuils et prix"],["pro","Protocoles sanitaires"],["bk","Sauvegarde"]]);
+ if(t==="p")h+=(can("param")?`<p><button class="btn" data-a="par.edit">Modifier</button></p>`:"")+tbl(["Paramètre","Valeur"],PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])));
+ if(t==="pro")h+=(can("param")?`<p><button class="btn" data-a="pro.add">+ Soin au protocole</button></p>`:"")+`<div class="note">Le protocole est copié dans le calendrier à la création de chaque lot (les lots existants ne changent pas).</div>`+tbl(["Type","Âge (jour)","Soin",""],S.protocoles.map((p,i)=>tr([LOTTYPE[p.type],"J"+p.age,esc(p.action),can("param")?btn("pro.del",i,"Retirer","er"):""])));
+ if(t==="bk")h+=`<div class="card"><p>Données locales : <b>${Math.round(JSON.stringify(S).length/1024)} Ko</b> (limite navigateur ≈ 5 000 Ko : backend Supabase requis pour la production).</p><div class="flex"><button class="btn" data-a="bk.exp">Exporter une sauvegarde</button>${can("param")?`<input type="file" id="bkf" accept="application/json" style="width:auto"><button class="btn ghost" data-a="bk.imp">Restaurer</button>`:""}<button class="btn ghost" data-a="bk.chk">Contrôle d'intégrité</button></div></div>`;
+ return h};
+A["par.edit"]=()=>form("Paramètres",PARAMS.map(([k,l])=>({k,l,t:"number"})),S.settings,o=>{need("param");PARAMS.forEach(([k])=>{if(!(o[k]>=0))throw new Error("Valeur invalide.");S.settings[k]=o[k]});if(!(S.settings.plateau>0))throw new Error("Œufs par plateau > 0.");audit("Paramètres modifiés")});
+A["pro.add"]=()=>form("Soin au protocole",[{k:"type",l:"Type de lot",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"age",l:"Âge (jour)",t:"number",req:1},{k:"action",l:"Soin",req:1}],{},o=>{need("param");if(!(o.age>=1))throw new Error("Âge ≥ 1.");S.protocoles.push(o);audit("Protocole",o.action)});
+A["pro.del"]=i=>{if(confirm("Retirer ce soin du protocole ?")&&atomic(()=>{need("param");S.protocoles.splice(+i,1)}))render()};
+A["bk.exp"]=()=>{atomic(()=>audit("Sauvegarde exportée"),true);const data=JSON.parse(JSON.stringify(S));delete data.tries;const b=new Blob([JSON.stringify({app:"angels-agro",v:1,t:now(),sum:hashPin("bk",JSON.stringify(data)),data})],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sauvegarde-agro-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
+A["bk.imp"]=async()=>{const f=$("#bkf");if(!f||!f.files[0])return alert("Choisir un fichier.");const txt=await f.files[0].text(),snap=JSON.stringify(S);try{const pb=restaurer(txt);save();alert(pb.length?"Restauré avec anomalies :\n"+pb.join("\n"):"Restauration réussie : intégrité vérifiée.");render()}catch(e){S=JSON.parse(snap);ME=by(S.users,ME.id);alert(e.message)}};
+A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n"):"Intégrité OK.")};
+/* ---------- Connexion, rendu, événements ---------- */
+const showNav=n=>n.r.includes(ME.role);
+function login(id,pin){
+ const u=by(S.users,id);if(!u)return"Compte inconnu.";const t=S.tries[u.id]||{n:0,until:0};
+ if(Date.now()<t.until)return"Compte bloqué 1 minute (trop de tentatives).";if(!u.actif)return"Compte désactivé.";
+ if(u.h===hashPin(u.id,pin)){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("ag_me",u.id)}catch(x){}view="dash";atomic(()=>audit("Connexion"),true);return null}
+ t.n++;if(t.n>=5){t.until=Date.now()+6e4;t.n=0}S.tries[u.id]=t;try{save()}catch(e){}return"PIN incorrect.";
+}
+function render(){
+ const app=$("#app");
+ if(!ME){
+  app.innerHTML=`<div class="login card"><h1>🐔 ANGEL'S AGRO</h1><p class="mu sm" style="margin-top:-8px">Élevage avicole</p><form id="lf"><label>Compte</label><select name="u">${S.users.filter(u=>u.actif).map(u=>`<option value="${u.id}">${esc(u.nom)} (${esc(ROLES[u.role])})</option>`).join("")}</select><label>PIN</label><input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Connexion</button></form><p class="mu sm">PIN oublié ? Demander la réinitialisation à l'administrateur.</p><p class="mu sm">Démo — admin 1234 · direction 0000 · chef 1111 · soigneur 2222 · magasinier 3333 · commercial 4444 · caissier 5555 · comptable 6666</p><p><a href="hub.html">← Hub</a></p></div>`;
+  $("#lf").onsubmit=e=>{e.preventDefault();const r=login(e.target.u.value,e.target.p.value);if(r)$("#le").textContent=r;else render()};return;
+ }
+ const items=NAV.filter(showNav);if(!items.some(n=>n.v===view))view=items[0].v;
+ let g="",nav="";items.forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
+ let body;try{body=V[view]()}catch(e){body=`<div class="card"><b>Erreur d'affichage</b><p>${esc(e.message)}</p></div>`}
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🐔 ANGEL'S AGRO<small>Élevage avicole</small></div>${nav}<a href="hub.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br><a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
+}
+A.out=()=>{atomic(()=>audit("Déconnexion"),true);ME=null;try{sessionStorage.removeItem("ag_me")}catch(x){}render()};A.bg=()=>$("#sb").classList.toggle("open");
+document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t||!S||t.tagName==="INPUT")return;const fn=A[t.dataset.a];if(fn){e.preventDefault();fn(t.dataset.id,t,e)}});
+document.addEventListener("change",e=>{const t=e.target;if(!S||!t.dataset.f)return;const[k,p]=t.dataset.f.split(":");(UI.f[k]=UI.f[k]||{})[p]=t.value;render()});
+window.addEventListener("storage",e=>{if(e.key===KEY&&e.newValue&&!document.querySelector(".md")){try{S=JSON.parse(e.newValue);if(ME)ME=by(S.users,ME.id);if(ME&&!ME.actif)ME=null;render()}catch(x){}}});
+load();
+try{const id=sessionStorage.getItem("ag_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
+render();
+</script>
+</body>
+</html>
