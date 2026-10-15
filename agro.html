@@ -88,7 +88,7 @@ const ROLES={admin:"Administrateur",direction:"Direction générale",chef:"Chef 
 const ALL=Object.keys(ROLES);
 const ACL={ // qui peut faire quoi (appliqué aussi dans les fonctions, pas seulement dans les menus)
  lot:["admin","chef"],suivi:["admin","chef","soigneur"],sante:["admin","chef","soigneur"],couvoir:["admin","chef"],batiment:["admin","chef"],
- stock:["admin","chef","magasinier"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
+ stock:["admin","chef","magasinier"],cond:["admin","chef","magasinier"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
  vente:["admin","commercial","caissier"],annulvente:["admin","direction"],paiement:["admin","caissier","commercial"],
  charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],extourne:["admin","comptable","direction"],
  periode:["admin","comptable","direction"],perso:["admin","direction","chef"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
@@ -100,6 +100,7 @@ const NAV=[
  {v:"sante",l:"Santé & prophylaxie",i:"💉",g:"Élevage",r:["admin","chef","soigneur"]},{v:"couvoir",l:"Couvoir",i:"🥚",g:"Élevage",r:["admin","chef"]},
  {v:"batiments",l:"Bâtiments",i:"🏠",g:"Élevage",r:["admin","chef","direction"]},
  {v:"stock",l:"Stock",i:"📦",g:"Stock & achats",r:["admin","direction","chef","magasinier","comptable"]},{v:"fab",l:"Fabrication aliments",i:"🌽",g:"Stock & achats",r:["admin","chef","magasinier"]},
+ {v:"cond",l:"Conditionnement",i:"📦",g:"Stock & achats",r:["admin","direction","chef","magasinier"]},
  {v:"achats",l:"Achats & fournisseurs",i:"🛒",g:"Stock & achats",r:["admin","direction","magasinier","comptable"]},
  {v:"ventes",l:"Ventes & clients",i:"🧾",g:"Ventes",r:["admin","direction","commercial","caissier","comptable"]},
  {v:"tresor",l:"Trésorerie",i:"🏦",g:"Argent",r:["admin","direction","caissier","comptable"]},{v:"charges",l:"Charges",i:"💸",g:"Argent",r:["admin","direction","chef","caissier","comptable"]},
@@ -171,6 +172,60 @@ function ajusterStock(pid,reel,motif){
  mouvement({produit_id:pid,sens:d>0?"entree":"sortie",qte:Math.abs(d),pu:d>0?pmp(pid):0,motif:"Inventaire : "+motif,source:{type:"ajust",id:uid("aj")}});audit("Ajustement de stock",prod(pid).nom+" "+nf(d,2));
 }
 
+/* ---------- Conditionnement des œufs (même règles qu'AvicoSuite) ---------- */
+const CAL=[["petit","Petit","🟡","< 53 g","P"],["moyen","Moyen","🟢","53-63 g","M"],["gros","Gros","🟠","63-73 g","G"],["tresGros","Très gros","🔴","73 g et +","TG"]];
+const TARIFS0={petit:{plt:1800,car:21600},moyen:{plt:2250,car:27000},gros:{plt:2700,car:32400},tresGros:{plt:3200,car:38400}};
+const PLT_CAR=12,ALV_CAR=4;
+const pCal=(k,t)=>S.produits.find(p=>p.code==="CAL-"+t+"-"+CAL.find(c=>c[0]===k)[4]);
+const pBruts=()=>S.produits.find(p=>p.code==="OEUFS-B"),pAlv=()=>S.produits.find(p=>p.code==="ALVEOLE");
+const tarif=k=>(S.settings.tarifs_cal&&S.settings.tarifs_cal[k])||TARIFS0[k];
+const restesC=()=>S.restes_cond||(S.restes_cond={petit:0,moyen:0,gros:0,tresGros:0});
+function migrerCond(){
+ if(!S.cond)S.cond=[];restesC();
+ const add=(code,nom,unite,prix)=>{if(!S.produits.some(p=>p.code===code))S.produits.push({id:uid("p"),code,nom,categorie:"fini",unite,seuil:0,prix_ref:prix||0})};
+ add("OEUFS-B","Œufs bruts (non conditionnés)","œuf",0);
+ CAL.forEach(([k,n,,,r])=>{add("CAL-PLT-"+r,"Plateau de 30 œufs — "+n,"plateau",tarif(k).plt);add("CAL-CAR-"+r,"Carton de 12 plateaux — "+n,"carton",tarif(k).car)});
+}
+function condPlan(f){ // calcul pur : plateaux, cartons, alvéoles, restes reportés
+ const pl=S.settings.plateau,R=restesC(),bruts=Math.floor(+f.bruts||0),casses=Math.floor(+f.casses||0),nets=bruts-casses,cal={};
+ let given=0;CAL.forEach(([k])=>{cal[k]=Math.floor(+f["c_"+k]||0);given+=cal[k]});
+ const reste_in={...R},plt={},car={},reste_out={},plt_net={};
+ if(given<nets)cal.moyen+=nets-given;
+ let alv=0;
+ CAL.forEach(([k])=>{const pool=cal[k]+R[k];plt[k]=Math.floor(pool/pl);reste_out[k]=pool%pl;const pp=pCal(k,"PLT"),st=pp?qteStock(pp.id):0;car[k]=Math.floor((st+plt[k])/PLT_CAR);plt_net[k]=plt[k]-car[k]*PLT_CAR;alv+=plt[k]+ALV_CAR*car[k]});
+ return{bruts,casses,nets,given,cal,plt,car,plt_net,alv,reste_in,reste_out,valeur:sum(CAL,c=>plt[c[0]]*tarif(c[0]).plt)};
+}
+function creerCond(f){
+ need("cond");migrerCond();
+ if(!f.date||f.date>today())throw new Error("Date invalide (ou dans le futur).");
+ const l=by(S.lots,f.lot_id);if(!l||l.type!=="ponte")throw new Error("Choisir le lot de pondeuses concerné.");
+ const p=condPlan(f);
+ if(!(p.bruts>0))throw new Error("Nombre d'œufs à conditionner requis.");
+ if(p.casses<0||p.casses>p.bruts)throw new Error("Casses incohérentes.");
+ CAL.forEach(([k])=>{if(!(p.cal[k]>=0)||!Number.isInteger(p.cal[k]))throw new Error("Calibres : nombres entiers positifs.")});
+ if(p.given>p.nets)throw new Error("Total des calibres ("+p.given+") supérieur aux œufs nets ("+p.nets+").");
+ const pb=pBruts(),pa=pAlv();if(!pb||!pa)throw new Error("Produits « œufs bruts » et « alvéoles » introuvables.");
+ if(p.bruts>qteStock(pb.id)+1e-9)throw new Error("Œufs bruts insuffisants : "+nf(qteStock(pb.id))+" en stock.");
+ if(p.alv>qteStock(pa.id)+1e-9)throw new Error("Alvéoles insuffisantes : besoin "+p.alv+", stock "+nf(qteStock(pa.id))+".");
+ const id=uid("cd"),numero=seq("cd","CND"),src={type:"cond",id},mo="Conditionnement "+numero,o={date:f.date,lot_id:l.id,source:src};
+ mouvement({produit_id:pb.id,sens:"sortie",qte:p.bruts,motif:mo,source:src,date:f.date,lot_id:l.id});
+ CAL.forEach(([k])=>{const pp=pCal(k,"PLT"),pc=pCal(k,"CAR");
+  if(p.plt[k]>0)mouvement({produit_id:pp.id,sens:"entree",qte:p.plt[k],pu:0,motif:mo,source:src,date:f.date,lot_id:l.id});
+  if(p.car[k]>0){mouvement({produit_id:pp.id,sens:"sortie",qte:p.car[k]*PLT_CAR,motif:mo+" (mise en cartons)",source:src,date:f.date,lot_id:l.id});mouvement({produit_id:pc.id,sens:"entree",qte:p.car[k],pu:0,motif:mo,source:src,date:f.date,lot_id:l.id})}});
+ mouvement({produit_id:pa.id,sens:"sortie",qte:p.alv,motif:mo,source:src,date:f.date,lot_id:l.id});
+ const c={id,numero,date:f.date,lot_id:l.id,bruts:p.bruts,casses:p.casses,nets:p.nets,cal:p.cal,plt:p.plt,car:p.car,alv:p.alv,reste_in:p.reste_in,reste_out:p.reste_out,valeur:p.valeur,note:f.note||"",par:ME?ME.nom:"système",t:now(),statut:"valide"};
+ S.cond.push(c);S.restes_cond={...p.reste_out};audit("Conditionnement",numero+" "+l.code+" : "+sum(CAL,k=>p.car[k[0]])+" carton(s), "+sum(CAL,k=>p.plt[k[0]])+" plateau(x)");return c;
+}
+function annulerCond(id,motif){
+ need("cond");const c=by(S.cond||[],id);if(!c||c.statut!=="valide")throw new Error("Session introuvable ou déjà annulée.");
+ if(!String(motif||"").trim())throw new Error("Motif obligatoire.");
+ const last=S.cond.filter(x=>x.statut==="valide").slice(-1)[0];if(last.id!==id)throw new Error("Seule la dernière session peut être annulée (les restes reportés s'enchaînent).");
+ const net={};S.mvts.filter(m=>m.source&&m.source.type==="cond"&&m.source.id===id).forEach(m=>{net[m.produit_id]=(net[m.produit_id]||0)+(m.sens==="entree"?m.qte:-m.qte)});
+ Object.entries(net).filter(([,q])=>q<-1e-9).forEach(([pid,q])=>mouvement({produit_id:pid,sens:"entree",qte:-q,pu:pmp(pid),motif:"Annulation "+c.numero,source:{type:"cond-annul",id},date:today()}));
+ Object.entries(net).filter(([,q])=>q>1e-9).forEach(([pid,q])=>mouvement({produit_id:pid,sens:"sortie",qte:q,motif:"Annulation "+c.numero,source:{type:"cond-annul",id},date:today()}));
+ c.statut="annule";c.motif=motif;S.restes_cond={...c.reste_in};audit("Conditionnement annulé",c.numero+" : "+motif);
+}
+
 /* ---------- Lots & suivi quotidien ---------- */
 const lot=id=>by(S.lots,id)||{code:"?",nom:"?"};
 const lotSorties=l=>S.sorties.filter(s=>s.lot_id===l.id&&!s.annule);
@@ -227,7 +282,7 @@ function saisirSuivi(f){
  const old=r.produit_id;Object.assign(r,{morts,cause:f.cause||"",aliment_kg:al,produit_id:f.produit_id||null,eau_l:eau,poids_g:pg,oeufs:oe,casses:ca,temp:tp,note:f.note||"",par:ME.nom});
  if(old&&old!==r.produit_id)ajusterSource("suivi",r.id,0,{produit_id:old,sens:"sortie",motif:"Correction suivi",date:f.date,lot_id:l.id});
  if(r.produit_id)ajusterSource("suivi",r.id,al,{produit_id:r.produit_id,sens:"sortie",motif:"Consommation "+l.code,date:f.date,lot_id:l.id});
- if(l.type==="ponte"){const po=S.produits.find(p=>p.code==="OEUFS");if(po)ajusterSource("suivi-oeufs",r.id,Math.max(0,(oe-ca)/S.settings.plateau),{produit_id:po.id,sens:"entree",pu:0,motif:"Production "+l.code,date:f.date,lot_id:l.id})}
+ if(l.type==="ponte"){migrerCond();const po=S.produits.find(p=>p.code==="OEUFS"),leg=po&&S.mvts.some(m=>m.source&&m.source.type==="suivi-oeufs"&&m.source.id===r.id&&m.produit_id===po.id);if(leg)ajusterSource("suivi-oeufs",r.id,Math.max(0,(oe-ca)/S.settings.plateau),{produit_id:po.id,sens:"entree",pu:0,motif:"Production "+l.code,date:f.date,lot_id:l.id});else ajusterSource("suivi-oeufs",r.id,Math.max(0,oe-ca),{produit_id:pBruts().id,sens:"entree",pu:0,motif:"Production "+l.code+" (œufs nets)",date:f.date,lot_id:l.id})}
  audit("Suivi quotidien",l.code+" "+f.date);return r;
 }
 /* ---------- Santé ---------- */
@@ -416,6 +471,7 @@ function seed(){
  S={seq:{},audit:[],users:[],batiments:[],lots:[],suivis:[],sorties:[],soins:[],traitements:[],incubations:[],produits:[],mvts:[],recettes:[],fabs:[],fournisseurs:[],clients:[],achats:[],reglements:[],ventes:[],encaiss:[],charges:[],staff:[],paies:[],
   accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action})),settings:{...SETTINGS0},tries:{}};
  ME={id:"seed",nom:"Initialisation",role:"seed"};
+ migrerCond();
  const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u)};
  mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Chef d'exploitation","chef","1111");mkU("Soigneur","soigneur","2222");mkU("Magasinier","magasinier","3333");mkU("Commercial","commercial","4444");mkU("Caissier","caissier","5555");mkU("Comptable","comptable","6666");
  const bA={id:uid("b"),nom:"Poulailler A",capacite:1000,usage:"Chair"},bB={id:uid("b"),nom:"Poulailler B",capacite:600,usage:"Ponte"};S.batiments.push(bA,bB);
@@ -423,7 +479,7 @@ function seed(){
  const pDem=P("ALI-DEM","Aliment démarrage chair","aliment","kg",200,420),pCro=P("ALI-CRO","Aliment croissance chair","aliment","kg",300,400),pPon=P("ALI-PON","Aliment pondeuse","aliment","kg",300,380),
   pMais=P("MAIS","Maïs grain","aliment","kg",300,230,{mp:true}),pSoja=P("SOJA","Tourteau de soja","aliment","kg",150,420,{mp:true}),pCmv=P("CMV","Concentré minéral vitaminé","aliment","kg",50,900,{mp:true}),
   vMar=P("VAC-MAR","Vaccin Marek","medicament","dose",500,12),vGum=P("VAC-GUM","Vaccin Gumboro","medicament","dose",500,10),vNd=P("VAC-ND","Vaccin Newcastle + IB","medicament","dose",500,9),vEds=P("VAC-EDS","Vaccin EDS","medicament","dose",300,25),ant=P("ANTICOC","Anticoccidien","medicament","dose",300,6),
-  pouss=P("POUSSIN","Poussin chair d'un jour","poussin","tête",0,450),oeufs=P("OEUFS","Plateau de 30 œufs","fini","plateau",0,0),fiente=P("FIENTE","Fientes (sac)","fini","sac",0,0),
+  pouss=P("POUSSIN","Poussin chair d'un jour","poussin","tête",0,450),fiente=P("FIENTE","Fientes (sac)","fini","sac",0,0),
   alv=P("ALVEOLE","Alvéoles / plateaux carton","emballage","unité",100,80);
  const fo=(nom,tel)=>{const f={id:uid("f"),nom,tel};S.fournisseurs.push(f);return f},cl=(nom,tel,type)=>{const c={id:uid("c"),nom,tel,type};S.clients.push(c);return c};
  const fP=fo("Provenderie Ivoire","0707010101"),fV=fo("Pharmavet CI","0707020202"),fC=fo("Couvoir Sanaga","0707030303"),c1=cl("Restaurant Chez Awa","0505040404","Restaurant"),c2=cl("Grossiste marché Yopougon","0505050505","Grossiste");
@@ -444,14 +500,16 @@ function seed(){
   const vP=vivantsLot(lp);saisirSuivi({lot_id:lp.id,date,morts:rnd()<0.1?1:0,aliment_kg:Math.round(vP*0.115*10)/10,produit_id:pPon.id,eau_l:Math.round(vP*0.24),oeufs:Math.round(vP*(0.84+rnd()*0.05)),casses:Math.round(vP*0.012),temp:27});
  }
  const rc={nom:"Croissance maison",produit_id:pCro.id,lignes:[{produit_id:pMais.id,pct:60},{produit_id:pSoja.id,pct:30},{produit_id:pCmv.id,pct:10}]};creerRecette(rc);fabriquer(S.recettes[0].id,500,d(-5));
- creerVente({date:d(-3),client_id:c1.id,lignes:[{type:"stock",produit_id:oeufs.id,qte:40,pu:2600}],paye:104000,mode:"especes"});
- creerVente({date:d(-1),client_id:c2.id,lignes:[{type:"stock",produit_id:oeufs.id,qte:50,pu:2400}],paye:60000,mode:"mobile",ref:"MM-1234"});
+ [[-6,0.4],[-3,0.6],[0,1]].forEach(([n,fr])=>{const b=Math.floor(qteStock(pBruts().id)*fr),ca=Math.round(b*0.012);creerCond({date:d(n),lot_id:lp.id,bruts:b,casses:ca,c_petit:Math.round(b*0.08),c_gros:Math.round(b*0.3),c_tresGros:Math.round(b*0.07),note:"Collecte et conditionnement"})});
+ const cM=pCal("moyen","CAR"),pM=pCal("moyen","PLT"),cG=pCal("gros","CAR"),nCM=Math.min(2,Math.floor(qteStock(cM.id))),nCG=Math.min(2,Math.floor(qteStock(cG.id)));
+ creerVente({date:d(-3),client_id:c1.id,lignes:[{type:"stock",produit_id:cM.id,qte:nCM,pu:tarif("moyen").car}],paye:Math.round(nCM*tarif("moyen").car),mode:"especes"});
+ creerVente({date:d(-1),client_id:c2.id,lignes:[{type:"stock",produit_id:cG.id,qte:nCG,pu:tarif("gros").car}],paye:Math.round(nCG*tarif("gros").car/2),mode:"mobile",ref:"MM-1234"});
  ajouterCharge({date:d(-10),categorie:"energie",libelle:"Électricité (CIE)",montant:48000,mode:"especes"});ajouterCharge({date:d(-6),categorie:"eau",libelle:"Eau (SODECI)",montant:18500,mode:"especes",lot_id:lc.id});ajouterCharge({date:d(-4),categorie:"transport",libelle:"Transport aliment",montant:35000,mode:"especes",lot_id:lc.id});
  S.staff.push({id:uid("s"),nom:"Koffi Yao",poste:"Soigneur",tel:"0707111111",salaire:75000,actif:true},{id:uid("s"),nom:"Aya Konan",poste:"Magasinière",tel:"0707222222",salaire:70000,actif:true});
  payerSalaires(today().slice(0,7),"especes");
  ME=null;save();
 }
-function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed()}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else migrerCond()}
 
 /* ---------- Composants UI ---------- */
 const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
@@ -758,8 +816,58 @@ A["od.new"]=()=>{
   box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.dataset.k==="compte"?e.value:(+e.value||0);draw()});
   $("#sv",box).onclick=()=>{keep();if(atomic(()=>saisirOD({date:box.dataset.dt,piece:box.dataset.pc,libelle:box.dataset.lb,lignes:L.filter(l=>l.compte).map(l=>({compte:l.compte,debit:+l.debit||0,credit:+l.credit||0}))}))!==false){m.remove();render()}};};draw();
 };
+/* ---- Conditionnement : page ---- */
+function svgBars(pts,u){
+ if(!pts.length)return `<div class="mu" style="text-align:center;padding:30px">Aucune donnée sur la période</div>`;
+ const W=640,H=210,P=40,mx=Math.max(...pts.map(p=>p.y),1),bw=Math.min(40,(W-P-10)/pts.length*.7),X=i=>P+(i+.5)*(W-P-10)/pts.length,Y=v=>H-24-v/mx*(H-44),
+  g=[0,1,2,3].map(k=>{const v=mx*k/3;return `<line x1="${P}" x2="${W-10}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" style="stroke:var(--bd)"/><text x="${P-4}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="10" style="fill:var(--mu)">${nf(v,mx<10?1:0)}</text>`}).join(""),
+  step=Math.ceil(pts.length/8);
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Histogramme ${esc(u||"")}">${g}${pts.map((p,i)=>`<rect x="${(X(i)-bw/2).toFixed(1)}" y="${Y(p.y).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H-24-Y(p.y)).toFixed(1)}" rx="3" style="fill:var(--b)"><title>${esc(p.x)} : ${nf(p.y)} ${esc(u||"")}</title></rect>${i%step===0?`<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" style="fill:var(--mu)">${esc(p.x)}</text>`:""}`).join("")}</svg>`;
+}
+const condFiltre=()=>{const f=UI.f.cond||(UI.f.cond={});if(!f.min)f.min=today().slice(0,7)+"-01";if(!f.max)f.max=today();if(f.lot===undefined)f.lot="";if(!f.grp)f.grp="jour";return f};
+const condSessions=(min,max,lotId)=>(S.cond||[]).filter(c=>c.statut==="valide"&&c.date>=min&&c.date<=max&&(!lotId||c.lot_id===lotId));
+const condGrp=(g,d)=>g==="mois"?d.slice(0,7):g==="semaine"?addDays(d,-((new Date(d+"T00:00:00Z").getUTCDay()+6)%7)):d;
+V.cond=()=>{
+ const f=condFiltre(),ss=condSessions(f.min,f.max,f.lot).slice().sort((a,b)=>b.date.localeCompare(a.date)||b.t.localeCompare(a.t)),R=restesC(),stk=p=>p?qteStock(p.id):0,pb=pBruts(),pa=pAlv();
+ const totBruts=sum(ss,c=>c.bruts),totCas=sum(ss,c=>c.casses),totCar=sum(ss,c=>sum(CAL,k=>c.car[k[0]])),totPlt=sum(ss,c=>sum(CAL,k=>c.plt[k[0]])),totVal=sum(ss,c=>c.valeur);
+ const grp={};ss.forEach(c=>{const k=condGrp(f.grp,c.date);grp[k]=(grp[k]||0)+sum(CAL,x=>c.car[x[0]])});
+ const bars=Object.entries(grp).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({x:f.grp==="mois"?k:fd(k).slice(0,5),y:v}));
+ const rdt=ss.slice().reverse().filter(c=>c.bruts>0).map(c=>({x:fd(c.date).slice(0,5),y:c.nets/c.bruts*100}));
+ const calRows=CAL.map(([k,n,ic,pd])=>{const o=sum(ss,c=>c.cal[k]),pl=sum(ss,c=>c.plt[k]),ca=sum(ss,c=>c.car[k]),sp=stk(pCal(k,"PLT")),sc=stk(pCal(k,"CAR"));return{k,n,ic,pd,o,pl,ca,sp,sc,v:sp*tarif(k).plt+sc*tarif(k).car}}),tO=sum(calRows,r=>r.o);
+ const lotsP=S.lots.filter(l=>l.type==="ponte");
+ let h=head("Conditionnement des œufs",`${can("cond")?`<button class="btn" data-a="cd.add">+ Nouvelle session</button>`:""}${can("param")?`<button class="btn ghost" data-a="cd.tar">Tarifs calibres</button>`:""}${csvBtn("cond")}`);
+ h+=`<div class="card"><h2 style="margin-top:0">📅 État périodique — Production vs Conditionnement</h2><div class="flex"><div><label>Du</label><input type="date" data-f="cond:min" value="${f.min}" max="${today()}"></div><div><label>Au</label><input type="date" data-f="cond:max" value="${f.max}" max="${today()}"></div><div><label>Lot</label><select data-f="cond:lot">${opt(lotsP.map(l=>[l.id,l.code+" — "+l.nom]),f.lot,"Tous les lots")}</select></div></div><div class="flex" style="margin-top:8px"><button class="btn sm ghost" data-a="cd.etat" data-id="vue">👁 Aperçu</button><button class="btn sm" data-a="cd.etat" data-id="imp">🖨 Imprimer</button><button class="btn sm" style="background:#25D366" data-a="cd.etat" data-id="wa">WhatsApp</button></div><div id="cdEtat">${UI.cdVue?`<div class="etat-inline-corps tw" style="margin-top:10px">${etatCorps("prodcond",f.min,f.max,f.lot)}</div>`:""}</div></div>`;
+ h+=`<div class="grid">${kpi(nf(stk(pb)),"Œufs bruts en stock",pb&&stk(pb)<=0?"w":"")}${kpi(nf(stk(pa)),"Alvéoles",pa&&stk(pa)<=pa.seuil?"e":"")}${kpi(nf(sum(CAL,c=>stk(pCal(c[0],"PLT")))),"Plateaux en stock","o")}${kpi(nf(sum(CAL,c=>stk(pCal(c[0],"CAR")))),"Cartons en stock · "+nf(sum(CAL,c=>stk(pCal(c[0],"CAR")))*PLT_CAR*S.settings.plateau)+" œufs","o")}${kpi(nf(ss.length),"Sessions (période) · "+nf(totBruts)+" œufs traités")}${kpi(nf(totCar),"Cartons produits · "+nf(totPlt)+" plateaux","o")}${kpi(fcfa(totVal),"Valeur produite (tarifs calibrés)","o")}${kpi(nf(sum(Object.values(R),x=>x)),"Œufs triés en attente de plateau")}</div>
+ <div class="note">📐 <b>1 plateau</b> = ${S.settings.plateau} œufs + 1 alvéole · <b>1 carton</b> = ${PLT_CAR} plateaux (${PLT_CAR*S.settings.plateau} œufs) + ${ALV_CAR} alvéoles de couverture · <b>unité de vente</b> = carton. Le reste d'une session (œufs &lt; 1 plateau, plateaux &lt; 1 carton) se reporte sur la suivante, calibre par calibre.</div>
+ <div class="card"><div class="between"><b>📊 Cartons produits par période</b><div class="flex">${[["jour","Jour"],["semaine","Semaine"],["mois","Mois"]].map(([k,l])=>`<button class="btn sm ${f.grp===k?"":"ghost"}" data-a="cd.grp" data-id="${k}">${l}</button>`).join("")}</div></div>${svgBars(bars,"cartons")}</div>
+ <div class="card"><b>📈 Rendement de conditionnement</b> <span class="mu sm">œufs nets / œufs sortis du stock${rdt.length?" · moyenne "+nf(sum(rdt,x=>x.y)/rdt.length,1)+" %":""}</span>${svgLine(rdt,"%")}</div>
+ <h2>⚖️ État du conditionnement par calibre</h2>`+tbl(["Calibre","Œufs cumulés","Part","Plateaux cumulés","Cartons cumulés","Stock plateaux","Stock cartons","Reste en attente (œufs)","Valeur stock"],[...calRows.map(r=>tr([`${r.ic} ${r.n} <span class="mu sm">${r.pd}</span>`,nf(r.o),tO?nf(r.o/tO*100,1)+" %":"—",nf(r.pl),nf(r.ca),nf(r.sp),nf(r.sc),nf(R[r.k]),fcfa(r.v)])),tr(["<b>TOTAL</b>",nf(tO),"100 %",nf(sum(calRows,r=>r.pl)),nf(sum(calRows,r=>r.ca)),nf(sum(calRows,r=>r.sp)),nf(sum(calRows,r=>r.sc)),nf(sum(Object.values(R),x=>x)),`<b>${fcfa(sum(calRows,r=>r.v))}</b>`])])+
+ `<h2>Sessions de conditionnement</h2>`+tbl(["N°","Date","Lot","Bruts","Casses","Nets","Plateaux","Cartons","Alvéoles","Valeur","Par",""],ss.map(c=>tr([esc(c.numero),fd(c.date),esc(lot(c.lot_id).code),nf(c.bruts),c.casses?`<span style="color:var(--er)">${nf(c.casses)}</span>`:"0",nf(c.nets),nf(sum(CAL,k=>c.plt[k[0]])),`<b>${nf(sum(CAL,k=>c.car[k[0]]))}</b>`,nf(c.alv),fcfa(c.valeur),esc(c.par),can("cond")&&c.id===(S.cond.filter(x=>x.statut==="valide").slice(-1)[0]||{}).id?btn("cd.ann",c.id,"Annuler","er"):""])),{empty:"Aucune session sur la période."});
+ return h;
+};
+CSVS.cond=()=>[["N°","Date","Lot","Bruts","Casses","Nets","Plateaux","Cartons","Alvéoles","Valeur","Statut"],(S.cond||[]).map(c=>[c.numero,c.date,lot(c.lot_id).code,c.bruts,c.casses,c.nets,sum(CAL,k=>c.plt[k[0]]),sum(CAL,k=>c.car[k[0]]),c.alv,c.valeur,c.statut])];
+A["cd.grp"]=id=>{condFiltre().grp=id;render()};
+A["cd.etat"]=m=>{const f=condFiltre();if(m==="vue"){UI.cdVue=true;render()}else if(m==="imp")rapOuvre(etatDoc("prodcond",f.min,f.max,f.lot));else rapWA(etatTexte("prodcond",f.min,f.max,f.lot),rapCfg().whatsapp)};
+A["cd.ann"]=id=>form("Annuler la session",[{k:"motif",l:"Motif",req:1}],{},o=>annulerCond(id,o.motif),"Annuler la session");
+A["cd.tar"]=()=>form("Tarifs par calibre (F)",CAL.flatMap(([k,n])=>[{k:k+"_plt",l:n+" — plateau",t:"number"},{k:k+"_car",l:n+" — carton",t:"number"}]),Object.fromEntries(CAL.flatMap(([k])=>[[k+"_plt",tarif(k).plt],[k+"_car",tarif(k).car]])),o=>{need("param");const t={};CAL.forEach(([k])=>{const a=+o[k+"_plt"],b=+o[k+"_car"];if(!(a>=0)||!(b>=0))throw new Error("Tarif invalide.");t[k]={plt:a,car:b}});S.settings.tarifs_cal=t;S.produits.forEach(p=>{const m=/^CAL-(PLT|CAR)-(.+)$/.exec(p.code);if(m){const c=CAL.find(x=>x[4]===m[2]);if(c)p.prix_ref=m[1]==="PLT"?t[c[0]].plt:t[c[0]].car}});audit("Tarifs calibres modifiés")});
+function condApercu(o){
+ const p=condPlan(o),pb=pBruts(),pa=pAlv(),E=[];
+ if(p.bruts>qteStock(pb.id))E.push("Œufs bruts insuffisants ("+nf(qteStock(pb.id))+" en stock)");if(p.alv>qteStock(pa.id))E.push("Alvéoles insuffisantes (besoin "+p.alv+", stock "+nf(qteStock(pa.id))+")");if(p.given>p.nets)E.push("Total calibres ("+p.given+") &gt; œufs nets ("+p.nets+")");
+ return (E.length?`<div class="note" style="border-color:var(--er)">⛔ ${E.join("<br>⛔ ")}</div>`:"")+`<div class="tw"><table><thead><tr><th>Calibre</th><th>Œufs</th><th>+ reste</th><th>Plateaux</th><th>Cartons</th><th>Reste après</th></tr></thead><tbody>${CAL.map(([k,n,ic])=>`<tr><td>${ic} ${n}</td><td>${nf(p.cal[k])}</td><td>${nf(p.reste_in[k])}</td><td>${nf(p.plt[k])}</td><td><b>${nf(p.car[k])}</b></td><td>${nf(p.reste_out[k])}</td></tr>`).join("")}</tbody></table></div><p class="sm">Nets : <b>${nf(p.nets)}</b> · Alvéoles : <b>${nf(p.alv)}</b> · Valeur : <b>${fcfa(p.valeur)}</b></p>`;
+}
+A["cd.add"]=()=>{
+ try{need("cond");migrerCond()}catch(e){return alert(e.message)}
+ const lp=S.lots.filter(l=>l.type==="ponte"&&l.statut==="en_cours");if(!lp.length)return alert("Aucun lot de pondeuses en cours.");
+ const m=modal(`<div class="between"><h2 style="margin:0">Nouvelle session de conditionnement</h2><button class="btn ghost" data-x>Fermer</button></div><p class="mu sm">Stock : ${nf(qteStock(pBruts().id))} œufs bruts · ${nf(qteStock(pAlv().id))} alvéoles</p>
+ <div class="fg"><div><label>Date</label><input id="cd-date" type="date" value="${today()}" max="${today()}"></div><div><label>Lot</label><select id="cd-lot">${opt(lp.map(l=>[l.id,l.code+" — "+l.nom]),lp[0].id)}</select></div>
+ <div><label>Œufs sortis du stock</label><input id="cd-bruts" type="number" min="0" value="${Math.floor(qteStock(pBruts().id))}"></div><div><label>Dont casses</label><input id="cd-casses" type="number" min="0" value="0"></div>
+ ${CAL.map(([k,n,ic,pd])=>`<div><label>${ic} ${n} (${pd})</label><input id="cd-c_${k}" type="number" min="0" placeholder="0"></div>`).join("")}<div style="grid-column:1/-1"><label>Note</label><input id="cd-note"></div></div><p class="mu sm">Calibres vides : le solde des œufs nets est classé en « Moyen ».</p><div id="cd-prev"></div><div class="flex"><button class="btn" id="cd-ok">Valider le conditionnement</button></div>`);
+ const get=()=>{const o={date:$("#cd-date",m).value,lot_id:$("#cd-lot",m).value,bruts:$("#cd-bruts",m).value,casses:$("#cd-casses",m).value,note:$("#cd-note",m).value};CAL.forEach(([k])=>o["c_"+k]=$("#cd-c_"+k,m).value);return o},pv=()=>{$("#cd-prev",m).innerHTML=condApercu(get())};
+ m.addEventListener("input",pv);pv();$("[data-x]",m).onclick=()=>m.remove();
+ $("#cd-ok",m).onclick=()=>{if(atomic(()=>creerCond(get()))!==false){m.remove();render()}};
+};
 /* ---- Rapports : états périodiques, impression, envois (même module qu'AvicoSuite) ---- */
-const RAP_ETATS=[["production","🐔","Production","Lots · Œufs · Mortalité · Aliments","#1f7a3a","ÉTAT DE PRODUCTION"],["mortalite","☠️","Mortalité","Par lot · Par cause · Détail chronologique","#c1121f","SUIVI DE MORTALITÉ PÉRIODIQUE"],["stocks","📦","Stocks","Inventaire · Entrées/Sorties · Alertes","#534AB7","ÉTAT DES STOCKS"],["appro","🚚","Approvisionnement","Bons de commande · Fournisseurs · Règlements","#ea580c","ÉTAT D'APPROVISIONNEMENT"],["finance","💰","Finance","Produits · Charges · Résultat · Trésorerie","#059669","ÉTAT FINANCIER"],["commercial","🛒","Commercial","Ventes · Clients · Créances","#b45309","ÉTAT COMMERCIAL"],["bilan","📊","Bilan complet","Tous modules · Synthèse direction","#14532d","BILAN COMPLET"]];
+const RAP_ETATS=[["production","🐔","Production","Lots · Œufs · Mortalité · Aliments","#1f7a3a","ÉTAT DE PRODUCTION"],["mortalite","☠️","Mortalité","Par lot · Par cause · Détail chronologique","#c1121f","SUIVI DE MORTALITÉ PÉRIODIQUE"],["stocks","📦","Stocks","Inventaire · Entrées/Sorties · Alertes","#534AB7","ÉTAT DES STOCKS"],["appro","🚚","Approvisionnement","Bons de commande · Fournisseurs · Règlements","#ea580c","ÉTAT D'APPROVISIONNEMENT"],["finance","💰","Finance","Produits · Charges · Résultat · Trésorerie","#059669","ÉTAT FINANCIER"],["commercial","🛒","Commercial","Ventes · Clients · Créances","#b45309","ÉTAT COMMERCIAL"],["prodcond","🥚","Production vs Conditionnement","Collecte · Conditionné · Casses · Calibres","#0f766e","PRODUCTION vs CONDITIONNEMENT"],["invpf","🏬","Inventaire produits finis","Plateaux · Cartons · Restes par calibre","#7c3aed","INVENTAIRE PRODUITS FINIS PAR CALIBRE"],["bilan","📊","Bilan complet","Tous modules · Synthèse direction","#14532d","BILAN COMPLET"]];
 const RAP_PER=[["aujourdhui","Auj."],["semaine","7 jours"],["mois","Ce mois"],["trimestre","Trim."],["annee","Année"]];
 const rapF=()=>{const f=UI.f.rap||(UI.f.rap={});if(!f.min)f.min=today().slice(0,7)+"-01";if(!f.max)f.max=today();if(f.lot===undefined)f.lot="";return f};
 const rapPeriode=p=>{const td=today(),m=+td.slice(5,7);return p==="aujourdhui"||p==="jour"?[td,td]:p==="semaine"?[addDays(td,-6),td]:p==="mois"?[td.slice(0,7)+"-01",td]:p==="trimestre"?[td.slice(0,5)+String(Math.floor((m-1)/3)*3+1).padStart(2,"0")+"-01",td]:[td.slice(0,4)+"-01-01",td]};
@@ -808,7 +916,19 @@ function etatCorps(type,min,max,lotId){
    etT("Chiffre d'affaires par client",["Client","CA"],Object.entries(cl).sort((a,b)=>b[1]-a[1]).map(([c,m])=>[esc(c),fcfa(m)]))+
    etT("Créances clients ouvertes",["Client","Solde dû"],cre.map(x=>[esc(x.c.nom),fcfa(x.s)]));
  }
- if(type==="bilan")return["production","mortalite","stocks","appro","finance","commercial"].map(t=>`<h3 class="etat-tit">${RAP_ETATS.find(e=>e[0]===t)[1]} ${RAP_ETATS.find(e=>e[0]===t)[2]}</h3>`+etatCorps(t,min,max,lotId)).join("");
+ if(type==="prodcond"){
+  const ss=condSessions(min,max,lotId),R=lots.filter(l=>l.type==="ponte").map(l=>{const ds=S.suivis.filter(x=>x.lot_id===l.id&&inP(x.date)),cs=ss.filter(c=>c.lot_id===l.id),col=sum(ds,x=>x.oeufs),cc=sum(ds,x=>x.casses),cn=sum(cs,c=>c.nets);return{l,col,cc,cn,cc2:sum(cs,c=>c.casses),pl:sum(cs,c=>sum(CAL,k=>c.plt[k[0]])),ca:sum(cs,c=>sum(CAL,k=>c.car[k[0]])),v:sum(cs,c=>c.valeur)}}).filter(r=>r.col||r.cn);
+  return etK([[nf(sum(R,r=>r.col)),"Œufs ramassés"],[nf(sum(ss,c=>c.nets)),"Œufs nets conditionnés"],[nf(sum(ss,c=>sum(CAL,k=>c.car[k[0]]))),"Cartons produits"],[fcfa(sum(ss,c=>c.valeur)),"Valeur produite"]])+
+   etT("Par lot",["Lot","Ramassés","Casses collecte","Conditionnés (nets)","Casses conditionnement","Plateaux","Cartons","Valeur"],R.map(r=>[esc(r.l.code+" — "+r.l.nom),nf(r.col),nf(r.cc),nf(r.cn),nf(r.cc2),nf(r.pl),nf(r.ca),fcfa(r.v)]))+
+   etT("Par calibre",["Calibre","Œufs","Plateaux","Cartons","Valeur"],CAL.map(([k,n,ic])=>[ic+" "+n,nf(sum(ss,c=>c.cal[k])),nf(sum(ss,c=>c.plt[k])),nf(sum(ss,c=>c.car[k])),fcfa(sum(ss,c=>c.plt[k])*tarif(k).plt)]))+
+   etT("Sessions",["N°","Date","Lot","Bruts","Casses","Nets","Plateaux","Cartons"],ss.map(c=>[esc(c.numero),fd(c.date),esc(lot(c.lot_id).code),nf(c.bruts),nf(c.casses),nf(c.nets),nf(sum(CAL,k=>c.plt[k[0]])),nf(sum(CAL,k=>c.car[k[0]]))]));
+ }
+ if(type==="invpf"){
+  const Rs=restesC(),rows=CAL.map(([k,n,ic])=>{const sp=qteStock(pCal(k,"PLT").id),sc=qteStock(pCal(k,"CAR").id);return{k,n,ic,sp,sc,r:Rs[k],v:sp*tarif(k).plt+sc*tarif(k).car}});
+  return etK([[nf(sum(rows,r=>r.sc)),"Cartons en stock"],[nf(sum(rows,r=>r.sp)),"Plateaux en stock"],[nf(sum(rows,r=>r.r)),"Œufs triés en attente"],[fcfa(sum(rows,r=>r.v)),"Valeur du stock"]])+
+   etT("Inventaire par calibre",["Calibre","Plateaux","Cartons","Œufs en attente","Tarif plateau","Tarif carton","Valeur"],rows.map(r=>[r.ic+" "+r.n,nf(r.sp),nf(r.sc),nf(r.r),fcfa(tarif(r.k).plt),fcfa(tarif(r.k).car),fcfa(r.v)]));
+ }
+ if(type==="bilan")return["production","mortalite","stocks","appro","finance","commercial","prodcond"].map(t=>`<h3 class="etat-tit">${RAP_ETATS.find(e=>e[0]===t)[1]} ${RAP_ETATS.find(e=>e[0]===t)[2]}</h3>`+etatCorps(t,min,max,lotId)).join("");
  return "";
 }
 const rapTitre=t=>(RAP_ETATS.find(e=>e[0]===t)||[])[5]||"ÉTAT PÉRIODIQUE";
@@ -867,7 +987,7 @@ A["par.edit"]=()=>form("Paramètres",PARAMS.map(([k,l])=>({k,l,t:"number"})),S.s
 A["pro.add"]=()=>form("Soin au protocole",[{k:"type",l:"Type de lot",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"age",l:"Âge (jour)",t:"number",req:1},{k:"action",l:"Soin",req:1}],{},o=>{need("param");if(!(o.age>=1))throw new Error("Âge ≥ 1.");S.protocoles.push(o);audit("Protocole",o.action)});
 A["pro.del"]=i=>{if(confirm("Retirer ce soin du protocole ?")&&atomic(()=>{need("param");S.protocoles.splice(+i,1)}))render()};
 A["bk.exp"]=()=>{atomic(()=>audit("Sauvegarde exportée"),true);const data=JSON.parse(JSON.stringify(S));delete data.tries;const b=new Blob([JSON.stringify({app:"angels-agro",v:1,t:now(),sum:hashPin("bk",JSON.stringify(data)),data})],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sauvegarde-agro-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
-function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
+function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};migrerCond();ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
 A["bk.imp"]=async()=>{const f=$("#bkf");if(!f||!f.files[0])return alert("Choisir un fichier.");const txt=await f.files[0].text(),snap=JSON.stringify(S);try{const pb=restaurer(txt);save();alert(pb.length?"Restauré avec anomalies :\n"+pb.join("\n"):"Restauration réussie : intégrité vérifiée.");render()}catch(e){S=JSON.parse(snap);ME=by(S.users,ME.id);alert(e.message)}};
 A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n"):"Intégrité OK.")};
 /* ---------- Connexion, rendu, événements ---------- */

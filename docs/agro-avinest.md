@@ -7,6 +7,7 @@
 |---|---|
 | Tableau de bord | Effectifs, mortalité, œufs, aliment, ventes, créances, trésorerie, résultat, alertes |
 | Lots & élevage | Fiche lot façon AvicoSuite : liste des lots, en-tête, alertes, indicateurs, score, courbes (ponte/poids/mortalité/aliment), onglets Vue d’ensemble · Suivi semaine · Saisie du jour · Prophylaxie · Alimentation · Historique · Sortie/Réforme · Rentabilité. Non repris : conditionnement, Copilote |
+| Conditionnement | Sessions de conditionnement façon AvicoSuite : œufs bruts → plateaux (30 œufs + 1 alvéole) → cartons (12 plateaux + 4 alvéoles), 4 calibres, restes reportés par calibre, tarifs calibrés modifiables, annulation de la dernière session, états Production vs Conditionnement et Inventaire PF (impression/WhatsApp). Non repris : dépôts multiples, nomenclatures (BOM) |
 | Suivi quotidien | Mortalité, aliment (déduit du stock), eau, pesée, œufs/casses (versés au stock de plateaux) |
 | Santé & prophylaxie | Calendrier généré par protocole, soins réalisés (stock), traitements avec **délai d'attente** qui bloque la vente |
 | Couvoir | Incubation → mirage J18 → éclosion J21, taux, création du lot depuis l'éclosion |
