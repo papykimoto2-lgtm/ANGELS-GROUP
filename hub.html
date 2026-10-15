@@ -48,18 +48,18 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
   <div class="kp"><div><b id="k-cmd">—</b><span>Commandes en cours</span></div><div><b id="k-liv">—</b><span>Livrées</span></div><div><b id="k-lvr">—</b><span>Livreurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <div class="card" style="--c:var(--g2)">
-  <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Transport de marchandises et de personnes : flotte, trajets, chauffeurs, maintenance.</p>
-  <span class="badge soon">En préparation</span>
-  <div class="kp"><div><b>—</b><span>Trajets</span></div><div><b>—</b><span>Véhicules</span></div><div><b>—</b><span>Chauffeurs</span></div></div>
-  <span class="btn" aria-disabled="true">Bientôt disponible</span>
- </div>
- <div class="card" style="--c:var(--g3)">
-  <div class="ic">🌾</div><h2>Angel's Agro</h2><p>Production et négoce agricole : parcelles, campagnes, récoltes, stocks, ventes.</p>
-  <span class="badge soon">En préparation</span>
-  <div class="kp"><div><b>—</b><span>Parcelles</span></div><div><b>—</b><span>Campagnes</span></div><div><b>—</b><span>Stock</span></div></div>
-  <span class="btn" aria-disabled="true">Bientôt disponible</span>
- </div>
+ <a class="card" style="--c:var(--g2)" href="transport.html">
+  <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Taxi communal : lignes, taxis, chauffeurs, versements journaliers, arriérés, rentabilité.</p>
+  <span class="badge">Actif</span>
+  <div class="kp"><div><b id="t-ot">—</b><span>Encaissé du jour</span></div><div><b id="t-v">—</b><span>Taxis</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
+  <span class="btn">Ouvrir l'ERP</span>
+ </a>
+ <a class="card" style="--c:var(--g3)" href="agro.html" id="c-agro">
+  <div class="ic">🐔</div><h2>Angel's Agro</h2><p>Élevage avicole : lots, suivi quotidien, santé, couvoir, aliments, stock, ventes, rentabilité et comptabilité SYSCOHADA.</p>
+  <span class="badge">Actif</span>
+  <div class="kp"><div><b id="a-v">—</b><span>Sujets vivants</span></div><div><b id="a-l">—</b><span>Lots en cours</span></div><div><b id="a-s">—</b><span>Alertes stock</span></div></div>
+  <span class="btn">Ouvrir l'ERP</span>
+ </a>
 </div>
 <h3>Socle commun du groupe (à mutualiser)</h3>
 <div class="mod">
@@ -81,6 +81,16 @@ try{
   $("k-liv").textContent=(S.commandes||[]).filter(c=>c.statut==="livree").length;
   $("k-lvr").textContent=(S.livreurs||[]).length;
  }
+}catch(e){}
+try{
+ const T=JSON.parse(localStorage.getItem("angels_transport_v3")||"null");
+ if(T){const j=new Date().toISOString().slice(0,10);$("t-ot").textContent=((T.payments||[]).filter(x=>x.statut==="confirme"&&x.date_valeur===j).reduce((s,x)=>s+(+x.montant||0),0)).toLocaleString("fr-FR")+" F";$("t-v").textContent=(T.vehicles||[]).length;$("t-c").textContent=(T.drivers||[]).length}
+}catch(e){}
+try{
+ const G=JSON.parse(localStorage.getItem("angels_agro_v1")||"null");
+ if(G){const en=(G.lots||[]).filter(l=>l.statut==="en_cours"),sor=l=>(G.sorties||[]).filter(s=>s.lot_id===l.id&&!s.annule).reduce((s,x)=>s+(+x.tetes||0),0),mor=l=>(G.suivis||[]).filter(x=>x.lot_id===l.id).reduce((s,x)=>s+(+x.morts||0),0);
+  $("a-v").textContent=en.reduce((s,l)=>s+Math.max(0,l.initial-mor(l)-sor(l)),0).toLocaleString("fr-FR");$("a-l").textContent=en.length;
+  const q=p=>(G.mvts||[]).filter(m=>m.produit_id===p.id).reduce((s,m)=>s+(m.sens==="entree"?m.qte:-m.qte),0);$("a-s").textContent=(G.produits||[]).filter(p=>p.categorie!=="fini"&&p.seuil>0&&q(p)<=p.seuil).length}
 }catch(e){}
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
