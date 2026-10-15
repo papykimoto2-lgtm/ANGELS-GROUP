@@ -88,7 +88,7 @@ const ROLES={admin:"Administrateur",direction:"Direction générale",chef:"Chef 
 const ALL=Object.keys(ROLES);
 const ACL={ // qui peut faire quoi (appliqué aussi dans les fonctions, pas seulement dans les menus)
  lot:["admin","chef"],suivi:["admin","chef","soigneur"],sante:["admin","chef","soigneur"],couvoir:["admin","chef"],batiment:["admin","chef"],
- stock:["admin","chef","magasinier"],cond:["admin","chef","magasinier"],nutri:["admin","chef"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
+ stock:["admin","chef","magasinier"],cond:["admin","chef","magasinier"],relance:["admin","commercial","caissier","comptable"],nutri:["admin","chef"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
  vente:["admin","commercial","caissier"],annulvente:["admin","direction"],paiement:["admin","caissier","commercial"],
  charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],extourne:["admin","comptable","direction"],
  periode:["admin","comptable","direction"],perso:["admin","direction","chef"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
@@ -421,7 +421,7 @@ function creerVente(f){
   }
  });
  const total=sum(lignes,l=>l.total);if(total<=0)throw new Error("Montant total nul.");
- const v={id,numero:seq("vt","FAC"),date:f.date,client_id:c.id,lignes,total,statut:"valide",par:ME.nom};S.ventes.push(v);
+ const v={id,numero:seq("vt","FAC"),date:f.date,client_id:c.id,lignes,total,echeance:addDays(f.date,delaiClient(c)),statut:"valide",par:ME.nom};S.ventes.push(v);
  postEntry({journal:"VE",date:f.date,libelle:"Vente "+v.numero+" — "+c.nom,piece:v.numero,source:{type:"vente",id},lignes:[{compte:"411",tiers:c.id,debit:total},{compte:"701",credit:total,lot:lignes.find(l=>l.lot_id)?.lot_id}]});
  audit("Vente",v.numero+" "+total+" F");
  if(+f.paye>0)encaisserVente(id,{montant:+f.paye,mode:f.mode||"especes",ref:f.ref,date:f.date});
@@ -522,7 +522,7 @@ function seed(){
  S={seq:{},audit:[],users:[],batiments:[],lots:[],suivis:[],sorties:[],soins:[],traitements:[],incubations:[],produits:[],mvts:[],recettes:[],fabs:[],fournisseurs:[],clients:[],achats:[],reglements:[],ventes:[],encaiss:[],charges:[],staff:[],paies:[],
   accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action,produit:(PROD_REQ[action]||[""])[0],unite:(PROD_REQ[action]||[0,"dose"])[1]})),settings:{...SETTINGS0},tries:{}};
  ME={id:"seed",nom:"Initialisation",role:"seed"};
- migrerCond();migrerNutri();
+ migrerCond();migrerNutri();migrerVentes();
  const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u)};
  mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Chef d'exploitation","chef","1111");mkU("Soigneur","soigneur","2222");mkU("Magasinier","magasinier","3333");mkU("Commercial","commercial","4444");mkU("Caissier","caissier","5555");mkU("Comptable","comptable","6666");
  const bA={id:uid("b"),nom:"Poulailler A",capacite:1000,usage:"Chair"},bB={id:uid("b"),nom:"Poulailler B",capacite:600,usage:"Ponte"};S.batiments.push(bA,bB);
@@ -532,8 +532,8 @@ function seed(){
   vMar=P("VAC-MAR","Vaccin Marek","medicament","dose",500,12),vGum=P("VAC-GUM","Vaccin Gumboro","medicament","dose",500,10),vNd=P("VAC-ND","Vaccin Newcastle + IB","medicament","dose",500,9),vEds=P("VAC-EDS","Vaccin EDS","medicament","dose",300,25),ant=P("ANTICOC","Anticoccidien","medicament","dose",300,6),
   pouss=P("POUSSIN","Poussin chair d'un jour","poussin","tête",0,450),fiente=P("FIENTE","Fientes (sac)","fini","sac",0,0),
   alv=P("ALVEOLE","Alvéoles / plateaux carton","emballage","unité",100,80);
- const fo=(nom,tel)=>{const f={id:uid("f"),nom,tel};S.fournisseurs.push(f);return f},cl=(nom,tel,type)=>{const c={id:uid("c"),nom,tel,type};S.clients.push(c);return c};
- const fP=fo("Provenderie Ivoire","0707010101"),fV=fo("Pharmavet CI","0707020202"),fC=fo("Couvoir Sanaga","0707030303"),c1=cl("Restaurant Chez Awa","0505040404","Restaurant"),c2=cl("Grossiste marché Yopougon","0505050505","Grossiste");
+ const fo=(nom,tel)=>{const f={id:uid("f"),nom,tel};S.fournisseurs.push(f);return f},cl=(nom,tel,type,x)=>{const c={id:uid("c"),nom,tel,type:(CLIENT_TYPES.find(t=>t[1].toLowerCase()===type.toLowerCase())||[type])[0],...x};S.clients.push(c);return c};
+ const fP=fo("Provenderie Ivoire","0707010101"),fV=fo("Pharmavet CI","0707020202"),fC=fo("Couvoir Sanaga","0707030303"),c1=cl("Restaurant Chez Awa","0505040404","Restaurant",{contact:"Mme Awa",ville:"Yopougon",paie:"credit15"}),c2=cl("Grossiste marché Yopougon","0505050505","Grossiste",{contact:"M. Koné",ville:"Yopougon Marché",paie:"credit30",email:"grossiste@example.ci"});
  mouvTreso({date:d(-45),categorie:"apport",mode:"banque",montant:6000000,libelle:"Capital de démarrage"});mouvTreso({date:d(-45),categorie:"apport",mode:"especes",montant:1500000,libelle:"Fonds de caisse"});
  const ach=(f,date,L)=>{const a=creerAchat({fournisseur_id:f.id,date,lignes:L});recevoirAchat(a.id,date);return a};
  const a1=ach(fP,d(-40),[{produit_id:pDem.id,qte:400,pu:420},{produit_id:pCro.id,qte:1800,pu:400},{produit_id:pPon.id,qte:1500,pu:380},{produit_id:pMais.id,qte:1500,pu:230},{produit_id:pSoja.id,qte:600,pu:420},{produit_id:pCmv.id,qte:150,pu:900}]);
@@ -560,7 +560,7 @@ function seed(){
  payerSalaires(today().slice(0,7),"especes");
  ME=null;save();
 }
-function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerCond();migrerNutri();migrerSante()}}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerCond();migrerNutri();migrerSante();migrerVentes()}}
 
 /* ---------- Composants UI ---------- */
 const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
@@ -772,7 +772,7 @@ A["cr.add"]=k=>{const c=CR[k];form("Ajouter — "+c.title,c.fields(),c.pre||{},o
 A["cr.edit"]=id=>{const[k,i]=id.split(":"),c=CR[k],x=by(S[k],i);form("Modifier — "+c.title,c.fields(),x,o=>{need(c.perm);Object.assign(x,o);audit("Modif. "+k,x.nom||"")})};
 crud("batiments","Bâtiments",[["Nom",x=>esc(x.nom)],["Capacité",x=>x.capacite],["Usage",x=>esc(x.usage)],["Occupation",x=>{const o=sum(S.lots.filter(l=>l.batiment_id===x.id&&l.statut==="en_cours"),l=>vivantsLot(l));return nf(o)+" ("+nf(o/x.capacite*100)+" %)"}]],()=>[{k:"nom",l:"Nom",req:1},{k:"capacite",l:"Capacité (sujets)",t:"number",req:1},{k:"usage",l:"Usage (chair, ponte…)"}],"batiment");
 crud("fournisseurs","Fournisseurs",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Dette",x=>fcfa(-soldeCompte("401",x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"}],"tiers");
-crud("clients","Clients",[["Nom",x=>esc(x.nom)],["Type",x=>esc(x.type||"")],["Téléphone",x=>esc(x.tel)],["Créance",x=>fcfa(soldeClient(x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"type",l:"Type (restaurant, grossiste…)"},{k:"tel",l:"Téléphone"}],"tiers");
+crud("clients","Clients",[["Nom",x=>esc(x.nom)],["Type",x=>esc(clientType(x.type))],["Téléphone",x=>esc(x.tel)],["Créance",x=>fcfa(soldeClient(x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"type",l:"Type",t:"select",o:CLIENT_TYPES},{k:"contact",l:"Contact (personne)"},{k:"tel",l:"Téléphone"},{k:"email",l:"Email"},{k:"ville",l:"Ville / quartier"},{k:"paie",l:"Mode de paiement",t:"select",o:PAIE.map(p=>[p[0],p[1]])}],"tiers",{type:"restaurant",paie:"comptant"});
 crud("staff","Personnel",[["Nom",x=>esc(x.nom)],["Poste",x=>esc(x.poste)],["Téléphone",x=>esc(x.tel)],["Salaire mensuel",x=>fcfa(x.salaire)],["Actif",x=>x.actif?"Oui":"Non"]],()=>[{k:"nom",l:"Nom",req:1},{k:"poste",l:"Poste"},{k:"tel",l:"Téléphone"},{k:"salaire",l:"Salaire mensuel (F)",t:"number"}],"perso");
 V.perso=()=>{const mois=today().slice(0,7);return head("Personnel")+VB.staff()+`<div class="card flex"><b>Salaires ${mois}</b> ${S.paies.some(p=>p.mois===mois)?badge("Payés","ok"):(can("perso")?btn("pa.pay",mois,"Payer les salaires","ok"):badge("À payer","wa"))} <span class="mu sm">Total mensuel : ${fcfa(sum(S.staff.filter(s=>s.actif),s=>s.salaire))}</span></div>`};
 A["pa.pay"]=m=>form("Payer les salaires "+m,[{k:"mode",l:"Règlement",t:"select",o:[["especes","Espèces (caisse)"],["banque","Banque / mobile money"]]}],{},o=>payerSalaires(m,o.mode),"Payer");
@@ -902,13 +902,65 @@ A["ac.rec"]=id=>{if(atomic(()=>recevoirAchat(id)))render()};
 A["ac.ann"]=id=>motifForm("Annuler la commande",m=>annulerAchat(id,m));
 A["ac.pay"]=id=>{const a=by(S.achats,id);form("Règlement — "+a.numero,[{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"},{k:"date",l:"Date",t:"date",req:1}],{montant:a.total-a.paye,date:today()},o=>payerFournisseur(id,o))};
 /* ---- Ventes ---- */
+/* ---- Ventes & clients : clients enrichis, réservations, créances âgées, relances (même organisation qu'AvicoSuite) ---- */
+const CLIENT_TYPES=[["restaurant","Restaurant"],["grossiste","Grossiste"],["particulier","Particulier"],["hotel","Hôtel / traiteur"],["boutique","Boutique / supérette"],["autre","Autre"]];
+const PAIE=[["comptant","Comptant",0],["credit15","Crédit 15 jours",15],["credit30","Crédit 30 jours",30]];
+const clientType=t=>{const x=CLIENT_TYPES.find(c=>c[0]===t||c[1].toLowerCase()===String(t||"").toLowerCase());return x?x[1]:(t||"—")};
+const delaiClient=c=>{const p=PAIE.find(x=>x[0]===(c&&c.paie));return p?p[2]:S.settings.delai_creance};
+const echV=v=>v.echeance||addDays(v.date,delaiClient(by(S.clients,v.client_id)));
+const retardV=v=>diffDays(today(),echV(v));
+function migrerVentes(){if(!S.reservations)S.reservations=[];S.clients.forEach(c=>{if(c.type){const x=CLIENT_TYPES.find(t=>t[1].toLowerCase()===String(c.type).toLowerCase());if(x)c.type=x[0]}})}
+const creancesOuvertes=()=>S.ventes.filter(v=>v.statut==="valide"&&soldeVente(v)>0).sort((a,b)=>echV(a).localeCompare(echV(b)));
+function aging(L){const b={nonEchu:0,j30:0,j60:0,j90:0};L.forEach(v=>{const j=retardV(v),r=soldeVente(v);if(j<=0)b.nonEchu+=r;else if(j<=30)b.j30+=r;else if(j<=60)b.j60+=r;else b.j90+=r});return b}
+function relanceTexte(v){const c=tiers("c",v.client_id),r=retardV(v);return "Bonjour "+c.nom+",\nRappel : la facture "+v.numero+" du "+fd(v.date)+" ("+fcfa(v.total)+") présente un solde de "+fcfa(soldeVente(v))+(r>0?", échu depuis "+r+" jour(s)":" à régler avant le "+fd(echV(v)))+".\nMerci de régulariser. — "+rapCfg().nom}
+function relancer(vid,canal){
+ need("relance");const v=by(S.ventes,vid);if(!v||v.statut!=="valide"||soldeVente(v)<=0)throw new Error("Facture introuvable ou déjà soldée.");
+ if(canal!=="whatsapp"&&canal!=="email")throw new Error("Canal invalide.");const c=tiers("c",v.client_id);
+ if(canal==="whatsapp"&&!String(c.tel||"").replace(/\D/g,""))throw new Error("Numéro de téléphone du client manquant.");if(canal==="email"&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email||""))throw new Error("Email du client manquant ou invalide.");
+ (v.relances||(v.relances=[])).push({date:today(),canal,par:ME.nom,montant:soldeVente(v)});audit("Relance client",v.numero+" "+canal);return{texte:relanceTexte(v),tel:c.tel,email:c.email};
+}
+const resaStatut=r=>r.statut==="active"&&r.expire&&r.expire<today()?"expiree":r.statut;
+const reserveParProduit=excl=>{const o={};(S.reservations||[]).filter(r=>r.id!==excl&&resaStatut(r)==="active").forEach(r=>r.lignes.forEach(l=>{o[l.produit_id]=(o[l.produit_id]||0)+l.qte}));return o};
+function resaCreer(f){
+ need("vente");migrerVentes();const c=by(S.clients,f.client_id);if(!c)throw new Error("Client requis.");if(!f.date||f.date>today())throw new Error("Date invalide (ou dans le futur).");if(!f.expire||f.expire<f.date)throw new Error("Date de validité antérieure à la réservation.");
+ const L=(f.lignes||[]).filter(l=>+l.qte>0&&l.produit_id).map(l=>{const p=by(S.produits,l.produit_id);if(!p||p.categorie!=="fini")throw new Error("Produit fini requis.");if(!(+l.pu>=0))throw new Error("Prix invalide.");return{produit_id:p.id,qte:+l.qte,pu:+l.pu}});if(!L.length)throw new Error("Ajouter au moins une ligne.");
+ const r={id:uid("rs"),numero:seq("rs","RES"),date:f.date,expire:f.expire,client_id:c.id,lignes:L,note:f.note||"",statut:"active",par:ME.nom};S.reservations.push(r);audit("Réservation",r.numero+" "+c.nom);return r;
+}
+function resaAnnuler(id,motif){need("vente");const r=by(S.reservations||[],id);if(!r||resaStatut(r)!=="active")throw new Error("Réservation introuvable ou non active.");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");r.statut="annulee";r.motif=motif;audit("Réservation annulée",r.numero+" : "+motif)}
+function resaConvertir(id){
+ need("vente");const r=by(S.reservations||[],id);if(!r)throw new Error("Réservation introuvable.");if(resaStatut(r)==="expiree")throw new Error("Réservation expirée.");if(r.statut!=="active")throw new Error("Réservation non active.");
+ const v=creerVente({date:today(),client_id:r.client_id,lignes:r.lignes.map(l=>({type:"stock",produit_id:l.produit_id,qte:l.qte,pu:l.pu})),paye:0,mode:"especes"});r.statut="convertie";r.vente_id=v.id;audit("Réservation convertie",r.numero+" → "+v.numero);return v;
+}
+VB.clients=()=>{
+ const C=S.clients.map(c=>{const V=S.ventes.filter(v=>v.client_id===c.id&&v.statut==="valide");return{c,n:V.length,ca:sum(V,v=>v.total-soldeVente(v)),dû:soldeClient(c.id)}});
+ return `<div class="grid">${kpi(nf(C.length),"Clients")}${kpi(fcfa(sum(C,x=>x.ca)),"CA encaissé","o")}${kpi(fcfa(sum(C,x=>x.dû)),"Crédit ouvert","w")}${kpi(nf(sum(C,x=>x.n)),"Ventes (toutes périodes)")}</div><p class="flex">${can("tiers")?`<button class="btn" data-a="cr.add" data-id="clients">+ Client</button>`:""}${csvBtn("clients")}</p>`+
+  tbl(["Nom","Type","Contact","Téléphone","Paiement","CA encaissé","Crédit ouvert","Ventes",""],C.map(x=>tr([`<b>${esc(x.c.nom)}</b><div class="mu sm">${esc(x.c.ville||"")}</div>`,badge(clientType(x.c.type)),esc(x.c.contact||"—"),esc(x.c.tel||"—"),esc((PAIE.find(p=>p[0]===x.c.paie)||[0,"Crédit "+S.settings.delai_creance+" j (défaut)"])[1]),fcfa(x.ca),x.dû>0?`<b style="color:var(--wa)">${fcfa(x.dû)}</b>`:"—",x.n,`<div class="flex">${can("vente")?btn("vt.add",x.c.id,"+ Vente","ok"):""}${can("tiers")?btn("cr.edit","clients:"+x.c.id,"✏️","ghost"):""}</div>`])),{empty:"Aucun client."});
+};
+function ventesTabs(){return[["v","Ventes"],["e","Encaissements"],["c","Clients"],["r","Réservations"],["d","Créances"]]}
+function ventesExtra(t){
+ if(t==="r"){
+  const R=(S.reservations||[]).slice().reverse(),rp=reserveParProduit();
+  return `<div class="between"><h2 style="margin:0">Réservations de stock (${R.length})</h2>${can("vente")?`<button class="btn" data-a="rs.add">+ Réservation</button>`:""}</div><p class="mu sm">Stock promis à un client avant la vente ferme. Réservé actuellement : ${nf(sum(Object.values(rp),x=>x))} unité(s) sur ${Object.keys(rp).length} produit(s).</p>`+
+   tbl(["N°","Date","Client","Produits","Valeur","Valable jusqu'au","Statut",""],R.map(r=>{const st=resaStatut(r);return tr([`<b>${esc(r.numero)}</b>`,fd(r.date),esc(tiers("c",r.client_id).nom),esc(r.lignes.map(l=>nf(l.qte,1)+" × "+prod(l.produit_id).nom).join(" · ")),fcfa(sum(r.lignes,l=>l.qte*l.pu)),fd(r.expire),badge({active:"Active",convertie:"Convertie",annulee:"Annulée",expiree:"Expirée"}[st],{active:"",convertie:"ok",annulee:"mu",expiree:"wa"}[st]),st==="active"&&can("vente")?`<div class="flex">${btn("rs.go",r.id,"→ Vente","ok")}${btn("rs.ann",r.id,"Annuler","er")}</div>`:r.vente_id?esc((by(S.ventes,r.vente_id)||{}).numero||""):""])}),{empty:"Aucune réservation."});
+ }
+ const L=creancesOuvertes(),b=aging(L),tot=sum(L,soldeVente),ret=L.filter(v=>retardV(v)>0),ven=L.filter(v=>{const j=retardV(v);return j<=0&&j>=-3}),ed=can("relance");
+ const bk=[["Non échu",b.nonEchu,"ok"],["1 – 30 j",b.j30,"wa"],["31 – 60 j",b.j60,"wa"],["+ 60 j",b.j90,"er"]];
+ return (ven.length?`<div class="card" style="border-color:var(--wa)"><b>⏰ Échéances à venir (J-3) — ${ven.length} facture(s) · ${fcfa(sum(ven,soldeVente))}</b>${ven.map(v=>`<div class="between sm" style="margin-top:8px"><span><b>${esc(v.numero)}</b> — ${esc(tiers("c",v.client_id).nom)} · ${retardV(v)===0?"échéance aujourd'hui":"dans "+(-retardV(v))+" j"}</span><span class="flex"><b>${fcfa(soldeVente(v))}</b>${ed?btn("cn.rel",v.id+":whatsapp","WhatsApp","ghost"):""}</span></div>`).join("")}</div>`:"")+
+  `<div class="grid">${kpi(fcfa(tot),"Total à encaisser","e")}${kpi(fcfa(sum(ret,soldeVente)),"En retard","w")}${kpi(nf(L.length),"Factures ouvertes · "+ret.length+" en retard")}</div><div class="card"><b>Analyse d'ancienneté (aging)</b><div class="grid" style="margin:8px 0 0">${bk.map(([l,v,c])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:17px;color:var(--${c==="ok"?"ok":c==="wa"?"wa":"er"})">${fcfa(v)}</div></div>`).join("")}</div></div><h2>Détail des créances</h2>`+
+  tbl(["Facture","Client","Total","Payé","Reste dû","Avancement","Échéance","Relance",""],L.map(v=>{const c=tiers("c",v.client_id),r=retardV(v),reste=soldeVente(v),pct=Math.round((v.total-reste)/v.total*100),lr=(v.relances||[]).slice(-1)[0];return tr([`<b>${esc(v.numero)}</b><div class="mu sm">émise ${fd(v.date)}</div>`,`<b>${esc(c.nom)}</b><div class="mu sm">${esc(c.ville||"")}</div>`,fcfa(v.total),fcfa(v.total-reste),`<b style="color:var(--er)">${fcfa(reste)}</b>`,`<div class="progres" style="width:80px"><div style="width:${pct}%"></div></div><span class="mu sm">${pct} %</span>`,r>0?badge("⚠ +"+r+" j",r>60?"er":"wa"):badge("Éch. "+fd(echV(v)),"ok"),lr?`<span class="sm">${lr.canal==="whatsapp"?"WhatsApp":"Email"} le ${fd(lr.date)}</span>`:"—",`<div class="flex">${can("paiement")?btn("vt.pay",v.id,"Encaisser","ok"):""}${ed&&c.tel?btn("cn.rel",v.id+":whatsapp","WhatsApp","ghost"):""}${ed&&c.email?btn("cn.rel",v.id+":email","Email","ghost"):""}${btn("vt.print",v.id,"🖨","ghost")}${btn("vt.bl",v.id,"BL","ghost")}</div>`])}),{empty:"Aucune créance ouverte."});
+}
+A["cn.rel"]=a=>{const[id,canal]=a.split(":");let r;if(atomic(()=>{r=relancer(id,canal)})===false)return;if(canal==="whatsapp")rapWA(r.texte,r.tel);else rapMail(r.texte,r.email,"Rappel de paiement — "+rapCfg().nom);render()};
+A["rs.add"]=()=>lignesForm("Nouvelle réservation",["stock"],o=>resaCreer({client_id:o.client_id,date:o.date,expire:o.expire,note:o.note,lignes:o.lignes}),[{k:"client_id",l:"Client",t:"select",o:()=>S.clients.map(c=>[c.id,c.nom])},{k:"date",l:"Date",t:"date"},{k:"expire",l:"Valable jusqu'au",t:"date"},{k:"note",l:"Note"}],{date:today(),expire:addDays(today(),7)});
+A["rs.go"]=id=>{if(confirm("Convertir la réservation en vente ? Le stock sera sorti.")&&atomic(()=>resaConvertir(id))!==false)render()};
+A["rs.ann"]=id=>motifForm("Annuler la réservation",m=>resaAnnuler(id,m));
+A["vt.bl"]=id=>{const v=by(S.ventes,id),c=tiers("c",v.client_id);modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>BON DE LIVRAISON — ${esc(v.numero)}</h1><p><b>ANGEL'S AGRO</b><br>Date : ${fd(v.date)}<br>Client : <b>${esc(c.nom)}</b> ${esc(c.tel||"")}${c.ville?"<br>"+esc(c.ville):""}</p>${tbl(["Désignation","Quantité"],v.lignes.map(l=>tr([esc(l.designation),l.type==="vif"?l.tetes+" têtes · "+nf(l.poids_kg,1)+" kg":nf(l.qte,1)+" "+esc((prod(l.produit_id)||{}).unite||"")])))}<p style="margin-top:30px">Reçu par : ____________________ &nbsp; Signature : ____________________</p>`)};
 V.ventes=()=>{
- const t=tabOf("ventes","v");let h=head("Ventes & clients",t==="v"&&can("vente")?`<button class="btn" data-a="vt.add">+ Nouvelle vente</button>`:"")+tabs("ventes",[["v","Ventes"],["e","Encaissements"],["c","Clients"]]);
- if(t==="c")return h+VB.clients();
+ const t=tabOf("ventes","v");let h=head("Ventes & clients",t==="v"&&can("vente")?`<button class="btn" data-a="vt.add">+ Nouvelle vente</button>`:"")+tabs("ventes",ventesTabs());
+ if(t==="c")return h+VB.clients();if(t==="r"||t==="d")return h+ventesExtra(t);
  if(t==="e")return h+tbl(["Reçu","Date","Client","Vente","Montant","Mode","Statut",""],S.encaiss.slice().reverse().map(e=>tr([esc(e.numero),fd(e.date),esc(tiers("c",e.client_id).nom),esc((by(S.ventes,e.vente_id)||{}).numero),fcfa(e.montant),esc(e.mode),badge(e.statut==="valide"?"Valide":"Annulé",e.statut==="valide"?"ok":"er"),`<div class="flex">${btn("en.print",e.id,"🖨","ghost")}${e.statut==="valide"&&can("annulvente")?btn("en.ann",e.id,"Annuler","er"):""}</div>`])));
  return h+tbl(["Facture","Date","Client","Total","Encaissé","Reste","Statut",""],S.ventes.slice().reverse().map(v=>{const r=soldeVente(v);return tr([esc(v.numero),fd(v.date),esc(tiers("c",v.client_id).nom),fcfa(v.total),fcfa(v.total-r),fcfa(v.statut==="valide"?r:0),v.statut==="annule"?badge("Annulée","mu"):r<=0?badge("Soldée","ok"):badge(r<v.total?"Partielle":"À payer",r<v.total?"wa":"er"),`<div class="flex">${btn("vt.print",v.id,"🖨","ghost")}${v.statut==="valide"&&r>0&&can("paiement")?btn("vt.pay",v.id,"Encaisser","ok"):""}${v.statut==="valide"&&can("annulvente")?btn("vt.ann",v.id,"Annuler","er"):""}</div>`])}));
 };
-A["vt.add"]=()=>lignesForm("Nouvelle vente",["stock","vif"],o=>creerVente({date:o.date,client_id:o.client_id,lignes:o.lignes,paye:+o.paye||0,mode:o.mode,ref:o.ref}),[{k:"client_id",l:"Client",t:"select",o:()=>S.clients.map(c=>[c.id,c.nom])},{k:"date",l:"Date",t:"date"},{k:"paye",l:"Acompte encaissé (F)",t:"number"},{k:"mode",l:"Mode",t:"select",o:()=>[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"}],{date:today(),mode:"especes"});
+A["vt.add"]=cid=>lignesForm("Nouvelle vente",["stock","vif"],o=>creerVente({date:o.date,client_id:o.client_id,lignes:o.lignes,paye:+o.paye||0,mode:o.mode,ref:o.ref}),[{k:"client_id",l:"Client",t:"select",o:()=>S.clients.map(c=>[c.id,c.nom])},{k:"date",l:"Date",t:"date"},{k:"paye",l:"Acompte encaissé (F)",t:"number"},{k:"mode",l:"Mode",t:"select",o:()=>[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"}],{date:today(),mode:"especes",client_id:typeof cid==="string"?cid:""});
 A["vt.pay"]=id=>{const v=by(S.ventes,id);form("Encaissement — "+v.numero,[{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:[["especes","Espèces"],["mobile","Mobile money"],["virement","Virement"]]},{k:"ref",l:"Référence (hors espèces)"},{k:"date",l:"Date",t:"date",req:1}],{montant:soldeVente(v),date:today()},o=>{const e=encaisserVente(id,o);setTimeout(()=>A["en.print"](e.id),0)})};
 A["vt.ann"]=id=>motifForm("Annuler la vente",m=>annulerVente(id,m));A["en.ann"]=id=>motifForm("Annuler l'encaissement",m=>annulerEncaissement(id,m));
 A["vt.print"]=id=>{const v=by(S.ventes,id),c=tiers("c",v.client_id);modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>FACTURE ${esc(v.numero)} ${v.statut==="annule"?"— ANNULÉE":""}</h1><p><b>ANGEL'S AGRO</b> — Élevage avicole<br>Date : ${fd(v.date)}<br>Client : <b>${esc(c.nom)}</b> ${esc(c.tel||"")}</p>${tbl(["Désignation","Quantité","P.U.","Total"],v.lignes.map(l=>tr([esc(l.designation),l.type==="vif"?l.tetes+" têtes · "+nf(l.poids_kg,1)+" kg":nf(l.qte,1),fcfa(l.pu),fcfa(l.total)])))}<p style="text-align:right;font-size:18px">Total : <b>${fcfa(v.total)}</b><br>Encaissé : ${fcfa(v.total-soldeVente(v))} · Reste : <b>${fcfa(soldeVente(v))}</b></p>`)};
@@ -1133,7 +1185,7 @@ A["par.edit"]=()=>form("Paramètres",PARAMS.map(([k,l])=>({k,l,t:"number"})),S.s
 A["pro.add"]=()=>form("Soin au protocole",[{k:"type",l:"Type de lot",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"age",l:"Âge (jour)",t:"number",req:1},{k:"action",l:"Soin",req:1},{k:"produit",l:"Produit requis"},{k:"unite",l:"Unité",t:"select",o:UNITES.map(u=>[u,u])}],{unite:"dose"},o=>{need("param");if(!(o.age>=1))throw new Error("Âge ≥ 1.");S.protocoles.push({...o,age:Math.floor(+o.age)});audit("Protocole",o.action)});
 A["pro.del"]=i=>{if(confirm("Retirer ce soin du protocole ?")&&atomic(()=>{need("param");S.protocoles.splice(+i,1)}))render()};
 A["bk.exp"]=()=>{atomic(()=>audit("Sauvegarde exportée"),true);const data=JSON.parse(JSON.stringify(S));delete data.tries;const b=new Blob([JSON.stringify({app:"angels-agro",v:1,t:now(),sum:hashPin("bk",JSON.stringify(data)),data})],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sauvegarde-agro-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
-function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};migrerCond();migrerNutri();migrerSante();ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
+function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};migrerCond();migrerNutri();migrerSante();migrerVentes();ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
 A["bk.imp"]=async()=>{const f=$("#bkf");if(!f||!f.files[0])return alert("Choisir un fichier.");const txt=await f.files[0].text(),snap=JSON.stringify(S);try{const pb=restaurer(txt);save();alert(pb.length?"Restauré avec anomalies :\n"+pb.join("\n"):"Restauration réussie : intégrité vérifiée.");render()}catch(e){S=JSON.parse(snap);ME=by(S.users,ME.id);alert(e.message)}};
 A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n"):"Intégrité OK.")};
 /* ---------- Connexion, rendu, événements ---------- */
