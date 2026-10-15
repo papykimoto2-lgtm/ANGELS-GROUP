@@ -58,7 +58,7 @@ label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8p
 .note{background:var(--wabg);color:var(--wa);padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:12px}
 canvas{max-width:100%}
 @media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
-.ml{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}.ml>div{min-width:0}@media(max-width:860px){.ml{grid-template-columns:1fr}}.ml2{display:grid;grid-template-columns:1fr 220px;gap:14px}@media(max-width:700px){.ml2{grid-template-columns:1fr}}.lotcard{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}.lotcard.on{border-color:var(--b);box-shadow:0 0 0 2px var(--b) inset}.lotcard.clos{opacity:.6}.albar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.score{--p:0;width:96px;height:96px;margin:10px auto;border-radius:50%;background:conic-gradient(var(--b) calc(var(--p)*1%),var(--bd) 0);display:grid;place-items:center}.score span{width:70px;height:70px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:800;font-size:22px}
+.ml{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}.ml>div{min-width:0}@media(max-width:860px){.ml{grid-template-columns:1fr}}.ml2{display:grid;grid-template-columns:1fr 220px;gap:14px}@media(max-width:700px){.ml2{grid-template-columns:1fr}}.lotcard{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}.lotcard.on{border-color:var(--b);box-shadow:0 0 0 2px var(--b) inset}.lotcard.clos{opacity:.6}.progres{height:8px;background:var(--bd);border-radius:99px;overflow:hidden}.progres div{height:100%;background:var(--b)}.albar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.score{--p:0;width:96px;height:96px;margin:10px auto;border-radius:50%;background:conic-gradient(var(--b) calc(var(--p)*1%),var(--bd) 0);display:grid;place-items:center}.score span{width:70px;height:70px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:800;font-size:22px}
 @media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none}body{background:#fff;color:#000}}
 </style>
 </head>
@@ -115,6 +115,12 @@ const CHARGES={main_oeuvre:["Main-d'œuvre","6410"],energie:["Énergie","6052"],
 const PLAN=[["101","Capital — apport","Capitaux"],["162","Emprunts","Capitaux"],["401","Fournisseurs","Tiers"],["411","Clients","Tiers"],["422","Personnel — rémunérations dues","Tiers"],["521","Banque et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["6011","Achats poussins","Charge"],["6013","Achats aliment","Charge"],["6015","Achats médicaments / vaccins","Charge"],["6022","Achats emballages","Charge"],["6051","Achats eau","Charge"],["6052","Achats énergie","Charge"],["6161","Primes d'assurance","Charge"],["622","Locations","Charge"],["6222","Transport","Charge"],["6224","Entretien, réparations","Charge"],["628","Charges diverses","Charge"],["646","Impôts et taxes","Charge"],["6410","Charges de personnel — salaires","Charge"],["701","Ventes — produits avicoles","Produit"],["758","Autres produits divers","Produit"]];
 const JOURNAUX=[["VE","Ventes"],["AC","Achats et charges"],["TR","Trésorerie"],["PAIE","Paie"],["OD","Opérations diverses"]];
 const PROTOCOLES=[["chair",1,"Vaccin Marek"],["chair",7,"Vaccin Gumboro"],["chair",14,"Vaccin Newcastle + IB"],["chair",21,"Rappel Gumboro"],["chair",28,"Anticoccidien"],["chair",35,"Rappel Newcastle"],["ponte",1,"Vaccin Marek"],["ponte",7,"Vaccin Gumboro"],["ponte",14,"Vaccin Newcastle + IB"],["ponte",28,"Rappel Gumboro"],["ponte",42,"Rappel Newcastle"],["ponte",56,"Vaccin EDS"],["ponte",112,"Rappel EDS avant ponte"]];
+const PROD_REQ={"Vaccin Marek":["Vaccin Marek","dose"],"Vaccin Gumboro":["Vaccin Gumboro","dose"],"Rappel Gumboro":["Vaccin Gumboro","dose"],"Vaccin Newcastle + IB":["Vaccin Newcastle + IB","dose"],"Rappel Newcastle":["Vaccin Newcastle + IB","dose"],"Anticoccidien":["Anticoccidien","dose"],"Vaccin EDS":["Vaccin EDS","dose"],"Rappel EDS avant ponte":["Vaccin EDS","dose"]};
+const UNITES=["dose","mL","kg","L","g","tête"];
+function migrerSante(){
+ if(!S.protocoles)return;S.protocoles.forEach(p=>{if(p.produit==null){const r=PROD_REQ[p.action];p.produit=r?r[0]:"";p.unite=r?r[1]:"dose"}});
+ (S.soins||[]).forEach(x=>{if(x.produit_requis==null){const r=PROD_REQ[x.action];x.produit_requis=r?r[0]:"";x.unite=r?r[1]:"dose"}});
+}
 const phase=(t,a)=>t==="ponte"?(a<84?"Démarrage":a<126?"Pré-ponte":a<350?"Pic de ponte":a<500?"Déclin":"Réforme"):(a<10?"Démarrage":a<28?"Croissance":a<42?"Finition":"Prêt à vendre");
 
 /* ---------- Persistance, audit, transactions ---------- */
@@ -276,7 +282,35 @@ function creerLot(f){
  S.lots.push(l);planifierSante(l);if(f.incub_id){const i=by(S.incubations,f.incub_id);if(i)i.lot_id=l.id}
  audit("Lot créé",code+" "+f.nom);return l;
 }
-function planifierSante(l){PROTOCOLES_ACTIFS().filter(p=>p.type===l.type).forEach(p=>S.soins.push({id:uid("so"),lot_id:l.id,age_j:p.age,prevue:addDays(l.debut,p.age-1),action:p.action,produit_id:null,qte:0,realise_le:null}))}
+function planifierSante(l,gardes){PROTOCOLES_ACTIFS().filter(p=>p.type===l.type&&!(gardes||[]).some(x=>x.action===p.action&&x.age_j===p.age)).forEach(p=>S.soins.push({id:uid("so"),lot_id:l.id,age_j:p.age,prevue:addDays(l.debut,p.age-1),action:p.action,produit_requis:p.produit||"",unite:p.unite||"dose",produit_id:null,qte:0,realise_le:null}))}
+
+/* ---- Calendrier prophylactique du lot (ajout, modification, report, suppression, réinitialisation) ---- */
+function soinControle(f,l){
+ const action=String(f.action||"").trim(),prevue=f.prevue;if(!action)throw new Error("Action requise.");if(!prevue)throw new Error("Date planifiée requise.");
+ if(prevue<l.debut)throw new Error("Date antérieure à la mise en place du lot.");
+ const age=f.age_j===""||f.age_j==null?diffDays(prevue,l.debut)+1:Math.floor(+f.age_j);if(!(age>=0))throw new Error("Âge invalide.");
+ const unite=UNITES.includes(f.unite)?f.unite:"dose";return{action,prevue,age_j:age,produit_requis:String(f.produit_requis||"").trim(),unite};
+}
+function soinSauver(f,id){
+ need("sante");const s=id?by(S.soins,id):null;if(id&&(!s||s.annule))throw new Error("Soin introuvable.");
+ const l=by(S.lots,id?s.lot_id:f.lot_id);if(!l)throw new Error("Lot introuvable.");if(l.statut==="clos"&&!id)throw new Error("Lot clos : plus de nouveau soin.");
+ const d=soinControle(f,l);
+ if(s){Object.assign(s,d);audit("Soin modifié",l.code+" "+d.action)}else{S.soins.push({id:uid("so"),lot_id:l.id,...d,produit_id:null,qte:0,realise_le:null});audit("Soin ajouté",l.code+" "+d.action)}
+}
+function soinReprogrammer(id,date){
+ need("sante");const s=by(S.soins,id);if(!s||s.annule||s.realise_le)throw new Error("Soin introuvable ou déjà réalisé.");const l=by(S.lots,s.lot_id);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date||""))throw new Error("Date invalide.");if(date<l.debut)throw new Error("Date antérieure à la mise en place du lot.");
+ s.prevue=date;s.age_j=diffDays(date,l.debut)+1;audit("Soin reprogrammé",l.code+" "+s.action+" → "+date);
+}
+function soinSupprimer(id){
+ need("sante");const s=by(S.soins,id);if(!s||s.annule)throw new Error("Soin introuvable.");if(s.realise_le)throw new Error("Soin déjà réalisé : non supprimable (traçabilité du stock).");
+ S.soins=S.soins.filter(x=>x.id!==id);audit("Soin supprimé",lot(s.lot_id).code+" "+s.action);
+}
+function soinsReset(lotId){
+ need("sante");const l=by(S.lots,lotId);if(!l||l.statut==="clos")throw new Error("Lot introuvable ou clos.");
+ const faits=S.soins.filter(x=>x.lot_id===l.id&&!x.annule&&x.realise_le);S.soins=S.soins.filter(x=>x.lot_id!==l.id||x.annule||x.realise_le);
+ planifierSante(l,faits);audit("Calendrier réinitialisé",l.code+" : "+faits.length+" soin(s) réalisé(s) conservé(s)");
+}
 const PROTOCOLES_ACTIFS=()=>S.protocoles;
 function cloturerLot(id,motif){
  need("lot");const l=by(S.lots,id);if(!l||l.statut==="clos")throw new Error("Lot introuvable ou déjà clos.");
@@ -486,7 +520,7 @@ const SETTINGS0={seuil_mort_jour:0.5,seuil_mort_cum:5,seuil_ponte:75,ic_max:2.2,
 function seed(){
  const d=n=>addDays(today(),n);
  S={seq:{},audit:[],users:[],batiments:[],lots:[],suivis:[],sorties:[],soins:[],traitements:[],incubations:[],produits:[],mvts:[],recettes:[],fabs:[],fournisseurs:[],clients:[],achats:[],reglements:[],ventes:[],encaiss:[],charges:[],staff:[],paies:[],
-  accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action})),settings:{...SETTINGS0},tries:{}};
+  accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action,produit:(PROD_REQ[action]||[""])[0],unite:(PROD_REQ[action]||[0,"dose"])[1]})),settings:{...SETTINGS0},tries:{}};
  ME={id:"seed",nom:"Initialisation",role:"seed"};
  migrerCond();migrerNutri();
  const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u)};
@@ -526,7 +560,7 @@ function seed(){
  payerSalaires(today().slice(0,7),"especes");
  ME=null;save();
 }
-function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerCond();migrerNutri()}}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerCond();migrerNutri();migrerSante()}}
 
 /* ---------- Composants UI ---------- */
 const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
@@ -647,11 +681,11 @@ function lotTab(l,s,t){
   return `<div class="card flex"><div><label>Date</label><input type="date" data-f="suivi:date" value="${f.date}" max="${td}"></div><span class="mu sm">Effectif vivant : ${nf(s.vivants)} · J${s.age}</span></div>`+suiviForm(l,f);
  }
  if(t==="pro"){
-  const so=S.soins.filter(x=>x.lot_id===l.id&&!x.annule).sort((a,b)=>a.prevue.localeCompare(b.prevue)),tr_=S.traitements.filter(x=>x.lot_id===l.id).slice().reverse();
-  return `<div class="between"><h2 style="margin:0">Calendrier vaccinal</h2>${can("sante")&&l.statut==="en_cours"?btn("tr.add",l.id,"+ Traitement"):""}</div>`+tbl(["Âge","Prévu","Soin","Produit","Statut",""],so.map(x=>{const n=diffDays(x.prevue,td);return tr(["J"+x.age_j,fd(x.prevue),esc(x.action),x.produit_id?esc(prod(x.produit_id).nom+" × "+nf(x.qte)):"—",x.realise_le?badge("Fait le "+fd(x.realise_le),"ok"):badge(n<0?"En retard ("+(-n)+" j)":n===0?"Aujourd'hui":"Dans "+n+" j",n<0?"er":n<=3?"wa":""),!x.realise_le&&can("sante")&&l.statut==="en_cours"?btn("so.do",x.id,"Réaliser","ok"):""])}),{empty:"Aucun soin planifié."})+
+  const so=S.soins.filter(x=>x.lot_id===l.id&&!x.annule).sort((a,b)=>a.age_j-b.age_j||a.prevue.localeCompare(b.prevue)),tr_=S.traitements.filter(x=>x.lot_id===l.id).slice().reverse(),fait=so.filter(x=>x.realise_le).length,ret=so.filter(x=>!x.realise_le&&x.prevue<td).length,avn=so.length-fait-ret,pct=so.length?Math.round(fait/so.length*100):0,ed=can("sante")&&l.statut==="en_cours";
+  return `<div class="card"><div class="between"><b>📅 Calendrier prophylactique — ${esc(l.nom)}</b><div class="flex"><span class="mu sm">${fait}/${so.length} réalisés</span>${ed?`<button class="btn sm" data-a="so.add" data-id="${l.id}">+ Ajouter</button><button class="btn sm ghost" data-a="so.rst" data-id="${l.id}">Réinitialiser</button><button class="btn sm ghost" data-a="tr.add" data-id="${l.id}">+ Traitement</button>`:""}</div></div><div class="flex sm" style="margin:8px 0;gap:16px"><b style="color:var(--ok)">${fait} réalisés</b><b style="color:var(--er)">${ret} en retard</b><b style="color:var(--b)">${avn} à venir</b></div><div class="progres"><div style="width:${pct}%"></div></div></div>`+
+   tbl(["Âge","Date planifiée","Action","Produit requis","Statut","Réalisé le",""],so.map(x=>{const n=diffDays(x.prevue,td);return tr(["<b>J"+x.age_j+"</b>",fd(x.prevue),esc(x.action),esc(x.produit_requis||"—")+` <span class="mu sm">(${esc(x.unite||"—")})</span>`,x.realise_le?badge("Réalisé","ok"):n<0?badge("En retard","er"):badge(n===0?"Aujourd'hui":"Dans "+n+" j",n<=3?"wa":""),x.realise_le?fd(x.realise_le):"—",ed?`<div class="flex">${!x.realise_le?btn("so.do",x.id,"✓ Réaliser","ok")+btn("so.rep",x.id,"📅","ghost"):""}${btn("so.edit",x.id,"✎","ghost")}${!x.realise_le?btn("so.del",x.id,"🗑","er"):""}</div>`:""])}),{empty:"Aucune tâche. Cliquez sur « + Ajouter »."})+
    `<h2>Traitements</h2>`+tbl(["Date","Motif","Produit","Délai d'attente","Jusqu'au","Par"],tr_.map(x=>tr([fd(x.date),esc(x.motif),x.produit_id?esc(prod(x.produit_id).nom+" × "+nf(x.qte)):"—",x.delai+" j",badge(fd(x.jusqua),x.jusqua>=td?"wa":"mu"),esc(x.par)])),{empty:"Aucun traitement."});
  }
-
  if(t==="nut"){
   const age=s.age,sel=(UI.f.nutb&&UI.f.nutb.lot===l.id&&UI.f.nutb.b)||nutriSouche(l),act=nutriPhase(l,age),brs=nutriSouches(l.type),rows=S.nutrition.filter(n=>n.type===l.type&&n.breed===sel).sort((a,b)=>a.ageMin-b.ageMin),ed=can("nutri");
   const sv=ds.filter(x=>x.date>addDays(td,-8)&&x.aliment_kg>0),reel=sv.length&&s.vivants?sum(sv,x=>x.aliment_kg*1000/Math.max(1,effAt(l,x.date)))/sv.length:null,ec=reel!=null&&act?(reel-act.feedGPD)/act.feedGPD*100:null;
@@ -687,6 +721,13 @@ A["nu.add"]=id=>{const l=by(S.lots,id);form("Nouvelle phase nutritionnelle",nuFi
 A["nu.edit"]=id=>{const n=by(S.nutrition,id);form("Modifier la phase nutritionnelle",nuFields(),n,o=>nutriSauver({...o,type:n.type},id))};
 A["nu.del"]=id=>{const n=by(S.nutrition,id);if(confirm("Supprimer la phase « "+n.phase+" » ?")&&atomic(()=>nutriSupprimer(id))!==false)render()};
 A["nu.rst"]=t=>{if(confirm("Réimporter le programme par défaut pour les lots de type « "+(t==="ponte"?"ponte":"chair")+" » ?\nLes phases existantes de ce type seront remplacées.")&&atomic(()=>nutriReset(t))!==false)render()};
+
+const soFields=()=>[{k:"action",l:"Action",req:1},{k:"produit_requis",l:"Produit requis"},{k:"unite",l:"Unité",t:"select",o:UNITES.map(u=>[u,u])},{k:"age_j",l:"Âge (jour du lot)",t:"number",h:"Vide : calculé depuis la date"},{k:"prevue",l:"Date planifiée",t:"date",req:1}];
+A["so.add"]=id=>form("Nouvelle tâche prophylactique",soFields(),{unite:"dose",prevue:today()},o=>soinSauver({...o,lot_id:id},null));
+A["so.edit"]=id=>{const x=by(S.soins,id);form("Modifier la tâche",soFields(),x,o=>soinSauver(o,id))};
+A["so.rep"]=id=>{const x=by(S.soins,id);form("Reprogrammer : "+x.action,[{k:"date",l:"Nouvelle date",t:"date",req:1}],{date:x.prevue},o=>soinReprogrammer(id,o.date))};
+A["so.del"]=id=>{const x=by(S.soins,id);if(confirm("Supprimer la tâche « "+x.action+" » ?")&&atomic(()=>soinSupprimer(id))!==false)render()};
+A["so.rst"]=id=>{if(confirm("Réinitialiser le calendrier depuis le protocole par défaut ?\nLes soins déjà réalisés sont conservés.")&&atomic(()=>soinsReset(id))!==false)render()};
 A["lot.sel"]=id=>{UI.lotSel=id;UI.tab.lot="ov";UI.f.lotsem=null;render()};
 A["lot.ch"]=id=>{UI.f.lotch=id;render()};
 A["lot.sem"]=n=>{UI.f.lotsem={n:+n};render()};
@@ -713,7 +754,7 @@ V.sante=()=>{
  else h+=tbl(["Date","Lot","Motif","Produit","Délai d'attente","Jusqu'au","Par"],S.traitements.slice().reverse().map(x=>tr([fd(x.date),esc(lot(x.lot_id).code),esc(x.motif),x.produit_id?esc(prod(x.produit_id).nom+" × "+nf(x.qte)):"—",x.delai+" j",badge(fd(x.jusqua),x.jusqua>=td?"wa":"mu"),esc(x.par)])));
  return h;
 };
-A["so.do"]=id=>{const s=by(S.soins,id),l=by(S.lots,s.lot_id),guess=S.produits.find(p=>p.categorie==="medicament"&&s.action.toLowerCase().includes(p.nom.toLowerCase().replace("vaccin ","").split(" ")[0]));form("Réaliser : "+s.action+" — "+l.code,[{k:"date",l:"Date",t:"date",req:1},{k:"produit_id",l:"Produit utilisé (stock)",t:"select",o:()=>[["","— Aucun —"],...prodOpts(["medicament"])]},{k:"qte",l:"Quantité",t:"number"},{k:"note",l:"Observation"}],{date:today(),produit_id:guess?guess.id:"",qte:vivantsLot(l)},o=>realiserSoin(id,o))};
+A["so.do"]=id=>{const s=by(S.soins,id),l=by(S.lots,s.lot_id),rq=String(s.produit_requis||"").toLowerCase(),guess=S.produits.find(p=>p.categorie==="medicament"&&(rq&&(p.nom.toLowerCase()===rq||rq.includes(p.nom.toLowerCase())||p.nom.toLowerCase().includes(rq))))||S.produits.find(p=>p.categorie==="medicament"&&s.action.toLowerCase().includes(p.nom.toLowerCase().replace("vaccin ","").split(" ")[0]));form("Réaliser : "+s.action+" — "+l.code,[{k:"date",l:"Date",t:"date",req:1},{k:"produit_id",l:"Produit utilisé (stock)",t:"select",o:()=>[["","— Aucun —"],...S.produits.filter(p=>p.categorie==="medicament").map(p=>[p.id,p.nom+" (stock : "+nf(qteStock(p.id),0)+" "+p.unite+")"])]},{k:"qte",l:"Quantité"+(s.unite?" ("+s.unite+")":"")+(s.produit_requis?" — requis : "+s.produit_requis:""),t:"number"},{k:"note",l:"Observation"}],{date:today(),produit_id:guess?guess.id:"",qte:vivantsLot(l)},o=>realiserSoin(id,o))};
 A["tr.add"]=id=>form("Traitement",[{k:"lot_id",l:"Lot",t:"select",o:()=>lotsOpts()},{k:"date",l:"Date",t:"date",req:1},{k:"motif",l:"Motif (maladie, traitement)",req:1},{k:"produit_id",l:"Produit (stock)",t:"select",o:()=>[["","— Aucun —"],...prodOpts(["medicament"])]},{k:"qte",l:"Quantité",t:"number"},{k:"delai",l:"Délai d'attente avant vente (jours)",t:"number",req:1}],{lot_id:id||"",date:today(),delai:0},o=>traiter(o));
 V.couvoir=()=>head("Couvoir",can("couvoir")?`<button class="btn" data-a="ic.add">+ Mise en incubation</button>`:"")+tbl(["Code","Reproducteurs","Mise","Œufs","Mirage (J18)","Infertiles","Fertilité","Éclosion (J21)","Éclos","Éclosabilité","Lot",""],S.incubations.slice().reverse().map(i=>{const t=tauxCouv(i);return tr([esc(i.code),esc(i.reproducteur),fd(i.date_mise),i.oeufs,i.mirage_fait?badge("Fait","ok"):badge(fd(i.date_mirage),i.date_mirage<=today()?"er":""),i.mirage_fait?i.infertiles:"—",t.fert!=null?nf(t.fert,1)+" %":"—",i.eclosion_faite?badge("Fait","ok"):badge(fd(i.date_eclosion),i.mirage_fait&&i.date_eclosion<=today()?"er":""),i.eclosion_faite?i.eclos:"—",t.eclo!=null?nf(t.eclo,1)+" % (fertiles "+nf(t.eclosFertiles,1)+" %)":"—",i.lot_id?esc(lot(i.lot_id).code):"—",can("couvoir")?(!i.mirage_fait?btn("ic.mir",i.id,"Mirage"):!i.eclosion_faite?btn("ic.ecl",i.id,"Éclosion"):!i.lot_id?btn("ic.lot",i.id,"Créer le lot","ok"):""):""])}));
 A["ic.add"]=()=>form("Mise en incubation",[{k:"reproducteur",l:"Reproducteurs (lot / origine)"},{k:"oeufs",l:"Œufs mis en incubation",t:"number",req:1},{k:"date_mise",l:"Date de mise",t:"date",req:1}],{date_mise:today()},o=>creerIncubation(o));
@@ -1011,14 +1052,14 @@ A["us.tg"]=id=>{if(atomic(()=>{need("users");const u=by(S.users,id);if(u.id===ME
 const PARAMS=[["seuil_mort_jour","Alerte mortalité du jour (% de l'effectif)"],["seuil_mort_cum","Alerte mortalité cumulée (%)"],["seuil_ponte","Taux de ponte minimal (%)"],["ic_max","Indice de consommation maximal (chair)"],["delai_creance","Délai de créance client (jours)"],["plateau","Œufs par plateau"],["prix_plateau","Prix du plateau pour valoriser la ponte (F)"],["max_pj_ko","Taille max pièces jointes (Ko)"]];
 V.params=()=>{const t=tabOf("par","p");let h=head("Paramétrage")+tabs("par",[["p","Seuils et prix"],["pro","Protocoles sanitaires"],["bk","Sauvegarde"]]);
  if(t==="p")h+=(can("param")?`<p><button class="btn" data-a="par.edit">Modifier</button></p>`:"")+tbl(["Paramètre","Valeur"],PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])));
- if(t==="pro")h+=(can("param")?`<p><button class="btn" data-a="pro.add">+ Soin au protocole</button></p>`:"")+`<div class="note">Le protocole est copié dans le calendrier à la création de chaque lot (les lots existants ne changent pas).</div>`+tbl(["Type","Âge (jour)","Soin",""],S.protocoles.map((p,i)=>tr([LOTTYPE[p.type],"J"+p.age,esc(p.action),can("param")?btn("pro.del",i,"Retirer","er"):""])));
+ if(t==="pro")h+=(can("param")?`<p><button class="btn" data-a="pro.add">+ Soin au protocole</button></p>`:"")+`<div class="note">Le protocole est copié dans le calendrier à la création de chaque lot (les lots existants ne changent pas).</div>`+tbl(["Type","Âge (jour)","Soin","Produit requis",""],S.protocoles.map((p,i)=>tr([LOTTYPE[p.type],"J"+p.age,esc(p.action),esc(p.produit||"—")+" <span class=\"mu sm\">("+esc(p.unite||"dose")+")</span>",can("param")?btn("pro.del",i,"Retirer","er"):""])));
  if(t==="bk")h+=`<div class="card"><p>Données locales : <b>${Math.round(JSON.stringify(S).length/1024)} Ko</b> (limite navigateur ≈ 5 000 Ko : backend Supabase requis pour la production).</p><div class="flex"><button class="btn" data-a="bk.exp">Exporter une sauvegarde</button>${can("param")?`<input type="file" id="bkf" accept="application/json" style="width:auto"><button class="btn ghost" data-a="bk.imp">Restaurer</button>`:""}<button class="btn ghost" data-a="bk.chk">Contrôle d'intégrité</button></div></div>`;
  return h};
 A["par.edit"]=()=>form("Paramètres",PARAMS.map(([k,l])=>({k,l,t:"number"})),S.settings,o=>{need("param");PARAMS.forEach(([k])=>{if(!(o[k]>=0))throw new Error("Valeur invalide.");S.settings[k]=o[k]});if(!(S.settings.plateau>0))throw new Error("Œufs par plateau > 0.");audit("Paramètres modifiés")});
-A["pro.add"]=()=>form("Soin au protocole",[{k:"type",l:"Type de lot",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"age",l:"Âge (jour)",t:"number",req:1},{k:"action",l:"Soin",req:1}],{},o=>{need("param");if(!(o.age>=1))throw new Error("Âge ≥ 1.");S.protocoles.push(o);audit("Protocole",o.action)});
+A["pro.add"]=()=>form("Soin au protocole",[{k:"type",l:"Type de lot",t:"select",o:[["chair","Chair"],["ponte","Ponte"]]},{k:"age",l:"Âge (jour)",t:"number",req:1},{k:"action",l:"Soin",req:1},{k:"produit",l:"Produit requis"},{k:"unite",l:"Unité",t:"select",o:UNITES.map(u=>[u,u])}],{unite:"dose"},o=>{need("param");if(!(o.age>=1))throw new Error("Âge ≥ 1.");S.protocoles.push({...o,age:Math.floor(+o.age)});audit("Protocole",o.action)});
 A["pro.del"]=i=>{if(confirm("Retirer ce soin du protocole ?")&&atomic(()=>{need("param");S.protocoles.splice(+i,1)}))render()};
 A["bk.exp"]=()=>{atomic(()=>audit("Sauvegarde exportée"),true);const data=JSON.parse(JSON.stringify(S));delete data.tries;const b=new Blob([JSON.stringify({app:"angels-agro",v:1,t:now(),sum:hashPin("bk",JSON.stringify(data)),data})],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sauvegarde-agro-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
-function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};migrerCond();migrerNutri();ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
+function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw new Error("Fichier illisible.")}if(!o||o.app!=="angels-agro"||!o.data)throw new Error("Fichier de sauvegarde invalide.");if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");const k=S.tries,id=ME.id;S=o.data;S.tries=k||{};migrerCond();migrerNutri();migrerSante();ME=by(S.users,id)||null;audit("Sauvegarde restaurée");return integrite()}
 A["bk.imp"]=async()=>{const f=$("#bkf");if(!f||!f.files[0])return alert("Choisir un fichier.");const txt=await f.files[0].text(),snap=JSON.stringify(S);try{const pb=restaurer(txt);save();alert(pb.length?"Restauré avec anomalies :\n"+pb.join("\n"):"Restauration réussie : intégrité vérifiée.");render()}catch(e){S=JSON.parse(snap);ME=by(S.users,ME.id);alert(e.message)}};
 A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n"):"Intégrité OK.")};
 /* ---------- Connexion, rendu, événements ---------- */
