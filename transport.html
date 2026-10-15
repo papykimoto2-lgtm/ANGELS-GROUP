@@ -48,6 +48,7 @@ input,select,textarea{border:1px solid var(--bd);border-radius:8px;padding:8px 9
 input[type=checkbox]{width:auto}
 label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8px}
 .fg{display:grid;gap:0 10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.fm>div{padding:0;max-width:560px}.fm.wide>div{max-width:780px}.fm .mh{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--card);z-index:1}.fm .mb{padding:14px 16px;display:grid;gap:10px;grid-template-columns:1fr 1fr}.fm .mb label{margin-top:0}.fm .mb label input,.fm .mb label select,.fm .mb label textarea{margin-top:3px;color:var(--tx);font-weight:400;font-size:14px}.fm .mb .full,.fm .sec{grid-column:1/-1}.fm .sec{font-weight:700;margin-top:6px;color:var(--b2)}.fm .mf{padding:12px 16px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--card)}.fm .x{background:none;border:0;font-size:18px;cursor:pointer;color:var(--tx)}.slot{border:1px dashed var(--bd);border-radius:10px;padding:8px;text-align:center;background:var(--card)}.slot img{max-width:100%;max-height:130px;border-radius:6px;display:block;margin:6px auto}.slot .ph{min-height:56px;display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:12px;word-break:break-all}.slot b{font-size:12px}.hide{display:none!important}@media(max-width:560px){.fm .mb{grid-template-columns:1fr}}
 .md{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:12px}
 .md>div{background:var(--card);border-radius:14px;padding:16px;max-width:880px;width:100%;max-height:92vh;overflow:auto}
 .login{max-width:350px;margin:10vh auto;padding:0 16px}
@@ -668,11 +669,22 @@ async function storeFile(f){
  if(IDBF){FILES.set(a.id,data);idbEcrire(a.id,data)}else{a.data=data;FILES.set(a.id,data)}
  S.attachments.push(a);return a.id;
 }
+function slotF(f,init){const had=init&&init[f.k];return `<div class="slot" data-slot="${f.k}"><b>${esc(f.l)}${f.req?" *":""}</b><div class="ph">${had?"✔ Document enregistré":"Aucun fichier"}</div><img alt="" class="hide"><div class="flex" style="justify-content:center;gap:6px"><label class="btn sm ghost" style="margin:0;cursor:pointer;display:inline-flex">📷 <span>${had?"Remplacer":"Ajouter"}</span><input name="${f.k}" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display:none"></label><button type="button" class="btn sm ghost hide" data-clr>Retirer</button></div></div>`}
 function form(title,fields,init,onSave,ok){
- const m=modal(`<h2 style="margin-top:0">${esc(title)}</h2><form class="fg" novalidate>${fields.map(f=>{const o=typeof f.o==="function"?f.o():f.o;return `<div ${f.full?'style="grid-column:1/-1"':""}><label>${esc(f.l)}${f.req?" *":""}</label>${f.t==="select"?`<select name="${f.k}">${o.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("")}</select>`:f.t==="area"?`<textarea name="${f.k}" rows="2"></textarea>`:f.t==="file"?`<input name="${f.k}" type="file" accept="image/png,image/jpeg,image/webp,application/pdf">`:`<input name="${f.k}" type="${f.t||"text"}" ${f.t==="number"?'step="any" min="0"':""} autocomplete="off">`}${f.h?`<span class="mu sm">${esc(f.h)}</span>`:""}</div>`}).join("")}<div style="grid-column:1/-1" class="flex"><button class="btn">${ok||"Enregistrer"}</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
+ const body=fields.map(f=>{const o=typeof f.o==="function"?f.o():f.o,sec=f.sec?`<div class="sec">${esc(f.sec)}</div>`:"";
+  if(f.t==="file")return sec+slotF(f,init);
+  const inp=f.t==="select"?`<select name="${f.k}">${o.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("")}</select>`:f.t==="area"?`<textarea name="${f.k}" rows="2"></textarea>`:`<input name="${f.k}" type="${f.t||"text"}" ${f.t==="number"?'step="any" min="0"':""} autocomplete="off">`;
+  return sec+`<label ${f.full||f.t==="area"?'class="full"':""}>${esc(f.l)}${f.req?" *":""}${inp}${f.h?`<span class="mu sm">${esc(f.h)}</span>`:""}</label>`}).join("");
+ const m=modal(`<div class="mh"><b>${esc(title)}</b><button class="x" type="button" data-x>✕</button></div><form novalidate autocomplete="off"><div class="mb">${body}</div><div class="mf"><button type="button" class="btn ghost" data-x>Annuler</button><button class="btn">${ok||"Valider"}</button></div></form>`);
+ m.classList.add("fm");if(fields.length>8)m.classList.add("wide");
  const fm=$("form",m);fields.forEach(f=>{const e=fm.elements[f.k];if(e&&f.t!=="file"&&init&&init[f.k]!=null)e.value=init[f.k]});
- $("[data-x]",m).onclick=()=>m.remove();
- fm.onsubmit=async e=>{e.preventDefault();const b=fm.querySelector("button");b.disabled=true;
+ m.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>m.remove());
+ m.querySelectorAll(".slot").forEach(sl=>{const inp=$("input",sl),ph=$(".ph",sl),im=$("img",sl),cl=$("[data-clr]",sl),lb=$("label span",sl);
+  inp.onchange=()=>{const f=inp.files[0];if(!f)return;ph.textContent="📎 "+f.name;ph.classList.remove("hide");cl.classList.remove("hide");lb.textContent="Remplacer";
+   if(f.type.startsWith("image/")){const r=new FileReader();r.onload=()=>{im.src=r.result;im.classList.remove("hide");ph.classList.add("hide")};r.readAsDataURL(f)}else im.classList.add("hide")};
+  cl.onclick=()=>{inp.value="";im.classList.add("hide");im.removeAttribute("src");ph.classList.remove("hide");ph.textContent="Aucun fichier";cl.classList.add("hide");lb.textContent="Ajouter"}});
+ const f0=$("input:not([type=file]):not([type=hidden]),select",fm);if(f0)f0.focus();
+ fm.onsubmit=async e=>{e.preventDefault();const b=fm.querySelector(".mf .btn:not(.ghost)");b.disabled=true;
   try{const o={};for(const f of fields){const el=fm.elements[f.k];if(f.t==="file"){o[f.k]=el.files[0]?await storeFile(el.files[0]):null;continue}const v=el.value.trim();if(f.req&&v==="")throw new Error(f.l+" requis.");o[f.k]=f.t==="number"?(v===""?0:+v):v}
    const r=atomic(()=>onSave(o));if(r!==false){m.remove();render()}}catch(x){alert(x.message)}finally{b.disabled=false}};
  return m;
@@ -728,7 +740,7 @@ V.rapports=()=>{
 };
 const CSVS={},A={};
 CSVS.renta=()=>{const f=UI.f.rap,am=allocMap();return[["Véhicule","Attendu","Encaissé","Restant dû","Résultat"],S.vehicles.map(v=>{const o=S.obligations.filter(x=>x.vehicle_id===v.id&&x.date_ech>=f.from&&x.date_ech<=f.to);return[v.immat,sum(o.filter(x=>!x.exo),x=>x.montant),sum(o,x=>am[x.id]||0),sum(o,x=>soldeM(x,am)),resultat(f.from,f.to,v.id).r]})]};
-const vehFields=()=>[{k:"immat",l:"Immatriculation",req:1},{k:"marque",l:"Marque"},{k:"modele",l:"Modèle"},{k:"annee",l:"Année",t:"number"},{k:"places",l:"Places",t:"number"},{k:"proprietaire",l:"Propriétaire"},{k:"date_entree",l:"Date d'entrée dans le parc",t:"date"},{k:"km",l:"Kilométrage",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"},{k:"assurance_fin",l:"Fin assurance",t:"date"},{k:"visite_fin",l:"Fin visite technique",t:"date"},{k:"carte_fin",l:"Fin carte de transport",t:"date"},{k:"pj_carte_grise",l:"Carte grise (scan ou photo)",t:"file"},{k:"pj_assurance",l:"Attestation d'assurance",t:"file"},{k:"pj_visite",l:"Visite technique",t:"file"},{k:"pj_carte_transport",l:"Carte de transport",t:"file"},{k:"autre_libelle",l:"Autre document — libellé (vignette, facture d'achat…)"},{k:"pj_autre",l:"Autre document — fichier",t:"file"}];
+const vehFields=()=>[{k:"immat",l:"Immatriculation",req:1,sec:"Identification"},{k:"marque",l:"Marque"},{k:"modele",l:"Modèle"},{k:"annee",l:"Année",t:"number"},{k:"places",l:"Places",t:"number"},{k:"proprietaire",l:"Propriétaire"},{k:"date_entree",sec:"Parc et entretien",l:"Date d'entrée dans le parc",t:"date"},{k:"km",l:"Kilométrage",t:"number"},{k:"prochain_km",l:"Prochain entretien (km)",t:"number"},{k:"assurance_fin",sec:"Échéances",l:"Fin assurance",t:"date"},{k:"visite_fin",l:"Fin visite technique",t:"date"},{k:"carte_fin",l:"Fin carte de transport",t:"date"},{k:"pj_carte_grise",sec:"Documents techniques (scan ou photo)",l:"Carte grise (scan ou photo)",t:"file"},{k:"pj_assurance",l:"Attestation d'assurance",t:"file"},{k:"pj_visite",l:"Visite technique",t:"file"},{k:"pj_carte_transport",l:"Carte de transport",t:"file"},{k:"autre_libelle",l:"Autre document — libellé (vignette, facture d'achat…)"},{k:"pj_autre",l:"Autre document — fichier",t:"file"}];
 V.vehicules=()=>{
  const q=(UI.f.veh&&UI.f.veh.q||"").toLowerCase(),rows=S.vehicles.filter(v=>!q||(v.immat+v.marque+v.modele).toLowerCase().includes(q)).map(v=>{
   const c=contratActif(v.id),as=S.assignments.find(a=>a.vehicle_id===v.id&&!a.fin),dev=S.gps_dev.find(g=>g.vehicle_id===v.id&&g.actif),ge=dev?gpsEtat(dev):null;
@@ -755,7 +767,7 @@ A["tab"]=id=>{const[k,v]=id.split(":");UI.tab[k]=v;render()};
 A["nav"]=id=>{view=id;if(id==="gps"){atomic(()=>audit("Consultation GPS","carte"),true)}render()};
 
 /* ---- Chauffeurs, affectations, contrats, planning ---- */
-const drvFields=()=>[{k:"nom",l:"Nom complet",req:1},{k:"tel",l:"Téléphone"},{k:"adresse",l:"Adresse"},{k:"cni",l:"N° CNI"},{k:"permis_no",l:"N° permis"},{k:"permis_fin",l:"Fin de validité du permis",t:"date"},{k:"photo",l:"Photo du chauffeur",t:"file"},{k:"pj_permis",l:"Permis de conduire (scan ou photo)",t:"file"},{k:"pj_cni",l:"Carte d'identité (scan ou photo)",t:"file"}];
+const drvFields=()=>[{k:"nom",l:"Nom complet",req:1,sec:"Identité"},{k:"tel",l:"Téléphone"},{k:"adresse",l:"Adresse"},{k:"cni",l:"N° CNI"},{k:"permis_no",sec:"Permis de conduire",l:"N° permis"},{k:"permis_fin",l:"Fin de validité du permis",t:"date"},{k:"photo",l:"Photo du chauffeur",sec:"Photos : chauffeur, permis et carte d'identité",t:"file"},{k:"pj_permis",l:"Permis de conduire (scan ou photo)",t:"file"},{k:"pj_cni",l:"Carte d'identité (scan ou photo)",t:"file"}];
 V.chauffeurs=()=>{
  const q=(UI.f.chf&&UI.f.chf.q||"").toLowerCase();
  return head("Chauffeurs",`<input data-f="chf:q" placeholder="Rechercher…" value="${esc(UI.f.chf&&UI.f.chf.q||"")}" style="width:180px">${can("chauffeurs","c")?`<button class="btn" data-a="chf.add">+ Chauffeur</button>`:""}${csvBtn("chauffeurs","chauffeurs")}`)+
@@ -763,7 +775,7 @@ V.chauffeurs=()=>{
   return tr([(d.photo&&by(S.attachments,d.photo)&&by(S.attachments,d.photo).type!=="application/pdf"?`<img src="${esc(fichier(d.photo))}" alt="" style="width:28px;height:28px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px">`:"")+esc(d.nom)+(dossierChf(d).length?" "+badge("Dossier incomplet","wa"):""),esc(d.tel),esc(as?vehImmat(as.vehicle_id):"—"),c?esc(c.mode):"—",dateBadge(d.permis_fin),s?`<b style="color:var(--er)">${fcfa(s)}</b>`:"—",u?badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"):"—",`<div class="flex">${btn("chf.fiche",d.id,"Fiche","ghost")}${can("chauffeurs","e")?btn("chf.edit",d.id,"✏️","ghost"):""}</div>`])}));
 };
 CSVS.chauffeurs=()=>[["Nom","Téléphone","Solde dû"],S.drivers.map(d=>[d.nom,d.tel,soldeTiers(d.tiers_id)])];
-A["chf.add"]=()=>form("Nouveau chauffeur",[...drvFields(),{k:"pin",l:"PIN du portail (4 chiffres)",req:1}],{},o=>{
+A["chf.add"]=()=>form("Nouveau chauffeur",[...drvFields(),{k:"pin",l:"PIN du portail (4 chiffres)",req:1,sec:"Accès portail chauffeur"}],{},o=>{
  need("chauffeurs","c");if(!/^\d{4}$/.test(o.pin))throw new Error("PIN : 4 chiffres.");
  const id=uid("d"),t={id:uid("t"),type:"chauffeur",nom:o.nom,aux:"411"+String(S.tiers.length+1).padStart(4,"0"),ref:id};S.tiers.push(t);
  const u={id:uid("u"),nom:o.nom,role:"chauffeur",actif:true,driver_id:id};u.h=hashPin(u.id,o.pin);S.users.push(u);
