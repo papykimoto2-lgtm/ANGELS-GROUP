@@ -194,17 +194,17 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
    await p.setInputFiles('.md input[name="pj_carte_grise"]',{name:"cg.png",mimeType:"image/png",buffer:PNG});
    await p.setInputFiles('.md input[name="pj_assurance"]',{name:"assur.pdf",mimeType:"application/pdf",buffer:PDF});
    await p.fill('.md input[name="autre_libelle"]',"Vignette 2026");await p.setInputFiles('.md input[name="pj_autre"]',{name:"vignette.png",mimeType:"image/png",buffer:PNG});
-   await p.click('.md form button');await p.waitForTimeout(400);
+   await p.click('.md form .mf button:not(.ghost)');await p.waitForTimeout(400);
    const r=await p.evaluate(()=>{const v=S.vehicles.find(x=>x.immat==="UI-0001 AA 01");return v?{cg:!!(v.docs_pj&&by(S.attachments,v.docs_pj.carte_grise)),as:!!(v.docs_pj&&by(S.attachments,v.docs_pj.assurance)),manque:dossierVeh(v).join(),autre:S.documents.some(d=>d.ref===v.id&&d.type==="Vignette 2026"&&by(S.attachments,d.pj)),modal:!!document.querySelector(".md")}:null});
    if(!r||!r.cg||!r.as||!r.autre||r.manque!=="Visite technique,Carte de transport"||r.modal)E.push("véhicule "+JSON.stringify(r));
    await p.evaluate(()=>{view="chauffeurs";render();A["chf.add"]()});
    await p.fill('.md input[name="nom"]',"Chauffeur UI");await p.fill('.md input[name="tel"]',"0700000000");await p.fill('.md input[name="pin"]',"4321");
    await p.setInputFiles('.md input[name="photo"]',{name:"photo.png",mimeType:"image/png",buffer:PNG});await p.setInputFiles('.md input[name="pj_permis"]',{name:"permis.png",mimeType:"image/png",buffer:PNG});await p.setInputFiles('.md input[name="pj_cni"]',{name:"cni.pdf",mimeType:"application/pdf",buffer:PDF});
-   await p.click('.md form button');await p.waitForTimeout(400);
+   await p.click('.md form .mf button:not(.ghost)');await p.waitForTimeout(400);
    const d=await p.evaluate(()=>{const x=S.drivers.find(y=>y.nom==="Chauffeur UI");return x?{ok:!!(by(S.attachments,x.photo)&&by(S.attachments,x.pj_permis)&&by(S.attachments,x.pj_cni)),manque:dossierChf(x).length,types:[x.photo,x.pj_permis,x.pj_cni].map(i=>by(S.attachments,i).type).join()}:null});
    if(!d||!d.ok||d.manque!==0||d.types!=="image/png,image/png,application/pdf")E.push("chauffeur "+JSON.stringify(d));
    await p.evaluate(()=>{A["veh.add"]()});await p.fill('.md input[name="immat"]',"UI-0002 AA 01");await p.setInputFiles('.md input[name="pj_carte_grise"]',{name:"x.txt",mimeType:"text/plain",buffer:Buffer.from("x")});
-   await p.click('.md form button');await p.waitForTimeout(300);const bad=await p.evaluate(()=>({cree:S.vehicles.some(x=>x.immat==="UI-0002 AA 01"),modal:!!document.querySelector(".md")}));if(bad.cree||!bad.modal)E.push("format refusé "+JSON.stringify(bad));
+   await p.click('.md form .mf button:not(.ghost)');await p.waitForTimeout(300);const bad=await p.evaluate(()=>({cree:S.vehicles.some(x=>x.immat==="UI-0002 AA 01"),modal:!!document.querySelector(".md")}));if(bad.cree||!bad.modal)E.push("format refusé "+JSON.stringify(bad));
    await p.evaluate(()=>{document.querySelectorAll(".md").forEach(m=>m.remove())});
   }catch(x){E.push("EXC "+x.message)}
   if(E.length===0){ok++;console.log("PASS DOC-05 interface : création véhicule et chauffeur avec envoi réel des fichiers")}else{ko++;console.log("FAIL DOC-05 interface →",E.join(" | "))}}
