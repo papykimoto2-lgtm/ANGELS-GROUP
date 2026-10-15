@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ANGEL'S GROUP"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>try{var _t=localStorage.getItem("angels_theme");if(_t)document.documentElement.dataset.theme=_t}catch(e){}</script>
+<script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <title>ANGEL'S GROUP ERP — Livraisons</title>
 <style>
 :root{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3f8}
@@ -85,6 +85,7 @@ label input,label select,label textarea{margin-top:3px;color:var(--tx);font-weig
 .hero-r{padding:40px 32px;display:flex;flex-direction:column;justify-content:center;background:var(--bg)}
 .pcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .pcard{all:unset;box-sizing:border-box;cursor:pointer;background:#fff;border:1px solid var(--bd);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center;transition:.15s}
+.pcard.on{border-color:var(--b);box-shadow:0 0 0 2px var(--b)}
 .pcard:hover,.pcard:focus-visible{border-color:var(--b);box-shadow:0 4px 14px rgba(26,58,168,.15);transform:translateY(-1px)}
 .pcard .ic{font-size:22px}.pcard b{display:block;font-size:13px}.pcard small{color:var(--mu);font-size:11.5px}
 .welcome{background:linear-gradient(120deg,var(--b2),var(--b));color:#fff;border-radius:14px;padding:18px 20px;margin:10px 0 4px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
@@ -459,7 +460,7 @@ setInterval(()=>{document.querySelectorAll(".clk").forEach(e=>{const k=e.dataset
 const THEMES=[["turquoise","Turquoise (standard)","#0e7490"],["bleu","Bleu","#1a3aa8"],["emeraude","Vert émeraude","#0f7b5f"],["orange","Orange énergie","#c9500a"],["violet","Violet","#6a32c9"],["or","Nuit & or","#15171d"]];
 const themeCur=()=>document.documentElement.dataset.theme||"turquoise";
 const themeDots=()=>`<div class="themes" title="Couleur du logiciel">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" aria-label="${t}" title="${t}"></button>`).join("")}</div>`;
-function setTheme(k){if(k==="turquoise")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{k==="turquoise"?localStorage.removeItem("angels_theme"):localStorage.setItem("angels_theme",k)}catch(e){}
+function setTheme(k){if(k==="turquoise")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{localStorage.setItem("angels_theme",k)}catch(e){}
  const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue("--b").trim()}
 const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">ANGEL'S GROUP</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
  <ul><li><span class="i">📍</span><div><b>Adresse sur carte pour le livreur</b>Le client place lui-même son repère depuis son téléphone.</div></li>
@@ -467,11 +468,13 @@ const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;op
  <li><span class="i">🔐</span><div><b>Code de livraison + signature</b>La livraison n'est validée que par le client.</div></li>
  <li><span class="i">💬</span><div><b>Messages WhatsApp / SMS automatiques</b>Le client sait où en est sa commande.</div></li>
  <li><span class="i">💰</span><div><b>Caisse et reversements sous contrôle</b>Écarts, commissions et règlements vendeurs tracés.</div></li></ul></div>`;
+function demoFill(b){const f=document.getElementById("lf");if(!f)return;const d=f.closest("details");if(d)d.open=true;f.u.value=b.dataset.id;(f.p||f.pin).value=b.dataset.pin||"";document.querySelectorAll(".pcard").forEach(c=>c.classList.toggle("on",c===b));const s=f.querySelector("button");if(s)s.focus()}
+const DEMO_PIN={"admin": "1234", "direction": "0000", "superviseur": "1111", "caissier": "2222", "commercial": "3333", "preparateur": "4444", "livreur": "0001", "vendeur": "5555"};
 const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["superviseur","🏍️","Superviseur","Affecter, suivre les courses"],["commercial","📞","Commercial","Prendre les commandes"],["preparateur","📦","Préparateur","Préparer, étiqueter"],["caissier","💰","Caissier","Reversements, écarts"],["direction","📊","Direction","Tableau de bord, marges"],["livreur","🛵","Livreur","Mission, scan, carte, code"],["vendeur","🏪","Vendeur partenaire","Déposer ses commandes"]];
 function loginHTMLLocal(){
  const act=S.users.filter(u=>u.actif);
- const cards=DEMO_P.map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
- return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">Essayez sans rien installer</div><div class="mu sm">Choisissez un profil : vous entrez directement, avec des données d'exemple.</div>
+ const cards=DEMO_P.map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}" data-pin="${DEMO_PIN[r]||""}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
+ return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">Essayez sans rien installer</div><div class="mu sm">Choisissez un profil : utilisateur et PIN se remplissent, puis « Se connecter ».</div>
  <div class="pcards">${cards}</div>
  <details><summary class="mu sm" style="cursor:pointer">Connexion avec un code PIN</summary><form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${ROLES[u.role]}</option>`).join("")}</select></label>
  <label style="margin-top:10px">Code PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" required></label>
@@ -1536,7 +1539,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  carteFit:()=>carteFit(),carteFocus:id=>{const m=CARTE.mk[id];if(m&&CARTE.map){CARTE.map.setView(m.getLatLng(),16);m.openPopup()}else toast("Ce livreur n'a pas partagé sa position","err")},
  suiviLien:async id=>{const c=cmd(id);let link;if(CL.on){const t=await CL.rpc("creer_lien_suivi",{p_commande:id});link=location.href.split("#")[0].split("?")[0]+"#suivi="+t}else link=location.href.split("#")[0]+"#suivi="+id;suiviModal(c,link)},
  cpTxt:t=>{(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Lien copié","ok"),()=>prompt("Copiez ce lien :",t))},
- demoIn:id=>{const u=usr(id);if(!u||CL.on)return;ME=u;sessionStorage.setItem("angels_me",u.id);view=ME.role==="livreur"?view:"dashboard";audit("Connexion",u.nom);save();render()},
+ demoIn:(id,t)=>demoFill(t),
  tab:id=>{const[k,v]=id.split("|");ui[k]=v;render()},
  logout:()=>{if(CL.on){if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}return CL.logout()}if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}sessionStorage.removeItem("angels_me");ME=null;render()},
  closeModal,

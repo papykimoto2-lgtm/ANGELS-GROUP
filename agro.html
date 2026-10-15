@@ -10,6 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Angel's Agro"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>ANGEL'S AGRO — Élevage avicole</title>
+<script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="emeraude")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <style>
 :root{--b:#2d6a4f;--b2:#1a4731;--bg:#f3f8f4;--card:#fff;--tx:#15251c;--mu:#7a6a60;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d5e5da;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3e6}
 @media(prefers-color-scheme:dark){:root{--bg:#0f1a14;--card:#182a20;--tx:#e8f3ec;--mu:#9bb5a5;--bd:#2c4637;--okbg:#14351f;--wabg:#3d2e0c;--erbg:#431616;--bbg:#1e4030}}
@@ -57,6 +58,24 @@ label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8p
 .tabs button.on{color:var(--b);border-color:var(--b)}
 .note{background:var(--wabg);color:var(--wa);padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:12px}
 canvas{max-width:100%}
+:root{--b3:#40916c}
+/* Présentation de connexion et couleurs du logiciel (identiques à ANGEL'S Distributions) */
+html[data-theme=turquoise]{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6}html[data-theme=bleu]{--b:#1a3aa8;--b2:#0f2570;--b3:#2a55d6}html[data-theme=emeraude]{--b:#0f7b5f;--b2:#08523f;--b3:#17a67f}html[data-theme=orange]{--b:#c9500a;--b2:#7d3004;--b3:#f27a2c}html[data-theme=violet]{--b:#6a32c9;--b2:#3e1a85;--b3:#8a55e6}html[data-theme=or]{--b:#9a6f12;--b2:#15171d;--b3:#c8962a}
+@media(prefers-color-scheme:light){html[data-theme=turquoise]{--bbg:#dff3f8;--bg:#f1f6f8;--bd:#d6e4ea}html[data-theme=bleu]{--bbg:#e5ebfb;--bg:#f2f4fa;--bd:#dfe3f0}html[data-theme=emeraude]{--bbg:#e0f4ee;--bg:#f1f7f5;--bd:#d9e6e1}html[data-theme=orange]{--bbg:#fdebdd;--bg:#faf5f1;--bd:#ecdfd5}html[data-theme=violet]{--bbg:#eee6fb;--bg:#f6f3fb;--bd:#e4dcf2}html[data-theme=or]{--bbg:#f6edd8;--bg:#f5f4f1;--bd:#e6e2d8}}
+.login.hero{max-width:none;margin:0;padding:0;display:grid;grid-template-columns:1.05fr 1fr;min-height:100vh;background:none;border:0;box-shadow:none}
+.hero-l{background:linear-gradient(155deg,var(--b2) 0%,var(--b) 60%,var(--b3,var(--b)) 100%);color:#fff;padding:48px 40px;display:flex;flex-direction:column;justify-content:center;gap:18px}
+.hero-l h1{font-size:30px;line-height:1.15;margin:0;color:#fff}.hero-l p{margin:0;opacity:.88;font-size:15px}
+.hero-l ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}.hero-l li{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.hero-l li b{display:block;font-size:14px}.hero-l li span.i{font-size:20px;line-height:1.1}
+.hero-r{padding:40px 32px;display:flex;flex-direction:column;justify-content:center;background:var(--bg)}
+.pcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.pcard{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center;transition:.15s}
+.pcard.on{border-color:var(--b);box-shadow:0 0 0 2px var(--b)}
+.pcard:hover,.pcard:focus-visible{border-color:var(--b);box-shadow:0 4px 14px rgba(0,0,0,.12);transform:translateY(-1px)}
+.pcard .ic{font-size:22px}.pcard b{display:block;font-size:13px}.pcard small{color:var(--mu);font-size:11.5px}
+.themes{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.themes button{all:unset;cursor:pointer;width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--bd);transition:.15s}.themes button:hover{transform:scale(1.15)}.themes button.on{box-shadow:0 0 0 2px var(--tx)}
+aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;border-color:rgba(255,255,255,.5)}
+@media(max-width:760px){.login.hero{grid-template-columns:1fr}.hero-l{padding:28px 22px;min-height:0}.hero-l h1{font-size:23px}.hero-r{padding:22px 16px}.pcards{grid-template-columns:1fr}}
 @media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
 .ml{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}.ml>div{min-width:0}@media(max-width:860px){.ml{grid-template-columns:1fr}}.ml2{display:grid;grid-template-columns:1fr 220px;gap:14px}@media(max-width:700px){.ml2{grid-template-columns:1fr}}.lotcard{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}.lotcard.on{border-color:var(--b);box-shadow:0 0 0 2px var(--b) inset}.lotcard.clos{opacity:.6}.progres{height:8px;background:var(--bd);border-radius:99px;overflow:hidden}.progres div{height:100%;background:var(--b)}.albar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.score{--p:0;width:96px;height:96px;margin:10px auto;border-radius:50%;background:conic-gradient(var(--b) calc(var(--p)*1%),var(--bd) 0);display:grid;place-items:center}.score span{width:70px;height:70px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:800;font-size:22px}
 @media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none}body{background:#fff;color:#000}}
@@ -1177,7 +1196,7 @@ A["us.pin"]=id=>form("Réinitialiser le PIN",[{k:"pin",l:"Nouveau PIN (4 chiffre
 A["us.tg"]=id=>{if(atomic(()=>{need("users");const u=by(S.users,id);if(u.id===ME.id)throw new Error("Impossible de se désactiver soi-même.");u.actif=!u.actif;audit("Compte "+(u.actif?"activé":"désactivé"),u.nom)}))render()};
 const PARAMS=[["seuil_mort_jour","Alerte mortalité du jour (% de l'effectif)"],["seuil_mort_cum","Alerte mortalité cumulée (%)"],["seuil_ponte","Taux de ponte minimal (%)"],["ic_max","Indice de consommation maximal (chair)"],["delai_creance","Délai de créance client (jours)"],["plateau","Œufs par plateau"],["prix_plateau","Prix du plateau pour valoriser la ponte (F)"],["max_pj_ko","Taille max pièces jointes (Ko)"]];
 V.params=()=>{const t=tabOf("par","p");let h=head("Paramétrage")+tabs("par",[["p","Seuils et prix"],["pro","Protocoles sanitaires"],["bk","Sauvegarde"]]);
- if(t==="p")h+=(can("param")?`<p><button class="btn" data-a="par.edit">Modifier</button></p>`:"")+tbl(["Paramètre","Valeur"],PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])));
+ if(t==="p")h+=(can("param")?`<p><button class="btn" data-a="par.edit">Modifier</button> <button class="btn ghost" data-a="demo.tg">Accès démo par profil : ${demoOK()?"activé":"désactivé"}</button></p>`:"")+tbl(["Paramètre","Valeur"],PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])));
  if(t==="pro")h+=(can("param")?`<p><button class="btn" data-a="pro.add">+ Soin au protocole</button></p>`:"")+`<div class="note">Le protocole est copié dans le calendrier à la création de chaque lot (les lots existants ne changent pas).</div>`+tbl(["Type","Âge (jour)","Soin","Produit requis",""],S.protocoles.map((p,i)=>tr([LOTTYPE[p.type],"J"+p.age,esc(p.action),esc(p.produit||"—")+" <span class=\"mu sm\">("+esc(p.unite||"dose")+")</span>",can("param")?btn("pro.del",i,"Retirer","er"):""])));
  if(t==="bk")h+=`<div class="card"><p>Données locales : <b>${Math.round(JSON.stringify(S).length/1024)} Ko</b> (limite navigateur ≈ 5 000 Ko : backend Supabase requis pour la production).</p><div class="flex"><button class="btn" data-a="bk.exp">Exporter une sauvegarde</button>${can("param")?`<input type="file" id="bkf" accept="application/json" style="width:auto"><button class="btn ghost" data-a="bk.imp">Restaurer</button>`:""}<button class="btn ghost" data-a="bk.chk">Contrôle d'intégrité</button></div></div>`;
  return h};
@@ -1193,19 +1212,38 @@ const showNav=n=>n.r.includes(ME.role);
 function login(id,pin){
  const u=by(S.users,id);if(!u)return"Compte inconnu.";const t=S.tries[u.id]||{n:0,until:0};
  if(Date.now()<t.until)return"Compte bloqué 1 minute (trop de tentatives).";if(!u.actif)return"Compte désactivé.";
- if(u.h===hashPin(u.id,pin)){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("ag_me",u.id)}catch(x){}view="dash";atomic(()=>audit("Connexion"),true);return null}
+ if(u.h===hashPin(u.id,pin)){ouvrirSession(u,false);return null}
  t.n++;if(t.n>=5){t.until=Date.now()+6e4;t.n=0}S.tries[u.id]=t;try{save()}catch(e){}return"PIN incorrect.";
 }
+/* ---------- Connexion : présentation, accès par profil, couleurs du logiciel ---------- */
+const THEMES=[["turquoise","Turquoise","#0e7490"],["bleu","Bleu","#1a3aa8"],["emeraude","Vert émeraude","#0f7b5f"],["orange","Orange énergie","#c9500a"],["violet","Violet","#6a32c9"],["or","Nuit & or","#15171d"]],THEME_DEF="emeraude";
+const themeCur=()=>document.documentElement.dataset.theme||THEME_DEF;
+const themeDots=()=>`<div class="themes" title="Couleur du logiciel">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-a="theme" data-id="${k}" aria-label="${t}" title="${t}"></button>`).join("")}</div>`;
+function setTheme(k){if(!THEMES.some(t=>t[0]===k))return;if(k===THEME_DEF)delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{localStorage.setItem("angels_theme",k)}catch(e){}const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue("--b").trim()}
+A.theme=k=>{setTheme(k);render()};
+const demoOK=()=>S.settings.acces_demo!==false;
+const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">ANGEL'S GROUP</div><h1>Chaque lot suivi, chaque œuf compté, chaque franc tracé.</h1><p>Le logiciel de gestion de votre élevage avicole — du poussin à la vente.</p><ul><li><span class="i">🐔</span><div><b>Suivi quotidien des lots</b>Mortalité, aliment, eau, poids et ponte jour par jour.</div></li><li><span class="i">💉</span><div><b>Prophylaxie et délai d'attente</b>Calendrier vaccinal, traitements, vente bloquée si nécessaire.</div></li><li><span class="i">🥚</span><div><b>Couvoir et conditionnement</b>Œufs bruts, plateaux, cartons par calibre.</div></li><li><span class="i">🌽</span><div><b>Aliments et stock</b>Fabrication, coût moyen pondéré, inventaires.</div></li><li><span class="i">🧾</span><div><b>Ventes, créances et SYSCOHADA</b>Encaissements, relances, comptabilité en partie double.</div></li></ul></div>`;
+function demoFill(b){const f=document.getElementById("lf");if(!f)return;const d=f.closest("details");if(d)d.open=true;f.u.value=b.dataset.id;(f.p||f.pin).value=b.dataset.pin||"";document.querySelectorAll(".pcard").forEach(c=>c.classList.toggle("on",c===b));const s=f.querySelector("button");if(s)s.focus()}
+const DEMO_PIN={"admin": "1234", "direction": "0000", "chef": "1111", "soigneur": "2222", "magasinier": "3333", "commercial": "4444", "caissier": "5555", "comptable": "6666"};
+const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["direction","📊","Direction","Tableau de bord, validations"],["chef","🧑‍🌾","Chef d'exploitation","Lots, santé, couvoir"],["soigneur","🐔","Soigneur","Suivi quotidien, soins"],["magasinier","📦","Magasinier","Stock, achats, aliments"],["commercial","📞","Commercial","Ventes, clients"],["caissier","💰","Caissier","Encaissements, caisse"],["comptable","📒","Comptable","Comptabilité, états"]];
+function ouvrirSession(u,demo){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("ag_me",u.id)}catch(x){}view="dash";atomic(()=>audit(demo?"Connexion (accès démo)":"Connexion"),true)}
+function loginHTML(){
+ const act=S.users.filter(u=>u.actif),demo=demoOK(),cards=DEMO_P.map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-a="demoIn" data-id="${u.id}" data-pin="${DEMO_PIN[r]||""}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
+ const form=`<form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${esc(ROLES[u.role])}</option>`).join("")}</select></label><label style="margin-top:10px">Code PIN<input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required></label><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Se connecter</button><p class="mu sm">PIN oublié ? Demander la réinitialisation à l'administrateur.</p></form>`;
+ return `<div class="login hero">${HERO}<div class="hero-r">${demo?`<div style="font-size:20px;font-weight:800;color:var(--b2)">Essayez sans rien installer</div><div class="mu sm">Choisissez un profil : utilisateur et PIN se remplissent, puis « Se connecter ».</div><div class="pcards">${cards}</div><details><summary class="mu sm" style="cursor:pointer">Connexion avec un code PIN</summary>${form}<div class="al warn sm" style="margin-top:10px">PIN : admin 1234 · direction 0000 · chef 1111 · soigneur 2222 · magasinier 3333 · commercial 4444 · caissier 5555 · comptable 6666.</div></details>`:`<div style="font-size:20px;font-weight:800;color:var(--b2)">Connexion</div><div class="mu sm">Saisissez votre code PIN personnel.</div>${form}`}<div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div>${pwaBtn()?`<p style="margin-top:14px">${pwaBtn()}</p>`:""}<p class="mu sm" style="margin-top:10px"><a href="index.html">← Accueil ANGEL'S GROUP</a>${demo?" · 💡 Ouvrez un second onglet pour jouer un autre profil pendant que vous gérez.":""}</p></div></div>`;
+}
+A.demoIn=(id,t)=>demoFill(t);
+A["demo.tg"]=()=>{if(atomic(()=>{need("param");S.settings.acces_demo=!demoOK();audit("Accès démo par profil",demoOK()?"activé":"désactivé")})!==false)render()};
 function render(){
  const app=$("#app");
  if(!ME){
-  app.innerHTML=`<div class="login card"><h1>🐔 ANGEL'S AGRO</h1><p class="mu sm" style="margin-top:-8px">Élevage avicole</p><form id="lf"><label>Compte</label><select name="u">${S.users.filter(u=>u.actif).map(u=>`<option value="${u.id}">${esc(u.nom)} (${esc(ROLES[u.role])})</option>`).join("")}</select><label>PIN</label><input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Connexion</button></form><p class="mu sm">PIN oublié ? Demander la réinitialisation à l'administrateur.</p><p class="mu sm">Démo — admin 1234 · direction 0000 · chef 1111 · soigneur 2222 · magasinier 3333 · commercial 4444 · caissier 5555 · comptable 6666</p>${pwaBtn()?`<p>${pwaBtn()}</p>`:""}<p><a href="index.html">← Hub</a></p></div>`;
+  app.innerHTML=loginHTML();
   $("#lf").onsubmit=e=>{e.preventDefault();const r=login(e.target.u.value,e.target.p.value);if(r)$("#le").textContent=r;else render()};return;
  }
  const items=NAV.filter(showNav);if(!items.some(n=>n.v===view))view=items[0].v;
  let g="",nav="";items.forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
  let body;try{body=V[view]()}catch(e){body=`<div class="card"><b>Erreur d'affichage</b><p>${esc(e.message)}</p></div>`}
- app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🐔 ANGEL'S AGRO<small>Élevage avicole</small></div>${nav}<a href="index.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}<a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🐔 ANGEL'S AGRO<small>Élevage avicole</small></div>${nav}<a href="index.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
 }
 A.out=()=>{atomic(()=>audit("Déconnexion"),true);ME=null;try{sessionStorage.removeItem("ag_me")}catch(x){}render()};A.bg=()=>$("#sb").classList.toggle("open");
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t||!S||t.tagName==="INPUT")return;const fn=A[t.dataset.a];if(fn){e.preventDefault();fn(t.dataset.id,t,e)}});
