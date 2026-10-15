@@ -667,15 +667,98 @@ A["od.new"]=()=>{
   box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.dataset.k==="compte"?e.value:(+e.value||0);draw()});
   $("#sv",box).onclick=()=>{keep();if(atomic(()=>saisirOD({date:box.dataset.dt,piece:box.dataset.pc,libelle:box.dataset.lb,lignes:L.filter(l=>l.compte).map(l=>({compte:l.compte,debit:+l.debit||0,credit:+l.credit||0}))}))!==false){m.remove();render()}};};draw();
 };
-/* ---- Rapports ---- */
-function rapportJour(d){
- const en=S.lots.filter(l=>l.statut==="en_cours"),sv=S.suivis.filter(x=>x.date===d),L=[`ANGEL'S AGRO — Rapport du ${fd(d)}`,`Lots en cours : ${en.length} · sujets vivants : ${nf(sum(en,l=>vivantsLot(l)))}`,`Mortalité du jour : ${sum(sv,x=>x.morts)} · Œufs : ${nf(sum(sv,x=>x.oeufs))} (casses ${sum(sv,x=>x.casses)}) · Aliment : ${nf(sum(sv,x=>x.aliment_kg),1)} kg`];
- en.forEach(l=>{const s=lotStats(l);L.push(`• ${l.code} ${l.nom} — J${s.age}, ${nf(s.vivants)} vivants, mortalité cumulée ${nf(s.mortPct,1)} %${l.type==="ponte"&&s.tp!=null?", ponte "+nf(s.tp,1)+" %":""}${l.type==="chair"&&s.IC?", IC "+nf(s.IC,2):""}`)});
- L.push(`Ventes du jour : ${fcfa(sum(S.ventes.filter(v=>v.statut==="valide"&&v.date===d),v=>v.total))} · Encaissé : ${fcfa(sum(S.encaiss.filter(e=>e.statut==="valide"&&e.date===d),e=>e.montant))}`,`Trésorerie : caisse ${fcfa(soldeCompte("571"))}, banque ${fcfa(soldeCompte("521"))}`);
- const al=alertes().filter(a=>a.er);if(al.length){L.push("Alertes critiques :");al.slice(0,8).forEach(a=>L.push("⚠ "+a.t))}return L.join("\n");
+/* ---- Rapports : états périodiques, impression, envois (même module qu'AvicoSuite) ---- */
+const RAP_ETATS=[["production","🐔","Production","Lots · Œufs · Mortalité · Aliments","#1f7a3a","ÉTAT DE PRODUCTION"],["mortalite","☠️","Mortalité","Par lot · Par cause · Détail chronologique","#c1121f","SUIVI DE MORTALITÉ PÉRIODIQUE"],["stocks","📦","Stocks","Inventaire · Entrées/Sorties · Alertes","#534AB7","ÉTAT DES STOCKS"],["appro","🚚","Approvisionnement","Bons de commande · Fournisseurs · Règlements","#ea580c","ÉTAT D'APPROVISIONNEMENT"],["finance","💰","Finance","Produits · Charges · Résultat · Trésorerie","#059669","ÉTAT FINANCIER"],["commercial","🛒","Commercial","Ventes · Clients · Créances","#b45309","ÉTAT COMMERCIAL"],["bilan","📊","Bilan complet","Tous modules · Synthèse direction","#14532d","BILAN COMPLET"]];
+const RAP_PER=[["aujourdhui","Auj."],["semaine","7 jours"],["mois","Ce mois"],["trimestre","Trim."],["annee","Année"]];
+const rapF=()=>{const f=UI.f.rap||(UI.f.rap={});if(!f.min)f.min=today().slice(0,7)+"-01";if(!f.max)f.max=today();if(f.lot===undefined)f.lot="";return f};
+const rapPeriode=p=>{const td=today(),m=+td.slice(5,7);return p==="aujourdhui"||p==="jour"?[td,td]:p==="semaine"?[addDays(td,-6),td]:p==="mois"?[td.slice(0,7)+"-01",td]:p==="trimestre"?[td.slice(0,5)+String(Math.floor((m-1)/3)*3+1).padStart(2,"0")+"-01",td]:[td.slice(0,4)+"-01-01",td]};
+const etK=a=>`<div class="kpis">${a.map(([v,l])=>`<div class="kpi-box"><div class="kpi-val">${v}</div><div class="kpi-lbl">${esc(l)}</div></div>`).join("")}</div>`;
+const etT=(t,cols,rows)=>`<div class="section"><div class="section-title">${esc(t)}</div><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.map(r=>"<tr>"+r.map(x=>`<td>${x}</td>`).join("")+"</tr>").join(""):`<tr><td colspan="${cols.length}" style="text-align:center;color:#888">Aucune donnée sur la période</td></tr>`}</tbody></table></div>`;
+function etatCorps(type,min,max,lotId){
+ const inP=d=>d>=min&&d<=max,lots=S.lots.filter(l=>!lotId||l.id===lotId),sv=l=>S.suivis.filter(x=>x.lot_id===l.id&&inP(x.date));
+ if(type==="production"){
+  const R=lots.map(l=>{const ds=sv(l),s=lotStats(l),oe=sum(ds,x=>x.oeufs),ca=sum(ds,x=>x.casses),tp=l.type==="ponte"&&ds.length&&s.vivants>0?oe/(ds.length*s.vivants)*100:null;return{l,s,ds,m:sum(ds,x=>x.morts),al:sum(ds,x=>x.aliment_kg),ea:sum(ds,x=>x.eau_l),oe,ca,tp}}).filter(r=>r.ds.length||r.l.statut==="en_cours");
+  const so=S.sorties.filter(x=>!x.annule&&inP(x.date)&&(!lotId||x.lot_id===lotId));
+  return etK([[nf(R.filter(r=>r.l.statut==="en_cours").length),"Lots en cours"],[nf(sum(R,r=>r.oe)),"Œufs produits"],[nf(sum(R,r=>r.al),1)+" kg","Aliment consommé"],[nf(sum(R,r=>r.m)),"Mortalité (sujets)"]])+
+   etT("Production par lot",["Lot","Type","Âge","Vivants","Morts","Aliment (kg)","Eau (L)","Œufs","Casses","Ponte %","IC"],R.map(r=>[esc(r.l.code+" — "+r.l.nom),LOTTYPE[r.l.type],"J"+r.s.age,nf(r.s.vivants),nf(r.m),nf(r.al,1),nf(r.ea),nf(r.oe),nf(r.ca),r.tp!=null?nf(r.tp,1):"—",r.l.type==="chair"&&r.s.IC?nf(r.s.IC,2):"—"]))+
+   etT("Sorties de sujets (ventes, réformes)",["Date","Lot","Type","Têtes","Poids (kg)"],so.map(x=>[fd(x.date),esc(lot(x.lot_id).code),esc(x.type),nf(x.tetes),nf(x.poids_kg,1)]));
+ }
+ if(type==="mortalite"){
+  const ds=lots.flatMap(l=>sv(l).map(x=>({...x,l})));const morts=ds.filter(x=>x.morts>0),cause={};morts.forEach(x=>{const c=x.cause||"Non précisée";cause[c]=(cause[c]||0)+x.morts});
+  const R=lots.map(l=>{const s=lotStats(l),m=sum(sv(l),x=>x.morts);return{l,s,m}}).filter(r=>r.m>0||r.l.statut==="en_cours"),ini=sum(R,r=>r.l.initial),tm=sum(R,r=>r.m);
+  return etK([[nf(tm),"Morts sur la période"],[ini?nf(tm/ini*100,2)+" %":"—","Taux (effectif initial)"],[nf(R.filter(r=>r.s.mortPct>S.settings.seuil_mort_cum).length),"Lots au-dessus du seuil"],[nf(morts.length),"Jours avec mortalité"]])+
+   etT("Mortalité par lot",["Lot","Effectif initial","Morts (période)","% période","Cumul","% cumulé"],R.map(r=>[esc(r.l.code+" — "+r.l.nom),nf(r.l.initial),nf(r.m),nf(r.l.initial?r.m/r.l.initial*100:0,2)+" %",nf(r.s.morts),nf(r.s.mortPct,2)+" %"]))+
+   etT("Par cause",["Cause","Morts"],Object.entries(cause).sort((a,b)=>b[1]-a[1]).map(([c,n])=>[esc(c),nf(n)]))+
+   etT("Détail chronologique",["Date","Lot","Morts","Cause"],morts.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>[fd(x.date),esc(x.l.code),nf(x.morts),esc(x.cause||"—")]));
+ }
+ if(type==="stocks"){
+  const R=S.produits.map(p=>{const q=qteStock(p.id),mv=S.mvts.filter(m=>m.produit_id===p.id&&inP(m.date));return{p,q,v:q*pmp(p.id),e:sum(mv.filter(m=>m.sens==="entree"),m=>m.qte),s:sum(mv.filter(m=>m.sens==="sortie"),m=>m.qte),bas:p.seuil>0&&q<=p.seuil}});
+  return etK([[fcfa(sum(R,r=>r.v)),"Valeur du stock"],[nf(R.length),"Références"],[nf(R.filter(r=>r.bas).length),"Sous le seuil"],[nf(S.mvts.filter(m=>inP(m.date)).length),"Mouvements (période)"]])+
+   etT("Inventaire et mouvements",["Code","Produit","Catégorie","Stock","Unité","Coût moyen","Valeur","Entrées","Sorties","État"],R.map(r=>[esc(r.p.code),esc(r.p.nom),CATP[r.p.categorie]||"",nf(r.q,2),esc(r.p.unite),fcfa(pmp(r.p.id)),fcfa(r.v),nf(r.e,2),nf(r.s,2),r.bas?"<b style='color:#c1121f'>À réapprovisionner</b>":"OK"]));
+ }
+ if(type==="appro"){
+  const A_=S.achats.filter(a=>inP(a.date)&&a.statut!=="annule"),rg=S.reglements.filter(r=>inP(r.date)),rest=a=>a.total-sum(S.reglements.filter(r=>r.achat_id===a.id),r=>r.montant);
+  return etK([[nf(A_.length),"Bons de commande"],[fcfa(sum(A_,a=>a.total)),"Montant commandé"],[fcfa(sum(rg,r=>r.montant)),"Règlements (période)"],[fcfa(-soldeCompte("401")),"Dette fournisseurs"]])+
+   etT("Bons de commande",["N°","Date","Fournisseur","Total","Réglé","Reste","Statut"],A_.map(a=>[esc(a.numero),fd(a.date),esc(tiers("f",a.fournisseur_id).nom),fcfa(a.total),fcfa(a.total-rest(a)),fcfa(a.statut==="recu"?rest(a):0),a.statut==="recu"?"Reçu":"En commande"]))+
+   etT("Règlements fournisseurs",["N°","Date","Bon","Montant","Mode","Réf."],rg.map(r=>[esc(r.numero),fd(r.date),esc((by(S.achats,r.achat_id)||{}).numero),fcfa(r.montant),esc(r.mode),esc(r.ref)]));
+ }
+ if(type==="finance"){
+  const E=S.entries.filter(e=>inP(e.date)).flatMap(e=>e.lignes),pr=sum(E.filter(l=>/^7/.test(l.compte)),l=>(l.credit||0)-(l.debit||0)),ch=sum(E.filter(l=>/^6/.test(l.compte)),l=>(l.debit||0)-(l.credit||0)),enc=sum(S.encaiss.filter(e=>e.statut==="valide"&&inP(e.date)),e=>e.montant);
+  const C=S.charges.filter(c=>c.statut==="valide"&&inP(c.date)&&(!lotId||c.lot_id===lotId)),par={};C.forEach(c=>{const k=(CHARGES[c.categorie]||[c.categorie])[0];par[k]=(par[k]||0)+c.montant});
+  return etK([[fcfa(pr),"Produits"],[fcfa(ch),"Charges"],[fcfa(pr-ch),"Résultat"],[fcfa(soldeCompte("571")+soldeCompte("521")),"Trésorerie actuelle"]])+
+   etT("Synthèse",["Poste","Montant"],[["Produits comptabilisés (classe 7)",fcfa(pr)],["Charges comptabilisées (classe 6)",fcfa(ch)],["<b>Résultat de la période</b>","<b>"+fcfa(pr-ch)+"</b>"],["Encaissements clients",fcfa(enc)],["Caisse",fcfa(soldeCompte("571"))],["Banque",fcfa(soldeCompte("521"))]])+
+   etT("Charges d'exploitation par nature",["Nature","Montant"],Object.entries(par).sort((a,b)=>b[1]-a[1]).map(([k,m])=>[esc(k),fcfa(m)]));
+ }
+ if(type==="commercial"){
+  const V=S.ventes.filter(v=>v.statut==="valide"&&inP(v.date)),cl={};V.forEach(v=>{const c=tiers("c",v.client_id).nom;cl[c]=(cl[c]||0)+v.total});
+  const cre=S.clients.map(c=>({c,s:soldeClient(c.id)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
+  return etK([[nf(V.length),"Ventes"],[fcfa(sum(V,v=>v.total)),"Chiffre d'affaires"],[fcfa(sum(S.encaiss.filter(e=>e.statut==="valide"&&inP(e.date)),e=>e.montant)),"Encaissé"],[fcfa(sum(cre,x=>x.s)),"Créances clients"]])+
+   etT("Ventes",["N°","Date","Client","Total","Encaissé","Reste"],V.map(v=>[esc(v.numero),fd(v.date),esc(tiers("c",v.client_id).nom),fcfa(v.total),fcfa(v.total-soldeVente(v)),fcfa(soldeVente(v))]))+
+   etT("Chiffre d'affaires par client",["Client","CA"],Object.entries(cl).sort((a,b)=>b[1]-a[1]).map(([c,m])=>[esc(c),fcfa(m)]))+
+   etT("Créances clients ouvertes",["Client","Solde dû"],cre.map(x=>[esc(x.c.nom),fcfa(x.s)]));
+ }
+ if(type==="bilan")return["production","mortalite","stocks","appro","finance","commercial"].map(t=>`<h3 class="etat-tit">${RAP_ETATS.find(e=>e[0]===t)[1]} ${RAP_ETATS.find(e=>e[0]===t)[2]}</h3>`+etatCorps(t,min,max,lotId)).join("");
+ return "";
 }
-V.rapports=()=>{const d=(UI.f.rap||(UI.f.rap={d:today()})).d,txt=rapportJour(d);return head("Rapports")+`<div class="card"><label>Date</label><input type="date" data-f="rap:d" value="${d}" max="${today()}" style="width:auto"><pre style="white-space:pre-wrap;font:inherit;margin:12px 0">${esc(txt)}</pre><div class="flex"><a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=${encodeURIComponent(txt)}">Envoyer par WhatsApp</a><button class="btn ghost" data-a="rp.print">Imprimer</button></div></div><h2>Exports</h2><div class="flex">${csvBtn("lots")}${csvBtn("stock")}${csvBtn("charges")}${csvBtn("ecritures")}</div>`};
-A["rp.print"]=()=>modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><pre style="white-space:pre-wrap;font:inherit">${esc(rapportJour(UI.f.rap.d))}</pre>`);
+const rapTitre=t=>(RAP_ETATS.find(e=>e[0]===t)||[])[5]||"ÉTAT PÉRIODIQUE";
+const rapEnt=(min,max)=>"Période : "+fd(min)+" au "+fd(max);
+function etatTexte(type,min,max,lotId){
+ const h=etatCorps(type,min,max,lotId).replace(/<\/tr>/g,"\n").replace(/<\/t[hd]>/g,"  ").replace(/<\/(div|h3)>/g,"\n").replace(/<br\s*\/?>/g,"\n").replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+ return "*"+rapTitre(type)+"*\nANGEL'S AGRO\n"+rapEnt(min,max)+"\n━━━━━━━━━━━━━━━━\n"+h.split("\n").map(l=>l.replace(/[ \t]+/g," ").trim()).filter(Boolean).join("\n");
+}
+const ETAT_CSS="*{box-sizing:border-box;margin:0;padding:0}body{background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;line-height:1.5}.doc{max-width:210mm;margin:0 auto;padding:10mm 12mm}.hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #1a5c2a;padding-bottom:12px;margin-bottom:14px}.hdr-left{font-size:10px;color:#555;line-height:1.8}.hdr-right{text-align:right}.doc-type{font-size:20px;font-weight:800;color:#1a5c2a}.periode{font-size:11px;color:#555;margin-top:4px}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}.kpi-box{background:#f8faf8;border:1px solid #c8e6d0;border-radius:8px;padding:10px;text-align:center}.kpi-val{font-size:18px;font-weight:800;color:#1a5c2a}.kpi-lbl{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}.section{margin-bottom:16px}.section-title{font-size:12px;font-weight:800;color:#1a5c2a;text-transform:uppercase;border-left:3px solid #1a5c2a;padding-left:8px;margin-bottom:8px}.etat-tit{font-size:15px;color:#1a5c2a;margin:18px 0 8px;border-bottom:1px solid #c8e6d0}table{width:100%;border-collapse:collapse;margin-bottom:12px}thead th{background:#1a5c2a;color:#fff;padding:7px 9px;font-size:10px;text-align:left;text-transform:uppercase}tbody td{padding:6px 9px;border-bottom:1px solid #e5e7eb;font-size:11px}tbody tr:nth-child(even){background:#f9fafb}.foot{margin-top:18px;border-top:1px solid #ddd;padding-top:8px;font-size:9px;color:#777;display:flex;justify-content:space-between}.bar{background:#1a5c2a;color:#fff;padding:8px 14px;display:flex;justify-content:space-between;align-items:center}.bar button{background:#fff;color:#1a5c2a;border:0;border-radius:6px;padding:7px 14px;font-weight:700;cursor:pointer}@media print{.bar{display:none}.doc{padding:0}@page{size:A4;margin:12mm}}";
+function etatDoc(type,min,max,lotId,titre){
+ const lt=lotId?(by(S.lots,lotId)||{}):null;
+ return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${esc(titre||rapTitre(type))} — ${fd(min)} au ${fd(max)}</title><style>${ETAT_CSS}</style></head><body><div class="bar"><span>📄 Aperçu avant impression</span><button onclick="window.print()">🖨️ Imprimer</button></div><div class="doc"><div class="hdr"><div class="hdr-left"><div style="font-size:22px;font-weight:800;color:#1a5c2a">ANGEL'S AGRO</div>Élevage avicole · Abidjan, Côte d'Ivoire<br>Édité par ${esc(ME?ME.nom:"")} le ${new Date().toLocaleString("fr-FR")}</div><div class="hdr-right"><div class="doc-type">${esc(titre||rapTitre(type))}</div><div class="periode">${esc(rapEnt(min,max))}${lt?"<br>Lot : "+esc(lt.code+" — "+lt.nom):""}</div></div></div>${etatCorps(type,min,max,lotId)}<div class="foot"><span>ANGEL'S AGRO — document généré automatiquement</span><span>Montants en FCFA</span></div></div></body></html>`;
+}
+function rapOuvre(html){const w=window.open("","_blank","width=960,height=750");if(!w){alert("Autoriser les pop-ups pour imprimer.");return}w.document.write(html);w.document.close()}
+function rapWA(txt,tel){const n=String(tel||"").replace(/[^\d]/g,"");window.open("https://wa.me/"+n+"?text="+encodeURIComponent(txt),"_blank","noopener,noreferrer")}
+function rapMail(txt,to,sujet){location.href="mailto:"+encodeURIComponent(to||"")+"?subject="+encodeURIComponent(sujet)+"&body="+encodeURIComponent(txt)}
+const RAP_PERIODES={jour:["Rapport journalier","📅","Activité du jour"],semaine:["Rapport hebdomadaire","📆","7 derniers jours"],mois:["Rapport mensuel","🗓️","Mois en cours"],annee:["Rapport annuel","📈","Année en cours"]};
+const rapCfg=()=>S.settings.rapport||(S.settings.rapport={whatsapp:"",email:"",nom:"ANGEL'S AGRO"});
+V.rapports=()=>{
+ const f=rapF(),t=tabOf("rap","etats"),cfg=rapCfg();
+ let h=head("États périodiques & Impression")+tabs("rap",[["etats","🖨️ États & Impression"],["envoi","📨 Rapports & Envoi"]]);
+ if(t==="etats"){
+  h+=`<div class="card"><h2 style="margin-top:0">📅 Période</h2><div class="flex" style="margin-bottom:8px">${RAP_PER.map(([i,l])=>btn("rp.per",i,i==="annee"?l+" "+today().slice(0,4):l,"ghost")).join("")}</div><div class="flex"><div><label>Du</label><input type="date" data-f="rap:min" value="${f.min}" max="${today()}"></div><div><label>Au</label><input type="date" data-f="rap:max" value="${f.max}" max="${today()}"></div><div><label>Lot (optionnel)</label><select data-f="rap:lot">${opt(lotsOpts(true),f.lot,"— Tous les lots —")}</select></div></div></div>
+  <div class="grid">${RAP_ETATS.map(([k,ic,nm,ds,co])=>`<div class="card" style="border-left:4px solid ${co};margin:0"><div style="font-weight:700">${ic} ${nm}</div><div class="mu sm" style="margin:2px 0 10px">${ds}</div><div class="flex"><button class="btn sm" style="background:${co}" data-a="rp.imp" data-id="${k}">🖨 Imprimer</button><button class="btn sm ghost" data-a="rp.vue" data-id="${k}" title="Afficher ici">👁</button><button class="btn sm" style="background:#25D366" data-a="rp.wa" data-id="${k}" title="Envoyer par WhatsApp">WhatsApp</button></div></div>`).join("")}</div>
+  <div id="etatInline" style="margin-top:14px">${UI.rapVue?etatInlineHtml(UI.rapVue):""}</div><h2>Exports</h2><div class="flex">${csvBtn("lots")}${csvBtn("stock")}${csvBtn("charges")}${csvBtn("ecritures")}</div>`;
+ }else{
+  h+=`<div class="card"><h2 style="margin-top:0">📋 Générer & envoyer un rapport</h2><div class="grid">${Object.entries(RAP_PERIODES).map(([k,[l,ic,sub]])=>`<div class="card" style="margin:0;text-align:center"><div style="font-size:26px">${ic}</div><div style="font-weight:700">${l}</div><div class="mu sm" style="margin-bottom:8px">${sub}</div><div class="flex" style="justify-content:center"><button class="btn sm" style="background:#25D366" data-a="rp.send" data-id="${k}:wa">WhatsApp</button><button class="btn sm ghost" data-a="rp.send" data-id="${k}:mail">Email</button><button class="btn sm ghost" data-a="rp.send" data-id="${k}:vue">Aperçu</button></div></div>`).join("")}</div></div>
+  <div class="card"><h2 style="margin-top:0">⚙️ Destinations</h2><div class="flex"><div><label>WhatsApp</label><input id="rpWa" type="tel" placeholder="+225XXXXXXXXXX" value="${esc(cfg.whatsapp)}"></div><div><label>Email</label><input id="rpMail" type="email" placeholder="directeur@…" value="${esc(cfg.email)}"></div><div><label>Nom exploitation</label><input id="rpNom" value="${esc(cfg.nom)}"></div></div>${can("param")?`<p><button class="btn" data-a="rp.cfg">Enregistrer</button></p>`:`<p class="mu sm">Modification réservée à l'administration.</p>`}<p class="mu sm">Envoi automatique programmé : indisponible hors serveur (application locale) — les envois se déclenchent d'ici, d'un clic.</p></div>`;
+ }
+ return h;
+};
+function etatInlineHtml(k){const f=rapF();return `<div class="card"><div class="between"><h2 style="margin:0">${rapTitre(k)} — ${fd(f.min)} au ${fd(f.max)}</h2><div class="flex"><button class="btn sm" data-a="rp.imp" data-id="${k}">🖨 Imprimer</button><button class="btn sm" style="background:#25D366" data-a="rp.wa" data-id="${k}">WhatsApp</button><button class="btn sm ghost" data-a="rp.fer">✕</button></div></div><style>.etat-inline-corps .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:10px 0}.etat-inline-corps .kpi-box{border:1px solid var(--bd,#c8e6d0);border-radius:8px;padding:8px;text-align:center}.etat-inline-corps .kpi-val{font-weight:800;font-size:16px}.etat-inline-corps .kpi-lbl{font-size:10px;opacity:.7;text-transform:uppercase}.etat-inline-corps table{width:100%;border-collapse:collapse;margin-bottom:10px}.etat-inline-corps th,.etat-inline-corps td{padding:5px 8px;border-bottom:1px solid #8883;text-align:left;font-size:12px}.etat-inline-corps .section-title{font-weight:800;margin:10px 0 4px}.etat-inline-corps .etat-tit{margin:14px 0 6px}</style><div class="etat-inline-corps tw">${etatCorps(k,f.min,f.max,f.lot)}</div></div>`}
+A["rp.per"]=id=>{const f=rapF(),[a,b]=rapPeriode(id);f.min=a;f.max=b;render()};
+A["rp.vue"]=id=>{UI.rapVue=id;render()};A["rp.fer"]=()=>{UI.rapVue=null;render()};
+A["rp.imp"]=id=>{const f=rapF();rapOuvre(etatDoc(id,f.min,f.max,f.lot))};
+A["rp.wa"]=id=>{const f=rapF();rapWA(etatTexte(id,f.min,f.max,f.lot),rapCfg().whatsapp)};
+A["rp.send"]=v=>{const[p,c]=v.split(":"),[a,b]=rapPeriode(p),n=RAP_PERIODES[p][0],cfg=rapCfg();
+ if(c==="vue")return rapOuvre(etatDoc("bilan",a,b,"",n.toUpperCase()));
+ const txt=etatTexte("bilan",a,b,"").replace(/^\*[^\n]*\*/,"*"+n.toUpperCase()+"*");
+ if(c==="wa")rapWA(txt,cfg.whatsapp);else{const to=cfg.email||prompt("Adresse email :");if(to)rapMail(txt,to,n+" — "+cfg.nom)}};
+A["rp.cfg"]=()=>{try{need("param");const c=rapCfg();c.whatsapp=$("#rpWa").value.trim();c.email=$("#rpMail").value.trim();c.nom=$("#rpNom").value.trim()||"ANGEL'S AGRO";if(c.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email))throw new Error("Email invalide.");if(c.whatsapp&&!/^\+?[\d\s]{8,16}$/.test(c.whatsapp))throw new Error("Numéro WhatsApp invalide.");audit("Destinations des rapports","modifiées");save();alert("Enregistré.")}catch(e){alert(e.message)}};
 /* ---- Administration ---- */
 V.users=()=>{const t=tabOf("users","u");let h=head("Utilisateurs & audit",t==="u"?`<button class="btn" data-a="us.add">+ Utilisateur</button>`:"")+tabs("users",[["u","Utilisateurs"],["a","Journal d'audit"]]);
  if(t==="u")return h+tbl(["Nom","Rôle","État",""],S.users.map(u=>tr([esc(u.nom),esc(ROLES[u.role]),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),`<div class="flex">${btn("us.pin",u.id,"Réinitialiser le PIN","ghost")}${u.id!==ME.id?btn("us.tg",u.id,u.actif?"Désactiver":"Activer","ghost"):""}</div>`])));

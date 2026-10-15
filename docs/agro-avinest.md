@@ -14,7 +14,7 @@
 | Ventes & clients | Plateaux d'œufs, fientes, sujets vivants par lot ; facture, encaissement partiel, reçu, annulation motivée |
 | Trésorerie · Charges · Rentabilité | Caisse/banque, charges par lot, marge et coût par kg vendu |
 | Comptabilité SYSCOHADA | Partie double, journaux VE/AC/TR/PAIE/OD, balance, grand livre, résultat, périodes clôturables, extourne |
-| Rapports | Rapport du jour (WhatsApp / impression), exports CSV |
+| Rapports | États périodiques (production, mortalité, stocks, approvisionnement, finance, commercial, bilan) avec période + lot, impression A4, vue à l’écran, WhatsApp ; rapports jour/semaine/mois/année par WhatsApp/email ; exports CSV. Non repris d’AvicoSuite : GMAO, conditionnement, messagerie interne, envoi serveur planifié |
 | Personnel · Utilisateurs · Paramétrage | Salaires, rôles, seuils d'alerte, protocoles sanitaires, sauvegarde |
 
 ## Comptes de démonstration

@@ -87,6 +87,18 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   let pb;const e=__try(()=>{pb=restaurer(txt)});const bad=__try(()=>restaurer(txt.replace('"initial":500','"initial":501')));return(!e&&pb.length===0&&bad&&/contrôle/.test(bad))||("e="+e+" pb="+pb+" bad="+bad)});
  await t("AGR-19","toutes les vues, pour chaque rôle, sans erreur d'affichage",()=>{const bad=[];for(const r of Object.keys(ROLES)){__as(r);for(const n of NAV.filter(showNav)){view=n.v;try{const h=V[n.v]();if(!h||/Erreur d'affichage/.test(h))bad.push(r+"/"+n.v)}catch(e){bad.push(r+"/"+n.v+": "+e.message)}}}return bad.length===0||bad.join(" | ")});
  await t("AGR-20","saisies hostiles échappées (XSS)",()=>{__as("admin");S.clients.push({id:uid("c"),nom:"<img src=x onerror=window.__x=1>",tel:""});view="ventes";UI.tab.ventes="c";const h=V.ventes();UI.tab.ventes="v";return(!h.includes("<img src=x")&&h.includes("&lt;img"))||"non échappé"});
+ await t("AGR-21","états périodiques : 7 états produits, sans NaN/undefined, bilan complet les regroupe",()=>{__as("direction");const mn=addDays(today(),-30),mx=today(),bad=[];
+  for(const e of RAP_ETATS){const h=etatCorps(e[0],mn,mx,"");if(!h||!/kpi-box/.test(h)||/NaN|undefined|\[object/.test(h))bad.push(e[0])}
+  const b=etatCorps("bilan",mn,mx,"");if(!/Production/.test(b)||!/Commercial/.test(b)||!/Finance/.test(b))bad.push("bilan");return bad.length===0||bad.join("|")});
+ await t("AGR-22","états périodiques : chiffres identiques aux données (œufs, CA, résultat, valeur du stock)",()=>{__as("direction");const mn=addDays(today(),-30),mx=today(),E=[];
+  const oe=sum(S.suivis.filter(x=>x.date>=mn&&x.date<=mx),x=>x.oeufs),p=etatCorps("production",mn,mx,"");if(!p.includes(">"+nf(oe)+"<"))E.push("œufs "+oe);
+  const ca=sum(S.ventes.filter(v=>v.statut==="valide"&&v.date>=mn&&v.date<=mx),v=>v.total),c=etatCorps("commercial",mn,mx,"");if(!c.includes(fcfa(ca)))E.push("CA "+ca);
+  const L=S.entries.filter(e=>e.date>=mn&&e.date<=mx).flatMap(e=>e.lignes),r=sum(L.filter(l=>/^7/.test(l.compte)),l=>(l.credit||0)-(l.debit||0))-sum(L.filter(l=>/^6/.test(l.compte)),l=>(l.debit||0)-(l.credit||0)),f=etatCorps("finance",mn,mx,"");if(!f.includes(fcfa(r)))E.push("résultat "+r);
+  const v=sum(S.produits,q=>qteStock(q.id)*pmp(q.id)),s=etatCorps("stocks",mn,mx,"");if(!s.includes(fcfa(v)))E.push("stock "+v);
+  const l1=S.lots[0],pl=etatCorps("production",mn,mx,l1.id);if(pl.includes(esc(S.lots.find(x=>x.id!==l1.id&&x.statut==="en_cours")?.code||"§§")+" —"))E.push("filtre lot");return E.length===0||E.join("|")});
+ await t("AGR-23","impression & envois : document A4 titré, texte WhatsApp structuré, saisie hostile échappée",()=>{__as("direction");const mn=addDays(today(),-7),mx=today();S.clients.push({id:uid("c"),nom:"<img src=x onerror=window.__x=1>",tel:""});const h=etatDoc("bilan",mn,mx,"");const tx=etatTexte("production",mn,mx,"");const cm=etatCorps("commercial",mn,mx,"");S.clients.pop();
+  const E=[];if(!/BILAN COMPLET/.test(h)||!/window\.print/.test(h)||!/@page/.test(h))E.push("doc");if(!/^\*ÉTAT DE PRODUCTION\*\nANGEL'S AGRO\nPériode :/.test(tx)||/<|&nbsp;/.test(tx))E.push("texte");if(/<img src=x/.test(h+cm))E.push("xss");
+  for(const k of Object.keys(RAP_PERIODES)){const[a,b2]=rapPeriode(k);if(!(a<=b2&&b2===today()))E.push("période "+k)}return E.length===0||E.join("|")});
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);
  await b.close();process.exit(ko||errs.length?1:0);
 })();
