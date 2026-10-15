@@ -222,6 +222,14 @@ const isActive=l=>["affectee","acceptee","en_cours"].includes(l.statut);
 const activeLiv=cid=>livsOf(cid).find(isActive);
 const livreurOf=u=>S.livreurs.find(l=>l.user_id===u.id);
 const who=()=>ME?ME.nom:"Système";
+/* Droits appliqués DANS les fonctions métier (en plus des menus) : en mode cloud, le serveur applique les siens ; sans utilisateur connecté (démo, import) rien n'est bloqué */
+const LIVR=["livreur","admin","superviseur"];
+function garde(roles,l,d){
+ if((typeof CL!=="undefined"&&CL.on)||!ME)return true;
+ if(!roles.includes(ME.role)){toast("Droits insuffisants pour cette action","err");return false}
+ if(ME.role==="livreur"&&l){const lv=livreurOf(ME);if(!lv||lv.id!==l.livreur_id){toast("Cette mission n'est pas la vôtre","err");return false}}
+ if(ME.role==="vendeur"&&d){const v=vend();if(!v||d.vendeur_id!==v.id){toast("Commande d'un autre vendeur","err");return false}}
+ return true}
 const can=(...roles)=>ME&&roles.includes(ME.role);
 function save(){if(CL.on)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Stockage local plein ou indisponible","err")}}
 function audit(action,detail){S.audit.push({ts:now(),user:who(),role:ME?ME.role:"système",action,detail:detail||""});if(S.audit.length>5000)S.audit.splice(0,S.audit.length-5000)}
@@ -261,6 +269,7 @@ function setStatut(c,to,note){
  c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;try{notifier(c,to,note)}catch(e){}return true}
 function numCmd(){S.seq.cmd++;return"CMD-"+new Date().getFullYear()+"-"+String(S.seq.cmd).padStart(4,"0")}
 function creerCmd(d){
+ if(!garde(["admin","commercial","superviseur","vendeur"],null,d))throw new Error("Droits insuffisants pour créer une commande");
  const c={id:uid("c"),numero:numCmd(),date:now(),vendeur_id:d.vendeur_id||null,vendeur_encaisse:!!d.vendeur_encaisse,paye_vendeur:+d.paye_vendeur||0,client_id:d.client_id,adr:d.adr,lignes:d.lignes,frais:+d.frais||0,remise:+d.remise||0,paiement:d.paiement,mode:d.mode,priorite:d.priorite||"normale",canal:d.canal||"Téléphone",obs:d.obs||"",statut:"brouillon",hist:[{ts:now(),de:null,a:"brouillon",par:who(),note:"Création"}],cree_par:who(),stock_sorti:false};
  calcCmd(c);S.commandes.unshift(c);
  let ac=d.paiement==="avance"?c.total:d.paiement==="partiel"?Math.min(+d.acompte||0,c.total):0;
@@ -270,16 +279,19 @@ function creerCmd(d){
  return c}
 function stockMvt(p,qte,type,ref){p.stock+=qte;S.stock_mvts.push({id:uid("m"),ts:now(),produit_id:p.id,type,qte,ref,par:who()})}
 function marquerPrete(c){
+ if(!garde(["admin","preparateur"]))return false;
  for(const l of c.lignes){if(!l.produit_id)continue;const p=prod(l.produit_id);if(!p||p.stock<l.qte){toast(`Stock insuffisant : ${p?p.nom:"?"} (${p?p.stock:0} dispo, ${l.qte} requis)`,"err");return false}}
  if(!setStatut(c,"prete","Préparation terminée"))return false;
  c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),-l.qte,"sortie_commande",c.numero)});c.stock_sorti=true;return true}
 function annuler(c,motif){
+ if(!garde(["admin","superviseur","commercial","vendeur"],null,{vendeur_id:c.vendeur_id}))return false;
  const act=activeLiv(c.id);
  if(!setStatut(c,"annulee","Annulée : "+motif))return false;
  if(act){act.statut="annulee";act.fin_at=now()}
  if(c.stock_sorti){c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),l.qte,"annulation",c.numero)});c.stock_sorti=false}
  audit("Annulation commande",c.numero+" — "+motif);return true}
 function affecter(c,lid,motif){
+ if(!garde(["admin","superviseur"]))return false;
  const lv=liv(lid),old=activeLiv(c.id);
  if(!lv){toast("Livreur introuvable","err");return false}
  if(S.config.dossier_obligatoire&&!dossierEtat(lv).ok){toast("Dossier de "+lv.nom+" incomplet ou expiré : affectation impossible","err");return false}
@@ -295,11 +307,11 @@ function affecter(c,lid,motif){
 function lhist(l,a,extra){l.hist.push(Object.assign({ts:now(),a,par:who()},extra||{}))}
 
 /* ---------- Métier : actions livreur ---------- */
-function accepter(l){if(l.statut!=="affectee")return false;l.statut="acceptee";l.accept_at=now();lhist(l,"acceptee");return true}
-function refuser(l,motif){if(!["affectee","acceptee"].includes(l.statut))return false;const c=cmd(l.commande_id);l.statut="refusee";l.fin_at=now();l.motif=motif;lhist(l,"refusee",{note:motif});setStatut(c,"prete","Refus du livreur : "+motif);audit("Refus de mission",`${c.numero} — ${liv(l.livreur_id).nom} — ${motif}`);return true}
-function priseEnCharge(l,nb){if(l.statut!=="acceptee"||l.collecte_at)return false;l.collecte_at=now();l.nb_colis=nb;lhist(l,"collecte",{note:nb+" colis"});return true}
-function demarrer(l){if(l.statut!=="acceptee"||!l.collecte_at)return false;const c=cmd(l.commande_id);if(!setStatut(c,"en_cours","Départ du livreur"))return false;l.statut="en_cours";l.depart_at=now();lhist(l,"en_cours");return true}
-function confirmer(l,d){
+function accepter(l){if(!garde(LIVR,l))return false;if(l.statut!=="affectee")return false;l.statut="acceptee";l.accept_at=now();lhist(l,"acceptee");return true}
+function refuser(l,motif){if(!garde(LIVR,l))return false;if(!["affectee","acceptee"].includes(l.statut))return false;const c=cmd(l.commande_id);l.statut="refusee";l.fin_at=now();l.motif=motif;lhist(l,"refusee",{note:motif});setStatut(c,"prete","Refus du livreur : "+motif);audit("Refus de mission",`${c.numero} — ${liv(l.livreur_id).nom} — ${motif}`);return true}
+function priseEnCharge(l,nb){if(!garde(LIVR,l))return false;if(l.statut!=="acceptee"||l.collecte_at)return false;l.collecte_at=now();l.nb_colis=nb;lhist(l,"collecte",{note:nb+" colis"});return true}
+function demarrer(l){if(!garde(LIVR,l))return false;if(l.statut!=="acceptee"||!l.collecte_at)return false;const c=cmd(l.commande_id);if(!setStatut(c,"en_cours","Départ du livreur"))return false;l.statut="en_cours";l.depart_at=now();lhist(l,"en_cours");return true}
+function confirmer(l,d){if(!garde(LIVR,l))return false;
  if(l.statut!=="en_cours"){toast("Cette livraison n'est plus en cours (déjà validée ?)","err");return false}
  const c=cmd(l.commande_id);
  if(String(d.code).trim()!==l.code){toast("Code de confirmation incorrect","err");return false}
@@ -322,11 +334,23 @@ function confirmer(l,d){
  if(ecart!==0){l.ecart_statut="a_valider";l.ecart_note=d.ecart_note}
  if(m>0)S.fonds.push({id:uid("f"),type:"encaissement",livreur_id:l.livreur_id,livraison_id:l.id,commande_id:c.id,montant:m,mode:d.mode,ref:ref||null,direct:mob&&!!d.direct,ts:now(),par:who()});
  lhist(l,"livree",{note:`encaissé ${fcfa(m)}`});audit("Confirmation livraison",`${c.numero} — encaissé ${fcfa(m)} / attendu ${fcfa(att)}`);return true}
-function echec(l,motif,obs){
+function echec(l,motif,obs){if(!garde(LIVR,l))return false;
  if(!["affectee","acceptee","en_cours"].includes(l.statut)){toast("Livraison déjà clôturée","err");return false}
  const c=cmd(l.commande_id);if(!setStatut(c,"echouee","Échec : "+motif))return false;
  l.statut="echouee";l.fin_at=now();l.motif_echec=motif;l.obs=obs||"";lhist(l,"echouee",{note:motif});audit("Livraison échouée",`${c.numero} — ${motif}`);return true}
 
+/* ---------- Intégrité opérationnelle (en plus de cptControles pour la comptabilité et la caisse) ---------- */
+function integriteOps(){
+ const o=[],ids=new Set(S.commandes.map(c=>c.id));
+ S.commandes.forEach(c=>{
+  const t=Math.max(0,c.lignes.reduce((a,l)=>a+l.qte*l.pu,0)+(+c.frais||0)-(+c.remise||0));if(Math.round(t)!==Math.round(c.total))o.push("Total incohérent : "+c.numero);
+  if(livsOf(c.id).filter(isActive).length>1)o.push("Deux livraisons actives : "+c.numero);
+  if(paye(c)>c.total+1)o.push("Encaissements supérieurs au total : "+c.numero);
+  if(c.statut==="livree"&&!livsOf(c.id).some(l=>l.statut==="livree"))o.push("Commande livrée sans livraison confirmée : "+c.numero)});
+ S.fonds.forEach(f=>{if(!(f.montant>0))o.push("Mouvement de fonds nul ou négatif ("+f.type+")");if(f.commande_id&&!ids.has(f.commande_id))o.push("Fonds rattaché à une commande inconnue")});
+ S.produits.forEach(p=>{if(p.stock<0)o.push("Stock négatif : "+p.nom)});
+ try{cptControles().filter(r=>!r.ok).forEach(r=>o.push(r.t))}catch(e){}
+ return o}
 /* ---------- Données de démonstration ---------- */
 /* Zones de livraison par défaut : Grand Abidjan et périphérie (nom, frais FCFA, délai min) + quartiers suggérés par zone */
 const ZONES_GA=[["Plateau",1500,40],["Cocody",1500,45],["Marcory",1500,40],["Treichville",1500,40],["Adjamé",1500,40],["Koumassi",2000,50],["Attécoubé",2000,50],["Abobo",2000,60],["Yopougon",2000,60],["Port-Bouët",2500,60],["Bingerville",3000,60],["Anyama",3000,70],["Songon",3500,75],["Grand-Bassam",4500,90],["Dabou",4500,90],["Bonoua",5000,100],["Azaguié",5000,100],["Alépé",6000,110],["Sikensi",6000,110],["Jacqueville",6000,120],["Assinie",7000,130],["Autre localité (tarif à convenir)",6000,120]];
@@ -493,7 +517,22 @@ function refreshInstall(){
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;refreshInstall()});
 window.addEventListener("appinstalled",()=>{IPROMPT=null;refreshInstall();try{toast("Application installée ✔","ok")}catch(e){}});
-if("serviceWorker" in navigator&&/^https?:$/.test(location.protocol))window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+/* Hors ligne et mise à jour disponible */
+let MAJ=false;
+function barre(){
+ let b=document.getElementById("pwaBar");
+ if(!MAJ&&navigator.onLine){if(b)b.remove();return}
+ if(!b){b=document.createElement("div");b.id="pwaBar";b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:9000;padding:8px 12px;text-align:center;font-weight:600";document.body.appendChild(b)}
+ if(MAJ){b.style.background="var(--b)";b.style.color="#fff";b.innerHTML="Nouvelle version disponible — <a href='#' id='pwaUp' style='color:#fff;text-decoration:underline'>recharger</a>";document.getElementById("pwaUp").onclick=ev=>{ev.preventDefault();location.reload()}}
+ else{b.style.background="var(--wabg)";b.style.color="var(--wa)";b.textContent="Mode hors ligne — vos données restent enregistrées sur cet appareil"}
+}
+window.addEventListener("online",barre);window.addEventListener("offline",barre);
+if("serviceWorker" in navigator&&/^https?:$/.test(location.protocol)){
+ let avait=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.addEventListener("controllerchange",()=>{if(avait){MAJ=true;barre()}avait=true});
+ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+window.addEventListener("load",barre);
 /* ---------- Saisie depuis WhatsApp : l'application remplit les commandes à partir des messages ---------- */
 const noAcc=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 const RX_TEL=/(?:\+|00)?\s*(?:225)?[\s.\-()]*(0[1-9](?:[\s.\-]?\d{2}){4})(?!\d)/g;
@@ -1370,7 +1409,7 @@ VIEWS.params0=()=>{const c=S.config;return`<h1>Paramètres</h1>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);font-weight:600;margin-top:8px"><input type="checkbox" id="p_em" style="width:auto" ${c.etiq_montant?"checked":""}> Imprimer le montant à encaisser sur l'étiquette <span class="sm mu">(le montant de l'application fait foi)</span></label>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);font-weight:600;margin-top:8px"><input type="checkbox" id="p_et" style="width:auto" ${c.etiq_tel?"checked":""}> Imprimer le téléphone du client sur l'étiquette</label></div>
  <h2>Notifications aux clients</h2><div class="card"><div class="sm mu" style="margin-bottom:8px">Variables : {client} {numero} {livreur} {heure} {code} {solde} {motif} {org}. Les messages sont préparés automatiquement puis envoyés depuis le menu Notifications (WhatsApp).</div>${[["confirmee","Commande confirmée"],["en_cours","Départ du livreur"],["livree","Livraison effectuée"],["echouee","Livraison échouée"]].map(e=>`<label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);font-weight:600;margin-top:8px"><input type="checkbox" id="pn_${e[0]}" style="width:auto" ${c.notif[e[0]]?"checked":""}> ${e[1]}</label><textarea id="pt_${e[0]}" rows="2">${esc(c.tpl[e[0]])}</textarea>`).join("")}<button class="btn" style="margin-top:10px" data-act="saveParams">Enregistrer</button></div>
- <h2>Données</h2><div class="card"><div class="flex"><button class="btn ghost" data-act="exportData">⬇ Exporter (JSON)</button><label class="btn ghost" style="margin:0;display:inline-block;cursor:pointer">⬆ Importer<input type="file" accept=".json" id="p_imp" class="hide"></label><button class="btn er" data-act="resetData">Réinitialiser la démo</button></div><p class="mu sm">Les données sont stockées dans le navigateur de cet appareil. Pour partager les données entre le bureau et les téléphones des livreurs, la prochaine étape est le backend (Supabase / PostgreSQL) décrit au cahier des charges, §17.</p></div>`};
+ <h2>Données</h2><div class="card"><div class="flex"><button class="btn ghost" data-act="exportData">⬇ Exporter (JSON)</button><button class="btn ghost" data-act="chkInteg">🔎 Contrôle d'intégrité</button><label class="btn ghost" style="margin:0;display:inline-block;cursor:pointer">⬆ Importer<input type="file" accept=".json" id="p_imp" class="hide"></label><button class="btn er" data-act="resetData">Réinitialiser la démo</button></div><p class="mu sm">Les données sont stockées dans le navigateur de cet appareil. Pour partager les données entre le bureau et les téléphones des livreurs, la prochaine étape est le backend (Supabase / PostgreSQL) décrit au cahier des charges, §17.</p></div>`};
 function zoneForm(z){modal(z?"Modifier la zone":"Nouvelle zone",`<label>Nom<input name="nom" required value="${esc(z?z.nom:"")}"></label><div class="g2"><label>Frais de livraison (F)<input type="number" name="frais" min="0" required value="${z?z.frais:1500}"></label><label>Délai indicatif (min)<input type="number" name="delai" min="1" required value="${z?z.delai_min:45}"></label></div>`,
  {onSubmit:d=>{if(CL.on)return CL.zoneSave(z,d);if(z){Object.assign(z,{nom:d.nom,frais:+d.frais,delai_min:+d.delai})}else S.config.zones.push({id:uid("z"),nom:d.nom,frais:+d.frais,delai_min:+d.delai});audit("Zone de livraison",d.nom);save();render()}})}
 
@@ -1550,7 +1589,8 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  pinUser:id=>{const u=usr(id);modal("Nouveau PIN — "+u.nom,`<label>PIN (${PINMIN} à 8 chiffres)<input name="pin" pattern="[0-9]{${PINMIN},8}" inputmode="numeric" required></label>`,{onSubmit:d=>{if(CL.on)return CL.go(()=>CL.fn("creer-utilisateur",{action:"reset",user_id:u.id,mot_de_passe:d.pin}),"Mot de passe modifié");u.pin_h=hashPin(u.id,d.pin);audit("PIN réinitialisé",u.nom);done("PIN modifié")}})},
  newZone:()=>zoneForm(),editZone:id=>zoneForm(S.config.zones.find(z=>z.id===id)),
  saveParams:()=>{const c=S.config,L=id=>$(id).value.split("\n").map(s=>s.trim()).filter(Boolean);c.motifs=L("#p_motifs");c.cats=L("#p_cats");c.remu={type:$("#p_rt").value,fixe:+$("#p_rf").value||0,pct:+$("#p_rp").value||0};c.gps_stale_ok=+$("#p_g1").value||2;c.gps_stale_warn=+$("#p_g2").value||10;c.gps_interval=+$("#p_g3").value||20;c.gps_retention_jours=+$("#p_g4").value||30;c.ste={adresse:$("#p_ad").value,tel:$("#p_stel").value,nif:$("#p_nif").value,rccm:$("#p_rccm").value};c.mention_legale=$("#p_ml").value;c.dossier_obligatoire=$("#p_do").checked;c.momo_comptes=L("#p_momo");c.sos_tel=$("#p_sostel").value.trim();c.sos_urgences=L("#p_sosurg");c.etiq_scan=$("#p_es").checked;c.etiq_montant=$("#p_em").checked;c.etiq_tel=$("#p_et").checked;c.signature_seuil=Math.max(0,+$("#p_sig").value||0);["confirmee","en_cours","livree","echouee"].forEach(k=>{c.notif[k]=$("#pn_"+k).checked;c.tpl[k]=$("#pt_"+k).value.trim()||TPL_DEF[k]});if(CL.on)return CL.saveConfig();audit("Paramètres modifiés","");done("Paramètres enregistrés")},
- exportData:()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="angels_erp_"+new Date().toISOString().slice(0,10)+".json";a.click()},
+ chkInteg:()=>{const p=integriteOps();if(!p.length)return toast("Intégrité OK : totaux, stocks, livraisons, fonds et comptabilité cohérents","ok");modal("Contrôle d'intégrité","<div class=\"al er\">"+p.length+" anomalie(s)</div><ul>"+p.slice(0,40).map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>")},
+ exportData:()=>{const data=JSON.parse(JSON.stringify(S));const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({app:"angels-livraison",v:2,t:now(),sum:hashPin("bk",JSON.stringify(data)),data})],{type:"application/json"}));a.download="angels_erp_"+new Date().toISOString().slice(0,10)+".json";a.click()},
  resetData:()=>{if(confirm("Effacer toutes les données et recharger la démonstration ?")){localStorage.removeItem(KEY);ME=null;sessionStorage.removeItem("angels_me");load();render()}},
  /* livreur */
  lAcc:id=>{if(CL.on)return CL.liv(id,"accepter",{},"Mission acceptée");if(accepter(byId(S.livraisons,id)))done("Mission acceptée")},
@@ -1598,7 +1638,14 @@ document.addEventListener("submit",e=>{
  if(e.target.id==="lf"){e.preventDefault();if(CL.on)return CL.login(e.target);const d=Object.fromEntries(new FormData(e.target)),u=usr(d.u);
   if(u&&u.actif&&u.pin_h===hashPin(u.id,d.pin)){ME=u;sessionStorage.setItem("angels_me",u.id);view="dashboard";audit("Connexion",u.nom);save();render()}else toast("PIN incorrect","err")}});
 document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.f;if(k){ui[k]=e.target.value;render()}
- if(e.target.id==="p_imp"&&e.target.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.v!==1||!d.commandes)throw 0;S=d;save();ME=null;sessionStorage.removeItem("angels_me");toast("Données importées","ok");render()}catch(x){toast("Fichier invalide","err")}};r.readAsText(e.target.files[0])}});
+ if(e.target.id==="p_imp"&&e.target.files[0]){const r=new FileReader();r.onload=()=>{try{
+  let o=JSON.parse(r.result),d,ancien=false;
+  if(o&&o.app==="angels-livraison"&&o.data){if(hashPin("bk",JSON.stringify(o.data))!==o.sum)return toast("Sauvegarde altérée (somme de contrôle incorrecte) : import refusé","err");d=o.data}else{d=o;ancien=true}
+  if(!d||d.v!==1||!Array.isArray(d.commandes)||!Array.isArray(d.users))throw 0;
+  const cur=S;S=d;let pb=[];try{pb=integriteOps()}catch(x){pb=["Structure illisible"]}S=cur;
+  if(!confirm("Remplacer toutes les données de cet appareil ?"+(ancien?"\n(ancien format, sans somme de contrôle)":"")+(pb.length?"\n\nAnomalies détectées :\n- "+pb.slice(0,6).join("\n- "):"\n\nContrôle d'intégrité : OK")+"\n\nUne copie des données actuelles est conservée avant l'import."))return;
+  try{localStorage.setItem(KEY+"_avant_import",JSON.stringify(S))}catch(x){}
+  S=d;audit("Import de données",(ancien?"ancien format · ":"")+pb.length+" anomalie(s)");save();ME=null;sessionStorage.removeItem("angels_me");toast("Données importées","ok");render()}catch(x){toast("Fichier invalide","err")}};r.readAsText(e.target.files[0])}});
 document.addEventListener("change",e=>{const t=e.target;
  if(t.id==="inv_th"){ui.invth=t.checked?"1":"";render();return}
  const pid=t.dataset&&(t.dataset.inv||t.dataset.invn);if(!pid)return;const i=invOuvert();if(!i)return;const l=i.lignes.find(x=>x.produit_id===pid);if(!l)return;
