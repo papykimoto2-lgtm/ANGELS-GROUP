@@ -1,11 +1,25 @@
-/* Service worker : l'application s'ouvre même sans réseau (coque en cache) ; les données (Supabase) ne sont jamais mises en cache. */
-const V = "angels-v6";
-const COQUE = ["./", "index.html", "hub.html", "transport.html", "agro.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
-self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(COQUE)).then(() => self.skipWaiting())); });
-self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+/* Service worker ANGEL'S GROUP — installation (PWA) et usage hors ligne pour Livraison, Transport, Agro et le hub.
+   Les pages sont servies réseau d'abord (mises à jour immédiates), cache en secours ; icônes et manifestes : cache d'abord.
+   Aucune donnée métier n'est mise en cache ici : elles vivent dans le stockage local de chaque application. */
+const V = "angels-v7";
+const COQUE = ["./", "index.html", "hub.html", "transport.html", "agro.html",
+  "manifest.webmanifest", "manifest-hub.webmanifest", "manifest-transport.webmanifest", "manifest-agro.webmanifest",
+  "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
+  "icons/hub-192.png", "icons/hub-512.png", "icons/hub-maskable-512.png", "icons/hub-apple-180.png",
+  "icons/transport-192.png", "icons/transport-512.png", "icons/transport-maskable-512.png", "icons/transport-apple-180.png",
+  "icons/agro-192.png", "icons/agro-512.png", "icons/agro-maskable-512.png", "icons/agro-apple-180.png"];
+self.addEventListener("install", e => {
+  // un fichier absent ne doit pas empêcher l'installation : on précharge chaque élément séparément
+  e.waitUntil(caches.open(V).then(c => Promise.all(COQUE.map(u => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));
+});
+self.addEventListener("activate", e => {
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== "angels-partage").map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener("message", e => { if (e.data === "skipWaiting") self.skipWaiting(); });
+const cle = u => { const x = new URL(u); x.search = ""; x.hash = ""; return x.href; };   // le cache ignore les paramètres d'URL
 self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
-  if (r.method === "POST" && u.origin === location.origin && u.searchParams.get("partage") === "1") {   // partage depuis WhatsApp (Web Share Target)
+  if (r.method === "POST" && u.origin === location.origin && u.searchParams.get("partage") === "1") {   // partage depuis WhatsApp (Web Share Target, Livraison)
     e.respondWith((async () => {
       try {
         const fd = await r.formData(), c = await caches.open("angels-partage"), meta = { text: [fd.get("title"), fd.get("text"), fd.get("url")].filter(Boolean).join("\n"), files: [] };
@@ -23,14 +37,15 @@ self.addEventListener("fetch", e => {
     return;
   }
   if (r.method !== "GET" || u.origin !== location.origin) return;           // API, cartes, bibliothèques externes : réseau seulement
-  if (r.mode === "navigate" || u.pathname.endsWith("/index.html")) {          // page : réseau d'abord (mises à jour immédiates), cache en secours
-    e.respondWith(fetch(r).then(res => { const cp = res.clone(); caches.open(V).then(c => c.put("index.html", cp)); return res; }).catch(() => caches.match("index.html")));
+  if (r.mode === "navigate") {                                              // pages : réseau d'abord, cache de CETTE page en secours
+    e.respondWith(fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(cle(r.url), cp)); } return res; })
+      .catch(async () => (await caches.match(cle(r.url))) || (await caches.match("hub.html")) || (await caches.match("index.html")) || new Response("Hors ligne", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })));
     return;
   }
-  e.respondWith(caches.match(r).then(m => m || fetch(r).then(res => { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); return res; })));
+  e.respondWith(caches.match(r, { ignoreSearch: true }).then(m => m || fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); } return res; })));
 });
 
-/* Alertes de course : un clic sur la notification rouvre l'application ; « push » est prêt pour l'envoi serveur (Web Push) */
+/* Alertes de course (Livraison) : un clic sur la notification rouvre l'application ; « push » est prêt pour l'envoi serveur (Web Push) */
 self.addEventListener("notificationclick", e => {
   e.notification.close();
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => {

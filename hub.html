@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b3b4c">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest-hub.webmanifest">
+<link rel="icon" type="image/png" href="icons/hub-192.png">
+<link rel="apple-touch-icon" href="icons/hub-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Angel's Group"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Hub ANGEL'S GROUP</title>
 <style>
 :root{--b:#0e7490;--b2:#0b3b4c;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--bd:#d6e4ea;--g1:#0e7490;--g2:#c2410c;--g3:#15803d}
@@ -69,7 +70,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
  <div>📊 Tableau de bord consolidé</div><div>📎 Pièces jointes, exports PDF/Excel</div>
 </div>
 </div></main>
-<footer>© ANGEL'S GROUP · Hub</footer>
+<footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a></footer>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
@@ -92,7 +93,12 @@ try{
   $("a-v").textContent=en.reduce((s,l)=>s+Math.max(0,l.initial-mor(l)-sor(l)),0).toLocaleString("fr-FR");$("a-l").textContent=en.length;
   const q=p=>(G.mvts||[]).filter(m=>m.produit_id===p.id).reduce((s,m)=>s+(m.sens==="entree"?m.qte:-m.qte),0);$("a-s").textContent=(G.produits||[]).filter(p=>p.categorie!=="fini"&&p.seuil>0&&q(p)<=p.seuil).length}
 }catch(e){}
-if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+let DEF=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();DEF=e;$("inst").hidden=false});
+window.addEventListener("appinstalled",()=>{DEF=null;$("inst").hidden=true});
+$("inst").onclick=async e=>{e.preventDefault();if(DEF){DEF.prompt();try{await DEF.userChoice}catch(x){}DEF=null;$("inst").hidden=true}};
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&navigator.standalone!==true){$("inst").hidden=false;$("inst").onclick=e=>{e.preventDefault();alert("Sur iPhone / iPad : toucher « Partager », puis « Sur l'écran d'accueil ».")}}
+if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>

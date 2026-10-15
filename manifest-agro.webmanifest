@@ -1,0 +1,39 @@
+{
+  "id": "/agro.html",
+  "name": "ANGEL'S AGRO",
+  "short_name": "Agro",
+  "description": "Élevage avicole : lots, suivi quotidien, santé, stock, ventes, comptabilité.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./agro.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a4731",
+  "theme_color": "#1a4731",
+  "categories": [
+    "business",
+    "productivity",
+    "agriculture"
+  ],
+  "icons": [
+    {
+      "src": "icons/agro-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/agro-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/agro-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
