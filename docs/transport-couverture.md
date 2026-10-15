@@ -14,13 +14,16 @@ Légende : ✅ réalisé et testé · 🟡 réalisé, validation externe requise
 | E13–E15 | Comptabilité, tiers, états | 🟡 | Partie double, extourne, lettrage, périodes, balance, grand livre, journal. Plan indicatif à valider |
 | E16–E17 | Carte GPS, dispositifs | 🟡 | Carte Leaflet/OSM, fraîcheur, historique, zones, quarantaine. Fournisseur et boîtiers à choisir |
 | E18–E19 | Maintenance, sinistres | ✅ | Workflow demande → clos, immobilisation, dépense liée |
+| E25 | Entretien préventif (inspiré d'AutoGarage Pro) | ✅ | Plan par véhicule en km et en jours (vidange, plaquettes, pneus, batterie, courroie, révision), états retard / à prévoir, ordre de maintenance lié, rappel WhatsApp au chauffeur, historique |
+| E26 | Pièces détachées | ✅ | Catalogue, entrées avec dépense à valider, coût moyen pondéré, inventaire, alertes de seuil ; consommation à la remise en service d'un ordre |
+| E27 | Agenda atelier | ✅ | Entretiens dus, passages au garage programmés, échéances de documents ; filtres, impression, taxis immobilisés |
 | E20 | Documents et alertes | ✅ | Échéances, retards, demandes chauffeurs, notifications |
 | E21 | Rapports de gestion | ✅ | Recouvrement, ancienneté des impayés, disponibilité, écarts de caisse |
 | E22 / P01–P07 | Portail chauffeur | ✅ | Compte, reçus confirmés, véhicule, incident (photo), demandes, profil (validé par le bureau) |
 | E23–E24 | Droits, audit, paramètres | ✅ | Matrice module × action, journal d'audit, périodes, sauvegarde/restauration avec somme de contrôle |
 
 ## Recette automatisée
-- Interface : `node tests/recette-transport.js` — 34 contrôles (REC-01…10, COM-01…10, GPS-01…05, POR-01…04, MAI-01…02, SEC-01…03).
+- Interface : `node tests/recette-transport.js` — 41 contrôles (REC-01…10, COM-01…10, GPS-01…05, POR-01…04, MAI-01…02, SEC-01…03, ENT-01…07).
 - Base de données : `bash tests/recette-supabase.sh` — 49 contrôles sur PostgreSQL (droits RLS, idempotence, immutabilité, périodes, GPS).
 
 ## Points à valider avant production (§11)
