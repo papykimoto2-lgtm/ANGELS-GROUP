@@ -1,11 +1,11 @@
 {
-  "id": "/hub.html",
+  "id": "/",
   "name": "ANGEL'S GROUP — Hub",
   "short_name": "Angel's Group",
   "description": "Pilotage des filiales : Distributions, Transport, Agro.",
   "lang": "fr",
   "dir": "ltr",
-  "start_url": "./hub.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

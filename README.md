@@ -1,14 +1,16 @@
 # ANGEL'S GROUP ERP — V1 Livraisons à moto
 
-**Hub groupe** : `/hub` (`hub.html`) — vue consolidée (trésorerie, chiffre d'affaires, encaissé, créances, résultat, alertes) calculée à partir des données locales des trois applications (test : `node tests/hub.js`) — Angel's Distributions, Angel's & Co Transport et Angel's Agro (actifs).
+**Accueil du groupe** : `/` (`index.html`, ancien `hub.html` qui redirige désormais ici) — page d'entrée qui rattache les trois divisions : Distributions (`distribution.html`), Transport (`transport.html`) et Agro (`avicosuite.html`, version locale `agro.html`) ; — vue consolidée (trésorerie, chiffre d'affaires, encaissé, créances, résultat, alertes) calculée à partir des données locales des trois applications (test : `node tests/hub.js`) — Angel's Distributions, Angel's & Co Transport et Angel's Agro (actifs).
 
 **Application installable (PWA)** : Hub, Transport, Agro et Livraison ont chacun leur manifeste et leurs icônes (`manifest-*.webmanifest`, `icons/`, générées par `tools/gen-icons.py`) et fonctionnent hors ligne grâce à `sw.js`. Android/Chrome : bouton « Installer l'application » dans le menu ou sur l'écran de connexion ; iPhone : Safari → Partager → Sur l'écran d'accueil. Test : `node tests/pwa.js`. Prérequis : HTTPS (Vercel) — le service worker ne s'active pas en `file://`.
 
 **Agro** : `agro.html` — ERP avicole inspiré d'AviNest Pro, même style que Livraison (fichier unique, PIN, rôles). Détail, comptes de démo et limites : `docs/agro-avinest.md`. Tests : `node tests/recette-agro.js`.
+**Angel's Agro (AvicoSuite)** : `avicosuite.html` — ERP avicole complet repris tel quel d'AvicoSuite (marque Angel’s Agro), ouvert depuis le hub. Données en ligne (Supabase) : choisir un identifiant d'organisation propre au premier lancement. La version locale hors ligne reste dans `agro.html`. Tests : `node tests/avicosuite.js`.
+**Distribution** : `distribution.html` — droits appliqués dans chaque fonction, contrôle d’intégrité, sauvegarde signée (somme de contrôle) et restauration sécurisée, bandeau hors ligne/mise à jour. Tests : `node tests/recette-distribution.js` (17).
 
 **Transport — V1 (cahier des charges Angel's & Co Transport)** : `transport.html` — contrats de recette et de location (avenants, résiliation, changement de mode), échéances, encaissements au bureau (paiement partiel, anti-doublon, vérification mobile money), reçus, caisse et clôture, dépenses, comptabilité en partie double (journaux, extourne, lettrage, périodes, balance, grand livre), GPS (carte, historique, zones, quarantaine), maintenance, sinistres, portail chauffeur (P01–P07), droits par module et par action, audit, sauvegarde. Couverture et points à valider : `docs/transport-couverture.md`. Backend PostgreSQL / RLS : `supabase/`. Tests : `node tests/recette-transport.js` et `bash tests/recette-supabase.sh`. Démo : admin `1234` · directeur `0000` · flotte `1111` · caissier `2222` · comptable `3333` · contrôleur `4444` · chauffeurs `0001`–`0004`. L'interface fonctionne encore sur le stockage local (raccordement Supabase = étape suivante).
 
-Fichier unique : `index.html` (aucune dépendance, ouvrable par double-clic ; la carte OpenStreetMap demande Internet).
+Fichier unique : `distribution.html` (aucune dépendance, ouvrable par double-clic ; la carte OpenStreetMap demande Internet).
 
 ## Démonstration
 PIN : admin `1234` · direction `0000` · superviseur `1111` · caissier `2222` · commercial `3333` · préparateur `4444` · livreurs `0001` (Issa) / `0002` (Kouamé) / `0003` (Sékou).

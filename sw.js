@@ -1,8 +1,8 @@
 /* Service worker ANGEL'S GROUP — installation (PWA) et usage hors ligne pour Livraison, Transport, Agro et le hub.
    Les pages sont servies réseau d'abord (mises à jour immédiates), cache en secours ; icônes et manifestes : cache d'abord.
    Aucune donnée métier n'est mise en cache ici : elles vivent dans le stockage local de chaque application. */
-const V = "angels-v7";
-const COQUE = ["./", "index.html", "hub.html", "transport.html", "agro.html",
+const V = "angels-v8";
+const COQUE = ["./", "index.html", "distribution.html", "transport.html", "agro.html", "hub.html",
   "manifest.webmanifest", "manifest-hub.webmanifest", "manifest-transport.webmanifest", "manifest-agro.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "icons/hub-192.png", "icons/hub-512.png", "icons/hub-maskable-512.png", "icons/hub-apple-180.png",
@@ -39,7 +39,7 @@ self.addEventListener("fetch", e => {
   if (r.method !== "GET" || u.origin !== location.origin) return;           // API, cartes, bibliothèques externes : réseau seulement
   if (r.mode === "navigate") {                                              // pages : réseau d'abord, cache de CETTE page en secours
     e.respondWith(fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(cle(r.url), cp)); } return res; })
-      .catch(async () => (await caches.match(cle(r.url))) || (await caches.match("hub.html")) || (await caches.match("index.html")) || new Response("Hors ligne", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })));
+      .catch(async () => (await caches.match(cle(r.url))) || (await caches.match("index.html")) || (await caches.match("distribution.html")) || new Response("Hors ligne", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })));
     return;
   }
   e.respondWith(caches.match(r, { ignoreSearch: true }).then(m => m || fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); } return res; })));

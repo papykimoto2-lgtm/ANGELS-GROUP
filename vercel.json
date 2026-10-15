@@ -64,7 +64,11 @@
   "rewrites": [
     {
       "source": "/hub",
-      "destination": "/hub.html"
+      "destination": "/index.html"
+    },
+    {
+      "source": "/distribution",
+      "destination": "/distribution.html"
     },
     {
       "source": "/transport",
