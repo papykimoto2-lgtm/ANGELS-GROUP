@@ -40,11 +40,11 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  let nav=true;try{await p.click('a[href="transport.html"]');await p.waitForLoadState("domcontentloaded");nav=(await p.title()).includes("Transport")||("titre: "+await p.title())}catch(e){nav=e.message.slice(0,80)}
  t("PWA-6","navigation hub → Transport hors ligne",nav);
  // fonctionnement de l'app hors ligne : connexion + saisie
- let fonc=true;try{await p.waitForSelector("#lf");const o=await p.$$eval('select[name=u] option',a=>a.map(x=>[x.value,x.textContent]));await p.selectOption('select[name=u]',o.find(x=>x[1].startsWith("Caissier"))[0]);await p.fill('input[name=p]',"2222");await p.click("#lf button");await p.waitForSelector("main h1");
+ let fonc=true;try{await p.waitForSelector("#lf",{state:"attached"});await p.evaluate(()=>{const d=document.querySelector("#lf").closest("details");if(d)d.open=true});const o=await p.$$eval('select[name=u] option',a=>a.map(x=>[x.value,x.textContent]));await p.selectOption('select[name=u]',o.find(x=>x[1].startsWith("Caissier"))[0]);await p.fill('input[name=p]',"2222");await p.click("#lf button");await p.waitForSelector("main h1");
   const bar=await p.$eval("#pwaBar",e=>e.textContent).catch(()=>"");if(!/hors ligne/i.test(bar))fonc="bandeau hors ligne absent"}catch(e){fonc=e.message.slice(0,80)}
  t("PWA-7","Transport utilisable hors ligne avec bandeau « Mode hors ligne »",fonc);await ctx.setOffline(false);
  // bouton d'installation
- const pg=await ctx.newPage();await pg.goto(base+"/agro.html");await pg.waitForSelector("#lf");
+ const pg=await ctx.newPage();await pg.goto(base+"/agro.html");await pg.waitForSelector("#lf",{state:"attached"});
  await pg.evaluate(()=>{const e=new Event("beforeinstallprompt");e.prompt=()=>{window.__prompted=true};e.userChoice=Promise.resolve({outcome:"accepted"});window.dispatchEvent(e)});await pg.waitForTimeout(150);
  const btn=await pg.$('[data-a="pwa.inst"]');let ins=btn?true:"bouton absent";if(btn){await btn.click();await pg.waitForTimeout(150);if(!(await pg.evaluate(()=>window.__prompted)))ins="prompt() non appelé"}
  t("PWA-8","bouton « Installer l'application » (Agro) déclenche l'invite d'installation",ins);

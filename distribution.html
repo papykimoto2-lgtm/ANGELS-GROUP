@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ANGEL'S GROUP"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>try{var _t=localStorage.getItem("angels_theme");if(_t)document.documentElement.dataset.theme=_t}catch(e){}</script>
+<script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <title>ANGEL'S GROUP ERP — Livraisons</title>
 <style>
 :root{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3f8}
@@ -459,7 +459,7 @@ setInterval(()=>{document.querySelectorAll(".clk").forEach(e=>{const k=e.dataset
 const THEMES=[["turquoise","Turquoise (standard)","#0e7490"],["bleu","Bleu","#1a3aa8"],["emeraude","Vert émeraude","#0f7b5f"],["orange","Orange énergie","#c9500a"],["violet","Violet","#6a32c9"],["or","Nuit & or","#15171d"]];
 const themeCur=()=>document.documentElement.dataset.theme||"turquoise";
 const themeDots=()=>`<div class="themes" title="Couleur du logiciel">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" aria-label="${t}" title="${t}"></button>`).join("")}</div>`;
-function setTheme(k){if(k==="turquoise")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{k==="turquoise"?localStorage.removeItem("angels_theme"):localStorage.setItem("angels_theme",k)}catch(e){}
+function setTheme(k){if(k==="turquoise")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{localStorage.setItem("angels_theme",k)}catch(e){}
  const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue("--b").trim()}
 const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">ANGEL'S GROUP</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
  <ul><li><span class="i">📍</span><div><b>Adresse sur carte pour le livreur</b>Le client place lui-même son repère depuis son téléphone.</div></li>

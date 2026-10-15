@@ -10,6 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Angel's Transport"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://unpkg.com; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>ANGEL'S &amp; CO Transport</title>
+<script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="orange")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <style>
 :root{--b:#c2410c;--b2:#7c2d12;--bg:#faf5f1;--card:#fff;--tx:#2a1a12;--mu:#7a6a60;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#ead9cd;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#ffe8db}
 @media(prefers-color-scheme:dark){:root{--bg:#1b110c;--card:#2a1b14;--tx:#f5e9e1;--mu:#b8a396;--bd:#4a3226;--okbg:#14351f;--wabg:#3d2e0c;--erbg:#431616;--bbg:#4a2615}}
@@ -57,6 +58,23 @@ label{display:block;font-size:12px;color:var(--mu);font-weight:600;margin-top:8p
 .tabs button.on{color:var(--b);border-color:var(--b)}
 .note{background:var(--wabg);color:var(--wa);padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:12px}
 #map{height:380px;border-radius:12px;border:1px solid var(--bd);margin-bottom:12px}
+:root{--b3:#ea6a24}
+/* Présentation de connexion et couleurs du logiciel (identiques à ANGEL'S Distributions) */
+html[data-theme=turquoise]{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6}html[data-theme=bleu]{--b:#1a3aa8;--b2:#0f2570;--b3:#2a55d6}html[data-theme=emeraude]{--b:#0f7b5f;--b2:#08523f;--b3:#17a67f}html[data-theme=orange]{--b:#c9500a;--b2:#7d3004;--b3:#f27a2c}html[data-theme=violet]{--b:#6a32c9;--b2:#3e1a85;--b3:#8a55e6}html[data-theme=or]{--b:#9a6f12;--b2:#15171d;--b3:#c8962a}
+@media(prefers-color-scheme:light){html[data-theme=turquoise]{--bbg:#dff3f8;--bg:#f1f6f8;--bd:#d6e4ea}html[data-theme=bleu]{--bbg:#e5ebfb;--bg:#f2f4fa;--bd:#dfe3f0}html[data-theme=emeraude]{--bbg:#e0f4ee;--bg:#f1f7f5;--bd:#d9e6e1}html[data-theme=orange]{--bbg:#fdebdd;--bg:#faf5f1;--bd:#ecdfd5}html[data-theme=violet]{--bbg:#eee6fb;--bg:#f6f3fb;--bd:#e4dcf2}html[data-theme=or]{--bbg:#f6edd8;--bg:#f5f4f1;--bd:#e6e2d8}}
+.login.hero{max-width:none;margin:0;padding:0;display:grid;grid-template-columns:1.05fr 1fr;min-height:100vh;background:none;border:0;box-shadow:none}
+.hero-l{background:linear-gradient(155deg,var(--b2) 0%,var(--b) 60%,var(--b3,var(--b)) 100%);color:#fff;padding:48px 40px;display:flex;flex-direction:column;justify-content:center;gap:18px}
+.hero-l h1{font-size:30px;line-height:1.15;margin:0;color:#fff}.hero-l p{margin:0;opacity:.88;font-size:15px}
+.hero-l ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}.hero-l li{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.hero-l li b{display:block;font-size:14px}.hero-l li span.i{font-size:20px;line-height:1.1}
+.hero-r{padding:40px 32px;display:flex;flex-direction:column;justify-content:center;background:var(--bg)}
+.pcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.pcard{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center;transition:.15s}
+.pcard:hover,.pcard:focus-visible{border-color:var(--b);box-shadow:0 4px 14px rgba(0,0,0,.12);transform:translateY(-1px)}
+.pcard .ic{font-size:22px}.pcard b{display:block;font-size:13px}.pcard small{color:var(--mu);font-size:11.5px}
+.themes{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.themes button{all:unset;cursor:pointer;width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--bd);transition:.15s}.themes button:hover{transform:scale(1.15)}.themes button.on{box-shadow:0 0 0 2px var(--tx)}
+aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;border-color:rgba(255,255,255,.5)}
+@media(max-width:760px){.login.hero{grid-template-columns:1fr}.hero-l{padding:28px 22px;min-height:0}.hero-l h1{font-size:23px}.hero-r{padding:22px 16px}.pcards{grid-template-columns:1fr}}
 @media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
 @media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none}body{background:#fff;color:#000}}
 </style>
@@ -1112,7 +1130,7 @@ V.audit=()=>{
  const t=tabOf("aud","journal"),q=(UI.f.aud&&UI.f.aud.q||"").toLowerCase();
  let h=head("Audit et paramètres")+tabs("aud",[["journal","Journal d'audit"],["params","Paramètres"],["periodes","Périodes comptables"],["backup","Sauvegarde"]]);
  if(t==="journal")h+=`<div class="card"><input data-f="aud:q" placeholder="Filtrer (utilisateur, action, détail)…" value="${esc(UI.f.aud&&UI.f.aud.q||"")}"></div>`+tbl(["Date","Utilisateur","Rôle","Action","Détail"],S.audit.filter(a=>!q||(a.u+a.a+a.d).toLowerCase().includes(q)).map(a=>tr([fdt(a.t),esc(a.u),esc(a.r),esc(a.a),esc(a.d)])));
- if(t==="params")h+=(can("audit","e")?`<p><button class="btn" data-a="par.edit">Modifier les paramètres</button></p>`:"")+tbl(["Paramètre","Valeur"],[...PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])),...NUMS.map(([k,l])=>tr(["Numérotation "+l,esc((S.fmt[k]||"défaut")+" · dernier n° "+(S.seq[k]||0))]))]);
+ if(t==="params")h+=(can("audit","e")?`<p><button class="btn" data-a="par.edit">Modifier les paramètres</button> <button class="btn ghost" data-a="demo.tg">Accès démo par profil : ${demoOK()?"activé":"désactivé"}</button></p>`:"")+tbl(["Paramètre","Valeur"],[...PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])),...NUMS.map(([k,l])=>tr(["Numérotation "+l,esc((S.fmt[k]||"défaut")+" · dernier n° "+(S.seq[k]||0))]))]);
  if(t==="periodes"){const c=today().slice(0,7);if(!by(S.periods,c))S.periods.push({id:c,statut:"ouverte"});h+=tbl(["Période","État",""],S.periods.slice().sort((a,b)=>b.id.localeCompare(a.id)).map(p=>tr([p.id,badge(p.statut==="ouverte"?"Ouverte":"Clôturée",p.statut==="ouverte"?"ok":"mu"),p.statut==="ouverte"?(can("compta","a")?btn("per.cl",p.id,"Clôturer","er"):""):(can("compta","x")?btn("per.op",p.id,"Rouvrir","ghost"):"")])))}
  if(t==="backup"){const kb=Math.round(JSON.stringify(S).length/1024);h+=`<div class="card"><p>Taille des données locales : <b>${kb} Ko</b> (limite navigateur ≈ 5 000 Ko : un backend Supabase est requis pour la production).</p><div class="flex"><button class="btn" data-a="bk.exp">Exporter une sauvegarde (JSON)</button>${can("audit","e")?`<input type="file" id="bkf" accept="application/json" style="width:auto"><button class="btn ghost" data-a="bk.imp">Restaurer</button>`:""}<button class="btn ghost" data-a="bk.chk">Contrôle d'intégrité</button></div></div>`}
  return h;
@@ -1183,19 +1201,36 @@ function login(uidv,pin){
  const u=by(S.users,uidv);if(!u)return"Compte inconnu.";
  const t=S.tries[u.id]||{n:0,until:0};if(Date.now()<t.until)return"Compte bloqué 1 minute (trop de tentatives).";
  if(!u.actif)return"Compte désactivé.";
- if(u.h===hashPin(u.id,pin)){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("tr_me",u.id)}catch(x){}view=NAV.find(showNav).v;atomic(()=>{audit("Connexion");generer(today(),true)},true);return null}
+ if(u.h===hashPin(u.id,pin)){ouvrirSession(u,false);return null}
  t.n++;if(t.n>=5){t.until=Date.now()+6e4;t.n=0}S.tries[u.id]=t;try{save()}catch(e){}return"PIN incorrect.";
 }
+/* ---------- Connexion : présentation, accès par profil, couleurs du logiciel ---------- */
+const THEMES=[["turquoise","Turquoise","#0e7490"],["bleu","Bleu","#1a3aa8"],["emeraude","Vert émeraude","#0f7b5f"],["orange","Orange énergie","#c9500a"],["violet","Violet","#6a32c9"],["or","Nuit & or","#15171d"]],THEME_DEF="orange";
+const themeCur=()=>document.documentElement.dataset.theme||THEME_DEF;
+const themeDots=()=>`<div class="themes" title="Couleur du logiciel">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-a="theme" data-id="${k}" aria-label="${t}" title="${t}"></button>`).join("")}</div>`;
+function setTheme(k){if(!THEMES.some(t=>t[0]===k))return;if(k===THEME_DEF)delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{localStorage.setItem("angels_theme",k)}catch(e){}const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue("--b").trim()}
+A.theme=k=>{setTheme(k);render()};
+const demoOK=()=>S.settings.acces_demo!==false;
+const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">ANGEL'S GROUP</div><h1>Chaque taxi suivi, chaque versement encaissé, chaque chauffeur en règle.</h1><p>Le logiciel de gestion de votre parc de taxis communaux — du contrat à la recette du jour.</p><ul><li><span class="i">💵</span><div><b>Versements journaliers et arriérés suivis</b>Échéances, imputation automatique, reçus confirmés.</div></li><li><span class="i">🧾</span><div><b>Comptabilité SYSCOHADA intégrée</b>Partie double, caisse, périodes, états comptables.</div></li><li><span class="i">📍</span><div><b>Carte GPS et alertes</b>Position des taxis, zones, dispositifs.</div></li><li><span class="i">🛠️</span><div><b>Entretien préventif, pièces et agenda</b>Plan par taxi, rappels WhatsApp, stock de pièces.</div></li><li><span class="i">🪪</span><div><b>Dossiers complets</b>Documents du véhicule, photo, permis et carte d'identité du chauffeur.</div></li></ul></div>`;
+const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["directeur","📊","Directeur","Tableau de bord, validations"],["flotte","🚕","Gestionnaire de flotte","Véhicules, contrats, entretien"],["caissier","💰","Caissier","Encaissements, caisse"],["comptable","📒","Comptable","Comptabilité, états"],["controleur","🔍","Contrôleur","Consultation et audit"],["chauffeur","🧑‍✈️","Chauffeur","Mon compte, mes reçus"]];
+function ouvrirSession(u,demo){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("tr_me",u.id)}catch(x){}view=NAV.find(showNav).v;atomic(()=>{audit(demo?"Connexion (accès démo)":"Connexion");generer(today(),true)},true)}
+function loginHTML(){
+ const act=S.users.filter(u=>u.actif),demo=demoOK(),cards=DEMO_P.map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-a="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
+ const form=`<form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${esc(ROLES[u.role])}</option>`).join("")}</select></label><label style="margin-top:10px">Code PIN<input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required></label><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Se connecter</button><p class="mu sm">PIN oublié ? Demander la réinitialisation à l'administrateur.</p></form>`;
+ return `<div class="login hero">${HERO}<div class="hero-r">${demo?`<div style="font-size:20px;font-weight:800;color:var(--b2)">Essayez sans rien installer</div><div class="mu sm">Choisissez un profil : vous entrez directement, avec des données d'exemple.</div><div class="pcards">${cards}</div><details><summary class="mu sm" style="cursor:pointer">Connexion avec un code PIN</summary>${form}<div class="al warn sm" style="margin-top:10px">PIN : admin 1234 · directeur 0000 · flotte 1111 · caissier 2222 · comptable 3333 · contrôleur 4444 · chauffeurs 0001 à 0004.</div></details>`:`<div style="font-size:20px;font-weight:800;color:var(--b2)">Connexion</div><div class="mu sm">Saisissez votre code PIN personnel.</div>${form}`}<div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div>${pwaBtn()?`<p style="margin-top:14px">${pwaBtn()}</p>`:""}<p class="mu sm" style="margin-top:10px"><a href="index.html">← Accueil ANGEL'S GROUP</a>${demo?" · 💡 Ouvrez un second onglet pour jouer le chauffeur pendant que vous gérez.":""}</p></div></div>`;
+}
+A.demoIn=id=>{const u=by(S.users,id);if(!u||!u.actif||!demoOK())return;ouvrirSession(u,true);render()};
+A["demo.tg"]=()=>{if(atomic(()=>{need("audit","e");S.settings.acces_demo=!demoOK();audit("Accès démo par profil",demoOK()?"activé":"désactivé")})!==false)render()};
 function render(){
  const app=$("#app");
  if(!ME){
-  app.innerHTML=`<div class="login card"><h1>🚕 ANGEL'S &amp; CO Transport</h1><form id="lf"><label>Compte</label><select name="u">${S.users.filter(u=>u.actif).map(u=>`<option value="${u.id}">${esc(u.nom)} (${esc(ROLES[u.role])})</option>`).join("")}</select><label>PIN</label><input name="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off" required><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Connexion</button></form><p class="mu sm">PIN oublié ? Contacter l'administrateur pour une réinitialisation.</p><p class="mu sm">Démo — admin 1234 · directeur 0000 · flotte 1111 · caissier 2222 · comptable 3333 · contrôleur 4444 · chauffeurs 0001 à 0004</p>${pwaBtn()?`<p>${pwaBtn()}</p>`:""}<p><a href="index.html">← Hub</a></p></div>`;
+  app.innerHTML=loginHTML();
   $("#lf").onsubmit=e=>{e.preventDefault();const r=login(e.target.u.value,e.target.p.value);if(r)$("#le").textContent=r;else render()};return;
  }
  const items=NAV.filter(showNav);if(!items.some(n=>n.v===view))view=items[0].v;
  let g="",nav="";items.forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
  AFTER=null;let body;try{body=V[view]()}catch(e){body=`<div class="card"><b>Erreur d'affichage</b><p>${esc(e.message)}</p></div>`}
- app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🚕 ANGEL'S &amp; CO<small>Transport · Yopougon</small></div>${nav}<a href="index.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}<a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">🚕 ANGEL'S &amp; CO<small>Transport · Yopougon</small></div>${nav}<a href="index.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
  if(AFTER){const f=AFTER;AFTER=null;f()}
 }
 A["out"]=()=>{atomic(()=>audit("Déconnexion"),true);ME=null;try{sessionStorage.removeItem("tr_me")}catch(x){}render()};
