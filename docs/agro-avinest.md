@@ -6,7 +6,8 @@
 | Menu | Contenu |
 |---|---|
 | Tableau de bord | Effectifs, mortalité, œufs, aliment, ventes, créances, trésorerie, résultat, alertes |
-| Lots & élevage | Fiche lot façon AvicoSuite : liste des lots, en-tête, alertes, indicateurs, score, courbes (ponte/poids/mortalité/aliment), onglets Vue d’ensemble · Suivi semaine · Saisie du jour · Prophylaxie · Alimentation · Historique · Sortie/Réforme · Rentabilité. Non repris : conditionnement, Copilote |
+| Lots & élevage | Fiche lot façon AvicoSuite : liste des lots, en-tête, alertes, indicateurs, score, courbes (ponte/poids/mortalité/aliment), onglets Vue d’ensemble · Suivi semaine · Saisie du jour · Prophylaxie · Programme nutritionnel · Consommation · Historique · Sortie/Réforme · Rentabilité. Non repris : conditionnement, Copilote |
+| Programme nutritionnel | Onglet de chaque lot : phases par âge et par souche (Isa Brown, Lohmann, Hy-Line, Ross 308, Cobb 500, Arbor Acres, Hubbard + Général), phase en cours, besoins du lot (aliment, eau), réel 7 jours vs programme, ajout/modification/suppression contrôlés (chevauchements refusés), réinitialisation |
 | Conditionnement | Sessions de conditionnement façon AvicoSuite : œufs bruts → plateaux (30 œufs + 1 alvéole) → cartons (12 plateaux + 4 alvéoles), 4 calibres, restes reportés par calibre, tarifs calibrés modifiables, annulation de la dernière session, états Production vs Conditionnement et Inventaire PF (impression/WhatsApp). Non repris : dépôts multiples, nomenclatures (BOM) |
 | Suivi quotidien | Mortalité, aliment (déduit du stock), eau, pesée, œufs/casses (versés au stock de plateaux) |
 | Santé & prophylaxie | Calendrier généré par protocole, soins réalisés (stock), traitements avec **délai d'attente** qui bloque la vente |
