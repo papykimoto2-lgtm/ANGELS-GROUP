@@ -83,8 +83,8 @@ try{
  }
 }catch(e){}
 try{
- const T=JSON.parse(localStorage.getItem("angels_transport_v2")||"null");
- if(T){$("t-ot").textContent=((T.versements||[]).filter(x=>x.date===new Date().toISOString().slice(0,10)).reduce((s,x)=>s+(+x.verse||0),0)).toLocaleString("fr-FR")+" F";$("t-v").textContent=(T.vehicules||[]).length;$("t-c").textContent=(T.chauffeurs||[]).length}
+ const T=JSON.parse(localStorage.getItem("angels_transport_v3")||"null");
+ if(T){const j=new Date().toISOString().slice(0,10);$("t-ot").textContent=((T.payments||[]).filter(x=>x.statut==="confirme"&&x.date_valeur===j).reduce((s,x)=>s+(+x.montant||0),0)).toLocaleString("fr-FR")+" F";$("t-v").textContent=(T.vehicles||[]).length;$("t-c").textContent=(T.drivers||[]).length}
 }catch(e){}
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
