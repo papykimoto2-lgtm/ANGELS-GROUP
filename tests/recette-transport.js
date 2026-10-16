@@ -97,6 +97,35 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   const bi=html[5];if(!/Bilan équilibré/.test(bi))E.push("bilan déséquilibré");if(!/Balance équilibrée/.test(html[1]))E.push("balance déséquilibrée");
   UI.tab.etats="syn";UI.tab.compta="brouillard";const c=V.compta();if(!/Saisie/.test(c))E.push("onglet saisie");UI.tab.compta="budgets";if(!/Budget/.test(V.compta()))E.push("onglet budgets");
   return E.length?E.join(" ; "):true});
+ await t("CPT-02","compta automatique : comptes par défaut (blocage, droits, mouvementé), TVA, immobilisation + amortissements, numérotation par journal, complétude",()=>{const E=[];
+  __as("comptable");const dc=S.settings.comptes;
+  if(!__try(()=>definirComptes({client:"412"})))E.push("client changé alors que mouvementé");
+  if(!/mouvementé/.test(__try(()=>definirComptes({client:"412"}))||""))E.push("message mouvementé");
+  const e1=__try(()=>definirComptes({produit:"70"}));if(!e1)E.push("code invalide accepté");
+  atomic(()=>definirComptes({c_frais:"6385"}));if(!by(S.accounts,"6385","num"))E.push("auto-création compte");if(S.settings.comptes.c_frais!=="6385")E.push("c_frais");
+  atomic(()=>definirComptes({c_frais:"638"}));
+  __as("caissier");if(!__try(()=>definirComptes({c_frais:"638"})))E.push("caissier paramètre");
+  __as("directeur");const sv=S.settings.comptes.produit;S.settings.comptes.produit="";const er=__try(()=>cdef("produit"));S.settings.comptes.produit=sv;if(!/non paramétré/.test(er||""))E.push("pas de blocage compte vide");
+  // numérotation par journal
+  const nv=S.entries.filter(x=>x.journal==="VT").map(x=>x.numero).filter(x=>/^VT-\d{4}-\d{4}$/.test(x));if(!nv.length)E.push("numérotation journal");
+  // TVA 18 %
+  atomic(()=>{S.settings.tva_taux=18});const o={id:"ox",montant:11800,vehicle_id:null};const L=ventesLignes("t1",o,11800);
+  if(sum(L,l=>l.debit)!==sum(L,l=>l.credit)||L.find(l=>l.compte===cdef("tva_coll")).credit!==1800||L.find(l=>l.compte===cdef("produit")).credit!==10000)E.push("ventilation TVA");
+  const ch=chargeLignes({categorie:"Carburant",montant:5900,vehicle_id:null});if(ch.length!==2||ch[1].debit!==900||ch[0].debit!==5000)E.push("TVA déductible");
+  if(chargeLignes({categorie:"Amendes et pénalités",montant:5900}).length!==1)E.push("TVA sur amende");
+  atomic(()=>{S.settings.tva_taux=0});
+  // immobilisation + amortissements
+  __as("flotte");const dsv=addMonths(today(),-14);let vid;
+  atomic(()=>{const v={id:uid("v"),immat:"IMMO-TEST",marque:"X",statut:"actif",valeur_acq:6000000,date_service:dsv,duree_amort:5,date_entree:dsv};S.vehicles.push(v);vid=v.id;immoVehicule(v,{})});
+  let v=by(S.vehicles,vid);if(!v.immo_ecr)E.push("acquisition non comptabilisée");
+  __as("comptable");const n=atomic(()=>dotationsAuto());v=by(S.vehicles,vid);
+  if(!(v.amort_cumul>=1200000&&v.amort_cumul<=1500000))E.push("cumul amort "+v.amort_cumul);
+  if(!S.entries.some(e=>e.source&&e.source.type==="amort"&&e.lines.some(l=>l.compte===cdef("amort_cumul")&&l.credit===100000)))E.push("dotation 100000/mois");
+  const n2=atomic(()=>dotationsAuto());if(by(S.vehicles,vid).amort_cumul!==v.amort_cumul)E.push("dotation en double");
+  if(!__try(()=>immoVehicule({...v,valeur_acq:7000000},{valeur_acq:6000000,date_service:v.date_service})))E.push("modif valeur comptabilisée");
+  if(integrite().some(x=>/sans écriture|Compte par défaut/.test(x)))E.push("complétude : "+integrite().join("|"));
+  if(!S.entries.every(e=>sum(e.lines,l=>l.debit)===sum(e.lines,l=>l.credit)))E.push("équilibre");
+  return E.length?E.join(" ; "):true});
  await t("COM-05","période clôturée : écriture refusée ; plan comptable refusé au caissier",()=>{__as("comptable");let e=__try(()=>periodeAction(today().slice(0,7),"close"));if(e)return e;
   const a=__try(()=>saisirOD({date:today(),libelle:"test",lines:[{compte:"571",debit:100},{compte:"121",credit:100}]}));__as("caissier");const b=__try(()=>creerCompte("999","X","Autre"));
   __as("directeur");e=__try(()=>periodeAction(today().slice(0,7),"open"));return(a&&/clôturée/.test(a)&&b&&/Droits/.test(b)&&!e)||("a="+a+" b="+b+" e="+e)});
