@@ -133,7 +133,7 @@ function atomic(fn,quiet){
 const seq=(k,pref)=>{S.seq[k]=(S.seq[k]||0)+1;const f=S.fmt[k]||pref;return f+"-"+new Date().getFullYear()+"-"+String(S.seq[k]).padStart(5,"0")};
 
 /* ---------- Comptabilité (partie double, périodes, extourne, lettrage) ---------- */
-const PLAN=[["101","Capital social","Passif"],["121","Report à nouveau créditeur","Passif"],["129","Report à nouveau débiteur","Passif"],["165","Dépôts et cautionnements reçus","Passif"],["245","Matériel de transport","Actif"],["401","Fournisseurs","Tiers"],["411","Clients (chauffeurs)","Tiers"],["521","Banques et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["604","Achats de matières et fournitures consommables (carburant)","Charge"],["624","Entretien, réparations et maintenance","Charge"],["638","Autres charges externes","Charge"],["658","Charges diverses (amendes, pénalités)","Charge"],["706","Services vendus (recettes et loyers)","Produit"]];
+const PLAN=[["101","Capital social","Passif"],["121","Report à nouveau créditeur","Passif"],["129","Report à nouveau débiteur","Passif"],["165","Dépôts et cautionnements reçus","Passif"],["245","Matériel de transport","Actif"],["401","Fournisseurs","Tiers"],["411","Clients (chauffeurs)","Tiers"],["521","Banques et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["604","Achats de matières et fournitures consommables (carburant)","Charge"],["624","Entretien, réparations et maintenance","Charge"],["638","Autres charges externes","Charge"],["462","Associés, comptes courants","Passif"],["658","Charges diverses (amendes, pénalités)","Charge"],["758","Produits divers","Produit"],["706","Services vendus (recettes et loyers)","Produit"]];
 const JOURNAUX=[["VT","Produits (recettes et loyers)"],["CAI","Caisse"],["BQ","Banque / Mobile Money"],["AC","Achats et charges"],["OD","Opérations diverses"],["AN","À-nouveaux"]];
 const CATS={"Carburant":"604","Entretien et réparations":"624","Amendes et pénalités":"658","Frais divers":"638"};
 const per=d=>d.slice(0,7);
@@ -325,23 +325,35 @@ function ouvrirCaisse(fond){
  if(!(fond>=0))throw new Error("Fond invalide.");
  const cs={id:uid("cs"),ouverte_le:now(),ouverte_par:ME?ME.nom:"système",fond,statut:"ouverte"};S.cash_sessions.push(cs);audit("Caisse ouverte",fcfa(fond));return cs;
 }
+const CX_IN={"Apport de l'exploitant (compte courant)":"462","Autre entrée (produit divers)":"758"},CX_OUT=["Versement en banque","Remboursement dépôt de garantie","Frais divers"];
+function cxNum(sens){const pre=(sens==="entree"?"BE":"BS")+"-"+today().replace(/-/g,"")+"-";return pre+String(S.cash_mv.filter(m=>(m.numero||"").startsWith(pre)).length+1).padStart(3,"0")}
 function postSortie(m){
- const cpt={"Versement en banque":"521","Remboursement dépôt de garantie":"165","Frais divers":"638"}[m.categorie];
+ const ent=m.sens==="entree",cpt=ent?CX_IN[m.categorie]:{"Versement en banque":"521","Remboursement dépôt de garantie":"165","Frais divers":"638"}[m.categorie];
  if(!cpt)return;
- const e=postEntry({journal:"CAI",date:today(),libelle:m.categorie+" — "+m.motif,piece:"MV-"+m.id.slice(-5),source:{type:"cashout",id:m.id},lines:[{compte:cpt,debit:m.montant},{compte:S.settings.compte_caisse,credit:m.montant}]});
+ const L=ent?[{compte:S.settings.compte_caisse,debit:m.montant},{compte:cpt,credit:m.montant}]:[{compte:cpt,debit:m.montant},{compte:S.settings.compte_caisse,credit:m.montant}];
+ const e=postEntry({journal:"CAI",date:today(),libelle:m.categorie+" — "+m.motif,piece:m.numero||"MV-"+m.id.slice(-5),source:{type:"cashout",id:m.id},lines:L});
  m.entry_id=e.id;
+}
+function entreeCaisse(f){
+ need("caisse","c");const cs=openSession();if(!cs)throw new Error("Aucune caisse ouverte.");
+ if(!(f.montant>0))throw new Error("Montant invalide.");if(!String(f.motif||"").trim())throw new Error("Motif obligatoire.");if(!CX_IN[f.categorie])throw new Error("Catégorie d'entrée invalide.");
+ if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
+ const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"entree",numero:cxNum("entree"),montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
+ S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon d'entrée "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")");return m;
 }
 function sortieCaisse(f){
  need("caisse","c");const cs=openSession();if(!cs)throw new Error("Aucune caisse ouverte.");
  if(!(f.montant>0))throw new Error("Montant invalide.");if(!String(f.motif||"").trim())throw new Error("Motif obligatoire.");
  if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
  if(f.montant>soldeTheo(cs))throw new Error("Solde théorique insuffisant ("+fcfa(soldeTheo(cs))+").");
- const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",montant:f.montant,categorie:f.categorie,motif:f.motif,justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
- S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Sortie de caisse",f.categorie+" "+f.montant+" F ("+m.statut+")");
+ const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",numero:cxNum("sortie"),montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
+ S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon de sortie "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")");
 }
-function validerSortie(id,ok){
+function validerSortie(id,ok,motif){
  need("caisse","a");const m=by(S.cash_mv,id);if(!m||m.statut!=="a_valider")throw new Error("Mouvement non validable.");
- m.statut=ok?"validee":"rejetee";m.valide_par=ME.nom;if(ok)postSortie(m);audit("Sortie "+(ok?"validée":"rejetée"),m.motif);
+ if(!ok&&motif!==undefined&&String(motif).trim().length<3)throw new Error("Motif du rejet obligatoire.");
+ if(ok&&m.sens==="sortie"){const cs=by(S.cash_sessions,m.session_id);if(m.montant>soldeTheo(cs))throw new Error("Solde de caisse insuffisant ("+fcfa(soldeTheo(cs))+" disponibles).")}
+ m.statut=ok?"validee":"rejetee";m.valide_par=ME.nom;m.valide_le=now();if(!ok&&motif)m.motif_rejet=String(motif).trim();if(ok)postSortie(m);audit((m.sens==="entree"?"Bon d'entrée ":"Bon de sortie ")+(ok?"validé":"rejeté"),(m.numero||"")+" "+m.motif);
 }
 function cloturerCaisse(reel,expl){
  need("caisse","e");const cs=openSession();if(!cs)throw new Error("Aucune caisse ouverte.");
@@ -349,7 +361,15 @@ function cloturerCaisse(reel,expl){
  if(S.cash_mv.some(m=>m.session_id===cs.id&&m.statut==="a_valider"))throw new Error("Des sorties attendent validation : les traiter avant la clôture.");
  const th=soldeTheo(cs),ec=reel-th;
  if(ec!==0&&!String(expl||"").trim())throw new Error("Écart de "+fcfa(ec)+" : explication obligatoire.");
- Object.assign(cs,{statut:"cloturee",theorique:th,reel,ecart:ec,explication:expl||"",cloturee_le:now(),cloturee_par:ME.nom});audit("Caisse clôturée","écart "+ec);
+ Object.assign(cs,{statut:"cloturee",theorique:th,reel,ecart:ec,explication:expl||"",cloturee_le:now(),cloturee_par:ME.nom,ecart_regul:ec===0});audit("Caisse clôturée","théorique "+fcfa(th)+", compté "+fcfa(reel)+", écart "+fcfa(ec));
+}
+function regulariserEcart(csid,note){
+ need("caisse","a");const cs=by(S.cash_sessions,csid);
+ if(!cs||cs.statut!=="cloturee"||!cs.ecart||cs.ecart_regul)throw new Error("Aucun écart à régulariser sur cette session.");
+ if(String(note||"").trim().length<5)throw new Error("Précisez la décision (ex. manquant imputé au caissier, erreur de saisie corrigée).");
+ const ec=cs.ecart,L=ec<0?[{compte:"658",debit:-ec},{compte:S.settings.compte_caisse,credit:-ec}]:[{compte:S.settings.compte_caisse,debit:ec},{compte:"758",credit:ec}];
+ const e=postEntry({journal:"CAI",date:today(),libelle:"Régularisation écart de caisse ("+(ec<0?"manquant":"excédent")+") — "+String(note).trim(),piece:"ECART-"+cs.id.slice(-5),source:{type:"cashgap",id:cs.id},lines:L});
+ Object.assign(cs,{ecart_regul:true,regul_par:ME.nom,regul_le:now(),regul_note:String(note).trim(),regul_entry:e.id});audit("Écart de caisse régularisé",fcfa(ec));
 }
 function rouvrirCaisse(csid,motif){
  need("caisse","x");const cs=by(S.cash_sessions,csid);
@@ -414,6 +434,7 @@ const ENT_TYPES=[["Vidange + filtre à huile",5000,90],["Plaquettes de frein",20
 const UNITES_P=["pièce","L","kg","jeu","kit"];
 function migrerAtelier(){
  ["plans","pieces","mvt_pieces","rappels"].forEach(k=>{if(!S.hasOwnProperty(k))S[k]=[]});
+ [["462","Associés, comptes courants","Passif"],["758","Produits divers","Produit"]].forEach(([num,nom,type])=>{if(!S.accounts.some(a=>a.num===num))S.accounts.push({num,nom,type})});
  const D=defPerms();Object.keys(D).forEach(r=>{S.perms[r]=S.perms[r]||{};["entretien","pieces","agenda"].forEach(m=>{if(!S.perms[r][m])S.perms[r][m]=D[r][m]})});
 }
 const planProchain=p=>({km:p.int_km>0?p.dernier_km+p.int_km:null,date:p.int_j>0?addDays(p.derniere_date,p.int_j):null});
@@ -578,7 +599,7 @@ function integrite(){
  const enc=sum(S.payments.filter(p=>p.statut==="confirme"&&p.type!=="depot"),p=>p.montant),cr=sum(S.allocs.filter(a=>a.actif),a=>a.montant);
  if(enc!==cr)o.push("Encaissements confirmés ("+fcfa(enc)+") ≠ imputations ("+fcfa(cr)+")");
  const cash=sum(S.entries.filter(e=>e.journal==="CAI"),e=>sum(e.lines.filter(l=>l.compte===S.settings.compte_caisse),l=>(l.debit||0)-(l.credit||0)));
- const mv=sum(S.cash_mv.filter(m=>m.statut==="validee"),m=>m.sens==="entree"?m.montant:-m.montant);
+ const mv=sum(S.cash_mv.filter(m=>m.statut==="validee"),m=>m.sens==="entree"?m.montant:-m.montant)+sum(S.cash_sessions.filter(c=>c.ecart&&c.ecart_regul),c=>c.ecart);
  if(cash!==mv)o.push("Compte 571 ("+fcfa(cash)+") ≠ mouvements de caisse validés ("+fcfa(mv)+")");
  return o;
 }
@@ -887,30 +908,79 @@ A["rc.print"]=id=>recu(by(S.receipts,id));
 A["rc.annul"]=id=>motifForm("Annuler le reçu",m=>annulerRecu(id,m));
 
 /* ---- Caisse ---- */
+const cxUI=()=>UI.f.cx||(UI.f.cx={p:"mois",ref:new Date().toISOString(),ss:""});
+function cxRange(){const x=cxUI(),r=new Date(x.ref),y=r.getFullYear(),m=r.getMonth(),d=r.getDate();
+ if(x.p==="jour")return[new Date(y,m,d),new Date(y,m,d+1),r.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})];
+ if(x.p==="annee")return[new Date(y,0,1),new Date(y+1,0,1),String(y)];
+ return[new Date(y,m,1),new Date(y,m+1,1),r.toLocaleDateString("fr-FR",{month:"long",year:"numeric"})]}
+const cxIn=(m,a,b)=>{const t=new Date(m.date);return t>=a&&t<b};
+const cxSum=(L,sens)=>sum(L.filter(m=>m.sens===sens),m=>m.montant);
+const cxEcarts=()=>S.cash_sessions.filter(s=>s.statut==="cloturee"&&s.ecart&&!s.ecart_regul);
+const cxSoldeReel=()=>{const o=openSession();if(o)return soldeTheo(o);const l=[...S.cash_sessions].reverse().find(s=>s.statut==="cloturee");return l?l.reel||0:0};
+const cxStat=m=>m.statut==="validee"?badge("✓ Validé","ok"):m.statut==="a_valider"?badge("🔐 À valider","wa"):badge("✖ Rejeté","er");
+function cxBars(){const now0=new Date(),L=[];for(let i=11;i>=0;i--){const a=new Date(now0.getFullYear(),now0.getMonth()-i,1),b=new Date(now0.getFullYear(),now0.getMonth()-i+1,1),mv=S.cash_mv.filter(m=>m.statut==="validee"&&cxIn(m,a,b));L.push({l:a.toLocaleDateString("fr-FR",{month:"short"}),e:cxSum(mv,"entree"),s:cxSum(mv,"sortie")})}
+ const mx=Math.max(1,...L.map(x=>Math.max(x.e,x.s)));
+ return `<div style="display:flex;align-items:flex-end;gap:6px;height:110px;margin-top:8px">${L.map(x=>`<div style="flex:1;text-align:center" title="${esc(x.l)} : entrées ${fcfa(x.e)} / sorties ${fcfa(x.s)}"><div style="display:flex;align-items:flex-end;gap:2px;height:90px"><div style="flex:1;background:var(--ok);height:${Math.round(x.e/mx*100)}%;min-height:${x.e?2:0}px;border-radius:3px 3px 0 0"></div><div style="flex:1;background:var(--er);height:${Math.round(x.s/mx*100)}%;min-height:${x.s?2:0}px;border-radius:3px 3px 0 0"></div></div><div class="mu" style="font-size:10px">${esc(x.l)}</div></div>`).join("")}</div>`}
+function cxTop(mv){const g={};mv.filter(m=>m.sens==="sortie").forEach(m=>g[m.categorie]=(g[m.categorie]||0)+m.montant);const L=Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,5),mx=Math.max(1,...L.map(x=>x[1]));
+ return L.length?L.map(([k,v])=>`<div style="margin-top:8px"><div class="sm" style="display:flex;justify-content:space-between"><span>${esc(k)}</span><b>${fcfa(v)}</b></div><div style="background:var(--bd);border-radius:4px;height:6px"><div style="background:var(--er);width:${Math.round(v/mx*100)}%;height:6px;border-radius:4px"></div></div></div>`).join(""):'<p class="mu sm">Aucune sortie sur la période.</p>'}
+function cxBrData(){const ss=S.cash_sessions,x=cxUI(),cs=by(ss,x.ss)||openSession()||ss[ss.length-1];if(!cs)return null;let run=cs.fond;
+ const rows=S.cash_mv.filter(m=>m.session_id===cs.id&&m.statut==="validee").sort((p,q)=>String(p.date).localeCompare(q.date)).map(m=>{run+=m.sens==="entree"?m.montant:-m.montant;return{h:fdt(m.date),n:m.numero||"—",mo:m.categorie+" — "+m.motif,e:m.sens==="entree"?m.montant:0,s:m.sens==="sortie"?m.montant:0,r:run}});
+ return{cs,rows,run,open:cs.fond}}
+function cxBrPrint(){const d=cxBrData();if(!d)return alert("Rien à imprimer.");const te=sum(d.rows,r=>r.e),ts=sum(d.rows,r=>r.s);
+ modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>BROUILLARD DE CAISSE</h1><p><b>ANGEL'S &amp; CO TRANSPORT</b> — Yopougon, Abidjan<br>Session ouverte le ${fdt(d.cs.ouverte_le)} par ${esc(d.cs.ouverte_par)}${d.cs.cloturee_le?" · clôturée le "+fdt(d.cs.cloturee_le):" · en cours"}</p>
+ ${tbl(["Heure","N° bon","Libellé","Entrée","Sortie","Solde"],[tr(["","","<i>Fond d'ouverture</i>","","",fcfa(d.open)]),...d.rows.map(r=>tr([r.h,esc(r.n),esc(r.mo),r.e?fcfa(r.e):"",r.s?fcfa(r.s):"",fcfa(r.r)])),tr(["","","<b>Totaux</b>","<b>"+fcfa(te)+"</b>","<b>"+fcfa(ts)+"</b>","<b>"+fcfa(d.run)+"</b>"])])}
+ ${d.cs.statut==="cloturee"?`<p>Fond réel compté : <b>${fcfa(d.cs.reel)}</b> · Écart : <b>${fcfa(d.cs.ecart)}</b>${d.cs.explication?" ("+esc(d.cs.explication)+")":""}</p>`:""}
+ <table style="width:100%;margin-top:30px"><tr><td style="width:50%">Caissier(ère) : ${esc(d.cs.ouverte_par)}<br><br><br></td><td>Vérifié par (direction / comptabilité)<br><br><br></td></tr></table>`)}
+CSVS.brouillard=()=>{const d=cxBrData();return[["Heure","N° bon","Libellé","Entrée","Sortie","Solde"],d?[["","","Fond d'ouverture","","",d.open],...d.rows.map(r=>[r.h,r.n,r.mo,r.e||"",r.s||"",r.r])]:[]]};
 V.caisse=()=>{
- const cs=openSession(),t=tabOf("caisse","session");
- let h=head("Caisse et trésorerie")+tabs("caisse",[["session","Session en cours"],["histo","Historique"],["banque","Banque / Mobile Money"]]);
+ const cs=openSession(),t=tabOf("caisse","session"),x=cxUI(),[a,b,lab]=cxRange(),mv=S.cash_mv.filter(m=>m.statut==="validee"&&cxIn(m,a,b)),
+  att=S.cash_mv.filter(m=>m.statut==="a_valider"),eca=cxEcarts(),ent=cxSum(mv,"entree"),sor=cxSum(mv,"sortie"),
+  ecp=sum(S.cash_sessions.filter(s=>s.statut==="cloturee"&&s.cloturee_le&&new Date(s.cloturee_le)>=a&&new Date(s.cloturee_le)<b),s=>s.ecart);
+ const per=["jour","mois","annee"].map(p=>`<button class="btn sm ${x.p===p?"":"ghost"}" data-a="cx.per" data-id="${p}">${{jour:"Jour",mois:"Mois",annee:"Année"}[p]}</button>`).join("");
+ let h=head("Caisse et trésorerie",`<div class="flex"><button class="btn sm ghost" data-a="cx.nav" data-id="-1">◀</button><button class="btn sm ghost" data-a="cx.nav" data-id="0">📍 Aujourd'hui</button><button class="btn sm ghost" data-a="cx.nav" data-id="1">▶</button>${per}</div>`);
+ h+=`<h2 style="margin-top:0">📊 Tableau de bord — ${esc(lab)}</h2><div class="grid"><div class="kpi ${cxSoldeReel()<0?"e":"o"}"><div class="v">${fcfa(cxSoldeReel())}</div><div class="l">Solde temps réel</div></div><div class="kpi o"><div class="v">${fcfa(ent)}</div><div class="l">Encaissements</div></div><div class="kpi e"><div class="v">${fcfa(sor)}</div><div class="l">Décaissements</div></div><div class="kpi"><div class="v">${fcfa(ent-sor)}</div><div class="l">Flux net</div></div>
+ <div class="kpi ${att.length?"w":""}"><div class="v">${att.length} · ${fcfa(sum(att,m=>m.montant))}</div><div class="l">🔐 Bons à valider</div></div><div class="kpi ${eca.length?"e":"o"}"><div class="v">${eca.length?eca.length+" · "+fcfa(sum(eca,s=>s.ecart)):"Aucun"}</div><div class="l">Écarts non régularisés</div></div><div class="kpi ${ecp?"e":""}"><div class="v">${fcfa(ecp)}</div><div class="l">Écart de clôture (période)</div></div></div>
+ <div class="grid" style="grid-template-columns:2fr 1fr;gap:12px;margin:12px 0"><div class="card" style="margin:0"><b>Flux de caisse — 12 mois</b> <span class="sm mu">(<span style="color:var(--ok)">■</span> entrées <span style="color:var(--er)">■</span> sorties)</span>${cxBars()}</div><div class="card" style="margin:0"><b>Top postes de dépense</b>${cxTop(mv)}</div></div>`;
+ if(eca.length&&can("caisse","a"))h+=`<h2 style="color:var(--er)">⚖️ Écarts de caisse à régulariser</h2>`+tbl(["Clôture","Théorique","Compté","Écart","Justification du caissier",""],eca.map(s=>tr([fdt(s.cloturee_le)+"<br><span class='sm mu'>"+esc(s.cloturee_par||"")+"</span>",fcfa(s.theorique),fcfa(s.reel),`<b style="color:var(--er)">${s.ecart>0?"+":""}${fcfa(s.ecart)}</b><br><span class="sm mu">${s.ecart<0?"manquant":"excédent"}</span>`,esc(s.explication||""),btn("cs.regul",s.id,"✅ Régulariser","")])));
+ h+=tabs("caisse",[["session","Session en cours"],["brouillard","Brouillard"],["histo","Historique"],["banque","Banque / Mobile Money"]]);
  if(t==="session"){
   if(!cs){const last=[...S.cash_sessions].reverse().find(s=>s.statut==="cloturee");
-   h+=`<div class="card"><p>Aucune caisse ouverte. Les encaissements en espèces sont impossibles.</p>${can("caisse","c")?`<button class="btn" data-a="cs.open">Ouvrir la caisse</button>`:""} ${last&&can("caisse","x")?`<button class="btn ghost" data-a="cs.reopen" data-id="${last.id}">Rouvrir la dernière session</button>`:""}</div>`;
+   h+=`<div class="card"><p>Aucune caisse ouverte. Les encaissements en espèces sont impossibles.</p>${can("caisse","c")?`<button class="btn" data-a="cs.open">🔓 Ouvrir la caisse</button>`:""} ${last&&can("caisse","x")?`<button class="btn ghost" data-a="cs.reopen" data-id="${last.id}">Rouvrir la dernière session</button>`:""}</div>`;
   }else{
-   const mv=S.cash_mv.filter(m=>m.session_id===cs.id),en=sum(mv.filter(m=>m.statut==="validee"&&m.sens==="entree"),m=>m.montant),so=sum(mv.filter(m=>m.statut==="validee"&&m.sens==="sortie"),m=>m.montant);
+   const sm=S.cash_mv.filter(m=>m.session_id===cs.id),en=cxSum(sm.filter(m=>m.statut==="validee"),"entree"),so=cxSum(sm.filter(m=>m.statut==="validee"),"sortie"),na=sm.filter(m=>m.statut==="a_valider").length;
    h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cs.fond)}</div><div class="l">Fond d'ouverture</div></div><div class="kpi o"><div class="v">${fcfa(en)}</div><div class="l">Entrées</div></div><div class="kpi e"><div class="v">${fcfa(so)}</div><div class="l">Sorties validées</div></div><div class="kpi"><div class="v">${fcfa(soldeTheo(cs))}</div><div class="l">Solde théorique</div></div></div>
-   <div class="flex" style="margin-bottom:12px">${can("caisse","c")?`<button class="btn" data-a="cs.out">Sortie de fonds</button>`:""}${can("caisse","e")?`<button class="btn ghost" data-a="cs.close">Clôturer la caisse</button>`:""}</div>
-   ${tbl(["Heure","Sens","Catégorie","Motif","Montant","Statut","Par",""],mv.slice().reverse().map(m=>tr([fdt(m.date),m.sens==="entree"?badge("Entrée","ok"):badge("Sortie","er"),esc(m.categorie),esc(m.motif),fcfa(m.montant),badge(m.statut==="validee"?"Validé":m.statut==="a_valider"?"À valider":"Rejeté",m.statut==="validee"?"ok":m.statut==="a_valider"?"wa":"er"),esc(m.par),m.statut==="a_valider"&&can("caisse","a")?`<div class="flex">${btn("cs.val",m.id,"Valider","ok")}${btn("cs.rej",m.id,"Rejeter","er")}</div>`:""])))}`;
+   ${na?`<div class="al warn sm" style="margin-top:10px">⚠ ${na} bon(s) en attente de validation : la clôture sera refusée tant qu'ils ne sont pas validés ou rejetés.</div>`:""}
+   <div class="flex" style="margin:12px 0">${can("caisse","c")?`<button class="btn ok" data-a="cs.in">📥 Bon d'entrée</button><button class="btn" data-a="cs.out">📤 Bon de sortie</button>`:""}${can("caisse","e")?`<button class="btn ghost" data-a="cs.close">🔒 Clôturer la caisse</button>`:""}<button class="btn ghost" data-a="cs.br">🖨 Brouillard</button></div>
+   ${tbl(["N°","Heure","Sens","Catégorie","Motif","Tiers","Montant","Statut","Par",""],sm.slice().reverse().map(m=>tr([esc(m.numero||"—"),fdt(m.date),m.sens==="entree"?badge("Entrée","ok"):badge("Sortie","er"),esc(m.categorie),esc(m.motif)+(m.motif_rejet?`<br><span class="sm mu">Rejet : ${esc(m.motif_rejet)}</span>`:""),esc(m.tiers||""),`<b style="color:${m.sens==="entree"?"var(--ok)":"var(--er)"}">${m.sens==="entree"?"+":"−"}${fcfa(m.montant)}</b>`,cxStat(m),esc(m.par),`<div class="flex">${m.statut==="validee"&&m.numero?btn("cs.print",m.id,"🖨","ghost"):""}${m.statut==="a_valider"&&can("caisse","a")?btn("cs.val",m.id,"Valider","ok")+btn("cs.rej",m.id,"Rejeter","er"):""}</div>`])))}`;
   }
  }
- if(t==="histo")h+=tbl(["Ouverture","Clôture","Fond","Théorique","Compté","Écart","Explication","Par"],S.cash_sessions.slice().reverse().map(s=>tr([fdt(s.ouverte_le),s.cloturee_le?fdt(s.cloturee_le):badge("Ouverte","wa"),fcfa(s.fond),s.theorique!=null?fcfa(s.theorique):"—",s.reel!=null?fcfa(s.reel):"—",s.ecart?`<b style="color:var(--er)">${fcfa(s.ecart)}</b>`:s.ecart===0?"0 F":"—",esc(s.explication||""),esc(s.cloturee_par||s.ouverte_par)])));
+ if(t==="brouillard"){const d=cxBrData(),opts=S.cash_sessions.slice().reverse().map(s=>`<option value="${s.id}" ${d&&d.cs.id===s.id?"selected":""}>${esc(fdt(s.ouverte_le))} — ${s.statut==="ouverte"?"en cours":"clôturée"}</option>`).join("");
+  h+=d?`<div class="flex" style="margin-bottom:10px"><select data-f="cx:ss" style="width:auto">${opts}</select><button class="btn ghost" data-a="cs.br">🖨 Imprimer</button>${csvBtn("caisse","brouillard")}</div>`+tbl(["Heure","N° bon","Libellé","Entrée","Sortie","Solde"],[tr(["","","<i>Fond d'ouverture</i>","","",fcfa(d.open)]),...d.rows.map(r=>tr([r.h,esc(r.n),esc(r.mo),r.e?fcfa(r.e):"",r.s?fcfa(r.s):"",fcfa(r.r)]))]):'<div class="card">Aucune session de caisse.</div>';}
+ if(t==="histo")h+=tbl(["Ouverture","Clôture","Fond","Théorique","Compté","Écart","Explication","Régularisation","Par"],S.cash_sessions.slice().reverse().map(s=>tr([fdt(s.ouverte_le),s.cloturee_le?fdt(s.cloturee_le):badge("Ouverte","wa"),fcfa(s.fond),s.theorique!=null?fcfa(s.theorique):"—",s.reel!=null?fcfa(s.reel):"—",s.ecart?`<b style="color:var(--er)">${fcfa(s.ecart)}</b>`:s.ecart===0?"0 F":"—",esc(s.explication||""),s.ecart?(s.ecart_regul?badge("Régularisé","ok")+"<br><span class='sm mu'>"+esc(s.regul_note||"")+" · "+esc(s.regul_par||"")+"</span>":badge("À régulariser","er")+(can("caisse","a")?" "+btn("cs.regul",s.id,"Régulariser","ghost"):"")):"—",esc(s.cloturee_par||s.ouverte_par)])));
  if(t==="banque"){const pt=sum(S.bank_tx.filter(b=>b.pointe&&!b.annule),b=>b.montant),cmp=sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte==="521")),l=>(l.debit||0)-(l.credit||0));
   h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cmp)}</div><div class="l">Solde comptable 521</div></div><div class="kpi o"><div class="v">${fcfa(pt)}</div><div class="l">Encaissements pointés (relevé)</div></div></div>`+tbl(["Date","Montant","Mode","Référence","Pointé"],S.bank_tx.filter(b=>!b.annule).slice().reverse().map(b=>tr([fd(b.date),fcfa(b.montant),esc(b.mode),esc(b.ref),can("caisse","e")?`<input type="checkbox" data-a="bk.pt" data-id="${b.id}" ${b.pointe?"checked":""}>`:(b.pointe?"Oui":"Non")])),{empty:"Aucune opération bancaire."});}
  return h;
 };
-A["cs.open"]=()=>{const last=[...S.cash_sessions].reverse().find(s=>s.statut==="cloturee");form("Ouvrir la caisse",[{k:"fond",l:"Fond d'ouverture compté (F)",t:"number",req:1,h:last?"Doit égaler la dernière clôture : "+fcfa(last.reel):""}],{fond:last?last.reel:0},o=>ouvrirCaisse(o.fond))};
+A["cx.per"]=id=>{cxUI().p=id;render()};
+A["cx.nav"]=id=>{const x=cxUI(),n=+id;if(!n){x.ref=new Date().toISOString();return render()}const r=new Date(x.ref);if(x.p==="jour")r.setDate(r.getDate()+n);else if(x.p==="annee")r.setFullYear(r.getFullYear()+n);else r.setMonth(r.getMonth()+n);x.ref=r.toISOString();render()};
+A["cs.br"]=()=>cxBrPrint();
+A["cs.print"]=id=>{const m=by(S.cash_mv,id);if(!m||m.statut!=="validee")return;const ent=m.sens==="entree";
+ modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1 style="text-align:center;border:2px solid #000;padding:8px">${ent?"BON D'ENTRÉE DE CAISSE":"BON DE SORTIE DE CAISSE"}</h1><p><b>ANGEL'S &amp; CO TRANSPORT</b> — Yopougon, Abidjan</p>
+ <table style="width:100%;border-collapse:collapse" border="1" cellpadding="6"><tr><td>N°</td><td><b>${esc(m.numero||"—")}</b></td></tr><tr><td>Date</td><td>${fdt(m.date)}</td></tr><tr><td>Montant</td><td><b style="font-size:18px">${fcfa(m.montant)}</b></td></tr><tr><td>Catégorie</td><td>${esc(m.categorie)}</td></tr><tr><td>Motif</td><td>${esc(m.motif)}</td></tr><tr><td>${ent?"Déposant":"Bénéficiaire"}</td><td>${esc(m.tiers||"")}</td></tr><tr><td>Pièce justificative</td><td>${esc(m.justificatif||"—")}</td></tr></table>
+ <p style="margin-top:10px">✅ Validé${m.valide_par?" par "+esc(m.valide_par)+" le "+fdt(m.valide_le):" (sous le seuil de validation)"}</p><table style="width:100%;margin-top:30px"><tr><td style="width:50%">Caissier(ère)<br><br><br>${esc(m.par)}</td><td>${ent?"Déposant / versé par":"Bénéficiaire / reçu par"}<br><br><br>${esc(m.tiers||"")}</td></tr></table>`)};
+A["cs.regul"]=id=>{const c=by(S.cash_sessions,id);form("Régulariser l'écart de caisse",[{k:"note",l:"Décision (obligatoire)",t:"area",req:1,full:1,h:"Écart de "+fcfa(c.ecart)+" ("+(c.ecart<0?"manquant : charge 658":"excédent : produit 758")+"). Justification du caissier : "+(c.explication||"—")}],{},o=>regulariserEcart(id,o.note),"Régulariser")};
+A["cs.rej"]=id=>motifForm("Rejeter le bon de caisse",m=>{validerSortie(id,false,m)});
+A["cs.open"]=()=>{const last=[...S.cash_sessions].reverse().find(s=>s.statut==="cloturee"),th=last?last.reel:0;
+ const m=form("Ouvrir la caisse",[{k:"fond",l:"Fond de caisse constaté (F)",t:"number",req:1,h:last?"Doit égaler le dernier comptage : "+fcfa(th)+(last.ecart?" (écart de la dernière clôture : "+fcfa(last.ecart)+(last.ecart_regul?", régularisé":", non régularisé")+")":""):"Première ouverture : aucun solde antérieur"}],{fond:th},o=>ouvrirCaisse(o.fond),"🔓 Ouvrir la caisse");
+ const f=m.querySelector("[name=fond]"),hint=m.querySelector("label span.mu");f.oninput=()=>{const e=Math.round(+f.value)-th;if(f.value==="")return;hint.innerHTML=e?`<b style="color:var(--er)">Écart avec le solde théorique : ${e>0?"+":""}${fcfa(e)}</b> (ouverture refusée : le fond doit égaler le dernier comptage)`:'<b style="color:var(--ok)">Conforme au solde théorique.</b>'}};
 A["cs.reopen"]=id=>motifForm("Rouvrir la session de caisse",m=>rouvrirCaisse(id,m));
-A["cs.out"]=()=>form("Sortie de fonds",[{k:"categorie",l:"Catégorie",t:"select",o:["Versement en banque","Remboursement dépôt de garantie","Frais divers"].map(x=>[x,x])},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"motif",l:"Motif",req:1},{k:"justificatif",l:"Justificatif (n° pièce)",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+" · validation au-delà de "+fcfa(S.settings.seuil_validation)}],{},o=>sortieCaisse(o));
-A["cs.close"]=()=>{const cs=openSession();form("Clôturer la caisse",[{k:"reel",l:"Montant réellement compté (F)",t:"number",req:1,h:"Solde théorique : "+fcfa(soldeTheo(cs))},{k:"expl",l:"Explication de l'écart",t:"area",full:1}],{},o=>cloturerCaisse(o.reel,o.expl))};
-A["cs.val"]=id=>{if(atomic(()=>validerSortie(id,true)))render()};
-A["cs.rej"]=id=>{if(atomic(()=>validerSortie(id,false)))render()};
+const bonFields=(sens)=>{const ent=sens==="entree";return[{k:"categorie",l:"Catégorie",t:"select",o:(ent?Object.keys(CX_IN):CX_OUT).map(x=>[x,x]),sec:ent?"Bon d'entrée de caisse":"Bon de sortie de caisse"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"motif",l:"Motif / libellé",req:1,full:1},{k:"tiers",l:ent?"Déposant":"Bénéficiaire",req:1},{k:"justificatif",l:"N° de pièce justificative",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+" · validation au-delà de "+fcfa(S.settings.seuil_validation)}]};
+A["cs.in"]=()=>form("📥 Bon d'entrée de caisse",bonFields("entree"),{},o=>{entreeCaisse(o)},"💾 Enregistrer le bon");
+A["cs.out"]=()=>form("📤 Bon de sortie de caisse",bonFields("sortie"),{},o=>sortieCaisse(o),"💾 Enregistrer le bon");
+A["cs.close"]=()=>{const cs=openSession(),th=soldeTheo(cs),vl=S.cash_mv.filter(m=>m.session_id===cs.id&&m.statut==="validee");
+ const m=form("🔒 Clôturer la caisse",[{k:"reel",l:"Montant réellement compté (F)",t:"number",req:1,h:"Fond "+fcfa(cs.fond)+" + entrées "+fcfa(cxSum(vl,"entree"))+" − sorties "+fcfa(cxSum(vl,"sortie"))+" = solde théorique "+fcfa(th),sec:"Comptage"},{k:"expl",l:"Justification de l'écart",t:"area",full:1,h:"Obligatoire si le comptage diffère du solde théorique"}],{},o=>cloturerCaisse(o.reel,o.expl),"🔒 Clôturer la caisse");
+ const f=m.querySelector("[name=reel]"),hint=m.querySelector("label span.mu");f.oninput=()=>{if(f.value==="")return;const e=Math.round(+f.value)-th;hint.innerHTML=e?`<b style="color:var(--er)">Écart : ${e>0?"+":""}${fcfa(e)}</b> (${e<0?"manquant":"excédent"}) — justification obligatoire`:'<b style="color:var(--ok)">Aucun écart.</b>'}};
+A["cs.val"]=id=>{if(atomic(()=>validerSortie(id,true))!==false)render()};
 A["bk.pt"]=(id,el)=>{if(atomic(()=>{need("caisse","e");by(S.bank_tx,id).pointe=el.checked}))render()};
 /* ---- Dépenses ---- */
 V.depenses=()=>{
