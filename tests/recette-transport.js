@@ -82,6 +82,11 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   __as("directeur");if(!__try(()=>basculerCaisse(pid)))E.push("désactiver ouverte");atomic(()=>basculerCaisse(agid));if(by(S.caisses,agid).actif)E.push("désactivation");
   atomic(()=>basculerCaisse(agid));__as("caissier");atomic(()=>cloturerCaisse(soldeTheo(openSession(pid)),"",pid));
   return E.length?E.join(" ; "):true});
+ await t("CAI-03","pas de redondance : « Frais divers » refusé en bon de sortie (module Dépenses), libellés Entrées/Sorties",()=>{const E=[];__as("caissier");
+  if(CX_OUT.includes("Frais divers"))E.push("catégorie encore proposée");
+  const cs=openSession()||null;if(cs){const r=__try(()=>sortieCaisse({categorie:"Frais divers",montant:100,motif:"x",tiers:"y"}));if(!/Dépenses/.test(r||""))E.push("Frais divers accepté : "+r)}
+  __as("directeur");view="caisse";UI.tab.caisse="session";const h=V.caisse();if(/Décaissements/.test(h)||!/>Entrées</.test(h)||!/>Sorties</.test(h))E.push("libellés");
+  return E.length?E.join(" ; "):true});
  await t("CPT-01","compta : brouillard → visa (séparation des tâches, équilibre), budgets, états (synthèse, balance, grand livre, âgée, bilan équilibré, sans NaN)",()=>{const E=[];__as("comptable");
   const ln=[{compte:"638",debit:1000},{compte:"121",credit:1000}];
   atomic(()=>brouillardOD({date:today(),libelle:"Frais test",lines:ln}));const id=S.brouillard[S.brouillard.length-1].id;
