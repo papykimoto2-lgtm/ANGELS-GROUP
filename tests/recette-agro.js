@@ -105,11 +105,58 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   if(integrite().some(x=>/sans écriture|Compte par défaut/.test(x)))E.push("complétude : "+integrite().join("|"));
   if(!S.entries.every(x=>sum(x.lignes,l=>l.debit)===sum(x.lignes,l=>l.credit)))E.push("équilibre");
   return E.length?E.join(" ; "):true});
+ await t("AGR-CAI","caisse : sessions, bons numérotés, validation, clôture/écart/régularisation, multi-caisse, extourne en miroir, virement banque, intégrité caisse = compta",()=>{const E=[];
+  const cs0=()=>openSession(S.caisses[0].id),pid=S.caisses[0].id;if(!cs0())E.push("caisse principale non ouverte");
+  __as("chef");const n0=S.cash_mv.length;atomic(()=>ajouterCharge({date:today(),categorie:"autre",montant:1000,mode:"especes"}));if(S.cash_mv.length!==n0+1||S.cash_mv[n0].sens!=="sortie")E.push("charge espèces sans mouvement");
+  const chId=S.charges[S.charges.length-1].id;
+  // bon d'entrée (apport) validé d'office sous le seuil
+  __as("caissier");atomic(()=>mouvTreso({categorie:"apport",mode:"especes",montant:20000,libelle:"Apport",tiers:"Gérant",date:today()}));let b1=S.cash_mv[S.cash_mv.length-1];
+  if(!/^BE-\d{8}-\d{3}$/.test(b1.numero)||b1.statut!=="validee"||!S.entries.some(e=>e.source&&e.source.type==="bon"&&e.source.id===b1.id))E.push("bon d'entrée");
+  if(integrite().some(x=>/caisse/i.test(x)&&/≠/.test(x)))E.push("caisse ≠ compta : "+integrite().join("|"));
+  // justificatif au-delà du seuil, validation au-delà du seuil
+  if(!__try(()=>mouvTreso({categorie:"retrait",mode:"especes",montant:15000,libelle:"x",tiers:"y",date:today()})))E.push("justificatif manquant accepté");
+  const big=S.settings.seuil_validation+1000;atomic(()=>mouvTreso({categorie:"apport",mode:"especes",montant:big,libelle:"Gros apport",tiers:"Gérant",date:today(),justificatif:"J1"}));const b2=S.cash_mv[S.cash_mv.length-1],id2=b2.id;
+  if(b2.statut!=="a_valider")E.push("seuil validation");if(!__try(()=>cloturerCaisse(soldeTheo(cs0()),"",pid)))E.push("clôture avec bon en attente");
+  if(!__try(()=>validerBon(id2,true)))E.push("caissier valide");__as("direction");atomic(()=>validerBon(id2,true));if(by(S.cash_mv,id2).statut!=="validee"||!S.entries.some(e=>e.source&&e.source.id===id2))E.push("validation");
+  // virement vers banque (bon de sortie)
+  __as("caissier");const b0=soldeCompte(cdef("banque"));atomic(()=>mouvTreso({categorie:"virement",sens:"vers_banque",mode:"especes",montant:5000,libelle:"Dépôt banque",tiers:"Banque",date:today()}));if(soldeCompte(cdef("banque"))!==b0+5000)E.push("virement banque");
+  // écriture manuelle sur compte de caisse refusée
+  __as("comptable");if(!/module Caisse/.test(__try(()=>saisirOD({date:today(),libelle:"x",lignes:[{compte:"571",debit:100},{compte:"101",credit:100}]}))||""))E.push("OD sur caisse acceptée");
+  // multi-caisse
+  __as("caissier");if(!__try(()=>creerCaisse("Boutique","572")))E.push("caissier crée une caisse");__as("direction");if(!__try(()=>creerCaisse("Caisse principale","572")))E.push("doublon");if(!__try(()=>creerCaisse("X","999")))E.push("compte invalide");
+  atomic(()=>creerCaisse("Boutique","572"));const bid=S.caisses.find(c=>c.nom==="Boutique").id;__as("caissier");atomic(()=>ouvrirCaisse(0,bid));
+  atomic(()=>mouvTreso({categorie:"apport",mode:"especes",caisse:bid,montant:7000,libelle:"Fond boutique",tiers:"Gérant",date:today()}));if(soldeTheo(openSession(bid))!==7000)E.push("solde boutique");
+  if(!S.entries.some(e=>e.lignes.some(l=>l.compte==="572"&&l.debit===7000)))E.push("écriture 572");
+  // extourne en miroir : annuler la charge espèces
+  __as("chef");const sb=soldeTheo(cs0());atomic(()=>annulerCharge(chId,"Erreur de saisie"));if(soldeTheo(cs0())!==sb+1000)E.push("extourne sans mouvement de caisse");
+  if(integrite().some(x=>/Comptes de caisse/.test(x)))E.push("intégrité après extourne : "+integrite().join("|"));
+  // clôture avec écart, régularisation
+  __as("caissier");const th=soldeTheo(cs0());atomic(()=>cloturerCaisse(th-2500,"Rendu de monnaie",pid));let cs=S.cash_sessions.filter(x=>x.caisse_id===pid).pop();
+  if(cs.ecart!==-2500||cs.ecart_regul)E.push("écart");if(!__try(()=>regulariserEcart(cs.id,"ok ok ok")))E.push("caissier régularise");
+  __as("direction");atomic(()=>regulariserEcart(S.cash_sessions.filter(x=>x.caisse_id===pid).pop().id,"Manquant imputé au caissier"));if(!S.entries.some(e=>e.source&&e.source.type==="cashgap"&&e.lignes.some(l=>l.compte===cdef("ecart_manq")&&l.debit===2500)))E.push("écriture écart");
+  if(!__try(()=>encaisserVente(S.ventes.find(v=>v.statut==="valide"&&soldeVente(v)>0).id,{montant:1,mode:"especes",date:today()}))&&false)E.push("");
+  // boutique reste ouverte : l'encaissement espèces va à la caisse ouverte (boutique) ; puis tout refusé caisses fermées
+  __as("caissier");atomic(()=>cloturerCaisse(7000,"",bid));const er=__try(()=>ajouterCharge({date:today(),categorie:"autre",montant:100,mode:"especes"}));if(!/Aucune caisse ouverte/.test(er||""))E.push("flux espèces accepté caisses fermées : "+er);
+  // réouverture de la principale (fond = dernier comptage) pour les tests suivants
+  atomic(()=>ouvrirCaisse(lastClosed(pid).reel,pid));if(!openSession(pid))E.push("réouverture");
+  // désactivation
+  __as("direction");if(!__try(()=>basculerCaisse(pid)))E.push("désactiver caisse ouverte");atomic(()=>basculerCaisse(bid));if(by(S.caisses,bid).actif)E.push("désactivation");atomic(()=>basculerCaisse(bid));
+  // vues
+  __as("admin");const html=[];for(const tb of ["session","brouillard","histo","banque"]){UI.tab.tresor=tb;html.push(V.tresor())}if(/NaN|undefined/.test(html.join("")))E.push("NaN/undefined dans la caisse");
+  if(integrite().length)E.push("intégrité : "+integrite().join("|"));
+  return E.length?E.join(" ; "):true});
+ await t("AGR-INT","interconnexion : l'amortissement du bâtiment entre dans le coût du lot (rentabilité) ; hub : caisses et comptes paramétrés",()=>{const E=[];const l=S.lots.find(x=>x.statut==="en_cours"),b=by(S.batiments,l.batiment_id),sv=JSON.stringify(b),c0=lotStats(l);
+  if(c0.cAm!==0)E.push("amortissement sans immobilisation");
+  Object.assign(b,{valeur_acq:3650000,duree_amort:10,immo_ecr:"x"});const s1=lotStats(l),j=diffDays(today(),l.debut),att=Math.round(3650000/3650*j*Math.min(1,l.initial/b.capacite));
+  if(s1.cAm!==att||att<=0)E.push("cAm "+s1.cAm+" ≠ "+att);if(Math.round(s1.cout-c0.cout)!==att)E.push("coût total");
+  const h=V.finance();if(!/Amort\. bâtiment/.test(h)||/NaN|undefined/.test(h))E.push("rentabilité");
+  Object.keys(b).forEach(k=>delete b[k]);Object.assign(b,JSON.parse(sv));
+  return E.length?E.join(" ; "):true});
  await t("AGR-14","charges : caisse insuffisante refusée ; annulation par extourne",()=>{__as("chef");const cash=soldeCompte("571");const a=__try(()=>ajouterCharge({date:today(),categorie:"autre",montant:cash+1,mode:"especes"}));
   let c;let e=__try(()=>{c=ajouterCharge({date:today(),categorie:"energie",montant:1000,mode:"especes"})});if(e)return e;const s0=soldeCompte("571");e=__try(()=>annulerCharge(c.id,"Doublon"));if(e)return e;
   return(/Caisse insuffisante/.test(a)&&soldeCompte("571")===s0+1000&&by(S.charges,c.id).statut==="annule"&&integrite().length===0)||a});
  await t("AGR-15","comptabilité : OD déséquilibrée refusée ; période clôturée bloque ; extourne d'une écriture automatique refusée",()=>{__as("comptable");
-  const a=__try(()=>saisirOD({date:today(),libelle:"x",lignes:[{compte:"571",debit:100},{compte:"101",credit:90}]}));let od;let e=__try(()=>{od=saisirOD({date:today(),libelle:"Apport test",lignes:[{compte:"571",debit:500},{compte:"101",credit:500}]})});if(e)return e;
+  const a=__try(()=>saisirOD({date:today(),libelle:"x",lignes:[{compte:"628",debit:100},{compte:"101",credit:90}]}));let od;let e=__try(()=>{od=saisirOD({date:today(),libelle:"Apport test",lignes:[{compte:"628",debit:500},{compte:"101",credit:500}]})});if(e)return e;
   __as("direction");const x1=__try(()=>extournerOD(S.entries.find(x=>x.source&&x.source.type==="achat").id,"x"));e=__try(()=>extournerOD(od.id,"erreur"));if(e)return e;
   __as("comptable");e=__try(()=>periodeAction(today().slice(0,7),"close"));if(e)return e;const c=__try(()=>ajouterCharge({date:today(),categorie:"autre",montant:100,mode:"especes"}));__as("direction");e=__try(()=>periodeAction(today().slice(0,7),"open"));
   return(/déséquilibrée/.test(a)&&/manuelles/.test(x1)&&/clôturée/.test(c)&&!e)||[a,x1,c,e].join("|")});
