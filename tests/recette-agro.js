@@ -77,6 +77,34 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   if(stv("seuil_casse")!==5)E.push("seuil casse défaut");
   Object.keys(st).forEach(k=>delete st[k]);Object.assign(st,JSON.parse(sv));render();
   return E.length?E.join(" ; "):true});
+ await t("AGR-CPT","compta automatique : comptes par défaut, TVA, immobilisation bâtiment + amortissements, brouillard/visa, budgets, états, numérotation par journal",()=>{const E=[];
+  __as("comptable");if(!__try(()=>definirComptes({client:"412"}))||!/mouvementé/.test(__try(()=>definirComptes({client:"412"}))||""))E.push("client changé alors que mouvementé");
+  if(!__try(()=>definirComptes({produit_div:"75"})))E.push("code invalide accepté");
+  atomic(()=>definirComptes({c_divers:"6285"}));if(!by(S.accounts,"6285","num")||cdef("c_divers")!=="6285")E.push("auto-création");atomic(()=>definirComptes({c_divers:"628"}));
+  __as("caissier");if(!__try(()=>definirComptes({c_divers:"628"})))E.push("caissier paramètre");
+  __as("admin");const sv=S.settings.comptes.banque;S.settings.comptes.banque="";const er=__try(()=>cdef("banque"));S.settings.comptes.banque=sv;if(!/non paramétré/.test(er||""))E.push("pas de blocage compte vide");
+  S.settings.tva_taux=18;const n0=S.entries.length;__as("chef");atomic(()=>ajouterCharge({date:today(),categorie:"entretien",montant:11800,mode:"banque"}));const e=S.entries[S.entries.length-1];
+  if(e.lignes.find(l=>l.compte===cdef("tva_ded")).debit!==1800||e.lignes.find(l=>l.compte===cdef("c_entretien")).debit!==10000)E.push("TVA déductible sur charge");
+  if(!/^AC-\d{4}-\d{4}$/.test(e.numero))E.push("numérotation par journal : "+e.numero);
+  atomic(()=>ajouterCharge({date:today(),categorie:"main_oeuvre",montant:5000,mode:"banque"}));if(S.entries[S.entries.length-1].lignes.some(l=>l.compte===cdef("tva_ded")))E.push("TVA sur main-d'œuvre");
+  const mm=today().slice(0,7);__as("admin");if(tvaMois(mm).ded!==1800)E.push("tvaMois");atomic(()=>liquiderTVA(mm));if(!tvaMois(mm).liq||!S.entries.some(x=>x.source&&x.source.type==="tva"&&x.lignes.some(l=>l.compte===cdef("tva_credit")&&l.debit===1800)))E.push("liquidation TVA (crédit)");
+  if(!__try(()=>liquiderTVA(mm)))E.push("double liquidation");S.settings.tva_taux=0;
+  const d0=new Date();d0.setMonth(d0.getMonth()-14);d0.setDate(1);const ds=d0.toISOString().slice(0,10);
+  __as("chef");let bid;atomic(()=>{const b={id:uid("b"),nom:"Poulailler C",capacite:500,usage:"Chair",actif:true,valeur_acq:2400000,date_service:ds,duree_amort:20};S.batiments.push(b);bid=b.id;immoBat(b,{})});
+  __as("comptable");const nA=atomic(()=>dotationsAuto());let b=by(S.batiments,bid);if(!(b.amort_cumul===14*10000))E.push("cumul amort "+b.amort_cumul);
+  atomic(()=>dotationsAuto());if(by(S.batiments,bid).amort_cumul!==14*10000)E.push("dotation en double");
+  if(!__try(()=>immoBat({...by(S.batiments,bid),valeur_acq:3000000},{valeur_acq:2400000,date_service:ds})))E.push("modif valeur comptabilisée");
+  // brouillard / visa
+  __as("comptable");atomic(()=>brouillardOD({date:today(),libelle:"Frais test",lignes:[{compte:cdef("c_divers"),debit:1000},{compte:cdef("capital"),credit:1000}]}));const id=S.brouillard[S.brouillard.length-1].id;
+  if(!__try(()=>viserBrouillard(id)))E.push("auto-visa");const ne=S.entries.length;__as("direction");atomic(()=>viserBrouillard(id));if(S.entries.length!==ne+1||S.brouillard.some(x=>x.id===id))E.push("visa");
+  // budgets
+  __as("caissier");if(!__try(()=>definirBudget("6224",1000)))E.push("budget caissier");__as("comptable");atomic(()=>definirBudget("6224",5000));
+  // états
+  __as("admin");const html=[];for(const tb of ["syn","ecr","bro","jr","gl","bal","age","tva","res","bud","cd","plan","per","ctl"]){UI.tab.compta=tb;html.push(V.compta())}
+  if(/NaN|undefined/.test(html.join("")))E.push("NaN/undefined dans les états");if(!/Bilan équilibré/.test(html[8]))E.push("bilan déséquilibré");if(!/Balance équilibrée/.test(html[5]))E.push("balance déséquilibrée");
+  if(integrite().some(x=>/sans écriture|Compte par défaut/.test(x)))E.push("complétude : "+integrite().join("|"));
+  if(!S.entries.every(x=>sum(x.lignes,l=>l.debit)===sum(x.lignes,l=>l.credit)))E.push("équilibre");
+  return E.length?E.join(" ; "):true});
  await t("AGR-14","charges : caisse insuffisante refusée ; annulation par extourne",()=>{__as("chef");const cash=soldeCompte("571");const a=__try(()=>ajouterCharge({date:today(),categorie:"autre",montant:cash+1,mode:"especes"}));
   let c;let e=__try(()=>{c=ajouterCharge({date:today(),categorie:"energie",montant:1000,mode:"especes"})});if(e)return e;const s0=soldeCompte("571");e=__try(()=>annulerCharge(c.id,"Doublon"));if(e)return e;
   return(/Caisse insuffisante/.test(a)&&soldeCompte("571")===s0+1000&&by(S.charges,c.id).statut==="annule"&&integrite().length===0)||a});
