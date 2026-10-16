@@ -235,3 +235,10 @@ Mise à niveau selon le skill `compta-syscohada-caisse` et le modèle ImmoSuite 
 - **Sinistre ↔ maintenance** : un accident crée comme une panne un ordre de maintenance.
 - **Portail chauffeur** : un contrat suspendu reste visible.
 - **Hub ↔ Transport** : trésorerie (toutes les caisses 57x et comptes par défaut) et chiffre d'affaires lus sur les comptes paramétrés.
+
+### Paramètres : plus de données métier codées en dur
+Chaque module lit désormais ses réglages dans son écran Paramètres (aucune valeur par défaut n'est figée dans les traitements : elles sont créées à l'initialisation et migrées dans les sauvegardes existantes).
+- **Transport** (Audit et paramètres → Paramètres) : entreprise (nom, activité, ville, adresse, téléphone → menu, titre, en-têtes imprimés, messages WhatsApp, propriétaire par défaut), marge d'alerte entretien (km), seuils de pièces jointes, places par défaut, indicatif et longueur des numéros, longueur du PIN, tentatives et durée de blocage. Les comptes se paramètrent dans Comptabilité → Comptes par défaut.
+- **Agro** (Paramètres) : entreprise (nom, activité, adresse, téléphone), seuil d'alerte de casse, indicatif/longueur des numéros, PIN, tentatives et blocage.
+- **Livraison** (Paramètres → Entreprise, téléphone et sécurité) : nom et sous-titre (tous les textes « ANGEL'S GROUP » des écrans, documents et messages), indicatif et longueur des numéros, longueur minimale du PIN, tentatives et blocage (nouveau : la connexion locale n'avait aucun blocage), essais du code vendeur.
+- **Hub** : seuils de retard et de documents lus dans les paramètres de Transport.

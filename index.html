@@ -130,9 +130,9 @@ function distribution(G){
 function transport(G){
  if(!G||!G.obligations)return null;
  const am={};(G.allocs||[]).forEach(a=>{if(a.actif)am[a.obligation_id]=(am[a.obligation_id]||0)+a.montant});const solde=o=>o.exo?0:o.montant-(am[o.id]||0);
- const ret={};(G.obligations||[]).forEach(o=>{if(solde(o)>0&&o.date_ech<jmoins(3))ret[o.driver_id]=1});
+ const ret={};(G.obligations||[]).forEach(o=>{if(solde(o)>0&&o.date_ech<jmoins((G.settings||{}).retard_alerte_jours??3))ret[o.driver_id]=1});
  const dl=n=>Math.round((new Date(n+"T00:00:00Z")-new Date(AUJ+"T00:00:00Z"))/864e5);let docs=0;
- (G.vehicles||[]).filter(v=>v.statut!=="sorti").forEach(v=>["assurance_fin","visite_fin","carte_fin"].forEach(k=>{if(v[k]&&dl(v[k])<=30)docs++}));(G.drivers||[]).forEach(d=>{if(d.permis_fin&&dl(d.permis_fin)<=30)docs++});
+ (G.vehicles||[]).filter(v=>v.statut!=="sorti").forEach(v=>["assurance_fin","visite_fin","carte_fin"].forEach(k=>{if(v[k]&&dl(v[k])<=((G.settings||{}).delai_alerte??30))docs++}));(G.drivers||[]).forEach(d=>{if(d.permis_fin&&dl(d.permis_fin)<=((G.settings||{}).delai_alerte??30))docs++});
  return{tres:treso(G),ca:som(lignes(G,l=>l.compte===((G.settings&&G.settings.comptes&&G.settings.comptes.produit)||"706")).filter(x=>String(x.e.date).startsWith(MOIS)),x=>(x.l.credit||0)-(x.l.debit||0)),
   enc:som((G.payments||[]).filter(p=>p.statut==="confirme"&&p.type!=="depot"&&String(p.date_valeur).startsWith(MOIS)),p=>p.montant),cre:som(G.obligations,solde),res:resCompta(G),
   alt:docs+Object.keys(ret).length,act:(G.vehicles||[]).filter(v=>v.statut==="actif").length+"/"+(G.vehicles||[]).filter(v=>v.statut!=="sorti").length+" taxis en service · "+Object.keys(ret).length+" chauffeur(s) en retard"};

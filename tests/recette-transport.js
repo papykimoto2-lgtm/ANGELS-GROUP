@@ -182,6 +182,16 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   __as("caissier");if(openSession()){const th=soldeTheo(openSession());atomic(()=>cloturerCaisse(th,"",openSession().caisse_id))}
   __as("directeur");by(S.contracts,cid).depot_verse=0;atomic(()=>supprimerContrat(cid,"Nettoyage test"));S.vehicles=S.vehicles.filter(x=>x.id!=="vcn");
   return E.length?E.join(" ; "):true});
+ await t("PAR-01","paramètres : plus de données codées (entreprise, PIN, blocage, indicatif, marge km) lues dans les paramètres",()=>{const E=[];__as("admin");const sv=JSON.stringify(S.settings);
+  if(!/ANGEL/.test(ORGRAW()))E.push("défaut entreprise");
+  S.settings.org_nom="TAXI TEST & CO";S.settings.org_activite="Navette";S.settings.org_adresse="Bouaké";render();const br=document.querySelector("aside .brand").textContent;if(!/TAXI TEST/.test(br)||!/Navette/.test(br))E.push("marque : "+br);if(!/Navette/.test(document.title))E.push("titre du document");
+  if(/ANGEL'S (&amp;|&) CO/.test(document.getElementById("app").innerHTML))E.push("nom codé en dur encore affiché");
+  S.settings.pin_len=6;if(pinRe().test("1234")||!pinRe().test("123456"))E.push("longueur PIN");const e1=__try(()=>changerPin("1234","1234"));if(!/6 chiffres|PIN/.test(e1||""))E.push("PIN court accepté : "+e1);S.settings.pin_len=4;
+  S.settings.tel_indicatif="229";if(waNum("0584163232")!=="2290584163232")E.push("indicatif");S.settings.tel_indicatif="225";if(waNum("+225 05 84")!=="2250584")E.push("numéro déjà international");
+  S.settings.tentatives_max=3;S.settings.blocage_min=2;const u=S.users.find(x=>x.role==="caissier");S.tries={};login(u.id,"0");login(u.id,"0");login(u.id,"0");const r=login(u.id,"2222");if(!/bloqué 2 minute/.test(r||""))E.push("blocage paramétré : "+r);S.tries={};
+  S.settings.marge_km=0;const v0=S.vehicles[0];v0.prochain_km=(v0.km||0)+300;if(alertes().some(a=>a.k==="km"&&a.t.includes(v0.immat)))E.push("marge km 0 ignorée");S.settings.marge_km=500;if(!alertes().some(a=>a.k==="km"&&a.t.includes(v0.immat)))E.push("marge km 500 ignorée");
+  S.settings=JSON.parse(sv);render();
+  return E.length?E.join(" ; "):true});
  await t("COM-05","période clôturée : écriture refusée ; plan comptable refusé au caissier",()=>{__as("comptable");let e=__try(()=>periodeAction(today().slice(0,7),"close"));if(e)return e;
   const a=__try(()=>saisirOD({date:today(),libelle:"test",lines:[{compte:"571",debit:100},{compte:"121",credit:100}]}));__as("caissier");const b=__try(()=>creerCompte("999","X","Autre"));
   __as("directeur");e=__try(()=>periodeAction(today().slice(0,7),"open"));return(a&&/clôturée/.test(a)&&b&&/Droits/.test(b)&&!e)||("a="+a+" b="+b+" e="+e)});
