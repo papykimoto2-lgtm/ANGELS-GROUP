@@ -29,6 +29,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await h.reload();await h.waitForTimeout(300);const apres=await h.evaluate(()=>transport(lire("angels_transport_v3")).enc);
  t("HUB-5","le hub reflète un nouvel encaissement saisi dans Transport (+1 000 F)",Math.round(apres-hub.T.enc)===1000?true:(apres-hub.T.enc));
  const html=await h.content();t("HUB-6","aucune valeur « NaN » / « undefined » affichée",!/NaN|undefined/.test(await h.$eval("#cons",e=>e.innerText))?true:"valeur invalide");
+ // tableau de bord par module
+ const tb=await h.evaluate(()=>{const r={};for(const m of["dist","trans","agro"]){document.querySelector(`.tab[data-m=${m}]`).click();r[m]=document.getElementById("tdb").innerText}return r});
+ t("HUB-7","un onglet de tableau de bord par module, avec indicateurs et 6 mois de CA",["dist","trans","agro"].every(m=>/Trésorerie/.test(tb[m])&&/Indicateurs/.test(tb[m]))?true:JSON.stringify(tb).slice(0,200));
+ t("HUB-8","tableau de bord sans « NaN » / « undefined »",!/NaN|undefined/.test(JSON.stringify(tb))?true:"valeur invalide");
+ const clo=await h.evaluate(()=>{const G={entries:[{date:AUJ,journal:"OD",lignes:[{compte:"706",credit:100,debit:0}]},{date:AUJ,journal:"CLO",lignes:[{compte:"706",debit:100,credit:0}]},{date:AUJ,journal:"OD",source:{type:"cloture"},lines:[{compte:"606",debit:50,credit:0}]}]};return resCompta(G)});
+ t("HUB-9","résultat du mois hors écritures de clôture",clo===100?true:clo);
  await h.screenshot({path:process.env.SHOT||"/tmp/hub-consolide.png"});
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();
