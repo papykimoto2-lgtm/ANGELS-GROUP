@@ -417,6 +417,28 @@ function saisirOD(f){
  return postEntry({journal:f.journal||"OD",date:f.date,libelle:f.libelle,piece:f.piece||"",source:{type:"manual"},lines:f.lines});
 }
 function creerCompte(num,nom,type){need("compta","c");if(!/^\d{3,8}$/.test(num))throw new Error("Numéro de compte invalide.");if(by(S.accounts,num,"num"))throw new Error("Compte existant.");if(!nom)throw new Error("Intitulé requis.");S.accounts.push({num,nom,type:type||"Autre"});audit("Compte créé",num)}
+function brouillardOD(f){
+ need("compta","c");if(!String(f.libelle||"").trim())throw new Error("Libellé obligatoire.");
+ const lines=(f.lines||[]).filter(l=>l.compte);if(lines.length<2)throw new Error("Au moins deux lignes sont nécessaires.");
+ lines.forEach(l=>{if(!by(S.accounts,l.compte,"num"))throw new Error("Compte inconnu : "+l.compte)});
+ const b={id:uid("bo"),date:f.date||today(),journal:f.journal||"OD",piece:f.piece||"",libelle:String(f.libelle).trim(),lines,par:ME.nom,t:now()};
+ S.brouillard.push(b);audit("Écriture en brouillard",b.libelle);return b;
+}
+function viserBrouillard(id){
+ need("compta","a");const b=by(S.brouillard,id);if(!b)throw new Error("Écriture introuvable.");
+ if(b.par===ME.nom)throw new Error("Séparation des tâches : une écriture que vous avez saisie doit être visée par un autre utilisateur.");
+ const e=postEntry({journal:b.journal,date:b.date,libelle:b.libelle,piece:b.piece,source:{type:"manual",brouillard:b.id},lines:b.lines});
+ e.vise_par=ME.nom;S.brouillard=S.brouillard.filter(x=>x.id!==id);audit("Écriture visée",e.numero+" — "+b.libelle);return e;
+}
+function supprimerBrouillard(id){
+ need("compta","c");const b=by(S.brouillard,id);if(!b)throw new Error("Écriture introuvable.");
+ if(b.par!==ME.nom&&!can("compta","x"))throw new Error("Seul l'auteur ou la direction peut supprimer ce brouillard.");
+ S.brouillard=S.brouillard.filter(x=>x.id!==id);audit("Brouillard supprimé",b.libelle);
+}
+function definirBudget(compte,max){
+ need("compta","a");if(!by(S.accounts,compte,"num")||compte[0]!=="6")throw new Error("Compte de charges (classe 6) requis.");if(!(max>0))throw new Error("Plafond invalide.");
+ const b=S.budgets.find(x=>x.compte===compte);if(b)b.max=max;else S.budgets.push({id:uid("bg"),compte,max});audit("Budget mensuel",compte+" : "+fcfa(max));
+}
 function periodeAction(id,act){
  if(act==="close")need("compta","a");else need("compta","x");
  let p=by(S.periods,id);if(!p){p={id,statut:"ouverte"};S.periods.push(p)}
@@ -455,6 +477,7 @@ const UNITES_P=["pièce","L","kg","jeu","kit"];
 function migrerAtelier(){
  ["plans","pieces","mvt_pieces","rappels"].forEach(k=>{if(!S.hasOwnProperty(k))S[k]=[]});
  [["462","Associés, comptes courants","Passif"],["758","Produits divers","Produit"],["572","Caisse succursale A","Trésorerie"],["573","Caisse succursale B","Trésorerie"]].forEach(([num,nom,type])=>{if(!S.accounts.some(a=>a.num===num))S.accounts.push({num,nom,type})});
+ ["brouillard","budgets"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
  if(!S.caisses||!S.caisses.length)S.caisses=[{id:"cx0",nom:"Caisse principale",compte:S.settings.compte_caisse||"571",actif:true,cree_le:now()}];
  S.cash_sessions.forEach(x=>{if(!x.caisse_id)x.caisse_id=S.caisses[0].id});
  const D=defPerms();Object.keys(D).forEach(r=>{S.perms[r]=S.perms[r]||{};["entretien","pieces","agenda"].forEach(m=>{if(!S.perms[r][m])S.perms[r][m]=D[r][m]})});
@@ -629,7 +652,7 @@ function integrite(){
 /* ---------- Données initiales ---------- */
 function seed(){
  const d=n=>addDays(today(),n);
- S={seq:{},fmt:{},audit:[],users:[],drivers:[],tiers:[],vehicles:[],contracts:[],assignments:[],obligations:[],payments:[],allocs:[],receipts:[],cash_sessions:[],cash_mv:[],bank_tx:[],caisses:[{id:"cx0",nom:"Caisse principale",compte:"571",actif:true,cree_le:new Date().toISOString()}],accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),periods:[],entries:[],expenses:[],maintenance:[],incidents:[],documents:[],requests:[],notifs:[],attachments:[],gps_dev:[],gps_pos:[],gps_quar:[],gps_alerts:[],geofences:[],veh_hist:[],perms:defPerms(),tries:{},
+ S={seq:{},fmt:{},audit:[],users:[],drivers:[],tiers:[],vehicles:[],contracts:[],assignments:[],obligations:[],payments:[],allocs:[],receipts:[],cash_sessions:[],cash_mv:[],bank_tx:[],brouillard:[],budgets:[],caisses:[{id:"cx0",nom:"Caisse principale",compte:"571",actif:true,cree_le:new Date().toISOString()}],accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),periods:[],entries:[],expenses:[],maintenance:[],incidents:[],documents:[],requests:[],notifs:[],attachments:[],gps_dev:[],gps_pos:[],gps_quar:[],gps_alerts:[],geofences:[],veh_hist:[],perms:defPerms(),tries:{},
   settings:{seuil_justificatif:10000,seuil_validation:50000,delai_alerte:30,retard_alerte_jours:3,gps_actif_min:10,gps_ancien_min:60,gps_retention_jours:90,compte_caisse:"571",compte_banque:"521",compte_mobile:"521",max_pj_ko:300}};
  S.perms.seed=Object.fromEntries(Object.keys(MODS).map(m=>[m,"vceaxp".split("")]));
  ME={id:"seed",nom:"Initialisation",role:"seed"};
@@ -1029,17 +1052,25 @@ A["dp.rej"]=id=>{if(atomic(()=>validerDepense(id,null,false)))render()};
 const dcLine=l=>`${l.debit?fcfa(l.debit):""}`,ccLine=l=>`${l.credit?fcfa(l.credit):""}`;
 V.compta=()=>{
  const t=tabOf("compta","ecritures"),f=UI.f.ec||(UI.f.ec={j:"",p:today().slice(0,7)});
- let h=head("Comptabilité générale")+`<div class="note">Plan comptable indicatif (SYSCOHADA révisé) — à valider par le comptable de l'entreprise avant toute utilisation en production.</div>`+tabs("compta",[["ecritures","Écritures"],["plan","Plan comptable"],["journaux","Journaux"]]);
+ let h=head("Comptabilité générale")+`<div class="note">Plan comptable indicatif (SYSCOHADA révisé) — à valider par le comptable de l'entreprise avant toute utilisation en production.</div>`+tabs("compta",[["ecritures","Écritures"],["brouillard","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["plan","Plan comptable"],["journaux","Journaux"],["budgets","💰 Budgets"]]);
  if(t==="ecritures"){
   const list=S.entries.filter(e=>(!f.j||e.journal===f.j)&&(!f.p||per(e.date)===f.p)).sort((a,b)=>b.date.localeCompare(a.date)||b.numero.localeCompare(a.numero));
-  h+=`<div class="card flex"><select data-f="ec:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input type="month" data-f="ec:p" value="${f.p}" style="width:auto">${can("compta","c")?`<button class="btn" data-a="od.new">+ Opération diverse</button>`:""}${csvBtn("compta","ecritures")}</div>`+
+  h+=`<div class="card flex"><select data-f="ec:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input type="month" data-f="ec:p" value="${f.p}" style="width:auto">${can("compta","c")?`<button class="btn" data-a="od.new">+ Écriture manuelle</button>`:""}${csvBtn("compta","ecritures")}</div>`+
   tbl(["N°","Date","Journal","Libellé","Pièce","Montant","État",""],list.map(e=>tr([esc(e.numero),fd(e.date),esc(e.journal),esc(e.libelle),esc(e.piece),fcfa(sum(e.lines,l=>l.debit)),e.extournee_par?badge("Extournée","mu"):e.lines.some(l=>l.ext)?badge("Partiellement extournée","wa"):badge("Validée","ok"),`<div class="flex">${btn("ec.det",e.id,"Détail","ghost")}${e.source&&e.source.type==="manual"&&!e.extournee_par&&can("compta","a")?btn("ec.ext",e.id,"Extourner","er"):""}</div>`])));
  }
+ if(t==="brouillard"){const tot=b=>sum(b.lines,l=>l.debit||0);
+  h+=`<div class="flex" style="margin-bottom:10px">${can("compta","c")?`<button class="btn" data-a="od.new">➕ Nouvelle écriture manuelle</button>`:""}</div>`+tbl(["Date","Journal","Libellé","Lignes","Débit","Crédit","Saisi par",""],S.brouillard.map(b=>{const d=sum(b.lines,l=>l.debit),c=sum(b.lines,l=>l.credit);return tr([fd(b.date),esc(b.journal),esc(b.libelle),b.lines.length,fcfa(d),fcfa(c)+(d!==c?" "+badge("Déséquilibrée","er"):""),esc(b.par),`<div class="flex">${btn("bo.det",b.id,"Détail","ghost")}${can("compta","a")?btn("bo.vis",b.id,"✅ Viser","ok"):""}${can("compta","c")?btn("bo.del",b.id,"Supprimer","er"):""}</div>`])}),"Aucune écriture en brouillard")+`<div class="sm mu">Une écriture manuelle reste en brouillard jusqu'à son visa par un autre utilisateur (séparation des tâches). Le visa vérifie l'équilibre, les comptes et la période ouverte. Une écriture visée est définitive : correction par extourne.</div>`}
+ if(t==="budgets"){const m=today().slice(0,7);h+=(can("compta","a")?`<p><button class="btn" data-a="bg.add">➕ Budget mensuel</button></p>`:"")+tbl(["Compte","Plafond mensuel","Consommé ("+m+")","%",""],S.budgets.map(g=>{const u=budgetConso(g.compte,m),p=Math.round(u/g.max*100);return tr([esc(g.compte+" "+cptNom(g.compte)),fcfa(g.max),fcfa(u),badge(p+" %",p>=100?"er":p>=80?"wa":"ok"),can("compta","a")?btn("bg.del",g.id,"Supprimer","er"):""])}),"Aucun budget défini")+`<div class="sm mu">Une alerte apparaît dans la synthèse dès 80 % du plafond.</div>`}
  if(t==="plan")h+=(can("compta","c")?`<p><button class="btn" data-a="ac.add">+ Compte</button></p>`:"")+tbl(["N°","Intitulé","Type","Solde"],S.accounts.slice().sort((a,b)=>a.num.localeCompare(b.num)).map(a=>{const s=sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte===a.num)),l=>(l.debit||0)-(l.credit||0));return tr([a.num,esc(a.nom),esc(a.type),fcfa(Math.abs(s))+(s<0?" C":s>0?" D":"")])}));
  if(t==="journaux")h+=tbl(["Code","Journal","Écritures","Total débit","Total crédit","Équilibre"],JOURNAUX.map(([c,n])=>{const es=S.entries.filter(e=>e.journal===c),d=sum(es,e=>sum(e.lines,l=>l.debit)),k=sum(es,e=>sum(e.lines,l=>l.credit));return tr([c,esc(n),es.length,fcfa(d),fcfa(k),d===k?badge("Équilibré","ok"):badge("DÉSÉQUILIBRÉ","er")])}));
  return h;
 };
 CSVS.ecritures=()=>[["N°","Date","Journal","Libellé","Compte","Débit","Crédit","Lettre"],S.entries.flatMap(e=>e.lines.map(l=>[e.numero,e.date,e.journal,e.libelle,l.compte,l.debit||0,l.credit||0,l.lettre||""]))];
+A["bo.det"]=id=>{const b=by(S.brouillard,id);modal(`<div class="between"><h2 style="margin:0">${esc(b.libelle)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>${fd(b.date)} · ${esc(b.journal)} · pièce ${esc(b.piece||"—")} · saisi par ${esc(b.par)}</p>${tbl(["Compte","Intitulé","Débit","Crédit"],b.lines.map(l=>tr([esc(l.compte),esc(cptNom(l.compte)),dcLine(l),ccLine(l)])))}`)};
+A["bo.vis"]=id=>{if(atomic(()=>viserBrouillard(id))!==false)render()};
+A["bo.del"]=id=>{if(confirm("Supprimer cette écriture en brouillard ?")&&atomic(()=>supprimerBrouillard(id))!==false)render()};
+A["bg.add"]=()=>form("Budget mensuel",[{k:"compte",l:"Compte de charges",t:"select",o:()=>S.accounts.filter(a=>a.num[0]==="6").map(a=>[a.num,a.num+" "+a.nom])},{k:"max",l:"Plafond mensuel (F)",t:"number",req:1}],{},o=>definirBudget(o.compte,o.max),"Enregistrer");
+A["bg.del"]=id=>{if(atomic(()=>{need("compta","a");S.budgets=S.budgets.filter(x=>x.id!==id)})!==false)render()};
 A["ec.det"]=id=>{const e=by(S.entries,id);modal(`<div class="between"><h2 style="margin:0">${esc(e.numero)} — ${esc(e.libelle)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>${fd(e.date)} · Journal ${esc(e.journal)} · Pièce ${esc(e.piece)} · Par ${esc(e.par)}</p>${tbl(["Compte","Tiers","Débit","Crédit","Lettre"],e.lines.map(l=>tr([esc(l.compte+" "+(by(S.accounts,l.compte,"num")||{}).nom),esc(l.tiers?tiersDe(l.tiers).aux+" "+tiersDe(l.tiers).nom:""),dcLine(l),ccLine(l),esc(l.lettre||"")])))}${(e.log||[]).length?`<p class="mu sm">Extournes : ${e.log.map(x=>esc((by(S.entries,x.x)||{}).numero)+" ("+esc(x.motif)+")").join(", ")}</p>`:""}`)};
 A["ec.ext"]=id=>motifForm("Extourner l'écriture",m=>{need("compta","a");const e=by(S.entries,id);if(!e.source||e.source.type!=="manual")throw new Error("Écriture générée par une opération : annuler l'opération source.");extourner(e,m);audit("Écriture extournée",e.numero)});
 A["ac.add"]=()=>form("Nouveau compte",[{k:"num",l:"Numéro (3 à 8 chiffres)",req:1},{k:"nom",l:"Intitulé",req:1},{k:"type",l:"Type",t:"select",o:["Actif","Passif","Tiers","Trésorerie","Charge","Produit"].map(x=>[x,x])}],{},o=>creerCompte(o.num,o.nom,o.type));
@@ -1049,11 +1080,11 @@ A["od.new"]=()=>{
   box.innerHTML=`<div class="between"><h2 style="margin:0">Opération diverse</h2><button class="btn ghost" data-x>Fermer</button></div>
   <div class="fg"><div><label>Date</label><input id="dt" type="date" value="${box.dataset.dt||today()}"></div><div><label>Journal</label><select id="jr">${opt([["OD","OD — Opérations diverses"],["AN","AN — À-nouveaux"]],box.dataset.jr||"OD")}</select></div><div><label>Pièce</label><input id="pc" value="${esc(box.dataset.pc||"")}"></div><div style="grid-column:1/-1"><label>Libellé</label><input id="lb" value="${esc(box.dataset.lb||"")}"></div></div>
   <table><thead><tr><th>Compte</th><th>Tiers</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${L.map((l,i)=>`<tr><td><select data-i="${i}" data-k="compte">${opt(S.accounts.map(a=>[a.num,a.num+" "+a.nom]),l.compte||"","—")}</select></td><td><select data-i="${i}" data-k="tiers">${opt(S.tiers.map(t=>[t.id,t.aux+" "+t.nom]),l.tiers||"","—")}</select></td><td><input type="number" min="0" data-i="${i}" data-k="debit" value="${l.debit||""}"></td><td><input type="number" min="0" data-i="${i}" data-k="credit" value="${l.credit||""}"></td></tr>`).join("")}</tbody></table>
-  <p><button class="btn ghost sm" id="al">+ Ligne</button> <b>Débit ${fcfa(d)} · Crédit ${fcfa(c)}</b> ${d===c&&d>0?badge("Équilibrée","ok"):badge("Non équilibrée","er")}</p><button class="btn" id="sv">Valider l'écriture</button>`;
+  <p><button class="btn ghost sm" id="al">+ Ligne</button> <b>Débit ${fcfa(d)} · Crédit ${fcfa(c)}</b> ${d===c&&d>0?badge("Équilibrée","ok"):badge("Non équilibrée","er")}</p><button class="btn" id="sv">Enregistrer en brouillard</button>`;
   const keep=()=>{box.dataset.dt=$("#dt",box).value;box.dataset.jr=$("#jr",box).value;box.dataset.pc=$("#pc",box).value;box.dataset.lb=$("#lb",box).value};
   $("[data-x]",box).onclick=()=>m.remove();$("#al",box).onclick=()=>{keep();L.push({});draw()};
   box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.dataset.k==="debit"||e.dataset.k==="credit"?+e.value||0:e.value;draw()});
-  $("#sv",box).onclick=()=>{keep();const r=atomic(()=>saisirOD({date:box.dataset.dt,journal:box.dataset.jr,piece:box.dataset.pc,libelle:box.dataset.lb,lines:L.map(l=>({compte:l.compte,tiers:l.tiers||undefined,debit:+l.debit||0,credit:+l.credit||0})).filter(l=>l.compte)}));if(r!==false){m.remove();render()}};
+  $("#sv",box).onclick=()=>{keep();const r=atomic(()=>brouillardOD({date:box.dataset.dt,journal:box.dataset.jr,piece:box.dataset.pc,libelle:box.dataset.lb,lines:L.map(l=>({compte:l.compte,tiers:l.tiers||undefined,debit:+l.debit||0,credit:+l.credit||0})).filter(l=>l.compte)}));if(r!==false){m.remove();render()}};
  };draw();
 };
 V.tiers=()=>{
@@ -1063,22 +1094,55 @@ V.tiers=()=>{
 CSVS.tiers=()=>[["Compte","Tiers","Solde"],S.tiers.map(t=>[t.aux,t.nom,soldeTiers(t.id)])];
 A["tiers.det"]=id=>{const t=by(S.tiers,id);const ls=S.entries.flatMap(e=>e.lines.filter(l=>l.tiers===id&&l.compte==="411").map(l=>({e,l}))).sort((a,b)=>a.e.date.localeCompare(b.e.date));let run=0;
  modal(`<div class="between"><h2 style="margin:0">${esc(t.aux)} — ${esc(t.nom)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>Solde : <b>${fcfa(soldeTiers(id))}</b></p>${tbl(["Date","Écriture","Libellé","Débit","Crédit","Solde cumulé","Lettre"],ls.map(({e,l})=>{run+=(l.debit||0)-(l.credit||0);return tr([fd(e.date),esc(e.numero),esc(e.libelle),dcLine(l),ccLine(l),fcfa(run),esc(l.lettre||"")])}),{max:400})}`)};
+const yStart=d=>d.slice(0,4)+"-01-01",cptNom=n=>(by(S.accounts,n,"num")||{}).nom||"";
+function balRows(from,to){const R={};S.accounts.forEach(a=>R[a.num]={a,od:0,oc:0,d:0,c:0});
+ S.entries.forEach(e=>{if(e.date>to)return;e.lines.forEach(l=>{const r=R[l.compte];if(!r)return;if(e.date<from){if((l.compte[0]==="6"||l.compte[0]==="7")&&e.date<yStart(from))return;r.od+=l.debit||0;r.oc+=l.credit||0}else{r.d+=l.debit||0;r.c+=l.credit||0}})});
+ return Object.values(R).filter(r=>r.od||r.oc||r.d||r.c).sort((x,y)=>x.a.num.localeCompare(y.a.num)).map(r=>{const o=r.od-r.oc;return{...r,o,s:o+r.d-r.c}})}
+const soldeA=(num,to)=>sum(S.entries.filter(e=>e.date<=to).flatMap(e=>e.lines.filter(l=>l.compte===num)),l=>(l.debit||0)-(l.credit||0));
+function ageData(){const am=allocMap(),T=["Non échu","1-30 j","31-60 j","61-90 j","> 90 j"];
+ const rows=S.drivers.map(d=>{const tr=[0,0,0,0,0];S.obligations.filter(o=>o.driver_id===d.id&&!o.exo).forEach(o=>{const s=soldeM(o,am);if(s<=0)return;const j=diffDays(today(),o.date_ech);tr[j<=0?0:j<=30?1:j<=60?2:j<=90?3:4]+=s});return{nom:d.nom,tr,tot:sum(tr,x=>x)}}).filter(r=>r.tot>0).sort((x,y)=>y.tot-x.tot);
+ return{T,rows}}
+const budgetConso=(compte,mois)=>sum(S.entries.filter(e=>e.date.startsWith(mois)).flatMap(e=>e.lines.filter(l=>l.compte===compte)),l=>(l.debit||0)-(l.credit||0));
+const budgetAlertes=()=>{const m=today().slice(0,7);return S.budgets.map(g=>({g,u:budgetConso(g.compte,m)})).filter(x=>x.u>=.8*x.g.max)};
 V.etats=()=>{
- const t=tabOf("etats","balance"),f=UI.f.et||(UI.f.et={from:today().slice(0,4)+"-01-01",to:today(),cpt:"411",j:"VT"});
- const ins=e=>e.date>=f.from&&e.date<=f.to;
- let h=head("États comptables",csvBtn("etats","balance"))+`<div class="note">États de gestion issus de la comptabilité intégrée. Les états de synthèse officiels (bilan, compte de résultat normalisés) restent à valider par le comptable.</div>`+tabs("etats",[["balance","Balance"],["gl","Grand livre"],["journal","Journal"],["resultat","Résultat"],["ctrl","Contrôles"]])+
- `<div class="card flex"><div><label>Du</label><input type="date" data-f="et:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="et:to" value="${f.to}"></div></div>`;
- if(t==="balance"){const rows=S.accounts.slice().sort((a,b)=>a.num.localeCompare(b.num)).map(a=>{const ls=S.entries.filter(ins).flatMap(e=>e.lines.filter(l=>l.compte===a.num)),d=sum(ls,l=>l.debit),c=sum(ls,l=>l.credit);return{a,d,c}}).filter(r=>r.d||r.c),D=sum(rows,r=>r.d),C=sum(rows,r=>r.c);
-  h+=tbl(["Compte","Intitulé","Total débit","Total crédit","Solde débiteur","Solde créditeur"],[...rows.map(r=>tr([r.a.num,esc(r.a.nom),fcfa(r.d),fcfa(r.c),r.d>r.c?fcfa(r.d-r.c):"",r.c>r.d?fcfa(r.c-r.d):""])),tr(["","<b>TOTAUX</b>",`<b>${fcfa(D)}</b>`,`<b>${fcfa(C)}</b>`,`<b>${fcfa(sum(rows,r=>Math.max(0,r.d-r.c)))}</b>`,`<b>${fcfa(sum(rows,r=>Math.max(0,r.c-r.d)))}</b>`])])+(D===C?`<div class="al" style="background:var(--okbg);color:var(--ok)">Balance équilibrée.</div>`:`<div class="al er">Balance déséquilibrée !</div>`);}
- if(t==="gl"){let run=0;const ls=S.entries.filter(ins).sort((a,b)=>a.date.localeCompare(b.date)||a.numero.localeCompare(b.numero)).flatMap(e=>e.lines.filter(l=>l.compte===f.cpt).map(l=>({e,l})));
-  h+=`<div class="card"><label>Compte</label><select data-f="et:cpt">${opt(S.accounts.map(a=>[a.num,a.num+" "+a.nom]),f.cpt)}</select></div>`+tbl(["Date","Écriture","Pièce","Libellé","Débit","Crédit","Solde","Lettre"],ls.map(({e,l})=>{run+=(l.debit||0)-(l.credit||0);return tr([fd(e.date),esc(e.numero),esc(e.piece),esc(e.libelle),dcLine(l),ccLine(l),fcfa(Math.abs(run))+(run<0?" C":" D"),esc(l.lettre||"")])}),{max:400});}
- if(t==="journal"){const es=S.entries.filter(e=>ins(e)&&e.journal===f.j).sort((a,b)=>a.date.localeCompare(b.date)||a.numero.localeCompare(b.numero)),D=sum(es,e=>sum(e.lines,l=>l.debit)),C=sum(es,e=>sum(e.lines,l=>l.credit));
-  h+=`<div class="card"><label>Journal</label><select data-f="et:j">${opt(JOURNAUX,f.j)}</select></div>`+tbl(["Date","Écriture","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lines.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.libelle),esc(l.compte),dcLine(l),ccLine(l)]))),{max:400})+`<p><b>Total débit ${fcfa(D)} · Total crédit ${fcfa(C)}</b> ${D===C?badge("Équilibré","ok"):badge("Déséquilibré","er")}</p>`;}
- if(t==="resultat"){const r=resultat(f.from,f.to,"");h+=`<div class="grid"><div class="kpi o"><div class="v">${fcfa(r.p)}</div><div class="l">Produits (classe 7)</div></div><div class="kpi e"><div class="v">${fcfa(r.c)}</div><div class="l">Charges (classe 6)</div></div><div class="kpi ${r.r>=0?"o":"e"}"><div class="v">${fcfa(r.r)}</div><div class="l">Résultat</div></div></div>`;}
+ const t=tabOf("etats","syn"),f=UI.f.et||(UI.f.et={from:today().slice(0,4)+"-01-01",to:today(),cpt:"",j:"VT"});
+ const ins=e=>e.date>=f.from&&e.date<=f.to,ok=m=>`<div class="al" style="background:var(--okbg);color:var(--ok)">${m}</div>`;let ex=null,h="";
+ const hd=head("États comptables",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="et.csv">⬇ CSV</button>`)+`<div class="note">États de gestion issus de la comptabilité intégrée (SYSCOHADA révisé). Les états de synthèse officiels restent à valider par le comptable.</div>`+tabs("etats",[["syn","📊 Synthèse"],["balance","⚖️ Balance"],["gl","📖 Grand livre"],["journal","📒 Journal"],["age","⏳ Balance âgée"],["resultat","📈 Résultat & bilan"],["ctrl","🔎 Contrôles"]])+
+ (t==="age"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="et:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="et:to" value="${f.to}"></div></div>`);
+ if(t==="syn"){const r=resultat(f.from,f.to,""),tre=sum(["571","572","573","521"],n=>soldeA(n,f.to)),cl=sum(S.tiers.filter(x=>x.type==="chauffeur"),x=>soldeTiers(x.id)),dep=-soldeA("165",f.to),R=integrite(),ba=budgetAlertes();
+  h=`<div class="grid"><div class="kpi o"><div class="v">${fcfa(r.p)}</div><div class="l">Produits</div></div><div class="kpi e"><div class="v">${fcfa(r.c)}</div><div class="l">Charges</div></div><div class="kpi ${r.r>=0?"o":"e"}"><div class="v">${fcfa(r.r)}</div><div class="l">Résultat</div></div><div class="kpi"><div class="v">${fcfa(tre)}</div><div class="l">Trésorerie (classe 5)</div></div><div class="kpi w"><div class="v">${fcfa(cl)}</div><div class="l">Créances chauffeurs (411)</div></div><div class="kpi"><div class="v">${fcfa(dep)}</div><div class="l">Dépôts de garantie reçus (165)</div></div></div>`+
+  (S.brouillard.length?`<div class="al">📝 ${S.brouillard.length} écriture(s) en brouillard à viser (Comptabilité → Saisie & visa).</div>`:"")+(ba.length?`<div class="al">💰 Budgets : ${ba.map(x=>esc(x.g.compte+" "+cptNom(x.g.compte))+" "+fcfa(x.u)+" / "+fcfa(x.g.max)+(x.u>x.g.max?" (dépassé)":"")).join(" · ")}</div>`:"")+
+  `<h2>🔎 Contrôle d'intégrité</h2>`+(R.length?R.map(x=>`<div class="al er">${esc(x)}</div>`).join(""):ok("Tous les contrôles sont réussis : écritures équilibrées, encaissements = imputations, tiers = échéances, caisses = comptabilité."));
+  ex={name:"synthese",head:["Indicateur","Montant"],rows:[["Produits",r.p],["Charges",r.c],["Résultat",r.r],["Trésorerie",tre],["Créances chauffeurs",cl],["Dépôts de garantie",dep]]}}
+ if(t==="balance"){const rows=balRows(f.from,f.to),T=[0,0,0,0,0,0],body=rows.map(r=>{const v=[r.o>0?r.o:0,r.o<0?-r.o:0,r.d,r.c,r.s>0?r.s:0,r.s<0?-r.s:0];v.forEach((x,i)=>T[i]+=x);return[r.a.num,r.a.nom,...v]});
+  h=tbl(["Compte","Intitulé","Ouv. débit","Ouv. crédit","Mvt débit","Mvt crédit","Solde débit","Solde crédit"],[...body.map(r=>tr([r[0],esc(r[1]),...r.slice(2).map(x=>x?fcfa(x):"")])),tr(["","<b>TOTAUX</b>",...T.map(x=>`<b>${fcfa(x)}</b>`)])])+(T[0]===T[1]&&T[2]===T[3]&&T[4]===T[5]?ok("Balance équilibrée sur toutes les colonnes."):`<div class="al er">Balance déséquilibrée.</div>`);
+  ex={name:"balance",head:["Compte","Intitulé","Ouv. débit","Ouv. crédit","Mvt débit","Mvt crédit","Solde débit","Solde crédit"],rows:[...body,["","TOTAUX",...T]]}}
+ if(t==="gl"){const rb=balRows(f.from,f.to).filter(r=>!f.cpt||r.a.num===f.cpt),rows=[],csvr=[];
+  rb.forEach(r=>{let run=r.o;rows.push(tr([`<b>${r.a.num} — ${esc(r.a.nom)}</b>`,"","","Report","","",fcfa(Math.abs(run))+(run<0?" C":" D")]));csvr.push([r.a.num,"","","Report","","",run]);
+   S.entries.filter(ins).sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero)).forEach(e=>e.lines.filter(l=>l.compte===r.a.num).forEach(l=>{run+=(l.debit||0)-(l.credit||0);rows.push(tr([fd(e.date),esc(e.numero),esc(e.piece),esc(e.libelle),dcLine(l),ccLine(l),fcfa(Math.abs(run))+(run<0?" C":" D")]));csvr.push([fd(e.date),e.numero,e.piece,e.libelle,l.debit||"",l.credit||"",run])}));
+   rows.push(tr([`Total ${r.a.num}`,"","","",`<b>${fcfa(r.d)}</b>`,`<b>${fcfa(r.c)}</b>`,`<b>${fcfa(Math.abs(r.s))}${r.s<0?" C":" D"}</b>`]))});
+  h=`<div class="card noprint"><label>Compte</label><select data-f="et:cpt">${opt(S.accounts.slice().sort((x,y)=>x.num.localeCompare(y.num)).map(a=>[a.num,a.num+" "+a.nom]),f.cpt,"Tous les comptes")}</select></div>`+tbl(["Date","Écriture","Pièce","Libellé","Débit","Crédit","Solde"],rows.slice(0,600),"Aucune écriture sur la période");
+  ex={name:"grand-livre",head:["Date","Écriture","Pièce","Libellé","Débit","Crédit","Solde"],rows:csvr}}
+ if(t==="journal"){const es=S.entries.filter(e=>ins(e)&&e.journal===f.j).sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero)),D=sum(es,e=>sum(e.lines,l=>l.debit)),C=sum(es,e=>sum(e.lines,l=>l.credit));
+  h=`<div class="card noprint"><label>Journal</label><select data-f="et:j">${opt(JOURNAUX,f.j)}</select></div>`+tbl(["Date","Écriture","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lines.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.libelle),esc(l.compte),dcLine(l),ccLine(l)]))).slice(0,600))+`<p><b>Total débit ${fcfa(D)} · Total crédit ${fcfa(C)}</b> ${D===C?badge("Équilibré","ok"):badge("Déséquilibré","er")}</p>`;
+  ex={name:"journal-"+f.j,head:["Date","Écriture","Libellé","Compte","Débit","Crédit"],rows:es.flatMap(e=>e.lines.map(l=>[e.date,e.numero,e.libelle,l.compte,l.debit||"",l.credit||""]))}}
+ if(t==="age"){const {T,rows}=ageData(),tot=T.map((_,i)=>sum(rows,r=>r.tr[i]));
+  h=`<div class="sm mu">Âge calculé à aujourd'hui (${fd(today())}) sur les échéances impayées de chaque chauffeur.</div>`+tbl(["Chauffeur",...T,"Total"],[...rows.map(r=>tr([esc(r.nom),...r.tr.map(x=>x?fcfa(x):""),`<b>${fcfa(r.tot)}</b>`])),tr(["<b>TOTAL</b>",...tot.map(x=>`<b>${fcfa(x)}</b>`),`<b>${fcfa(sum(tot,x=>x))}</b>`])],"Aucun impayé");
+  ex={name:"balance-agee",head:["Chauffeur",...T,"Total"],rows:rows.map(r=>[r.nom,...r.tr,r.tot])}}
+ if(t==="resultat"){const per=(c0)=>{const m={};S.entries.filter(ins).forEach(e=>e.lines.forEach(l=>{if(l.compte[0]===c0)m[l.compte]=(m[l.compte]||0)+(c0==="7"?(l.credit||0)-(l.debit||0):(l.debit||0)-(l.credit||0))}));return Object.entries(m).filter(x=>x[1]).sort()};
+  const pr=per("7"),ch=per("6"),tp=sum(pr,x=>x[1]),tc=sum(ch,x=>x[1]),rs=tp-tc,ends={};
+  S.entries.filter(e=>e.date<=f.to).forEach(e=>e.lines.forEach(l=>{if(l.compte[0]!=="6"&&l.compte[0]!=="7")ends[l.compte]=(ends[l.compte]||0)+(l.debit||0)-(l.credit||0)}));
+  const cum=sum(S.entries.filter(e=>e.date<=f.to).flatMap(e=>e.lines.filter(l=>l.compte[0]==="7"||l.compte[0]==="6")),l=>(l.credit||0)-(l.debit||0)),act=Object.entries(ends).filter(x=>x[1]>0).sort(),pas=Object.entries(ends).filter(x=>x[1]<0).sort();
+  const ta=sum(act,x=>x[1])+(cum<0?-cum:0),tpa=sum(pas,x=>-x[1])+(cum>0?cum:0),rl=(c,v)=>tr([c,esc(cptNom(c)),fcfa(v)]);
+  h=`<h2>Compte de résultat — du ${fd(f.from)} au ${fd(f.to)}</h2>`+tbl(["Compte","Intitulé","Montant"],[...pr.map(x=>rl(x[0],x[1])),tr(["","<b>Total produits</b>",`<b>${fcfa(tp)}</b>`]),...ch.map(x=>rl(x[0],x[1])),tr(["","<b>Total charges</b>",`<b>${fcfa(tc)}</b>`]),tr(["","<b>RÉSULTAT</b>",`<b style="color:${rs>=0?"var(--ok)":"var(--er)"}">${fcfa(rs)}</b>`])])+
+  `<h2>Bilan simplifié au ${fd(f.to)}</h2><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div>${tbl(["Compte","ACTIF","Montant"],[...act.map(x=>rl(x[0],x[1])),...(cum<0?[tr(["","Résultat cumulé (perte)",fcfa(-cum)])]:[]),tr(["","<b>TOTAL ACTIF</b>",`<b>${fcfa(ta)}</b>`])])}</div><div>${tbl(["Compte","PASSIF","Montant"],[...pas.map(x=>rl(x[0],-x[1])),...(cum>0?[tr(["","Résultat cumulé (bénéfice)",fcfa(cum)])]:[]),tr(["","<b>TOTAL PASSIF</b>",`<b>${fcfa(tpa)}</b>`])])}</div></div>`+(ta===tpa?ok("Bilan équilibré."):`<div class="al er">Bilan déséquilibré (${fcfa(ta-tpa)}).</div>`);
+  ex={name:"resultat-bilan",head:["Compte","Intitulé","Montant"],rows:[...pr.map(x=>[x[0],cptNom(x[0]),x[1]]),["","Total produits",tp],...ch.map(x=>[x[0],cptNom(x[0]),-x[1]]),["","Total charges",-tc],["","Résultat",rs]]}}
  if(t==="ctrl"){const pb=integrite(),enc=sum(S.payments.filter(p=>p.statut==="confirme"&&p.type!=="depot"),p=>p.montant),c411=sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte==="411"&&l.alloc&&!l.ext)),l=>l.credit);
-  h+=(pb.length?pb.map(x=>`<div class="al er">${esc(x)}</div>`).join(""):`<div class="al" style="background:var(--okbg);color:var(--ok)">Contrôles d'intégrité réussis : écritures équilibrées, encaissements = imputations, tiers = échéances, caisse = comptabilité.</div>`)+tbl(["Rapprochement","Montant"],[tr(["Encaissements confirmés (hors dépôts)",fcfa(enc)]),tr(["Crédits 411 issus des encaissements (non extournés)",fcfa(c411)]),tr(["Écart",fcfa(enc-c411)])]);}
- return h;
+  h=(pb.length?pb.map(x=>`<div class="al er">${esc(x)}</div>`).join(""):ok("Contrôles d'intégrité réussis : écritures équilibrées, encaissements = imputations, tiers = échéances, caisses = comptabilité."))+tbl(["Rapprochement","Montant"],[tr(["Encaissements confirmés (hors dépôts)",fcfa(enc)]),tr(["Crédits 411 issus des encaissements (non extournés)",fcfa(c411)]),tr(["Écart",fcfa(enc-c411)])]);
+  ex={name:"controles",head:["Rapprochement","Montant"],rows:[["Encaissements confirmés",enc],["Crédits 411",c411],["Écart",enc-c411]]}}
+ UI.etx=ex;return hd+h;
 };
+A["et.csv"]=()=>{const x=UI.etx;if(x)csvOut("etat-"+x.name,x.head,x.rows)};
 CSVS.etats=()=>{const f=UI.f.et;return[["Compte","Intitulé","Débit","Crédit"],S.accounts.map(a=>{const ls=S.entries.filter(e=>e.date>=f.from&&e.date<=f.to).flatMap(e=>e.lines.filter(l=>l.compte===a.num));return[a.num,a.nom,sum(ls,l=>l.debit),sum(ls,l=>l.credit)]})]};
 
 /* ---- GPS ---- */
