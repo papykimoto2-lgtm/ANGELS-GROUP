@@ -214,3 +214,17 @@ Mise à niveau selon le skill `compta-syscohada-caisse` et le modèle ImmoSuite 
 - **États** : journaux, grand livre (intervalle de comptes), balance générale à 6 colonnes, balance âgée clients / fournisseurs-vendeurs, état de TVA, compte de résultat et bilan simplifié, export CSV et impression.
 - **Caisse** : alerte et confirmation obligatoire si le solde théorique est négatif à la clôture ; ventilation des bons (manuelle ou par règles de mots-clés, annulation en masse des ventilations automatiques) ; instantanés restaurables avant toute opération de masse ; import CSV avec rapport d'anomalies ; budgets mensuels avec alertes ; **contrôle d'intégrité** (pièces équilibrées, trésorerie non créditrice, 571 = caisses, chaîne des sessions, doublons de numéros, références Mobile Money, etc.).
 - **Limites** : mode démonstration uniquement pour les écritures, la ventilation et la clôture (en mode serveur l'écran est en lecture seule tant que la migration comptable n'est pas déployée) ; valeurs du plan de comptes, TVA (0 % par défaut) et méthode de stock à faire valider par un expert-comptable ; pas de divisions / agences.
+
+### Transport — comptabilité automatique SYSCOHADA révisé (modèle ImmoSuite)
+- **Comptes par défaut** (Comptabilité → ⚙️ Comptes par défaut) : plus aucun compte codé en dur ; chaque écriture automatique lit ses comptes ici. Compte vide ou inconnu du plan : l'opération est bloquée. Un code inexistant est créé au plan (à affiner). Un compte de bilan déjà mouvementé n'est plus modifiable (reclassement par écriture).
+- **Écritures automatiques** : échéances (411 / 706 / TVA 4431), encaissements et dépôts, dépenses (charge + TVA 4452), bons de caisse, écarts de caisse, **acquisition d'immobilisation** (245 / 481) et **dotations mensuelles linéaires** (681 / 2845) pour les véhicules renseignés (valeur, mise en service, durée), **liquidation de TVA** mensuelle (4431 / 4452 → 4441 ou 4449).
+- **TVA** : taux paramétrable (0 % par défaut = non assujetti). Comptabilisée à la facturation et à la validation des dépenses (amendes exclues).
+- **Numérotation** par journal `JOURNAL-AAAA-NNNN`, colonne « Origine » (auto / manuelle) et filtre.
+- **Contrôles de complétude** : échéances, encaissements, dépenses et bons de caisse sans écriture ; comptes par défaut manquants.
+- Limites : plan de comptes, TVA et durées à faire valider par un expert-comptable ; pas de cession d'immobilisation ni de TVA sur encaissement.
+
+### Livraison — comptabilité automatique à l'image d'ImmoSuite
+- **Comptes par défaut** (Comptabilité → 🧩 Comptes par défaut) : 31 usages paramétrables, plus aucun compte codé en dur dans les écritures automatiques. Code invalide refusé, code inexistant créé au plan, compte déjà mouvementé non modifiable (les écritures étant recalculées, un changement réécrirait l'historique : reclasser par écriture).
+- **Immobilisations motos** : valeur d'acquisition, mise en service et durée dans la fiche moto → écritures déduites (acquisition 245 / 481, dotations mensuelles 681 / 2845). Valeur et date verrouillées une fois comptabilisées.
+- **TVA** : liquidation mensuelle (4431 / 4452 → 4441 ou 4449), état de TVA avec statut de liquidation, synthèse tenant compte de 4441 / 4449.
+- **Contrôle d'intégrité** : comptes par défaut présents et inscrits au plan. Les écritures déjà déduites restent identiques tant que les comptes par défaut ne sont pas changés.
