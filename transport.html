@@ -142,7 +142,7 @@ function atomic(fn,quiet){
 const seq=(k,pref)=>{S.seq[k]=(S.seq[k]||0)+1;const f=S.fmt[k]||pref;return f+"-"+new Date().getFullYear()+"-"+String(S.seq[k]).padStart(5,"0")};
 
 /* ---------- Comptabilité (partie double, périodes, extourne, lettrage) ---------- */
-const PLAN=[["101","Capital social","Passif"],["121","Report à nouveau créditeur","Passif"],["129","Report à nouveau débiteur","Passif"],["165","Dépôts et cautionnements reçus","Passif"],["245","Matériel de transport","Actif"],["401","Fournisseurs","Tiers"],["411","Clients (chauffeurs)","Tiers"],["521","Banques et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["604","Achats de matières et fournitures consommables (carburant)","Charge"],["624","Entretien, réparations et maintenance","Charge"],["638","Autres charges externes","Charge"],["462","Associés, comptes courants","Passif"],["572","Caisse succursale A","Trésorerie"],["573","Caisse succursale B","Trésorerie"],["658","Charges diverses (amendes, pénalités)","Charge"],["758","Produits divers","Produit"],["706","Services vendus (recettes et loyers)","Produit"],["481","Fournisseurs d'investissements","Tiers"],["4431","TVA facturée sur ventes","Passif"],["4441","État, TVA due","Passif"],["4449","État, crédit de TVA à reporter","Actif"],["4452","TVA récupérable sur achats","Actif"],["681","Dotations aux amortissements","Charge"],["2845","Amortissements du matériel de transport","Actif"]];
+const PLAN=[["101","Capital social","Passif"],["121","Report à nouveau créditeur","Passif"],["129","Report à nouveau débiteur","Passif"],["165","Dépôts et cautionnements reçus","Passif"],["245","Matériel de transport","Actif"],["401","Fournisseurs","Tiers"],["411","Clients (chauffeurs)","Tiers"],["521","Banques et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["604","Achats de matières et fournitures consommables (carburant)","Charge"],["624","Entretien, réparations et maintenance","Charge"],["638","Autres charges externes","Charge"],["462","Associés, comptes courants","Passif"],["572","Caisse succursale A","Trésorerie"],["573","Caisse succursale B","Trésorerie"],["658","Charges diverses (amendes, pénalités)","Charge"],["758","Produits divers","Produit"],["706","Services vendus (recettes et loyers)","Produit"],["481","Fournisseurs d'investissements","Tiers"],["4431","TVA facturée sur ventes","Passif"],["4441","État, TVA due","Passif"],["4449","État, crédit de TVA à reporter","Actif"],["4452","TVA récupérable sur achats","Actif"],["681","Dotations aux amortissements","Charge"],["2845","Amortissements du matériel de transport","Actif"],["131","Résultat net de l'exercice : bénéfice","Passif"],["139","Résultat net de l'exercice : perte","Passif"]];
 const JOURNAUX=[["VT","Produits (recettes et loyers)"],["CAI","Caisse"],["BQ","Banque / Mobile Money"],["AC","Achats et charges"],["OD","Opérations diverses"],["AN","À-nouveaux"]];
 const CATS={"Carburant":"604","Entretien et réparations":"624","Amendes et pénalités":"658","Frais divers":"638"}; // libellés ; les comptes viennent des comptes par défaut
 const DEF_CPT={
@@ -152,11 +152,12 @@ const DEF_CPT={
  tva_coll:["TVA facturée (collectée)","4431","Passif"],tva_ded:["TVA récupérable","4452","Actif"],tva_due:["État — TVA due","4441","Passif"],tva_credit:["État — crédit de TVA à reporter","4449","Actif"],
  c_carburant:["Charge — carburant","604","Charge"],c_entretien:["Charge — entretien et réparations","624","Charge"],c_amende:["Charge — amendes et pénalités","658","Charge"],c_frais:["Charge — frais divers","638","Charge"],
  ecart_manquant:["Écart de caisse — manquant (charge)","658","Charge"],ecart_excedent:["Écart de caisse — excédent (produit)","758","Produit"],
+ res_benef:["Résultat de l'exercice — bénéfice","131","Passif"],res_perte:["Résultat de l'exercice — perte","139","Passif"],
  immo:["Immobilisations — véhicules","245","Actif"],amort_dot:["Amortissements — dotation (charge)","681","Charge"],amort_cumul:["Amortissements — cumul véhicules","2845","Actif"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481","Tiers"]};
-const CPT_FIGES=["client","depot","treso_banque","treso_mobile","treso_caisse","fournisseur","apport","tva_coll","tva_ded","tva_due","tva_credit","immo","amort_cumul","immo_contre"];
+const CPT_FIGES=["client","depot","treso_banque","treso_mobile","treso_caisse","fournisseur","apport","tva_coll","tva_ded","tva_due","tva_credit","immo","amort_cumul","immo_contre","res_benef","res_perte"];
 const defComptes=()=>Object.fromEntries(Object.entries(DEF_CPT).map(([k,v])=>[k,v[1]]));
 function cdef(k){const v=((S.settings||{}).comptes||{})[k];if(!v)throw new Error("Compte non paramétré : « "+DEF_CPT[k][0]+" ». Renseignez-le dans Comptabilité → Comptes par défaut avant de comptabiliser cette opération.");return v}
-const DEF_SET={org_nom:"ANGEL'S & CO",org_activite:"Transport",org_ville:"Yopougon",org_adresse:"Yopougon, Abidjan",org_tel:"",tel_indicatif:"225",tel_len:10,pin_len:4,tentatives_max:5,blocage_min:1,marge_km:500,pj_src_max_mo:12,pj_compress_ko:150,defaut_places:5};
+const DEF_SET={org_nom:"ANGEL'S & CO",org_activite:"Transport",org_ville:"Yopougon",org_adresse:"Yopougon, Abidjan",org_tel:"",tel_indicatif:"225",tel_len:10,pin_len:4,tentatives_max:5,blocage_min:1,marge_km:500,pj_src_max_mo:12,pj_compress_ko:150,defaut_places:5,cx_ecart_tol:0,cx_delai_tardif_h:24,cx_doublon_h:24,bq_tol_jours:3};
 const ST=()=>S.settings,stv=k=>{const v=(S&&S.settings||{})[k];return v===undefined||v===""?DEF_SET[k]:v};
 const ORGRAW=()=>String(stv("org_nom")),ORG=()=>esc(ORGRAW()),ORGACT=()=>esc(stv("org_activite")),VILLE=()=>esc(stv("org_ville")),ADR=()=>esc(stv("org_adresse"));
 const pinRe=()=>new RegExp("^\\d{"+stv("pin_len")+"}$"),pinTxt=()=>stv("pin_len")+" chiffres";
@@ -234,7 +235,7 @@ const soldeOb=o=>soldeM(o,allocMap());
 function recomputeLettrage(){
  const am=allocMap(),code={};
  S.obligations.forEach(o=>{code[o.id]=(!o.exo&&soldeM(o,am)===0)?"L"+String(o.num).padStart(5,"0"):null});
- S.entries.forEach(e=>e.lines.forEach(l=>{if(l.compte===cdef("client")&&l.ob&&!l.ext)l.lettre=code[l.ob]||null}));
+ S.entries.forEach(e=>e.lines.forEach(l=>{if(l.compte===cdef("client")&&l.ob&&!l.ext&&!l.lm)l.lettre=code[l.ob]||null}));
 }
 const soldeTiers=(tid,compte=cdef("client"))=>{let s=0;S.entries.forEach(e=>e.lines.forEach(l=>{if(l.compte===compte&&l.tiers===tid)s+=(l.debit||0)-(l.credit||0)}));return s};
 const tiersDe=id=>by(S.tiers,id)||{};
@@ -449,30 +450,52 @@ function annulerRecu(rid,motif){
 }
 
 /* ---------- Caisse, sorties, dépenses ---------- */
-function ouvrirCaisse(fond,cid){
- need("caisse","c");const c=cid?by(S.caisses,cid):caissesAct()[0];if(!c||!c.actif)throw new Error("Caisse introuvable ou désactivée.");
+const cxTol=()=>Math.max(0,+stv("cx_ecart_tol")||0);
+function ouvrirCaisse(fond,cid,o){
+ o=o||{};need("caisse","c");const c=cid?by(S.caisses,cid):caissesAct()[0];if(!c||!c.actif)throw new Error("Caisse introuvable ou désactivée.");
+ if(!Number.isFinite(fond)||fond<0)throw new Error("Fond d'ouverture invalide : un fond de caisse négatif est refusé.");
  if(openSession(c.id))throw new Error("Une caisse est déjà ouverte.");
- const last=lastClosed(c.id);
- if(last&&fond!==last.reel)throw new Error("Le fond d'ouverture doit égaler le comptage de la dernière clôture ("+fcfa(last.reel)+").");
- if(!(fond>=0))throw new Error("Fond invalide.");
- const cs={id:uid("cs"),caisse_id:c.id,ouverte_le:now(),ouverte_par:ME?ME.nom:"système",fond,statut:"ouverte"};S.cash_sessions.push(cs);audit("Caisse ouverte",c.nom+" — "+fcfa(fond));return cs;
+ const last=lastClosed(c.id);let rupture=null;
+ if(last&&fond!==last.reel){const mo=String(o.motif||"").trim();
+  if(mo.length<5)throw new Error("Le fond d'ouverture ("+fcfa(fond)+") diffère du dernier comptage ("+fcfa(last.reel)+") : motif obligatoire.");
+  rupture={attendu:last.reel,constate:fond,ecart:fond-last.reel,motif:mo,session_precedente:last.id}}
+ const cs={id:uid("cs"),caisse_id:c.id,ouverte_le:now(),ouverte_par:ME?ME.nom:"système",ouverte_par_id:ME?ME.id:null,fond,statut:"ouverte"};if(rupture)cs.rupture=rupture;
+ S.cash_sessions.push(cs);audit("Caisse ouverte",c.nom+" — "+fcfa(fond)+(rupture?" (fond ≠ dernier comptage "+fcfa(rupture.attendu)+" : "+rupture.motif+")":""));return cs;
 }
-const CX_IN={"Apport de l'exploitant (compte courant)":"apport","Autre entrée (produit divers)":"produit_div"},CX_OUT=["Versement en banque","Remboursement dépôt de garantie"],CX_OUT_ANC=["Frais divers"]; // « Frais divers » : charges via le module Dépenses (anciens bons conservés)
-function cxNum(sens){const pre=(sens==="entree"?"BE":"BS")+"-"+today().replace(/-/g,"")+"-";return pre+String(S.cash_mv.filter(m=>(m.numero||"").startsWith(pre)).length+1).padStart(3,"0")}
+const CX_REAPPRO="Réapprovisionnement depuis la banque (virement)";
+const CX_IN={"Apport de l'exploitant (compte courant)":"apport","Autre entrée (produit divers)":"produit_div",[CX_REAPPRO]:"treso_banque"},CX_OUT=["Versement en banque","Remise à la direction","Remboursement dépôt de garantie"],CX_OUT_ANC=["Frais divers"]; // « Frais divers » : charges via le module Dépenses (anciens bons conservés)
+const CX_OUT_CPT={"Versement en banque":"treso_banque","Remise à la direction":"apport","Remboursement dépôt de garantie":"depot","Frais divers":"c_frais"},CX_REMISE={"Versement en banque":"banque","Remise à la direction":"direction"};
+function cxNum(sens){const pre=(sens==="entree"?"BE":"BS")+"-"+today().replace(/-/g,"")+"-";let mx=0;S.cash_mv.forEach(m=>{if((m.numero||"").startsWith(pre))mx=Math.max(mx,+m.numero.slice(pre.length)||0)});return pre+String(mx+1).padStart(3,"0")}
 function postSortie(m){
  let tid;if(m.categorie==="Remboursement dépôt de garantie"&&m.contract_id){const c=by(S.contracts,m.contract_id);if(!c||(c.depot_verse||0)<m.montant)throw new Error("Dépôt versé insuffisant pour ce remboursement.");c.depot_verse-=m.montant;tid=(by(S.drivers,c.driver_id)||{}).tiers_id}
- const ent=m.sens==="entree",cpt=ent?(CX_IN[m.categorie]?cdef(CX_IN[m.categorie]):null):(({"Versement en banque":"treso_banque","Remboursement dépôt de garantie":"depot","Frais divers":"c_frais"})[m.categorie]?cdef(({"Versement en banque":"treso_banque","Remboursement dépôt de garantie":"depot","Frais divers":"c_frais"})[m.categorie]):null);
+ const ent=m.sens==="entree",k=ent?CX_IN[m.categorie]:CX_OUT_CPT[m.categorie],cpt=k?cdef(k):null;
  if(!cpt)return;
  const cc=cptCaisse(by(S.cash_sessions,m.session_id)),L=ent?[{compte:cc,debit:m.montant},{compte:cpt,credit:m.montant}]:[{compte:cpt,debit:m.montant,tiers:tid},{compte:cc,credit:m.montant}];
  const e=postEntry({journal:"CAI",date:today(),libelle:m.categorie+" — "+m.motif,piece:m.numero||"MV-"+m.id.slice(-5),source:{type:"cashout",id:m.id},lines:L});
  m.entry_id=e.id;
 }
+/* Garde-fous communs aux bons de caisse : doublon, numéro unique, remises (pièce obligatoire), virement de réapprovisionnement lié à sa demande */
+function cxDoublon(cs,f,sens){const h=+stv("cx_doublon_h");if(!(h>0))return null;const lim=Date.now()-h*36e5,tn=String(f.tiers||"").trim().toLowerCase();
+ return S.cash_mv.find(m=>m.numero&&m.sens===sens&&m.statut!=="rejetee"&&m.montant===f.montant&&m.categorie===f.categorie&&String(m.tiers||"").trim().toLowerCase()===tn&&(by(S.cash_sessions,m.session_id)||{}).caisse_id===cs.caisse_id&&new Date(m.date).getTime()>=lim)||null}
+function cxBon(f,sens,cs,extra){
+ const ent=sens==="entree",rem=ent?null:CX_REMISE[f.categorie]||null;
+ if(rem&&!String(f.justificatif||"").trim())throw new Error("Remise ("+(rem==="banque"?"banque":"direction")+") : pièce justificative obligatoire (bordereau de versement ou décharge de la direction).");
+ const d=cxDoublon(cs,f,sens);if(d&&!f.confirme_doublon){const e=new Error("Bon identique déjà saisi ("+d.numero+") il y a moins de "+stv("cx_doublon_h")+" h : confirmation requise.");e.doublon=true;throw e}
+ const num=cxNum(sens);if(S.cash_mv.some(x=>x.numero===num))throw new Error("Numéro de bon déjà utilisé : "+num+".");
+ const m={id:uid("cm"),session_id:cs.id,date:now(),sens,numero:num,montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom,par_id:ME.id,...(extra||{})};
+ if(d)m.doublon_confirme=d.numero;if(rem)m.remise={type:rem,a_confirmer:true};
+ return m;
+}
 function entreeCaisse(f){
  need("caisse","c");const cs=openSession(f.caisse);if(!cs)throw new Error("Aucune caisse ouverte.");
  if(!(f.montant>0))throw new Error("Montant invalide.");if(!String(f.motif||"").trim())throw new Error("Motif obligatoire.");if(!CX_IN[f.categorie])throw new Error("Catégorie d'entrée invalide.");cdef(CX_IN[f.categorie]);
  if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
- const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"entree",numero:cxNum("entree"),montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
- S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon d'entrée "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")");return m;
+ let rq=null;if(f.categorie===CX_REAPPRO){
+  if(f.reappro_id){rq=by(S.reappros,f.reappro_id);if(!rq||rq.caisse_id!==cs.caisse_id||rq.statut!=="validee"||rq.montant!==f.montant)throw new Error("Demande de réapprovisionnement introuvable, non validée, déjà servie, ou caisse / montant différents.")}
+  else rq=S.reappros.filter(r=>r.statut==="validee"&&r.caisse_id===cs.caisse_id&&r.montant===f.montant).sort((a,b)=>a.t.localeCompare(b.t))[0]||null}
+ const m=cxBon(f,"entree",cs,rq?{reappro_id:rq.id}:f.categorie===CX_REAPPRO?{hors_demande:true}:null);
+ S.cash_mv.push(m);if(rq){rq.statut="servie";rq.mvt_id=m.id;rq.servie_le=now()}
+ if(m.statut==="validee")postSortie(m);audit("Bon d'entrée "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")"+(m.hors_demande?" — virement hors demande de réapprovisionnement":rq?" — demande "+rq.numero:""));return m;
 }
 function sortieCaisse(f){
  need("caisse","c");if(!CX_OUT.includes(f.categorie))throw new Error("Catégorie de sortie invalide : les charges (carburant, entretien, frais divers) se saisissent dans le module Dépenses.");const cs=openSession(f.caisse);
@@ -480,22 +503,72 @@ function sortieCaisse(f){
  if(!(f.montant>0))throw new Error("Montant invalide.");if(!String(f.motif||"").trim())throw new Error("Motif obligatoire.");
  if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
  if(f.montant>soldeTheo(cs))throw new Error("Solde théorique insuffisant ("+fcfa(soldeTheo(cs))+").");
- const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",numero:cxNum("sortie"),montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",contract_id:f.contract_id||null,justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
- S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon de sortie "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")");
+ const m=cxBon(f,"sortie",cs,{contract_id:f.contract_id||null});
+ S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon de sortie "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")"+(m.remise?" — remise "+m.remise.type+" à confirmer":""));return m;
+}
+/* Remise banque / direction : la réception est confirmée par une AUTRE personne, avec la référence de la preuve */
+function confirmerRemise(id,preuve){
+ need("caisse","a");const m=by(S.cash_mv,id);if(!m||!m.remise)throw new Error("Ce bon n'est pas une remise.");
+ if(!m.remise.a_confirmer)throw new Error("Réception déjà confirmée.");if(m.statut==="rejetee")throw new Error("Bon rejeté : aucune réception à confirmer.");
+ if(m.par_id===ME.id)throw new Error("Séparation des tâches : la réception d'une remise est confirmée par une autre personne que celle qui l'a saisie.");
+ if(String(preuve||"").trim().length<3)throw new Error("Référence de la preuve de réception obligatoire (bordereau tamponné, accusé signé…).");
+ Object.assign(m.remise,{a_confirmer:false,confirme_par:ME.nom,confirme_par_id:ME.id,confirme_le:now(),preuve:String(preuve).trim()});audit("Remise confirmée",m.numero+" — "+m.remise.preuve);
+}
+const remisesAConfirmer=()=>S.cash_mv.filter(m=>m.remise&&m.remise.a_confirmer&&m.statut!=="rejetee");
+/* Demandes de réapprovisionnement */
+function creerReappro(f){
+ need("caisse","c");const c=by(S.caisses,f.caisse);if(!c||!c.actif)throw new Error("Caisse introuvable ou désactivée.");
+ if(!(f.montant>0))throw new Error("Montant invalide.");if(!String(f.motif||"").trim())throw new Error("Motif obligatoire.");
+ const h=+stv("cx_doublon_h"),lim=Date.now()-h*36e5,d=h>0?S.reappros.find(r=>r.caisse_id===c.id&&r.montant===f.montant&&r.statut!=="rejetee"&&new Date(r.t).getTime()>=lim):null;
+ if(d&&!f.confirme_doublon){const e=new Error("Demande identique déjà faite ("+d.numero+") il y a moins de "+h+" h : confirmation requise.");e.doublon=true;throw e}
+ const r={id:uid("ra"),numero:seq("ra","RA"),caisse_id:c.id,montant:f.montant,motif:String(f.motif).trim(),statut:"soumise",par:ME.nom,par_id:ME.id,t:now()};
+ S.reappros.push(r);audit("Réapprovisionnement demandé",r.numero+" "+c.nom+" "+fcfa(r.montant));return r;
+}
+function validerReappro(id,ok,motif){
+ need("caisse","a");const r=by(S.reappros,id);if(!r)throw new Error("Demande introuvable.");
+ if(r.statut!=="soumise")throw new Error("Demande déjà traitée ("+r.statut+") : un statut avancé ne régresse jamais.");
+ if(ok&&r.par_id===ME.id)throw new Error("Séparation des tâches : vous ne pouvez pas valider votre propre demande.");
+ if(!ok&&String(motif||"").trim().length<3)throw new Error("Motif du rejet obligatoire.");
+ r.statut=ok?"validee":"rejetee";r.valide_par=ME.nom;r.valide_par_id=ME.id;r.valide_le=now();if(!ok)r.motif_rejet=String(motif).trim();audit("Réapprovisionnement "+(ok?"validé":"rejeté"),r.numero);
 }
 function validerSortie(id,ok,motif){
  need("caisse","a");const m=by(S.cash_mv,id);if(!m||m.statut!=="a_valider")throw new Error("Mouvement non validable.");
+ if(m.par_id&&m.par_id===ME.id)throw new Error("Séparation des tâches : vous ne pouvez pas valider un bon que vous avez saisi.");
  if(!ok&&motif!==undefined&&String(motif).trim().length<3)throw new Error("Motif du rejet obligatoire.");
- if(ok&&m.sens==="sortie"){const cs=by(S.cash_sessions,m.session_id);if(m.montant>soldeTheo(cs))throw new Error("Solde de caisse insuffisant ("+fcfa(soldeTheo(cs))+" disponibles).")}
- m.statut=ok?"validee":"rejetee";m.valide_par=ME.nom;m.valide_le=now();if(!ok&&motif)m.motif_rejet=String(motif).trim();if(ok)postSortie(m);audit((m.sens==="entree"?"Bon d'entrée ":"Bon de sortie ")+(ok?"validé":"rejeté"),(m.numero||"")+" "+m.motif);
+ const cs=by(S.cash_sessions,m.session_id);
+ if(ok&&m.sens==="sortie"){if(m.montant>soldeTheo(cs))throw new Error("Solde de caisse insuffisant ("+fcfa(soldeTheo(cs))+" disponibles).")}
+ m.statut=ok?"validee":"rejetee";m.valide_par=ME.nom;m.valide_le=now();if(!ok&&motif)m.motif_rejet=String(motif).trim();if(ok)postSortie(m);
+ if(!ok&&m.reappro_id){const r=by(S.reappros,m.reappro_id);if(r){r.statut="validee";r.mvt_id=null}}
+ if(cs&&cs.statut==="cloturee"){m.apres_cloture=true;cs.apres_cloture=true;cxRecalc(cs,"bon "+m.numero+(ok?" validé":" rejeté")+" après la clôture")}
+ audit((m.sens==="entree"?"Bon d'entrée ":"Bon de sortie ")+(ok?"validé":"rejeté"),(m.numero||"")+" "+m.motif);
 }
-function cloturerCaisse(reel,expl,cid){
- need("caisse","e");const cs=openSession(cid);if(!cs)throw new Error("Aucune caisse ouverte.");
+/* Recalcul d'une session clôturée dont un bon en attente est tranché après coup */
+function cxRecalc(cs,raison){
+ if(cs.statut!=="cloturee"||cs.reel==null)return;
+ const net=sum(S.cash_mv.filter(x=>x.session_id===cs.id&&x.statut==="a_valider"),x=>x.sens==="entree"?x.montant:-x.montant),th=soldeTheo(cs)+net,ec=cs.reel-th;
+ if(th===cs.theorique&&ec===cs.ecart)return;
+ (cs.recalculs=cs.recalculs||[]).push({t:now(),par:ME?ME.nom:"système",raison,avant:{theorique:cs.theorique,ecart:cs.ecart},apres:{theorique:th,ecart:ec}});
+ if(cs.ecart_regul&&cs.ecart){cs.alerte_apres_cloture=true;audit("Écart de caisse à revoir","Session "+cs.id+" déjà régularisée : "+raison);return}
+ cs.theorique=th;cs.ecart=ec;cs.ecart_regul=ec===0;cs.recalcule=true;audit("Clôture de caisse recalculée",raison+" — nouvel écart "+fcfa(ec));
+}
+/* Clôture encadrée : par un tiers (≠ ouvreur) ou tardive → motif + marque administrative ; une clôture existante n'est jamais écrasée */
+function cxEncadree(cs){const ouv=cs.ouverte_par_id&&by(S.users,cs.ouverte_par_id);return{tiers:!!ouv&&!!ME&&ouv.id!==ME.id,tardive:(Date.now()-new Date(cs.ouverte_le).getTime())>(+stv("cx_delai_tardif_h")||24)*36e5}}
+function cloturerCaisse(reel,expl,cid,o){
+ o=o||{};need("caisse","e");
+ if(o.session_id){const x=by(S.cash_sessions,o.session_id);if(x&&x.statut==="cloturee")throw new Error("Session déjà clôturée le "+fdt(x.cloturee_le)+" par "+x.cloturee_par+" : une clôture existante n'est jamais écrasée (rouvrir avec motif si nécessaire).")}
+ const cs=o.session_id?by(S.cash_sessions,o.session_id):openSession(cid);if(!cs||cs.statut!=="ouverte")throw new Error("Aucune caisse ouverte.");
  if(!(reel>=0))throw new Error("Montant compté invalide.");
- if(S.cash_mv.some(m=>m.session_id===cs.id&&m.statut==="a_valider"))throw new Error("Des sorties attendent validation : les traiter avant la clôture.");
- const th=soldeTheo(cs),ec=reel-th;
- if(ec!==0&&!String(expl||"").trim())throw new Error("Écart de "+fcfa(ec)+" : explication obligatoire.");
- Object.assign(cs,{statut:"cloturee",theorique:th,reel,ecart:ec,explication:expl||"",cloturee_le:now(),cloturee_par:ME.nom,ecart_regul:ec===0});audit("Caisse clôturée","théorique "+fcfa(th)+", compté "+fcfa(reel)+", écart "+fcfa(ec));
+ const pend=S.cash_mv.filter(m=>m.session_id===cs.id&&m.statut==="a_valider"),net=sum(pend,m=>m.sens==="entree"?m.montant:-m.montant);
+ if(pend.length&&String(o.precision||"").trim().length<5)throw new Error(pend.length+" bon(s) en attente de validation ("+fcfa(sum(pend,m=>m.montant))+") : précisez leur situation (ex. remise en cours de dépôt) avant de clôturer.");
+ const thv=soldeTheo(cs),th=thv+net,ec=reel-th;
+ if(Math.abs(ec)>cxTol()&&!String(expl||"").trim())throw new Error("Écart de "+fcfa(ec)+" : explication obligatoire.");
+ const enc=cxEncadree(cs);
+ if((enc.tiers||enc.tardive)&&String(o.motif||"").trim().length<5)throw new Error("Clôture "+(enc.tiers&&enc.tardive?"par un tiers et tardive":enc.tiers?"par un tiers (caisse ouverte par "+cs.ouverte_par+")":"tardive (ouverte depuis plus de "+stv("cx_delai_tardif_h")+" h)")+" : motif obligatoire.");
+ ["admin","en_attente","precision_attente","recalcule","recalculs","apres_cloture","alerte_apres_cloture"].forEach(k=>delete cs[k]);
+ Object.assign(cs,{statut:"cloturee",theorique:th,theorique_valide:thv,net_attente:net,reel,ecart:ec,explication:expl||"",cloturee_le:now(),cloturee_par:ME.nom,cloturee_par_id:ME.id,ecart_regul:ec===0});
+ if(pend.length){cs.en_attente=pend.map(m=>m.id);cs.precision_attente=String(o.precision).trim()}
+ if(enc.tiers||enc.tardive)cs.admin={...enc,motif:String(o.motif).trim(),par:ME.nom,t:now()};
+ audit("Caisse clôturée","théorique "+fcfa(th)+", compté "+fcfa(reel)+", écart "+fcfa(ec)+(pend.length?" ("+pend.length+" bon(s) en attente)":"")+(cs.admin?" — clôture encadrée : "+cs.admin.motif:""));
 }
 function regulariserEcart(csid,note){
  need("caisse","a");const cs=by(S.cash_sessions,csid);
@@ -509,7 +582,160 @@ function rouvrirCaisse(csid,motif){
  need("caisse","x");const cs=by(S.cash_sessions,csid);
  if(!motif)throw new Error("Motif obligatoire.");if(!cs)throw new Error("Session introuvable.");if(openSession(cs.caisse_id))throw new Error("Une caisse est déjà ouverte.");
  if(S.cash_sessions.filter(x=>x.caisse_id===cs.caisse_id).pop().id!==csid)throw new Error("Seule la dernière session peut être rouverte.");
- cs.statut="ouverte";(cs.reouvertures=cs.reouvertures||[]).push({t:now(),par:ME.nom,motif});audit("Caisse rouverte",motif);
+ (cs.clotures_anterieures=cs.clotures_anterieures||[]).push({cloturee_le:cs.cloturee_le,cloturee_par:cs.cloturee_par,reel:cs.reel,theorique:cs.theorique,ecart:cs.ecart,explication:cs.explication,admin:cs.admin||null});cs.statut="ouverte";(cs.reouvertures=cs.reouvertures||[]).push({t:now(),par:ME.nom,motif});audit("Caisse rouverte",motif);
+}
+/* ---------- Rapprochement de caisse : écart cumulé par caisse, ruptures de chaîne ---------- */
+function cxRapprochement(){
+ return S.caisses.map(c=>{const ss=S.cash_sessions.filter(s=>s.caisse_id===c.id&&!s.technique),cl=ss.filter(s=>s.statut==="cloturee"),ruptures=[];
+  for(let i=1;i<ss.length;i++){const p=ss[i-1],n=ss[i];if(p.statut==="cloturee"&&p.reel!=null&&n.fond!==p.reel)ruptures.push({de:p.id,vers:n.id,date:n.ouverte_le,attendu:p.reel,constate:n.fond,ecart:n.fond-p.reel,motif:(n.rupture||{}).motif||""})}
+  return{caisse:c,sessions:ss.length,cloturees:cl.length,ecart_cumule:sum(cl,s=>s.ecart||0),regule:sum(cl.filter(s=>s.ecart_regul),s=>s.ecart||0),non_regule:sum(cl.filter(s=>!s.ecart_regul),s=>s.ecart||0),ruptures,rupture_total:sum(ruptures,r=>r.ecart)}});
+}
+/* ---------- Lettrage des comptes tiers (411 / 401 / … : comptes de type « Tiers ») ---------- */
+const cptsTiers=()=>S.accounts.filter(a=>a.type==="Tiers").map(a=>a.num).sort();
+function lignesTiers(compte,tid){const R=[];S.entries.forEach(e=>e.lines.forEach((l,i)=>{if(l.compte===compte&&(tid===undefined||tid===null||(l.tiers||"")===tid))R.push({e,l,i,ref:e.id+":"+i})}));return R}
+const nonLettres=(compte,tid)=>lignesTiers(compte,tid).filter(x=>!x.l.lettre);
+const lettreRef=ref=>{const[id,i]=String(ref).split(":"),e=by(S.entries,id),l=e&&e.lines[+i];if(!l)throw new Error("Ligne d'écriture introuvable.");return{e,l}};
+function lettrerManuel(refs){
+ need("compta","e");const ls=[...new Set(refs||[])].map(lettreRef);if(ls.length<2)throw new Error("Sélectionnez au moins deux lignes à lettrer.");
+ const c=ls[0].l.compte,t=ls[0].l.tiers||"";if(ls.some(x=>x.l.compte!==c||(x.l.tiers||"")!==t))throw new Error("Lettrage impossible : les lignes doivent appartenir au même compte et au même tiers.");
+ if(!by(S.accounts,c,"num")||by(S.accounts,c,"num").type!=="Tiers")throw new Error("Le lettrage s'applique aux comptes de tiers.");
+ if(ls.some(x=>x.l.lettre))throw new Error("Une des lignes est déjà lettrée.");
+ const d=sum(ls,x=>x.l.debit),k=sum(ls,x=>x.l.credit);if(d!==k||d<=0)throw new Error("Lettrage impossible : débit "+fcfa(d)+" ≠ crédit "+fcfa(k)+" (écart "+fcfa(d-k)+").");
+ S.seq.lettrage=(S.seq.lettrage||0)+1;const code="LM"+String(S.seq.lettrage).padStart(5,"0");
+ ls.forEach(x=>{x.l.lettre=code;x.l.lm=true;x.l.lettre_le=today()});audit("Lettrage manuel",code+" · compte "+c+" · "+fcfa(d));return code;
+}
+function delettrer(code,motif){
+ need("compta","a");if(!/^L[MA]\d+$/.test(String(code)))throw new Error("Seuls les lettrages manuels ou automatiques de la comptabilité se délettrent (les lettrages d'échéances suivent les encaissements).");
+ if(String(motif||"").trim().length<3)throw new Error("Motif obligatoire.");
+ const ls=S.entries.flatMap(e=>e.lines.filter(l=>l.lettre===code&&l.lm));if(!ls.length)throw new Error("Lettrage introuvable.");
+ ls.forEach(l=>{l.lettre=null;l.lm=false;delete l.lettre_le});audit("Lettrage supprimé",code+" — "+String(motif).trim());return ls.length;
+}
+function lettrageAuto(compte){
+ need("compta","e");const comptes=compte?[compte]:cptsTiers();let n=0;
+ comptes.forEach(c=>{const grp={};nonLettres(c).forEach(x=>{if(x.l.ob||x.l.alloc)return; // lettrage des échéances géré par les encaissements
+   (grp[x.l.tiers||""]=grp[x.l.tiers||""]||[]).push(x)});
+  Object.values(grp).forEach(L=>{L.sort((a,b)=>a.e.date.localeCompare(b.e.date)||a.e.numero.localeCompare(b.e.numero));
+   const D=L.filter(x=>x.l.debit),K=L.filter(x=>x.l.credit),used=new Set(),lot=(xs)=>{S.seq.lettrage=(S.seq.lettrage||0)+1;const code="LA"+String(S.seq.lettrage).padStart(5,"0");xs.forEach(x=>{x.l.lettre=code;x.l.lm=true;x.l.lettre_le=today();used.add(x)});n+=xs.length};
+   D.forEach(d=>{if(used.has(d))return;const k=K.find(x=>!used.has(x)&&x.l.credit===d.l.debit);if(k)lot([d,k])});
+   const R=L.filter(x=>!used.has(x));if(R.length>=2&&sum(R,x=>x.l.debit)===sum(R,x=>x.l.credit)&&sum(R,x=>x.l.debit)>0)lot(R)})});
+ audit("Lettrage automatique",(compte||"tous comptes de tiers")+" : "+n+" ligne(s)");return n;
+}
+function etatNonLettres(compte){
+ const R=[];(compte?[compte]:cptsTiers()).forEach(c=>{const g={};nonLettres(c).forEach(x=>{const k=x.l.tiers||"";const o=g[k]=g[k]||{compte:c,tiers:k,nb:0,debit:0,credit:0};o.nb++;o.debit+=x.l.debit||0;o.credit+=x.l.credit||0});
+  Object.values(g).forEach(o=>R.push({...o,solde:o.debit-o.credit,nom:o.tiers?(tiersDe(o.tiers).nom||o.tiers):"(sans tiers)"}))});return R;
+}
+/* ---------- Rapprochement bancaire ---------- */
+const bkComptes=()=>[...new Set([cdef("treso_banque"),cdef("treso_mobile")])];
+const bkLignes=()=>{const cs=bkComptes(),R=[];S.entries.forEach(e=>e.lines.forEach((l,i)=>{if(cs.includes(l.compte))R.push({e,l,i,ref:e.id+":"+i,v:(l.debit||0)-(l.credit||0)})}));return R};
+function bkDate(s){s=String(s||"").trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);return m?m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"):null}
+const bkMt=s=>{s=String(s==null?"":s).replace(/[\s  ]|F(CFA)?$/gi,"").replace(",",".");if(s==="")return null;const v=Number(s);return Number.isFinite(v)?Math.round(v):null};
+function releveParse(txt){
+ const L=String(txt||"").replace(/^﻿/,"").split(/\r?\n/).filter(x=>x.trim());if(!L.length)throw new Error("Relevé vide.");
+ const sep=[";","\t",","].map(c=>[c,L[0].split(c).length]).sort((a,b)=>b[1]-a[1])[0][0],R=[],dc=!bkDate(L[0].split(sep)[0])&&/d[ée]bit/i.test(L[0])&&/cr[ée]dit/i.test(L[0]);
+ L.forEach((ln,n)=>{const c=ln.split(sep).map(x=>x.replace(/^"|"$/g,"").trim());if(n===0&&!bkDate(c[0]))return; // en-tête
+  const d=bkDate(c[0]);if(!d)throw new Error("Ligne "+(n+1)+" : date invalide « "+c[0]+" ».");
+  let mt,ref="";
+  if(dc){mt=(bkMt(c[3])||0)-(bkMt(c[2])||0);ref=c[4]||""} // colonnes débit / crédit : le crédit entre en banque, le débit en sort
+  else{mt=bkMt(c[2]);ref=c[3]||""}
+  if(mt===null||!mt)throw new Error("Ligne "+(n+1)+" : montant invalide.");
+  R.push({date:d,libelle:c[1]||"",montant:mt,ref})});
+ return R;
+}
+function releveImporter(txt){
+ need("compta","c");const rows=releveParse(txt),key=r=>[r.date,r.montant,r.ref,r.libelle].join("|"),have={};S.releve.forEach(r=>{have[key(r)]=(have[key(r)]||0)+1});let ajoutes=0,ignores=0;
+ rows.forEach(r=>{const k=key(r);if(have[k]>0){have[k]--;ignores++;return}S.releve.push({id:uid("rl"),...r,pointe:null,t:now(),par:ME.nom});ajoutes++});
+ audit("Relevé bancaire importé",ajoutes+" ligne(s), "+ignores+" doublon(s) ignoré(s)");return{ajoutes,ignores};
+}
+function releveSaisir(f){
+ need("compta","c");const d=bkDate(f.date),mt=Math.round(+f.montant);if(!d)throw new Error("Date invalide.");if(!mt)throw new Error("Montant invalide (positif = crédit en banque, négatif = débit).");
+ const r={id:uid("rl"),date:d,libelle:String(f.libelle||"").trim(),montant:mt,ref:String(f.ref||"").trim(),pointe:null,t:now(),par:ME.nom};S.releve.push(r);audit("Ligne de relevé saisie",d+" "+fcfa(mt));return r;
+}
+function bkPointer(rl,l,ref){rl.pointe={ref,par:ME?ME.nom:"système",t:now()};l.bq=rl.id}
+function rapprocherAuto(){
+ need("compta","e");const tol=Math.max(0,+stv("bq_tol_jours")||0),cand=bkLignes().filter(x=>!x.l.bq);let n=0;
+ S.releve.filter(r=>!r.pointe).sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
+  const c=cand.filter(x=>!x.l.bq&&x.v===r.montant&&Math.abs(diffDays(x.e.date,r.date))<=tol).sort((a,b)=>Math.abs(diffDays(a.e.date,r.date))-Math.abs(diffDays(b.e.date,r.date))||a.e.date.localeCompare(b.e.date))[0];
+  if(c){bkPointer(r,c.l,c.ref);n++}});
+ audit("Rapprochement bancaire automatique",n+" ligne(s) pointée(s)");return n;
+}
+function pointerManuel(relId,ref){
+ need("compta","e");const r=by(S.releve,relId);if(!r||r.pointe)throw new Error("Ligne de relevé introuvable ou déjà pointée.");const{l}=lettreRef(ref);
+ if(!bkComptes().includes(l.compte))throw new Error("La ligne choisie n'est pas sur un compte de banque / mobile money.");if(l.bq)throw new Error("Ligne comptable déjà pointée.");
+ if((l.debit||0)-(l.credit||0)!==r.montant)throw new Error("Montants différents : relevé "+fcfa(r.montant)+" ≠ écriture "+fcfa((l.debit||0)-(l.credit||0))+" (passer une écriture d'ajustement avant de pointer).");
+ bkPointer(r,l,ref);audit("Pointage manuel",r.date+" "+fcfa(r.montant));
+}
+function depointer(relId){need("compta","e");const r=by(S.releve,relId);if(!r||!r.pointe)throw new Error("Ligne non pointée.");const{l}=lettreRef(r.pointe.ref);delete l.bq;r.pointe=null;audit("Pointage annulé",r.date+" "+fcfa(r.montant))}
+function etatRapprochement(au){
+ au=au||"9999-12-31";const gl=bkLignes().filter(x=>x.e.date<=au),rl=S.releve.filter(r=>r.date<=au),npC=gl.filter(x=>!x.l.bq),npR=rl.filter(r=>!r.pointe);
+ const sc=sum(gl,x=>x.v),sr=(S.bq_ouv||0)+sum(rl,r=>r.montant),nC=sum(npC,x=>x.v),nR=sum(npR,r=>r.montant);
+ return{solde_compta:sc,solde_releve:sr,non_pointes_compta:npC,non_pointes_releve:npR,net_compta:nC,net_releve:nR,ecart:sr-(sc-nC+nR),pointes:rl.length-npR.length};
+}
+/* ---------- Clôture d'exercice (année civile), à-nouveaux, FEC ---------- */
+const exoDe=a=>by(S.exercices,String(a),"annee"),exoClos=a=>{const x=exoDe(a);return!!x&&x.statut==="cloture"};
+function exoSoldes(a){const R={};S.entries.forEach(e=>{if(e.date<a+"-01-01"||e.date>a+"-12-31")return;e.lines.forEach(l=>{if(l.compte[0]==="6"||l.compte[0]==="7")R[l.compte]=(R[l.compte]||0)+(l.debit||0)-(l.credit||0)})});return R}
+function exoBilan(a){const R={};S.entries.forEach(e=>{if(e.date>a+"-12-31")return;e.lines.forEach(l=>{if(l.compte[0]>="1"&&l.compte[0]<="5")R[l.compte]=(R[l.compte]||0)+(l.debit||0)-(l.credit||0)})});
+ return Object.entries(R).filter(x=>x[1]).sort().map(([c,v])=>v>0?{compte:c,debit:v}:{compte:c,credit:-v})}
+function cloturerExercice(a){
+ need("compta","a");a=String(a);if(!/^\d{4}$/.test(a))throw new Error("Exercice invalide.");
+ if(exoClos(a))throw new Error("Exercice "+a+" déjà clôturé.");if(a>today().slice(0,4))throw new Error("L'exercice "+a+" n'a pas commencé.");
+ const ant=[...new Set(S.entries.map(e=>e.date.slice(0,4)))].filter(y=>y<a&&!exoClos(y)).sort();if(ant.length)throw new Error("Clôturer d'abord l'exercice "+ant[0]+".");
+ if(S.brouillard.some(b=>b.date.slice(0,4)===a))throw new Error("Des écritures en brouillard de "+a+" restent à viser ou à supprimer.");
+ if(S.cash_sessions.some(s=>s.statut==="ouverte"&&s.ouverte_le.slice(0,4)===a))throw new Error("Une caisse ouverte en "+a+" doit être clôturée.");
+ if(S.expenses.some(x=>x.statut==="a_valider"&&x.date.slice(0,4)===a))throw new Error("Des dépenses de "+a+" attendent validation.");
+ const mois=Array.from({length:12},(_,i)=>a+"-"+String(i+1).padStart(2,"0"));
+ mois.forEach(m=>{if(!by(S.periods,m))S.periods.push({id:m,statut:"ouverte"})});
+ const p12=by(S.periods,a+"-12"),was=p12.statut;p12.statut="ouverte";
+ const R=exoSoldes(a),lines=[];Object.entries(R).sort().forEach(([c,v])=>{if(v>0)lines.push({compte:c,credit:v});else if(v<0)lines.push({compte:c,debit:-v})});
+ let e=null,res=0;
+ if(lines.length){const bal=sum(lines,l=>l.debit)-sum(lines,l=>l.credit);res=bal;
+  if(bal>0)lines.push({compte:cdef("res_benef"),credit:bal});else if(bal<0)lines.push({compte:cdef("res_perte"),debit:-bal});
+  e=postEntry({journal:"OD",date:a+"-12-31",libelle:"Clôture de l'exercice "+a+" — solde des comptes de gestion (résultat "+(res>=0?"bénéfice":"perte")+")",piece:"CLOT-"+a,source:{type:"cloture",annee:a,kind:"solde"},lines})}
+ if(!e)p12.statut=was;
+ mois.forEach(m=>by(S.periods,m).statut="cloturee");
+ const an=exoBilan(a),d=sum(an,l=>l.debit),k=sum(an,l=>l.credit);if(d!==k)throw new Error("Bilan d'ouverture déséquilibré (débit "+fcfa(d)+" / crédit "+fcfa(k)+") : clôture annulée.");
+ const x=exoDe(a)||(S.exercices.push({annee:a,reouvertures:[]}),exoDe(a));
+ Object.assign(x,{statut:"cloture",cloture_le:now(),cloture_par:ME.nom,resultat:res,entry_solde:e?e.id:null,an:{date:(+a+1)+"-01-01",lines:an}});
+ audit("Exercice clôturé",a+" — résultat "+fcfa(res));return x;
+}
+function rouvrirExercice(a,motif){
+ need("compta","x");a=String(a);if(String(motif||"").trim().length<5)throw new Error("Motif de réouverture obligatoire.");
+ const x=exoDe(a);if(!x||x.statut!=="cloture")throw new Error("Exercice "+a+" non clôturé.");
+ if(exoClos(+a+1))throw new Error("Rouvrir d'abord l'exercice "+(+a+1)+".");
+ S.periods.filter(p=>p.id.startsWith(a+"-")).forEach(p=>p.statut="ouverte");
+ const e=x.entry_solde&&by(S.entries,x.entry_solde);
+ if(e&&!e.extournee_par){const r=postEntry({journal:e.journal,date:e.date,libelle:"Réouverture de l'exercice "+a+" — annulation de l'écriture de solde ("+String(motif).trim()+")",piece:e.piece,source:{type:"cloture",annee:a,kind:"reouverture"},lines:e.lines.filter(l=>!l.ext).map(l=>({compte:l.compte,debit:l.credit||0,credit:l.debit||0}))});
+  const code="X"+r.numero.slice(-5);e.lines.forEach(l=>{l.ext=true;l.lettre=code});r.lines.forEach(l=>l.lettre=code);e.extournee_par=r.id;(e.log=e.log||[]).push({t:now(),x:r.id,motif:String(motif).trim()})}
+ (x.reouvertures=x.reouvertures||[]).push({t:now(),par:ME.nom,motif:String(motif).trim(),resultat:x.resultat});
+ Object.assign(x,{statut:"rouvert",entry_solde:null,an:null});audit("Exercice rouvert",a+" — "+String(motif).trim());return x;
+}
+/* Fichier des écritures comptables (FEC) d'un exercice : écritures + à-nouveaux de l'ouverture */
+function fecRows(a){
+ a=String(a);const R=[],jl=Object.fromEntries(JOURNAUX),ymd=d=>d.replace(/-/g,""),mt=n=>n?String(n)+",00":"0,00",cl=x=>by(S.accounts,x,"num")||{};
+ const prev=exoDe(+a-1);
+ if(prev&&prev.statut==="cloture"&&prev.an)prev.an.lines.forEach((l,i)=>R.push(["AN",jl.AN||"À-nouveaux","AN-"+a+"-0001",ymd(prev.an.date),l.compte,cl(l.compte).nom||"","","","A-NOUVEAUX",ymd(prev.an.date),"Bilan d'ouverture "+a,mt(l.debit),mt(l.credit),"","",ymd(prev.an.date),"",""]));
+ S.entries.filter(e=>e.date>=a+"-01-01"&&e.date<=a+"-12-31").sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero)).forEach(e=>e.lines.forEach(l=>{const t=l.tiers?tiersDe(l.tiers):{};
+  R.push([e.journal,jl[e.journal]||e.journal,e.numero,ymd(e.date),l.compte,cl(l.compte).nom||"",t.aux||"",t.nom||"",e.piece||"",ymd(e.date),e.libelle,mt(l.debit),mt(l.credit),l.lettre||"",l.lettre_le?ymd(l.lettre_le):"",ymd(e.date),"",""])}));
+ return R;
+}
+const FEC_COLS=["JournalCode","JournalLib","EcritureNum","EcritureDate","CompteNum","CompteLib","CompAuxNum","CompAuxLib","PieceRef","PieceDate","EcritureLib","Debit","Credit","EcritureLet","DateLet","ValidDate","Montantdevise","Idevise"];
+const fecTexte=a=>[FEC_COLS,...fecRows(a)].map(r=>r.map(x=>String(x).replace(/[\t\r\n]+/g," ")).join("\t")).join("\r\n");
+/* ---------- Grand livre par intervalle, journaux filtrables, déclaration de TVA ---------- */
+function buildGrandLivreIntervalle(c1,c2,d1,d2){
+ const lo=String(c1||"").padEnd(8,"0"),hi=String(c2||"").padEnd(8,"9"),ys=yStart(d1||"0000-01-01");
+ return S.accounts.filter(a=>{const n=a.num.padEnd(8,"0");return(!c1||n>=lo)&&(!c2||n<=hi)}).sort((x,y)=>x.num.localeCompare(y.num)).map(a=>{
+  let rep=0,d=0,c=0;const L=[];
+  S.entries.forEach(e=>e.lines.forEach(l=>{if(l.compte!==a.num)return;
+   if(d1&&e.date<d1){if((a.num[0]==="6"||a.num[0]==="7")&&e.date<ys)return;rep+=(l.debit||0)-(l.credit||0)}
+   else if(!d2||e.date<=d2){L.push({e,l});d+=l.debit||0;c+=l.credit||0}}));
+  L.sort((x,y)=>x.e.date.localeCompare(y.e.date)||x.e.numero.localeCompare(y.e.numero));let run=rep;
+  return{compte:a.num,nom:a.nom,report:rep,debit:d,credit:c,solde:rep+d-c,lignes:L.map(({e,l})=>{run+=(l.debit||0)-(l.credit||0);return{date:e.date,numero:e.numero,piece:e.piece,libelle:e.libelle,debit:l.debit||0,credit:l.credit||0,solde:run,lettre:l.lettre||""}})}}).filter(g=>g.report||g.lignes.length);
+}
+function journalFiltre(f){f=f||{};const q=String(f.q||"").toLowerCase(),mn=f.min===""||f.min==null?null:+f.min,mx=f.max===""||f.max==null?null:+f.max;
+ return S.entries.filter(e=>{const t=sum(e.lines,l=>l.debit);return(!f.j||e.journal===f.j)&&(!f.from||e.date>=f.from)&&(!f.to||e.date<=f.to)&&(mn===null||t>=mn)&&(mx===null||t<=mx)&&(!q||(e.libelle+" "+e.piece+" "+e.numero).toLowerCase().includes(q))}).sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero))}
+function declarationTVA(m){
+ const t=tvaMois(m),ls=S.entries.filter(e=>e.date.startsWith(m)).flatMap(e=>e.lines),[y,mo]=m.split("-").map(Number),pm=new Date(Date.UTC(y,mo-2,1)).toISOString().slice(0,7);
+ const ca=sum(ls.filter(l=>l.compte===cdef("produit")),l=>(l.credit||0)-(l.debit||0)),cred=Math.max(0,soldeA(cdef("tva_credit"),monthEnd(pm))),net=t.net,due=Math.max(0,net-cred),rep=Math.max(0,cred-net);
+ return{mois:m,taux:tvaTaux(),ca_ht:ca,collectee:t.coll,deductible:t.ded,net,credit_anterieur:cred,a_payer:due,credit_a_reporter:rep,liquidee:!!t.liq};
 }
 function creerDepense(f){
  need("depenses","c");if(!(f.montant>0))throw new Error("Montant invalide.");if(!CATS[f.categorie])throw new Error("Catégorie invalide.");
@@ -555,6 +781,7 @@ function definirBudget(compte,max){
 }
 function periodeAction(id,act){
  if(act==="close")need("compta","a");else need("compta","x");
+ if(act==="open"&&exoClos(id.slice(0,4)))throw new Error("Exercice "+id.slice(0,4)+" clôturé : la période est verrouillée. Rouvrir l'exercice (avec motif) depuis Comptabilité → Clôture d'exercice.");
  let p=by(S.periods,id);if(!p){p={id,statut:"ouverte"};S.periods.push(p)}
  if(act==="close"&&S.cash_sessions.some(s=>s.statut==="ouverte"&&per(s.ouverte_le)===id))throw new Error("Une caisse de cette période est encore ouverte.");
  p.statut=act==="close"?"cloturee":"ouverte";audit("Période "+(act==="close"?"clôturée":"rouverte"),id);
@@ -777,8 +1004,8 @@ function integrite(){
 /* ---------- Données initiales ---------- */
 function seed(){
  const d=n=>addDays(today(),n);
- S={seq:{},fmt:{},audit:[],users:[],drivers:[],tiers:[],vehicles:[],contracts:[],assignments:[],obligations:[],payments:[],allocs:[],receipts:[],cash_sessions:[],cash_mv:[],bank_tx:[],brouillard:[],budgets:[],tva_liq:[],caisses:[{id:"cx0",nom:"Caisse principale",compte:"571",actif:true,cree_le:new Date().toISOString()}],accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),periods:[],entries:[],expenses:[],maintenance:[],incidents:[],documents:[],requests:[],notifs:[],attachments:[],gps_dev:[],gps_pos:[],gps_quar:[],gps_alerts:[],geofences:[],veh_hist:[],perms:defPerms(),tries:{},
-  settings:{...DEF_SET,seuil_justificatif:10000,seuil_validation:50000,delai_alerte:30,retard_alerte_jours:3,gps_actif_min:10,gps_ancien_min:60,gps_retention_jours:90,compte_caisse:"571",compte_banque:"521",compte_mobile:"521",comptes:defComptes(),tva_taux:0,amort_duree:5,max_pj_ko:300}};
+ S={seq:{},fmt:{},audit:[],users:[],drivers:[],tiers:[],vehicles:[],contracts:[],assignments:[],obligations:[],payments:[],allocs:[],receipts:[],cash_sessions:[],cash_mv:[],bank_tx:[],bq_ouv:0,releve:[],reappros:[],exercices:[],brouillard:[],budgets:[],tva_liq:[],caisses:[{id:"cx0",nom:"Caisse principale",compte:"571",actif:true,cree_le:new Date().toISOString()}],accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),periods:[],entries:[],expenses:[],maintenance:[],incidents:[],documents:[],requests:[],notifs:[],attachments:[],gps_dev:[],gps_pos:[],gps_quar:[],gps_alerts:[],geofences:[],veh_hist:[],perms:defPerms(),tries:{},
+  settings:{...DEF_SET,seuil_justificatif:10000,seuil_validation:50000,delai_alerte:30,retard_alerte_jours:3,gps_actif_min:10,gps_ancien_min:60,gps_retention_jours:90,compte_caisse:"571",compte_banque:"521",compte_mobile:"521",comptes:defComptes(),tva_taux:0,amort_duree:5,max_pj_ko:300,cx_ecart_tol:0,cx_delai_tardif_h:24,cx_doublon_h:24,bq_tol_jours:3}};
  S.perms.seed=Object.fromEntries(Object.keys(MODS).map(m=>[m,"vceaxp".split("")]));
  ME={id:"seed",nom:"Initialisation",role:"seed"};
  const mkU=(nom,role,pin,x)=>{const u={id:uid("u"),nom,role,actif:true,...x};u.h=hashPin(u.id,pin);S.users.push(u);return u};
@@ -808,7 +1035,13 @@ function seed(){
  Object.assign(pv(v1,"Vidange + filtre à huile"),{dernier_km:v1.km-5600,derniere_date:d(-70)});Object.assign(pv(v2,"Vidange + filtre à huile"),{dernier_km:v2.km-4700,derniere_date:d(-60)});Object.assign(pv(v2,"Plaquettes de frein"),{dernier_km:v2.km-19800,derniere_date:d(-300)});Object.assign(pv(v3,"Batterie"),{derniere_date:d(-760)});
  delete S.perms.seed;ME=null;save();
 }
-function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else migrerAtelier()}
+function migrerCompta(){ // données antérieures : nouveaux comptes par défaut, tables de la comptabilité / caisse renforcées
+ ["releve","reappros","exercices"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(typeof S.bq_ouv!=="number")S.bq_ouv=0;
+ S.settings=S.settings||{};const c=S.settings.comptes=S.settings.comptes||{};
+ Object.keys(DEF_CPT).forEach(k=>{if(!c[k])c[k]=DEF_CPT[k][1]});
+ Object.values(c).forEach(n=>{if(!by(S.accounts,n,"num")){const d=PLAN.find(x=>x[0]===n);if(d)S.accounts.push({num:d[0],nom:d[1],type:d[2]})}});
+}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerAtelier();migrerCompta()}}
 
 /* ---------- Composants UI ---------- */
 const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
@@ -1116,6 +1349,25 @@ function cxBrPrint(){const d=cxBrData();if(!d)return alert("Rien à imprimer.");
  ${d.cs.statut==="cloturee"?`<p>Fond réel compté : <b>${fcfa(d.cs.reel)}</b> · Écart : <b>${fcfa(d.cs.ecart)}</b>${d.cs.explication?" ("+esc(d.cs.explication)+")":""}</p>`:""}
  <table style="width:100%;margin-top:30px"><tr><td style="width:50%">Caissier(ère) : ${esc(d.cs.ouverte_par)}<br><br><br></td><td>Vérifié par (direction / comptabilité)<br><br><br></td></tr></table>`)}
 CSVS.brouillard=()=>{const d=cxBrData();return[["Heure","N° bon","Libellé","Entrée","Sortie","Solde"],d?[["","","Fond d'ouverture","","",d.open],...d.rows.map(r=>[r.h,r.n,r.mo,r.e||"",r.s||"",r.r])]:[]]};
+const cxMarques=s=>[s.admin?badge((s.admin.tiers&&s.admin.tardive?"Clôture par un tiers, tardive":s.admin.tiers?"Clôture par un tiers":"Clôture tardive"),"wa")+"<br><span class='sm mu'>"+esc(s.admin.motif)+"</span>":"",s.en_attente?badge(s.en_attente.length+" bon(s) en attente","wa")+"<br><span class='sm mu'>"+esc(s.precision_attente||"")+"</span>":"",s.apres_cloture?badge("Bon tranché après clôture","wa"):"",s.recalcule?badge("Écart recalculé","er"):"",s.rupture?badge("Fond ≠ dernier comptage","er")+"<br><span class='sm mu'>"+esc(s.rupture.motif)+"</span>":"",(s.clotures_anterieures||[]).length?badge("Rouverte "+s.clotures_anterieures.length+" fois","mu"):""].filter(Boolean).join(" ")||"—";
+function cxRemisesUI(){
+ const rem=S.cash_mv.filter(m=>m.remise).slice().reverse(),ra=S.reappros.slice().reverse();
+ return `<h2>📤 Remises en banque / à la direction</h2><div class="sm mu">Pièce justificative obligatoire ; la réception est confirmée par une autre personne que l'auteur de la remise, avec la référence de la preuve.</div>`+
+ tbl(["N° bon","Date","Caisse","Type","Montant","Pièce","Saisi par","Réception",""],rem.map(m=>tr([esc(m.numero),fdt(m.date),esc(cxNom((by(S.cash_sessions,m.session_id)||{}).caisse_id)),esc(m.remise.type==="banque"?"Banque":"Direction"),fcfa(m.montant),esc(m.justificatif),esc(m.par),m.statut==="rejetee"?badge("Rejeté","er"):m.remise.a_confirmer?badge("À confirmer","wa"):badge("Confirmée","ok")+"<br><span class='sm mu'>"+esc(m.remise.confirme_par)+" · "+esc(m.remise.preuve)+"</span>",m.remise.a_confirmer&&m.statut!=="rejetee"&&can("caisse","a")?btn("rm.conf",m.id,"✅ Confirmer la réception","ok"):""])),{empty:"Aucune remise."})+
+ `<div class="between" style="margin-top:18px"><h2 style="margin:0">🔄 Demandes de réapprovisionnement</h2>${can("caisse","c")?`<button class="btn" data-a="ra.new">➕ Demande</button>`:""}</div><div class="sm mu">Le virement de réapprovisionnement (bon d'entrée « ${esc(CX_REAPPRO)} ») se rattache à la demande validée de même caisse et de même montant : elle passe « servie ». Une demande se valide par une autre personne que son auteur.</div>`+
+ tbl(["N°","Date","Caisse","Montant","Motif","Demandeur","Statut",""],ra.map(r=>tr([esc(r.numero),fdt(r.t),esc(cxNom(r.caisse_id)),fcfa(r.montant),esc(r.motif)+(r.motif_rejet?`<br><span class="sm mu">Rejet : ${esc(r.motif_rejet)}</span>`:""),esc(r.par),badge({soumise:"À valider",validee:"Validée — virement attendu",servie:"Servie",rejetee:"Rejetée"}[r.statut],{soumise:"wa",validee:"ok",servie:"ok",rejetee:"er"}[r.statut])+(r.valide_par?"<br><span class='sm mu'>"+esc(r.valide_par)+"</span>":""),r.statut==="soumise"&&can("caisse","a")?`<div class="flex">${btn("ra.val",r.id,"Valider","ok")}${btn("ra.rej",r.id,"Rejeter","er")}</div>`:""])),{empty:"Aucune demande."});
+}
+function cxRappUI(){
+ const R=cxRapprochement();
+ return `<div class="between"><h2 style="margin:0">⚖️ Rapprochement des caisses</h2>${csvBtn("caisse","rapprochement")}</div><div class="sm mu">Écart cumulé de toutes les clôtures de chaque caisse, et ruptures de chaîne : fond d'ouverture différent du comptage de la clôture précédente.</div>`+
+ tbl(["Caisse","Sessions","Clôturées","Écart cumulé","Dont régularisé","Non régularisé","Ruptures de chaîne"],R.map(r=>tr([esc(r.caisse.nom),r.sessions,r.cloturees,`<b style="color:${r.ecart_cumule?"var(--er)":"var(--ok)"}">${fcfa(r.ecart_cumule)}</b>`,fcfa(r.regule),fcfa(r.non_regule),r.ruptures.length?badge(r.ruptures.length+" · "+fcfa(r.rupture_total),"er"):badge("Aucune","ok")])))+
+ `<h2>Ruptures de chaîne</h2>`+tbl(["Caisse","Ouverture","Comptage précédent","Fond d'ouverture","Différence","Motif"],R.flatMap(r=>r.ruptures.map(x=>tr([esc(r.caisse.nom),fdt(x.date),fcfa(x.attendu),fcfa(x.constate),`<b style="color:var(--er)">${fcfa(x.ecart)}</b>`,esc(x.motif)]))),{empty:"Aucune rupture de chaîne."});
+}
+CSVS.rapprochement=()=>[["Caisse","Sessions","Clôturées","Écart cumulé","Régularisé","Non régularisé","Ruptures","Total ruptures"],cxRapprochement().map(r=>[r.caisse.nom,r.sessions,r.cloturees,r.ecart_cumule,r.regule,r.non_regule,r.ruptures.length,r.rupture_total])];
+A["rm.conf"]=id=>form("Confirmer la réception de la remise",[{k:"preuve",l:"Référence de la preuve de réception",req:1,h:"Bordereau tamponné, accusé signé de la direction, relevé bancaire…"}],{},o=>confirmerRemise(id,o.preuve),"✅ Confirmer");
+A["ra.new"]=()=>form("Demande de réapprovisionnement",[{k:"caisse",l:"Caisse",t:"select",o:()=>caissesAct().map(c=>[c.id,c.nom])},{k:"montant",l:"Montant demandé (F)",t:"number",req:1},{k:"motif",l:"Motif",t:"area",req:1,full:1}],{caisse:cxCaisse().id},o=>{const f={...o};try{creerReappro(f)}catch(e){if(!e.doublon||!confirm(e.message+"\nEnregistrer quand même ?"))throw e;creerReappro({...f,confirme_doublon:true})}},"Envoyer la demande");
+A["ra.val"]=id=>{if(atomic(()=>validerReappro(id,true))!==false)render()};
+A["ra.rej"]=id=>motifForm("Rejeter la demande",m=>validerReappro(id,false,m));
 V.caisse=()=>{
  const cc=cxCaisse(),cs=openSession(cc.id),t=tabOf("caisse","session"),x=cxUI(),[a,b,lab]=cxRange(),mv=S.cash_mv.filter(m=>m.statut==="validee"&&cxIn(m,a,b)),
   att=S.cash_mv.filter(m=>m.statut==="a_valider"),eca=cxEcarts(),ent=cxSum(mv,"entree"),sor=cxSum(mv,"sortie"),
@@ -1128,7 +1380,10 @@ V.caisse=()=>{
  const nbA=c=>S.cash_mv.filter(m=>m.statut==="a_valider"&&(by(S.cash_sessions,m.session_id)||{}).caisse_id===c.id).length;
  h+=`<h2>🗂️ Caisses</h2><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${(S.caisses||[]).map(c=>{const o=openSession(c.id),sel=c.id===cc.id,lc=lastClosed(c.id);return `<div class="card" style="margin:0;${sel?"outline:2px solid var(--b)":""};${c.actif?"":"opacity:.55"}"><div class="between"><b>${esc(c.nom)}</b><span class="sm mu">compte ${esc(c.compte)}</span></div><div class="v" style="font-size:22px;font-weight:800;margin:6px 0">${fcfa(cxSoldeC(c))}</div><div class="sm">${!c.actif?badge("Désactivée","mu"):o?badge("Ouverte","ok"):badge("Fermée","wa")}${nbA(c)?" "+badge(nbA(c)+" bon(s) à valider","wa"):""}</div><div class="flex" style="margin-top:8px;flex-wrap:wrap">${c.actif?btn("cx.sel",c.id,sel?"✔ Affichée":"Afficher",sel?"":"ghost"):""}${c.actif&&!o&&can("caisse","c")?btn("cs.open",c.id,"🔓 Ouvrir",""):""}${c.actif&&!o&&lc&&can("caisse","x")?btn("cs.reopen",lc.id,"Rouvrir","ghost"):""}${can("caisse","x")&&!o?btn("cx.tog",c.id,c.actif?"Désactiver":"Réactiver","ghost"):""}</div></div>`}).join("")}</div>`;
  if(eca.length&&can("caisse","a"))h+=`<h2 style="color:var(--er)">⚖️ Écarts de caisse à régulariser</h2>`+tbl(["Clôture","Caisse","Théorique","Compté","Écart","Justification du caissier",""],eca.map(s=>tr([fdt(s.cloturee_le)+"<br><span class='sm mu'>"+esc(s.cloturee_par||"")+"</span>",esc(cxNom(s.caisse_id)),fcfa(s.theorique),fcfa(s.reel),`<b style="color:var(--er)">${s.ecart>0?"+":""}${fcfa(s.ecart)}</b><br><span class="sm mu">${s.ecart<0?"manquant":"excédent"}</span>`,esc(s.explication||""),btn("cs.regul",s.id,"✅ Régulariser","")])));
- h+=tabs("caisse",[["session","Session en cours"],["brouillard","Brouillard"],["histo","Historique"],["banque","Banque / Mobile Money"]]);
+ {const nrc=remisesAConfirmer().length,nra=S.reappros.filter(r=>r.statut==="soumise").length;
+ if(nrc)h+=`<div class="al warn sm" style="margin:10px 0">📤 ${nrc} remise(s) banque / direction dont la réception reste à confirmer par une autre personne (onglet « Remises &amp; réappro »).</div>`;
+ if(S.cash_sessions.some(s=>s.alerte_apres_cloture))h+=`<div class="al er sm" style="margin:10px 0">⚠ Un bon a été tranché après la clôture d'une session déjà régularisée : revoir l'écart (historique).</div>`;
+ h+=tabs("caisse",[["session","Session en cours"],["brouillard","Brouillard"],["histo","Historique"],["remises","Remises & réappro"+(nrc+nra?" ("+(nrc+nra)+")":"")],["rapp","Rapprochement"],["banque","Banque / Mobile Money"]]);}
  if(t==="session"){
   h+=`<div class="flex" style="margin-bottom:10px"><b>Caisse :</b><select data-f="cx:c" style="width:auto">${caissesAct().map(c=>`<option value="${c.id}" ${c.id===cc.id?"selected":""}>${esc(c.nom)} (${esc(c.compte)})</option>`).join("")}</select></div>`;
   if(!cs){const last=lastClosed(cc.id);
@@ -1136,14 +1391,16 @@ V.caisse=()=>{
   }else{
    const sm=S.cash_mv.filter(m=>m.session_id===cs.id),en=cxSum(sm.filter(m=>m.statut==="validee"),"entree"),so=cxSum(sm.filter(m=>m.statut==="validee"),"sortie"),na=sm.filter(m=>m.statut==="a_valider").length;
    h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cs.fond)}</div><div class="l">Fond d'ouverture</div></div><div class="kpi o"><div class="v">${fcfa(en)}</div><div class="l">Entrées</div></div><div class="kpi e"><div class="v">${fcfa(so)}</div><div class="l">Sorties validées</div></div><div class="kpi"><div class="v">${fcfa(soldeTheo(cs))}</div><div class="l">Solde théorique</div></div></div>
-   ${na?`<div class="al warn sm" style="margin-top:10px">⚠ ${na} bon(s) en attente de validation : la clôture sera refusée tant qu'ils ne sont pas validés ou rejetés.</div>`:""}
+   ${na?`<div class="al warn sm" style="margin-top:10px">⚠ ${na} bon(s) en attente de validation : la clôture exigera une précision sur leur situation (écart calculé « si tout est validé »).</div>`:""}
    <div class="flex" style="margin:12px 0">${can("caisse","c")?`<button class="btn ok" data-a="cs.in" data-id="${cc.id}">📥 Bon d'entrée</button><button class="btn" data-a="cs.out" data-id="${cc.id}">📤 Bon de sortie</button>`:""}${can("caisse","e")?`<button class="btn ghost" data-a="cs.close" data-id="${cc.id}">🔒 Clôturer la caisse</button>`:""}<button class="btn ghost" data-a="cs.br">🖨 Brouillard</button></div>
    ${tbl(["N°","Heure","Sens","Catégorie","Motif","Tiers","Montant","Statut","Par",""],sm.slice().reverse().map(m=>tr([esc(m.numero||"—"),fdt(m.date),m.sens==="entree"?badge("Entrée","ok"):badge("Sortie","er"),esc(m.categorie),esc(m.motif)+(m.motif_rejet?`<br><span class="sm mu">Rejet : ${esc(m.motif_rejet)}</span>`:""),esc(m.tiers||""),`<b style="color:${m.sens==="entree"?"var(--ok)":"var(--er)"}">${m.sens==="entree"?"+":"−"}${fcfa(m.montant)}</b>`,cxStat(m),esc(m.par),`<div class="flex">${m.statut==="validee"&&m.numero?btn("cs.print",m.id,"🖨","ghost"):""}${m.statut==="a_valider"&&can("caisse","a")?btn("cs.val",m.id,"Valider","ok")+btn("cs.rej",m.id,"Rejeter","er"):""}</div>`])))}`;
   }
  }
  if(t==="brouillard"){const d=cxBrData(),opts=S.cash_sessions.slice().reverse().map(s=>`<option value="${s.id}" ${d&&d.cs.id===s.id?"selected":""}>${esc(cxNom(s.caisse_id))} · ${esc(fdt(s.ouverte_le))} — ${s.statut==="ouverte"?"en cours":"clôturée"}</option>`).join("");
   h+=d?`<div class="flex" style="margin-bottom:10px"><select data-f="cx:ss" style="width:auto">${opts}</select><button class="btn ghost" data-a="cs.br">🖨 Imprimer</button>${csvBtn("caisse","brouillard")}</div>`+tbl(["Heure","N° bon","Libellé","Entrée","Sortie","Solde"],[tr(["","","<i>Fond d'ouverture</i>","","",fcfa(d.open)]),...d.rows.map(r=>tr([r.h,esc(r.n),esc(r.mo),r.e?fcfa(r.e):"",r.s?fcfa(r.s):"",fcfa(r.r)]))]):'<div class="card">Aucune session de caisse.</div>';}
- if(t==="histo")h+=tbl(["Caisse","Ouverture","Clôture","Fond","Théorique","Compté","Écart","Explication","Régularisation","Par"],S.cash_sessions.slice().reverse().map(s=>tr([esc(cxNom(s.caisse_id)),fdt(s.ouverte_le),s.cloturee_le?fdt(s.cloturee_le):badge("Ouverte","wa"),fcfa(s.fond),s.theorique!=null?fcfa(s.theorique):"—",s.reel!=null?fcfa(s.reel):"—",s.ecart?`<b style="color:var(--er)">${fcfa(s.ecart)}</b>`:s.ecart===0?"0 F":"—",esc(s.explication||""),s.ecart?(s.ecart_regul?badge("Régularisé","ok")+"<br><span class='sm mu'>"+esc(s.regul_note||"")+" · "+esc(s.regul_par||"")+"</span>":badge("À régulariser","er")+(can("caisse","a")?" "+btn("cs.regul",s.id,"Régulariser","ghost"):"")):"—",esc(s.cloturee_par||s.ouverte_par)])));
+ if(t==="histo")h+=tbl(["Caisse","Ouverture","Clôture","Fond","Théorique","Compté","Écart","Explication","Régularisation","Par","Marques"],S.cash_sessions.slice().reverse().map(s=>tr([esc(cxNom(s.caisse_id)),fdt(s.ouverte_le),s.cloturee_le?fdt(s.cloturee_le):badge("Ouverte","wa"),fcfa(s.fond),s.theorique!=null?fcfa(s.theorique):"—",s.reel!=null?fcfa(s.reel):"—",s.ecart?`<b style="color:var(--er)">${fcfa(s.ecart)}</b>`:s.ecart===0?"0 F":"—",esc(s.explication||""),s.ecart?(s.ecart_regul?badge("Régularisé","ok")+"<br><span class='sm mu'>"+esc(s.regul_note||"")+" · "+esc(s.regul_par||"")+"</span>":badge("À régulariser","er")+(can("caisse","a")?" "+btn("cs.regul",s.id,"Régulariser","ghost"):"")):"—",esc(s.cloturee_par||s.ouverte_par),cxMarques(s)])));
+ if(t==="remises")h+=cxRemisesUI();
+ if(t==="rapp")h+=cxRappUI();
  if(t==="banque"){const pt=sum(S.bank_tx.filter(b=>b.pointe&&!b.annule),b=>b.montant),cmp=sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte==="521")),l=>(l.debit||0)-(l.credit||0));
   h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cmp)}</div><div class="l">Solde comptable 521</div></div><div class="kpi o"><div class="v">${fcfa(pt)}</div><div class="l">Encaissements pointés (relevé)</div></div></div>`+tbl(["Date","Montant","Mode","Référence","Pointé"],S.bank_tx.filter(b=>!b.annule).slice().reverse().map(b=>tr([fd(b.date),fcfa(b.montant),esc(b.mode),esc(b.ref),can("caisse","e")?`<input type="checkbox" data-a="bk.pt" data-id="${b.id}" ${b.pointe?"checked":""}>`:(b.pointe?"Oui":"Non")])),{empty:"Aucune opération bancaire."});}
  return h;
@@ -1161,15 +1418,20 @@ A["cx.sel"]=id=>{cxUI().c=id;UI.tab.caisse="session";render()};
 A["cx.tog"]=id=>{if(atomic(()=>basculerCaisse(id))!==false)render()};
 A["cx.new"]=()=>form("Nouvelle caisse",[{k:"nom",l:"Nom de la caisse",req:1,sec:"Nouvelle caisse",h:"Ex. : Caisse agence, Caisse gare"},{k:"compte",l:"Compte comptable",t:"select",o:[["571","571 — Caisse siège"],["572","572 — Caisse succursale A"],["573","573 — Caisse succursale B"]]}],{compte:"572"},o=>{const c=creerCaisse(o.nom,o.compte);cxUI().c=c.id},"Créer la caisse");
 A["cs.open"]=cid=>{cid=cid||cxCaisse().id;const last=lastClosed(cid),th=last?last.reel:0;
- const m=form("Ouvrir la caisse — "+cxNom(cid),[{k:"fond",l:"Fond de caisse constaté (F)",t:"number",req:1,h:last?"Doit égaler le dernier comptage : "+fcfa(th)+(last.ecart?" (écart de la dernière clôture : "+fcfa(last.ecart)+(last.ecart_regul?", régularisé":", non régularisé")+")":""):"Première ouverture : aucun solde antérieur"}],{fond:th},o=>{ouvrirCaisse(o.fond,cid);cxUI().c=cid},"🔓 Ouvrir la caisse");
- const f=m.querySelector("[name=fond]"),hint=m.querySelector("label span.mu");f.oninput=()=>{const e=Math.round(+f.value)-th;if(f.value==="")return;hint.innerHTML=e?`<b style="color:var(--er)">Écart avec le solde théorique : ${e>0?"+":""}${fcfa(e)}</b> (ouverture refusée : le fond doit égaler le dernier comptage)`:'<b style="color:var(--ok)">Conforme au solde théorique.</b>'}};
+ const m=form("Ouvrir la caisse — "+cxNom(cid),[{k:"fond",l:"Fond de caisse constaté (F)",t:"number",req:1,h:last?"Doit égaler le dernier comptage : "+fcfa(th)+(last.ecart?" (écart de la dernière clôture : "+fcfa(last.ecart)+(last.ecart_regul?", régularisé":", non régularisé")+")":""):"Première ouverture : aucun solde antérieur"},{k:"motif",l:"Motif si le fond diffère du dernier comptage",t:"area",full:1,h:"Obligatoire en cas de différence (rupture de chaîne tracée au rapprochement). Un fond négatif est refusé."}],{fond:th},o=>{ouvrirCaisse(o.fond,cid,{motif:o.motif});cxUI().c=cid},"🔓 Ouvrir la caisse");
+ const f=m.querySelector("[name=fond]"),hint=m.querySelector("label span.mu");f.oninput=()=>{const e=Math.round(+f.value)-th;if(f.value==="")return;hint.innerHTML=e?`<b style="color:var(--er)">Écart avec le solde théorique : ${e>0?"+":""}${fcfa(e)}</b> (motif obligatoire : rupture de chaîne)`:'<b style="color:var(--ok)">Conforme au solde théorique.</b>'}};
 A["cs.reopen"]=id=>motifForm("Rouvrir la session de caisse",m=>rouvrirCaisse(id,m));
-const bonFields=(sens)=>{const ent=sens==="entree";return[{k:"categorie",l:"Catégorie",t:"select",o:(ent?Object.keys(CX_IN):CX_OUT).map(x=>[x,x]),sec:ent?"Bon d'entrée de caisse":"Bon de sortie de caisse",h:ent?"":"Les charges (carburant, entretien, frais divers) se saisissent dans le module Dépenses."},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"motif",l:"Motif / libellé",req:1,full:1},{k:"tiers",l:ent?"Déposant":"Bénéficiaire",req:1},...(ent?[]:[{k:"contract_id",l:"Contrat (remboursement de dépôt)",t:"select",o:()=>[["","—"],...S.contracts.filter(c=>(c.depot_verse||0)>0).map(c=>[c.id,c.numero+" — "+chauffeurNom(c.driver_id)+" ("+fcfa(c.depot_verse)+")"])],h:"Obligatoire pour un remboursement de dépôt : le dépôt versé du contrat est diminué"}]),{k:"justificatif",l:"N° de pièce justificative",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+" · validation au-delà de "+fcfa(S.settings.seuil_validation)}]};
-A["cs.in"]=cid=>{cid=cid||cxCaisse().id;form("📥 Bon d'entrée — "+cxNom(cid),bonFields("entree"),{},o=>{entreeCaisse({...o,caisse:cid})},"💾 Enregistrer le bon")};
-A["cs.out"]=cid=>{cid=cid||cxCaisse().id;form("📤 Bon de sortie — "+cxNom(cid),bonFields("sortie"),{},o=>sortieCaisse({...o,caisse:cid}),"💾 Enregistrer le bon")};
-A["cs.close"]=cid=>{const cs=openSession(cid||cxCaisse().id);if(!cs)return;const th=soldeTheo(cs),vl=S.cash_mv.filter(m=>m.session_id===cs.id&&m.statut==="validee");
- const m=form("🔒 Clôturer — "+cxNom(cs.caisse_id),[{k:"reel",l:"Montant réellement compté (F)",t:"number",req:1,h:"Fond "+fcfa(cs.fond)+" + entrées "+fcfa(cxSum(vl,"entree"))+" − sorties "+fcfa(cxSum(vl,"sortie"))+" = solde théorique "+fcfa(th),sec:"Comptage"},{k:"expl",l:"Justification de l'écart",t:"area",full:1,h:"Obligatoire si le comptage diffère du solde théorique"}],{},o=>cloturerCaisse(o.reel,o.expl,cs.caisse_id),"🔒 Clôturer la caisse — "+cxNom(cs.caisse_id));
- const f=m.querySelector("[name=reel]"),hint=m.querySelector("label span.mu");f.oninput=()=>{if(f.value==="")return;const e=Math.round(+f.value)-th;hint.innerHTML=e?`<b style="color:var(--er)">Écart : ${e>0?"+":""}${fcfa(e)}</b> (${e<0?"manquant":"excédent"}) — justification obligatoire`:'<b style="color:var(--ok)">Aucun écart.</b>'}};
+const bonFields=(sens)=>{const ent=sens==="entree";return[{k:"categorie",l:"Catégorie",t:"select",o:(ent?Object.keys(CX_IN):CX_OUT).map(x=>[x,x]),sec:ent?"Bon d'entrée de caisse":"Bon de sortie de caisse",h:ent?"Virement de réapprovisionnement : rattaché à la demande validée (même caisse, même montant).":"Les charges se saisissent dans le module Dépenses. Versement en banque / remise à la direction : pièce obligatoire, réception à confirmer par une autre personne."},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"motif",l:"Motif / libellé",req:1,full:1},{k:"tiers",l:ent?"Déposant":"Bénéficiaire",req:1},...(ent?[]:[{k:"contract_id",l:"Contrat (remboursement de dépôt)",t:"select",o:()=>[["","—"],...S.contracts.filter(c=>(c.depot_verse||0)>0).map(c=>[c.id,c.numero+" — "+chauffeurNom(c.driver_id)+" ("+fcfa(c.depot_verse)+")"])],h:"Obligatoire pour un remboursement de dépôt : le dépôt versé du contrat est diminué"}]),{k:"justificatif",l:"N° de pièce justificative",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+" · validation au-delà de "+fcfa(S.settings.seuil_validation)}]};
+const cxConfirmDbl=(cid,o,sens)=>{const f={...o,caisse:cid},cs=openSession(cid);if(cs&&cxDoublon(cs,f,sens)){if(!confirm("⚠ Un bon identique (même catégorie, montant et tiers) a déjà été saisi sur cette caisse il y a moins de "+stv("cx_doublon_h")+" h.\nEnregistrer quand même ?"))throw new Error("Saisie annulée : bon identique.");f.confirme_doublon=true}return f};
+A["cs.in"]=cid=>{cid=cid||cxCaisse().id;form("📥 Bon d'entrée — "+cxNom(cid),bonFields("entree"),{},o=>{entreeCaisse(cxConfirmDbl(cid,o,"entree"))},"💾 Enregistrer le bon")};
+A["cs.out"]=cid=>{cid=cid||cxCaisse().id;form("📤 Bon de sortie — "+cxNom(cid),bonFields("sortie"),{},o=>sortieCaisse(cxConfirmDbl(cid,o,"sortie")),"💾 Enregistrer le bon")};
+A["cs.close"]=cid=>{const cs=openSession(cid||cxCaisse().id);if(!cs)return;const th=soldeTheo(cs),pend=S.cash_mv.filter(m=>m.session_id===cs.id&&m.statut==="a_valider"),net=sum(pend,m=>m.sens==="entree"?m.montant:-m.montant),enc=cxEncadree(cs),blind="Comptage à l'aveugle : comptez les espèces d'abord. Le solde théorique s'affichera après votre saisie.";
+ const m=form("🔒 Clôturer — "+cxNom(cs.caisse_id),[{k:"reel",l:"Montant réellement compté (F)",t:"number",req:1,h:blind,sec:"Comptage"},
+  ...(pend.length?[{k:"precision",l:"Bons en attente de validation ("+pend.length+") — précision obligatoire",t:"area",full:1,req:1,h:pend.map(x=>x.numero+" "+fcfa(x.montant)).join(" · ")}]:[]),
+  {k:"expl",l:"Justification de l'écart",t:"area",full:1,h:"Obligatoire si le comptage diffère du solde théorique (tolérance : "+fcfa(cxTol())+")"},
+  ...(enc.tiers||enc.tardive?[{k:"motif_cl",l:"Motif de clôture encadrée",t:"area",full:1,req:1,h:(enc.tiers?"Clôture par un tiers (caisse ouverte par "+cs.ouverte_par+"). ":"")+(enc.tardive?"Clôture tardive (ouverte depuis plus de "+stv("cx_delai_tardif_h")+" h). ":"")+"Une marque administrative sera enregistrée."}]:[])],{},
+  o=>cloturerCaisse(o.reel,o.expl,cs.caisse_id,{session_id:cs.id,precision:o.precision,motif:o.motif_cl}),"🔒 Clôturer la caisse — "+cxNom(cs.caisse_id));
+ const f=m.querySelector("[name=reel]"),hint=m.querySelector("label span.mu");f.oninput=()=>{if(f.value===""){hint.textContent=blind;return}const thx=th+net,e=Math.round(+f.value)-thx;hint.innerHTML="Solde théorique : <b>"+fcfa(thx)+"</b>"+(net?" (si les bons en attente sont validés)":"")+" — "+(e?`<b style="color:var(--er)">Écart : ${e>0?"+":""}${fcfa(e)}</b> (${e<0?"manquant":"excédent"}) — justification obligatoire`:'<b style="color:var(--ok)">Aucun écart.</b>')}};
 A["cs.val"]=id=>{if(atomic(()=>validerSortie(id,true))!==false)render()};
 A["bk.pt"]=(id,el)=>{if(atomic(()=>{need("caisse","e");by(S.bank_tx,id).pointe=el.checked}))render()};
 /* ---- Dépenses ---- */
@@ -1186,7 +1448,7 @@ A["dp.rej"]=id=>{if(atomic(()=>validerDepense(id,null,false)))render()};
 const dcLine=l=>`${l.debit?fcfa(l.debit):""}`,ccLine=l=>`${l.credit?fcfa(l.credit):""}`;
 V.compta=()=>{
  const t=tabOf("compta","ecritures"),f=UI.f.ec||(UI.f.ec={j:"",p:today().slice(0,7)});
- let h=head("Comptabilité générale")+`<div class="note">Plan comptable indicatif (SYSCOHADA révisé) — à valider par le comptable de l'entreprise avant toute utilisation en production.</div>`+tabs("compta",[["ecritures","Écritures"],["brouillard","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["plan","Plan comptable"],["journaux","Journaux"],["budgets","💰 Budgets"],["cd","⚙️ Comptes par défaut"]]);
+ let h=head("Comptabilité générale")+`<div class="note">Plan comptable indicatif (SYSCOHADA révisé) — à valider par le comptable de l'entreprise avant toute utilisation en production.</div>`+tabs("compta",[["ecritures","Écritures"],["brouillard","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["plan","Plan comptable"],["journaux","Journaux"],["budgets","💰 Budgets"],["bq","🏦 Rapprochement bancaire"],["exo","🔒 Clôture d'exercice"],["cd","⚙️ Comptes par défaut"]]);
  if(t==="ecritures"){
   const list=S.entries.filter(e=>(!f.j||e.journal===f.j)&&(!f.p||per(e.date)===f.p)&&(!f.o||(f.o==="auto"?!(e.source&&e.source.type==="manual"):(e.source&&e.source.type==="manual")))).sort((a,b)=>b.date.localeCompare(a.date)||b.numero.localeCompare(a.numero));
   h+=`<div class="card flex"><select data-f="ec:o" style="width:auto">${opt([["auto","Automatiques"],["manuelle","Manuelles (visées)"]],f.o,"Toutes origines")}</select><select data-f="ec:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input type="month" data-f="ec:p" value="${f.p}" style="width:auto">${can("compta","c")?`<button class="btn" data-a="od.new">+ Écriture manuelle</button>`:""}${csvBtn("compta","ecritures")}</div>`+
@@ -1194,6 +1456,8 @@ V.compta=()=>{
  }
  if(t==="brouillard"){const tot=b=>sum(b.lines,l=>l.debit||0);
   h+=`<div class="flex" style="margin-bottom:10px">${can("compta","c")?`<button class="btn" data-a="od.new">➕ Nouvelle écriture manuelle</button>`:""}</div>`+tbl(["Date","Journal","Libellé","Lignes","Débit","Crédit","Saisi par",""],S.brouillard.map(b=>{const d=sum(b.lines,l=>l.debit),c=sum(b.lines,l=>l.credit);return tr([fd(b.date),esc(b.journal),esc(b.libelle),b.lines.length,fcfa(d),fcfa(c)+(d!==c?" "+badge("Déséquilibrée","er"):""),esc(b.par),`<div class="flex">${btn("bo.det",b.id,"Détail","ghost")}${can("compta","a")?btn("bo.vis",b.id,"✅ Viser","ok"):""}${can("compta","c")?btn("bo.del",b.id,"Supprimer","er"):""}</div>`])}),"Aucune écriture en brouillard")+`<div class="sm mu">Une écriture manuelle reste en brouillard jusqu'à son visa par un autre utilisateur (séparation des tâches). Le visa vérifie l'équilibre, les comptes et la période ouverte. Une écriture visée est définitive : correction par extourne.</div>`}
+ if(t==="bq")h+=bqUI();
+ if(t==="exo")h+=exoUI();
  if(t==="cd"){const w=can("compta","a"),c=S.settings.comptes||{};
   h+=`<div class="sm mu" style="margin-bottom:8px">Aucune valeur n'est codée en dur : chaque écriture automatique prend ses comptes ici. Si un compte est vide ou inconnu du plan, l'opération est bloquée. Un code inexistant est créé automatiquement au plan (à affiner). Un compte de bilan déjà mouvementé ne peut plus être changé (reclasser par écriture).</div><datalist id="dl-plan">${S.accounts.map(a=>`<option value="${esc(a.num)}" label="${esc(a.num+" — "+a.nom)}"></option>`).join("")}</datalist>`+
   tbl(["Usage","Compte","Intitulé au plan"],Object.entries(DEF_CPT).map(([k,v])=>tr([esc(v[0]),`<input data-cd="${k}" list="dl-plan" value="${esc(c[k]||"")}" style="width:110px" ${w?"":"disabled"}>`,esc(cptNom(c[k]||"")||"— inconnu —")])))+
@@ -1203,6 +1467,28 @@ V.compta=()=>{
  if(t==="journaux")h+=tbl(["Code","Journal","Écritures","Total débit","Total crédit","Équilibre"],JOURNAUX.map(([c,n])=>{const es=S.entries.filter(e=>e.journal===c),d=sum(es,e=>sum(e.lines,l=>l.debit)),k=sum(es,e=>sum(e.lines,l=>l.credit));return tr([c,esc(n),es.length,fcfa(d),fcfa(k),d===k?badge("Équilibré","ok"):badge("DÉSÉQUILIBRÉ","er")])}));
  return h;
 };
+/* ---- Rapprochement bancaire, clôture d'exercice ---- */
+const bqUI=()=>{const E=etatRapprochement(),ed=can("compta","e"),rl=S.releve.slice().sort((a,b)=>b.date.localeCompare(a.date));
+ return `<div class="sm mu" style="margin-bottom:8px">Saisissez ou importez le relevé (CSV : date;libellé;montant;référence — ou date;libellé;débit;crédit). Le pointage automatique rapproche relevé et comptes ${esc(bkComptes().join(" / "))} par montant exact et date à ± ${esc(stv("bq_tol_jours"))} jour(s) (paramétrable). Les écarts non pointés restent à justifier.</div>
+ <div class="grid"><div class="kpi"><div class="v">${fcfa(E.solde_compta)}</div><div class="l">Solde comptable (banque)</div></div><div class="kpi"><div class="v">${fcfa(E.solde_releve)}</div><div class="l">Solde du relevé (ouverture ${fcfa(S.bq_ouv)} + lignes)</div></div><div class="kpi ${E.non_pointes_releve.length?"w":"o"}"><div class="v">${E.non_pointes_releve.length} · ${fcfa(E.net_releve)}</div><div class="l">En banque, pas en compta</div></div><div class="kpi ${E.non_pointes_compta.length?"w":"o"}"><div class="v">${E.non_pointes_compta.length} · ${fcfa(E.net_compta)}</div><div class="l">En compta, pas en banque</div></div><div class="kpi ${E.ecart?"e":"o"}"><div class="v">${fcfa(E.ecart)}</div><div class="l">Écart non expliqué</div></div></div>
+ ${ed?`<div class="card flex"><input type="file" id="bqf" accept=".csv,.txt,text/csv" style="width:auto"><button class="btn" data-a="bq.imp">⬆ Importer le relevé</button><button class="btn ghost" data-a="bq.add">➕ Saisir une ligne</button><button class="btn ok" data-a="bq.auto">🔗 Pointage automatique</button><button class="btn ghost" data-a="bq.ouv">Solde d'ouverture du relevé</button></div>`:""}`+
+ tbl(["Date","Libellé","Référence","Montant","Pointage",""],rl.map(r=>{const g=r.pointe?lettreRef(r.pointe.ref):null;return tr([fd(r.date),esc(r.libelle),esc(r.ref),`<b style="color:${r.montant>0?"var(--ok)":"var(--er)"}">${fcfa(r.montant)}</b>`,r.pointe?badge("Pointée","ok")+"<br><span class='sm mu'>"+esc(g.e.numero)+" · "+esc(r.pointe.par)+"</span>":badge("Non pointée","wa"),ed?(r.pointe?btn("bq.dep",r.id,"Dépointer","ghost"):btn("bq.pt",r.id,"Pointer","")):""])}),{empty:"Aucune ligne de relevé."})+
+ `<h2>Écritures de banque non pointées</h2>`+tbl(["Date","Écriture","Libellé","Montant"],E.non_pointes_compta.map(x=>tr([fd(x.e.date),esc(x.e.numero),esc(x.e.libelle),fcfa(x.v)])),{empty:"Toutes les écritures de banque sont pointées."})};
+A["bq.imp"]=async()=>{const f=$("#bqf");if(!f||!f.files[0])return alert("Choisir un fichier CSV.");const txt=await f.files[0].text();let r;if((r=atomic(()=>releveImporter(txt)))!==false){alert(r.ajoutes+" ligne(s) importée(s), "+r.ignores+" doublon(s) ignoré(s).");render()}};
+A["bq.add"]=()=>form("Ligne de relevé",[{k:"date",l:"Date",t:"date",req:1},{k:"libelle",l:"Libellé"},{k:"montant",l:"Montant (+ crédit en banque / − débit)",t:"text",req:1},{k:"ref",l:"Référence"}],{date:today()},o=>releveSaisir(o));
+A["bq.auto"]=()=>{let n;if((n=atomic(()=>rapprocherAuto()))!==false){alert(n+" ligne(s) pointée(s).");render()}};
+A["bq.dep"]=id=>{if(atomic(()=>depointer(id))!==false)render()};
+A["bq.pt"]=id=>{const r=by(S.releve,id),c=bkLignes().filter(x=>!x.l.bq).sort((a,b)=>(a.v===r.montant?0:1)-(b.v===r.montant?0:1)||a.e.date.localeCompare(b.e.date));
+ form("Pointer la ligne du "+fd(r.date)+" — "+fcfa(r.montant),[{k:"ref",l:"Écriture comptable",t:"select",o:c.map(x=>[x.ref,fd(x.e.date)+" · "+x.e.numero+" · "+fcfa(x.v)+" · "+x.e.libelle]),h:"Le montant doit être identique ; sinon passer d'abord une écriture d'ajustement."}],{},o=>pointerManuel(id,o.ref),"Pointer")};
+A["bq.ouv"]=()=>form("Solde d'ouverture du relevé",[{k:"v",l:"Solde d'ouverture (F)",t:"text",h:"Solde du relevé avant la première ligne saisie. Contrôle d'écart non expliqué."}],{v:S.bq_ouv},o=>{need("compta","e");const v=Math.round(+o.v);if(!Number.isFinite(v))throw new Error("Montant invalide.");S.bq_ouv=v;audit("Solde d'ouverture du relevé",fcfa(v))});
+const exoUI=()=>{const ys=[...new Set([...S.entries.map(e=>e.date.slice(0,4)),...S.exercices.map(x=>x.annee),today().slice(0,4)])].sort().reverse();
+ return `<div class="sm mu" style="margin-bottom:8px">Exercice = année civile (SYSCOHADA). La clôture solde les comptes de gestion (classes 6 et 7) vers le résultat (${esc(cdef("res_benef"))} bénéfice / ${esc(cdef("res_perte"))} perte), génère le bilan d'ouverture (à-nouveaux) de l'exercice suivant, verrouille les 12 périodes et alimente le FEC. Réouverture : motif obligatoire, tracée à l'audit.</div>`+
+ tbl(["Exercice","Écritures","Résultat","État","Clôturé","Actions"],ys.map(a=>{const x=exoDe(a),clos=x&&x.statut==="cloture",r=resultat(a+"-01-01",a+"-12-31","");
+  return tr([`<b>${a}</b>`,S.entries.filter(e=>e.date.startsWith(a)).length,fcfa(clos?x.resultat:r.r),clos?badge("Clôturé","mu"):x&&x.statut==="rouvert"?badge("Rouvert","wa"):badge("Ouvert","ok"),clos?fdt(x.cloture_le)+"<br><span class='sm mu'>"+esc(x.cloture_par)+"</span>":"—"+((x&&x.reouvertures||[]).length?"<br><span class='sm mu'>Rouvert "+x.reouvertures.length+" fois — dernier motif : "+esc(x.reouvertures[x.reouvertures.length-1].motif)+"</span>":""),`<div class="flex">${!clos&&can("compta","a")&&a<=today().slice(0,4)?btn("exo.cl",a,"🔒 Clôturer","er"):""}${clos&&can("compta","x")?btn("exo.op",a,"Rouvrir (motif)","ghost"):""}${clos?btn("exo.an",a,"Bilan d'ouverture "+(+a+1),"ghost"):""}${can("compta","p")?btn("exo.fec",a,"⬇ FEC","ghost"):""}</div>`])}))};
+A["exo.cl"]=a=>{if(confirm("Clôturer l'exercice "+a+" ? Les 12 périodes seront verrouillées.")&&atomic(()=>cloturerExercice(a))!==false)render()};
+A["exo.op"]=a=>motifForm("Rouvrir l'exercice "+a,m=>rouvrirExercice(a,m));
+A["exo.an"]=a=>{const x=exoDe(a);if(!x||!x.an)return;modal(`<div class="between"><h2 style="margin:0">Bilan d'ouverture ${+a+1} (à-nouveaux)</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>Journal AN au ${fd(x.an.date)} — repris de la clôture de ${a}.</p>${tbl(["Compte","Intitulé","Débit","Crédit"],[...x.an.lines.map(l=>tr([esc(l.compte),esc(cptNom(l.compte)),dcLine(l),ccLine(l)])),tr(["","<b>Totaux</b>",`<b>${fcfa(sum(x.an.lines,l=>l.debit))}</b>`,`<b>${fcfa(sum(x.an.lines,l=>l.credit))}</b>`])],{max:400})}`)};
+A["exo.fec"]=a=>{need("compta","p");const b=new Blob(["﻿"+fecTexte(a)],{type:"text/plain"}),l=document.createElement("a");l.href=URL.createObjectURL(b);l.download="FEC-"+a+".txt";l.click();setTimeout(()=>URL.revokeObjectURL(l.href),2000);audit("FEC exporté",a)};
 CSVS.ecritures=()=>[["N°","Date","Journal","Libellé","Compte","Débit","Crédit","Lettre"],S.entries.flatMap(e=>e.lines.map(l=>[e.numero,e.date,e.journal,e.libelle,l.compte,l.debit||0,l.credit||0,l.lettre||""]))];
 A["cd.save"]=()=>{const m={};document.querySelectorAll("[data-cd]").forEach(i=>m[i.dataset.cd]=i.value);const tv=+document.getElementById("tva_t").value||0,du=+document.getElementById("am_d").value||5;
  if(atomic(()=>{definirComptes(m);if(!(tv>=0&&tv<=30))throw new Error("Taux de TVA invalide (0 à 30).");if(!(du>=1&&du<=20))throw new Error("Durée d'amortissement invalide.");S.settings.tva_taux=tv;S.settings.amort_duree=du;audit("TVA / amortissement","taux "+tv+" %, durée "+du+" ans")})!==false)render()};
@@ -1227,10 +1513,24 @@ A["od.new"]=()=>{
   $("#sv",box).onclick=()=>{keep();const r=atomic(()=>brouillardOD({date:box.dataset.dt,journal:box.dataset.jr,piece:box.dataset.pc,libelle:box.dataset.lb,lines:L.map(l=>({compte:l.compte,tiers:l.tiers||undefined,debit:+l.debit||0,credit:+l.credit||0})).filter(l=>l.compte)}));if(r!==false){m.remove();render()}};
  };draw();
 };
-V.tiers=()=>{
+const tiersSoldes=TB=>{
  const q=(UI.f.tiers&&UI.f.tiers.q||"").toLowerCase();
- return head("Comptes tiers",`<input data-f="tiers:q" placeholder="Rechercher…" value="${esc(UI.f.tiers&&UI.f.tiers.q||"")}" style="width:180px">${csvBtn("tiers","tiers")}`)+tbl(["Compte aux.","Tiers","Type","Débit","Crédit","Solde","Lettrage",""],S.tiers.filter(t=>!q||t.nom.toLowerCase().includes(q)).map(t=>{const ls=S.entries.flatMap(e=>e.lines.filter(l=>l.tiers===t.id&&l.compte===cdef("client"))),d=sum(ls,l=>l.debit),c=sum(ls,l=>l.credit),nl=ls.filter(l=>!l.lettre).length;return tr([esc(t.aux),esc(t.nom),esc(t.type),fcfa(d),fcfa(c),`<b>${fcfa(d-c)}</b>`,nl?badge(nl+" ligne(s) non lettrée(s)","wa"):badge("Tout lettré","ok"),btn("tiers.det",t.id,"Détail","ghost")])}));
+ return head("Comptes tiers",`<input data-f="tiers:q" placeholder="Rechercher…" value="${esc(UI.f.tiers&&UI.f.tiers.q||"")}" style="width:180px">${csvBtn("tiers","tiers")}`)+TB+tbl(["Compte aux.","Tiers","Type","Débit","Crédit","Solde","Lettrage",""],S.tiers.filter(t=>!q||t.nom.toLowerCase().includes(q)).map(t=>{const ls=S.entries.flatMap(e=>e.lines.filter(l=>l.tiers===t.id&&l.compte===cdef("client"))),d=sum(ls,l=>l.debit),c=sum(ls,l=>l.credit),nl=ls.filter(l=>!l.lettre).length;return tr([esc(t.aux),esc(t.nom),esc(t.type),fcfa(d),fcfa(c),`<b>${fcfa(d-c)}</b>`,nl?badge(nl+" ligne(s) non lettrée(s)","wa"):badge("Tout lettré","ok"),btn("tiers.det",t.id,"Détail","ghost")])}));
 };
+const ltUI=()=>(UI.f.lt||(UI.f.lt={c:cdef("client"),t:""}));
+function lettrageUI(TB){
+ const x=ltUI(),ed=can("compta","e"),cs=cptsTiers(),ids=[...new Set(lignesTiers(x.c).map(y=>y.l.tiers||""))],L=nonLettres(x.c,x.t||undefined).sort((p,q)=>p.e.date.localeCompare(q.e.date)),man=[...new Set(S.entries.flatMap(e=>e.lines.filter(l=>l.lm&&l.lettre).map(l=>l.lettre)))].sort().reverse().slice(0,30);
+ return head("Lettrage des comptes tiers",`<select data-f="lt:c" style="width:auto">${opt(cs.map(n=>[n,n+" "+cptNom(n)]),x.c)}</select><select data-f="lt:t" style="width:auto">${opt(ids.map(i=>[i,i?(tiersDe(i).aux||"")+" "+(tiersDe(i).nom||i):"(sans tiers)"]),x.t,"Tous les tiers")}</select>`)+TB+
+ `<div class="sm mu" style="margin-bottom:8px">Cochez des lignes d'un même compte et d'un même tiers dont le débit égale le crédit, puis « Lettrer ». Le lettrage automatique associe les montants identiques (et solde un tiers dont le total s'annule) ; les lignes d'échéances restent lettrées par les encaissements.</div>`+
+ (ed?`<div class="flex" style="margin-bottom:10px"><button class="btn" data-a="lt.man">🔗 Lettrer la sélection</button><button class="btn ok" data-a="lt.auto">⚙ Lettrage automatique</button>${can("compta","a")?`<button class="btn ghost" data-a="lt.del">Délettrer…</button>`:""}</div>`:"")+
+ tbl(["","Date","Écriture","Libellé","Tiers","Débit","Crédit"],L.map(y=>tr([ed?`<input type="checkbox" data-lt="${esc(y.ref)}">`:"",fd(y.e.date),esc(y.e.numero),esc(y.e.libelle),esc(y.l.tiers?tiersDe(y.l.tiers).aux:""),dcLine(y.l),ccLine(y.l)])),{empty:"Toutes les lignes de ce compte sont lettrées.",max:300})+(man.length?`<div class="sm mu">Derniers lettrages : ${man.map(esc).join(", ")}</div>`:"");
+}
+function nlUI(TB){const R=etatNonLettres();return head("Éléments non lettrés",csvBtn("tiers","nonlettres"))+TB+tbl(["Compte","Tiers","Lignes non lettrées","Débit","Crédit","Solde"],R.map(r=>tr([esc(r.compte+" "+cptNom(r.compte)),esc(r.nom),r.nb,fcfa(r.debit),fcfa(r.credit),`<b>${fcfa(r.solde)}</b>`])),{empty:"Aucun élément non lettré."})}
+CSVS.nonlettres=()=>[["Compte","Tiers","Lignes","Débit","Crédit","Solde"],etatNonLettres().map(r=>[r.compte,r.nom,r.nb,r.debit,r.credit,r.solde])];
+V.tiers=()=>{const t=tabOf("tiers","soldes"),TB=tabs("tiers",[["soldes","Soldes"],["lettrage","Lettrage"],["nl","Non lettrés"]]);return t==="lettrage"?lettrageUI(TB):t==="nl"?nlUI(TB):tiersSoldes(TB)};
+A["lt.man"]=()=>{const refs=[...document.querySelectorAll("[data-lt]:checked")].map(i=>i.dataset.lt);if(atomic(()=>lettrerManuel(refs))!==false)render()};
+A["lt.auto"]=()=>{let n;if((n=atomic(()=>lettrageAuto(ltUI().c)))!==false){alert(n+" ligne(s) lettrée(s).");render()}};
+A["lt.del"]=()=>form("Délettrer",[{k:"code",l:"Code du lettrage (ex. LM00001)",req:1},{k:"motif",l:"Motif",t:"area",req:1,full:1}],{},o=>delettrer(o.code.toUpperCase(),o.motif),"Délettrer");
 CSVS.tiers=()=>[["Compte","Tiers","Solde"],S.tiers.map(t=>[t.aux,t.nom,soldeTiers(t.id)])];
 A["tiers.det"]=id=>{const t=by(S.tiers,id);const ls=S.entries.flatMap(e=>e.lines.filter(l=>l.tiers===id&&l.compte===cdef("client")).map(l=>({e,l}))).sort((a,b)=>a.e.date.localeCompare(b.e.date));let run=0;
  modal(`<div class="between"><h2 style="margin:0">${esc(t.aux)} — ${esc(t.nom)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>Solde : <b>${fcfa(soldeTiers(id))}</b></p>${tbl(["Date","Écriture","Libellé","Débit","Crédit","Solde cumulé","Lettre"],ls.map(({e,l})=>{run+=(l.debit||0)-(l.credit||0);return tr([fd(e.date),esc(e.numero),esc(e.libelle),dcLine(l),ccLine(l),fcfa(run),esc(l.lettre||"")])}),{max:400})}`)};
@@ -1246,7 +1546,7 @@ function ageData(){const am=allocMap(),T=["Non échu","1-30 j","31-60 j","61-90 
 const budgetConso=(compte,mois)=>sum(S.entries.filter(e=>e.date.startsWith(mois)).flatMap(e=>e.lines.filter(l=>l.compte===compte)),l=>(l.debit||0)-(l.credit||0));
 const budgetAlertes=()=>{const m=today().slice(0,7);return S.budgets.map(g=>({g,u:budgetConso(g.compte,m)})).filter(x=>x.u>=.8*x.g.max)};
 V.etats=()=>{
- const t=tabOf("etats","syn"),f=UI.f.et||(UI.f.et={from:today().slice(0,4)+"-01-01",to:today(),cpt:"",j:"VT"});
+ const t=tabOf("etats","syn"),f=UI.f.et||(UI.f.et={from:today().slice(0,4)+"-01-01",to:today(),cpt:"",j:"VT"});if(f.c1===undefined)Object.assign(f,{c1:"",c2:"",jm1:"",jm2:"",jq:""});
  const ins=e=>e.date>=f.from&&e.date<=f.to,ok=m=>`<div class="al" style="background:var(--okbg);color:var(--ok)">${m}</div>`;let ex=null,h="";
  const hd=head("États comptables",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="et.csv">⬇ CSV</button>`)+`<div class="note">États de gestion issus de la comptabilité intégrée (SYSCOHADA révisé). Les états de synthèse officiels restent à valider par le comptable.</div>`+tabs("etats",[["syn","📊 Synthèse"],["balance","⚖️ Balance"],["gl","📖 Grand livre"],["journal","📒 Journal"],["age","⏳ Balance âgée"],["tva","🧮 TVA"],["resultat","📈 Résultat & bilan"],["ctrl","🔎 Contrôles"]])+
  (t==="age"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="et:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="et:to" value="${f.to}"></div></div>`);
@@ -1258,20 +1558,20 @@ V.etats=()=>{
  if(t==="balance"){const rows=balRows(f.from,f.to);{const od=sum(rows,r=>r.o);if(od)rows.push({a:{num:"12",nom:"Résultat des exercices antérieurs (report)"},o:-od,d:0,c:0,s:-od})}const T=[0,0,0,0,0,0],body=rows.map(r=>{const v=[r.o>0?r.o:0,r.o<0?-r.o:0,r.d,r.c,r.s>0?r.s:0,r.s<0?-r.s:0];v.forEach((x,i)=>T[i]+=x);return[r.a.num,r.a.nom,...v]});
   h=tbl(["Compte","Intitulé","Ouv. débit","Ouv. crédit","Mvt débit","Mvt crédit","Solde débit","Solde crédit"],[...body.map(r=>tr([r[0],esc(r[1]),...r.slice(2).map(x=>x?fcfa(x):"")])),tr(["","<b>TOTAUX</b>",...T.map(x=>`<b>${fcfa(x)}</b>`)])])+(T[0]===T[1]&&T[2]===T[3]&&T[4]===T[5]?ok("Balance équilibrée sur toutes les colonnes."):`<div class="al er">Balance déséquilibrée.</div>`);
   ex={name:"balance",head:["Compte","Intitulé","Ouv. débit","Ouv. crédit","Mvt débit","Mvt crédit","Solde débit","Solde crédit"],rows:[...body,["","TOTAUX",...T]]}}
- if(t==="gl"){const rb=balRows(f.from,f.to).filter(r=>!f.cpt||r.a.num===f.cpt),rows=[],csvr=[];
-  rb.forEach(r=>{let run=r.o;rows.push(tr([`<b>${r.a.num} — ${esc(r.a.nom)}</b>`,"","","Report","","",fcfa(Math.abs(run))+(run<0?" C":" D")]));csvr.push([r.a.num,"","","Report","","",run]);
-   S.entries.filter(ins).sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero)).forEach(e=>e.lines.filter(l=>l.compte===r.a.num).forEach(l=>{run+=(l.debit||0)-(l.credit||0);rows.push(tr([fd(e.date),esc(e.numero),esc(e.piece),esc(e.libelle),dcLine(l),ccLine(l),fcfa(Math.abs(run))+(run<0?" C":" D")]));csvr.push([fd(e.date),e.numero,e.piece,e.libelle,l.debit||"",l.credit||"",run])}));
-   rows.push(tr([`Total ${r.a.num}`,"","","",`<b>${fcfa(r.d)}</b>`,`<b>${fcfa(r.c)}</b>`,`<b>${fcfa(Math.abs(r.s))}${r.s<0?" C":" D"}</b>`]))});
-  h=`<div class="card noprint"><label>Compte</label><select data-f="et:cpt">${opt(S.accounts.slice().sort((x,y)=>x.num.localeCompare(y.num)).map(a=>[a.num,a.num+" "+a.nom]),f.cpt,"Tous les comptes")}</select></div>`+tbl(["Date","Écriture","Pièce","Libellé","Débit","Crédit","Solde"],rows.slice(0,600),"Aucune écriture sur la période");
+ if(t==="gl"){const c1=f.c1||f.cpt||"",c2=f.c2||f.cpt||"",G=buildGrandLivreIntervalle(c1,c2,f.from,f.to),rows=[],csvr=[],sd=v=>fcfa(Math.abs(v))+(v<0?" C":" D");
+  G.forEach(g=>{rows.push(tr([`<b>${g.compte} — ${esc(g.nom)}</b>`,"","","Report","","",sd(g.report)]));csvr.push([g.compte,g.nom,"","Report","","",g.report]);
+   g.lignes.forEach(x=>{rows.push(tr([fd(x.date),esc(x.numero),esc(x.piece),esc(x.libelle),x.debit?fcfa(x.debit):"",x.credit?fcfa(x.credit):"",sd(x.solde)]));csvr.push([x.date,x.numero,x.piece,x.libelle,x.debit||"",x.credit||"",x.solde])});
+   rows.push(tr([`Total ${g.compte}`,"","","",`<b>${fcfa(g.debit)}</b>`,`<b>${fcfa(g.credit)}</b>`,`<b>${sd(g.solde)}</b>`]))});
+  h=`<datalist id="dl-gl">${S.accounts.map(a=>`<option value="${esc(a.num)}" label="${esc(a.nom)}"></option>`).join("")}</datalist><div class="card flex noprint"><div><label>Du compte</label><input data-f="et:c1" list="dl-gl" value="${esc(c1)}" placeholder="ex. 411" style="width:110px"></div><div><label>Au compte</label><input data-f="et:c2" list="dl-gl" value="${esc(c2)}" placeholder="ex. 411" style="width:110px"></div><div class="sm mu" style="align-self:end">Laisser vide pour tous les comptes ; un préfixe couvre ses sous-comptes.</div></div>`+tbl(["Date","Écriture","Pièce","Libellé","Débit","Crédit","Solde"],rows.slice(0,600),"Aucune écriture sur la période");
   ex={name:"grand-livre",head:["Date","Écriture","Pièce","Libellé","Débit","Crédit","Solde"],rows:csvr}}
- if(t==="journal"){const es=S.entries.filter(e=>ins(e)&&e.journal===f.j).sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero)),D=sum(es,e=>sum(e.lines,l=>l.debit)),C=sum(es,e=>sum(e.lines,l=>l.credit));
-  h=`<div class="card noprint"><label>Journal</label><select data-f="et:j">${opt(JOURNAUX,f.j)}</select></div>`+tbl(["Date","Écriture","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lines.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.libelle),esc(l.compte),dcLine(l),ccLine(l)]))).slice(0,600))+`<p><b>Total débit ${fcfa(D)} · Total crédit ${fcfa(C)}</b> ${D===C?badge("Équilibré","ok"):badge("Déséquilibré","er")}</p>`;
-  ex={name:"journal-"+f.j,head:["Date","Écriture","Libellé","Compte","Débit","Crédit"],rows:es.flatMap(e=>e.lines.map(l=>[e.date,e.numero,e.libelle,l.compte,l.debit||"",l.credit||""]))}}
+ if(t==="journal"){const es=journalFiltre({j:f.j,from:f.from,to:f.to,min:f.jm1,max:f.jm2,q:f.jq}),D=sum(es,e=>sum(e.lines,l=>l.debit)),C=sum(es,e=>sum(e.lines,l=>l.credit));
+  h=`<div class="card flex noprint"><div><label>Journal</label><select data-f="et:j">${opt(JOURNAUX,f.j,"Tous les journaux")}</select></div><div><label>Montant min (F)</label><input type="number" min="0" data-f="et:jm1" value="${esc(f.jm1)}" style="width:110px"></div><div><label>Montant max (F)</label><input type="number" min="0" data-f="et:jm2" value="${esc(f.jm2)}" style="width:110px"></div><div><label>Libellé / pièce</label><input data-f="et:jq" value="${esc(f.jq)}" style="width:150px"></div></div>`+tbl(["Date","Écriture","Journal","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lines.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.journal),i?"":esc(e.libelle),esc(l.compte),dcLine(l),ccLine(l)]))).slice(0,600),{empty:"Aucune écriture pour ces filtres."})+`<p><b>${es.length} écriture(s) · Total débit ${fcfa(D)} · Total crédit ${fcfa(C)}</b> ${D===C?badge("Équilibré","ok"):badge("Déséquilibré","er")}</p>`;
+  ex={name:"journal-"+(f.j||"tous"),head:["Date","Écriture","Journal","Libellé","Compte","Débit","Crédit"],rows:es.flatMap(e=>e.lines.map(l=>[e.date,e.numero,e.journal,e.libelle,l.compte,l.debit||"",l.credit||""]))}}
  if(t==="age"){const {T,rows}=ageData(),tot=T.map((_,i)=>sum(rows,r=>r.tr[i]));
   h=`<div class="sm mu">Âge calculé à aujourd'hui (${fd(today())}) sur les échéances impayées de chaque chauffeur.</div>`+tbl(["Chauffeur",...T,"Total"],[...rows.map(r=>tr([esc(r.nom),...r.tr.map(x=>x?fcfa(x):""),`<b>${fcfa(r.tot)}</b>`])),tr(["<b>TOTAL</b>",...tot.map(x=>`<b>${fcfa(x)}</b>`),`<b>${fcfa(sum(tot,x=>x))}</b>`])],"Aucun impayé");
   ex={name:"balance-agee",head:["Chauffeur",...T,"Total"],rows:rows.map(r=>[r.nom,...r.tr,r.tot])}}
  if(t==="tva"){const y=f.to.slice(0,4),rows=[];for(let k=1;k<=12;k++){const m=y+"-"+String(k).padStart(2,"0"),x=tvaMois(m);rows.push([m,x.coll,x.ded,x.net,x.liq?"Liquidée":"",m])}
-  h=(tvaTaux()?"":`<div class="al">⚠ Taux de TVA = 0 % : aucune TVA n'est comptabilisée. Renseignez le taux dans Comptabilité → Comptes par défaut si l'entreprise est assujettie.</div>`)+tbl(["Mois","TVA facturée","TVA récupérable","TVA à payer (+) / crédit (−)","Liquidation",""],rows.map(r=>tr([r[0],fcfa(r[1]),fcfa(r[2]),`<b>${fcfa(r[3])}</b>`,r[4]?badge(r[4],"ok"):"",!r[4]&&(r[1]||r[2])&&can("compta","a")?btn("tva.liq",r[5],"Liquider","ghost"):""])))+`<div class="sm mu">La TVA est comptabilisée à la facturation (échéances) et à la validation des dépenses, au taux paramétré ; la liquidation solde 4431 / 4452 vers 4441 (TVA due) ou 4449 (crédit à reporter).</div>`;
+  h=(tvaTaux()?"":`<div class="al">⚠ Taux de TVA = 0 % : aucune TVA n'est comptabilisée. Renseignez le taux dans Comptabilité → Comptes par défaut si l'entreprise est assujettie.</div>`)+tbl(["Mois","TVA facturée","TVA récupérable","TVA à payer (+) / crédit (−)","Liquidation",""],rows.map(r=>tr([r[0],fcfa(r[1]),fcfa(r[2]),`<b>${fcfa(r[3])}</b>`,r[4]?badge(r[4],"ok"):"",`<div class="flex">${r[1]||r[2]?btn("tva.print",r[5],"🖨 Déclaration","ghost"):""}${!r[4]&&(r[1]||r[2])&&can("compta","a")?btn("tva.liq",r[5],"Liquider","ghost"):""}</div>`])))+`<div class="sm mu">La TVA est comptabilisée à la facturation (échéances) et à la validation des dépenses, au taux paramétré ; la liquidation solde 4431 / 4452 vers 4441 (TVA due) ou 4449 (crédit à reporter).</div>`;
   ex={name:"tva",head:["Mois","TVA facturée","TVA récupérable","Net"],rows:rows.map(r=>[r[0],r[1],r[2],r[3]])}}
  if(t==="resultat"){const per=(c0)=>{const m={};S.entries.filter(ins).forEach(e=>e.lines.forEach(l=>{if(l.compte[0]===c0)m[l.compte]=(m[l.compte]||0)+(c0==="7"?(l.credit||0)-(l.debit||0):(l.debit||0)-(l.credit||0))}));return Object.entries(m).filter(x=>x[1]).sort()};
   const pr=per("7"),ch=per("6"),tp=sum(pr,x=>x[1]),tc=sum(ch,x=>x[1]),rs=tp-tc,ends={};
@@ -1286,6 +1586,10 @@ V.etats=()=>{
   ex={name:"controles",head:["Rapprochement","Montant"],rows:[["Encaissements confirmés",enc],["Crédits 411",c411],["Écart",enc-c411]]}}
  UI.etx=ex;return hd+h;
 };
+A["tva.print"]=m=>{const d=declarationTVA(m),L=(l,v,b)=>tr([esc(l),b?`<b>${fcfa(v)}</b>`:fcfa(v)]);
+ modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1 style="text-align:center">DÉCLARATION DE TVA — ${esc(m)}</h1><p><b>${ORG()+" "+ORGACT().toUpperCase()+"</b> — "+ADR()}<br>Période : du ${fd(m+"-01")} au ${fd(monthEnd(m))} · Taux applicable : ${d.taux} %${d.liquidee?" · liquidée en comptabilité":""}</p>
+ ${tbl(["Désignation","Montant"],[L("Chiffre d'affaires imposable HT (compte "+cdef("produit")+")",d.ca_ht),L("TVA facturée (collectée) — compte "+cdef("tva_coll"),d.collectee),L("TVA récupérable (déductible) — compte "+cdef("tva_ded"),d.deductible),L("TVA brute due (collectée − déductible)",d.net,1),L("Crédit de TVA antérieur — compte "+cdef("tva_credit"),d.credit_anterieur),L("TVA À PAYER",d.a_payer,1),L("Crédit de TVA à reporter",d.credit_a_reporter,1)])}
+ <p class="sm">Établi d'après la comptabilité au ${fd(today())} (SYSCOHADA révisé) — à contrôler par le comptable avant dépôt.</p><table style="width:100%;margin-top:30px"><tr><td style="width:50%">Établi par<br><br><br>${esc(ME.nom)}</td><td>Visa de la direction<br><br><br></td></tr></table>`)};
 A["tva.liq"]=m=>{if(atomic(()=>liquiderTVA(m))!==false)render()};
 A["et.csv"]=()=>{const x=UI.etx;if(x)csvOut("etat-"+x.name,x.head,x.rows)};
 CSVS.etats=()=>{const f=UI.f.et;return[["Compte","Intitulé","Débit","Crédit"],S.accounts.map(a=>{const ls=S.entries.filter(e=>e.date>=f.from&&e.date<=f.to).flatMap(e=>e.lines.filter(l=>l.compte===a.num));return[a.num,a.nom,sum(ls,l=>l.debit),sum(ls,l=>l.credit)]})]};
@@ -1449,8 +1753,8 @@ A["pm.tg"]=(id,el)=>{if(atomic(()=>{need("users","e");const[r,m,a]=id.split(":")
 A["us.add"]=()=>form("Nouvel utilisateur",[{k:"nom",l:"Nom",req:1},{k:"role",l:"Rôle",t:"select",o:Object.entries(ROLES).filter(r=>r[0]!=="chauffeur")},{k:"pin",l:"PIN ("+pinTxt()+")",req:1}],{},o=>{need("users","c");if(!pinRe().test(o.pin))throw new Error("PIN : "+pinTxt()+".");const u={id:uid("u"),nom:o.nom,role:o.role,actif:true};u.h=hashPin(u.id,o.pin);S.users.push(u);audit("Utilisateur créé",o.nom+" ("+o.role+")")});
 A["us.pin"]=id=>form("Réinitialiser le PIN",[{k:"pin",l:"Nouveau PIN ("+pinTxt()+")",req:1}],{},o=>{need("users","e");if(!pinRe().test(o.pin))throw new Error("PIN : "+pinTxt()+".");const u=by(S.users,id);u.h=hashPin(u.id,o.pin);S.tries[u.id]={n:0,until:0};audit("PIN réinitialisé",u.nom)});
 A["us.tg"]=id=>{if(atomic(()=>{need("users","x");const u=by(S.users,id);if(u.id===ME.id)throw new Error("Impossible de se désactiver soi-même.");u.actif=!u.actif;audit("Compte "+(u.actif?"activé":"désactivé"),u.nom)}))render()};
-const PARAMS=[["org_nom","Entreprise — nom"],["org_activite","Entreprise — activité"],["org_ville","Entreprise — ville"],["org_adresse","Entreprise — adresse (en-têtes imprimés)"],["org_tel","Entreprise — téléphone"],["seuil_justificatif","Seuil justificatif obligatoire (F)"],["seuil_validation","Seuil validation des sorties de caisse (F)"],["delai_alerte","Délai d'alerte documents (jours)"],["marge_km","Marge d'alerte entretien (km avant l'échéance)"],["retard_alerte_jours","Alerte retard de paiement (jours)"],["gps_actif_min","GPS « actif » jusqu'à (min)"],["gps_ancien_min","GPS « données anciennes » jusqu'à (min)"],["gps_retention_jours","Conservation des positions GPS (jours)"],["max_pj_ko","Taille max des pièces jointes (Ko)"],["pj_src_max_mo","Image source max avant compression (Mo)"],["pj_compress_ko","Compression des images au-delà de (Ko)"],["defaut_places","Nombre de places par défaut (nouveau véhicule)"],["tel_indicatif","Indicatif téléphonique du pays (WhatsApp)"],["tel_len","Longueur du numéro local (chiffres)"],["pin_len","Longueur du code PIN (nouveaux codes)"],["tentatives_max","Tentatives de connexion avant blocage"],["blocage_min","Durée de blocage (minutes)"]];
-const PARAM_TXT=k=>k.startsWith("org_")||k==="tel_indicatif",PARAM_MIN={marge_km:0,pin_len:4,tentatives_max:3,blocage_min:1,tel_len:6,defaut_places:1,pj_src_max_mo:1,pj_compress_ko:10};
+const PARAMS=[["org_nom","Entreprise — nom"],["org_activite","Entreprise — activité"],["org_ville","Entreprise — ville"],["org_adresse","Entreprise — adresse (en-têtes imprimés)"],["org_tel","Entreprise — téléphone"],["seuil_justificatif","Seuil justificatif obligatoire (F)"],["seuil_validation","Seuil validation des sorties de caisse (F)"],["cx_ecart_tol","Écart de caisse toléré sans explication (F)"],["cx_delai_tardif_h","Délai de clôture de caisse avant « tardive » (heures)"],["cx_doublon_h","Fenêtre d'alerte bon / demande identique (heures)"],["bq_tol_jours","Rapprochement bancaire : tolérance de date (jours)"],["delai_alerte","Délai d'alerte documents (jours)"],["marge_km","Marge d'alerte entretien (km avant l'échéance)"],["retard_alerte_jours","Alerte retard de paiement (jours)"],["gps_actif_min","GPS « actif » jusqu'à (min)"],["gps_ancien_min","GPS « données anciennes » jusqu'à (min)"],["gps_retention_jours","Conservation des positions GPS (jours)"],["max_pj_ko","Taille max des pièces jointes (Ko)"],["pj_src_max_mo","Image source max avant compression (Mo)"],["pj_compress_ko","Compression des images au-delà de (Ko)"],["defaut_places","Nombre de places par défaut (nouveau véhicule)"],["tel_indicatif","Indicatif téléphonique du pays (WhatsApp)"],["tel_len","Longueur du numéro local (chiffres)"],["pin_len","Longueur du code PIN (nouveaux codes)"],["tentatives_max","Tentatives de connexion avant blocage"],["blocage_min","Durée de blocage (minutes)"]];
+const PARAM_TXT=k=>k.startsWith("org_")||k==="tel_indicatif",PARAM_MIN={cx_delai_tardif_h:1,marge_km:0,pin_len:4,tentatives_max:3,blocage_min:1,tel_len:6,defaut_places:1,pj_src_max_mo:1,pj_compress_ko:10};
 const NUMS=[["rc","Reçus"],["ct","Contrats"],["dp","Dépenses"],["je","Écritures"],["mo","Maintenance"],["in","Sinistres"]];
 V.audit=()=>{
  const t=tabOf("aud","journal"),q=(UI.f.aud&&UI.f.aud.q||"").toLowerCase();
@@ -1471,7 +1775,7 @@ function restaurer(txt){
  if(!o||o.app!=="angels-transport"||!o.data)throw new Error("Fichier de sauvegarde invalide.");
  if(hashPin("bk",JSON.stringify(o.data))!==o.sum)throw new Error("Somme de contrôle incorrecte : sauvegarde altérée.");
  if(o.fsum!==undefined&&hashPin("bkf",JSON.stringify(o.files||{}))!==o.fsum)throw new Error("Somme de contrôle des fichiers incorrecte : sauvegarde altérée.");
- const keep=S.tries,meId=ME.id;S=o.data;S.tries=keep||{};migrerAtelier();ME=by(S.users,meId)||null;audit("Sauvegarde restaurée");
+ const keep=S.tries,meId=ME.id;S=o.data;S.tries=keep||{};migrerAtelier();migrerCompta();ME=by(S.users,meId)||null;audit("Sauvegarde restaurée");
  const F={...(o.files||{})};S.attachments.forEach(a=>{if(a.data&&!F[a.id])F[a.id]=a.data;delete a.data});fichiersRemplacer(F);return integrite();
 }
 A["bk.imp"]=async()=>{const f=$("#bkf");if(!f||!f.files[0])return alert("Choisir un fichier.");const txt=await f.files[0].text();const snap=JSON.stringify(S);try{const pb=restaurer(txt);save();alert(pb.length?"Restauré avec anomalies :\n"+pb.join("\n"):"Restauration réussie : intégrité vérifiée.");render()}catch(e){S=JSON.parse(snap);ME=by(S.users,ME.id);alert(e.message)}};
