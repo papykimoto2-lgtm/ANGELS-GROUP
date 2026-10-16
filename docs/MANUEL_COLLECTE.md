@@ -28,6 +28,8 @@ Issues : **Non réalisée** (échec) · **Annulée**.
 ### Étape 1 — Repérer les commandes à collecter (Admin / Superviseur)
 - Une alerte s'affiche : « N commande(s) de vendeurs confirmée(s) à collecter ».
 - Ouvrir *Centre de livraison → Collectes* : liste des vendeurs avec commandes à collecter et leur adresse.
+- Le bouton **Planifier la collecte** n'apparaît que pour une commande **de vendeur partenaire** au statut **Confirmée**. Une commande encore « à confirmer » doit d'abord être confirmée (*Commandes → Confirmer*) ; un message le rappelle. Le même bouton existe sur la fiche de la commande confirmée.
+- Accès réservé aux profils **Admin** et **Superviseur** (menu *Centre de livraison*).
 
 ### Étape 2 — Planifier (Admin / Superviseur)
 1. Sur la ligne du vendeur, cliquer **🚚 Planifier**.
