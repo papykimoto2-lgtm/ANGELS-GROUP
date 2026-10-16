@@ -157,6 +157,31 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   if(chevauche("vct",deb,null))E.push("contrat supprimé bloque encore le véhicule");
   S.vehicles=S.vehicles.filter(v=>v.id!=="vct");
   return E.length?E.join(" ; "):true});
+ await t("CON-01","interconnexion : véhicule immobilisé ⇒ contrat suspendu puis repris ; remboursement de dépôt relié au contrat ; accident ⇒ ordre ; alerte dépôt à restituer",()=>{const E=[];
+  S.vehicles.push({id:"vcn",immat:"CN-TEST",marque:"X",statut:"actif",km:0});const D=S.drivers[1].id,deb=addDays(today(),-3);let cid;
+  __as("flotte");atomic(()=>{cid=creerContrat({mode:"recette",vehicle_id:"vcn",driver_id:D,montant:10000,debut:deb,fin:null,repos:"aucun",depot:20000}).id});atomic(()=>generer(today(),true));
+  const ob=()=>S.obligations.filter(o=>o.contract_id===cid);
+  __as("directeur");const v=()=>by(S.vehicles,"vcn");atomic(()=>setStatutVeh(v(),"immobilise","Panne boîte"));
+  let c=by(S.contracts,cid);if(c.statut!=="suspendu"||!c.susp.auto)E.push("suspension auto");if(ob().filter(o=>o.date_ech>=today()).some(o=>!o.exo))E.push("échéance du jour non exonérée");
+  atomic(()=>setStatutVeh(v(),"actif","Réparé"));c=by(S.contracts,cid);if(c.statut!=="actif"||(c.suspensions||[]).length!==1)E.push("reprise auto");
+  // suspension manuelle non reprise par remise en service
+  atomic(()=>suspendre(cid,today(),"Congé du chauffeur"));atomic(()=>setStatutVeh(v(),"immobilise","x"));atomic(()=>setStatutVeh(v(),"actif","x"));if(by(S.contracts,cid).statut!=="suspendu")E.push("suspension manuelle reprise à tort");atomic(()=>reprendre(cid,today()));
+  // dépôt : encaissé puis remboursé
+  const c0=by(S.contracts,cid);c0.depot_verse=20000;const tid=by(S.drivers,D).tiers_id;
+  __as("caissier");const fa=S.cash_sessions.length&&openSession()?null:null;if(!openSession())atomic(()=>ouvrirCaisse(lastClosed(S.caisses[0].id)?lastClosed(S.caisses[0].id).reel:0,S.caisses[0].id));
+  if(!__try(()=>sortieCaisse({categorie:"Remboursement dépôt de garantie",montant:5000,motif:"Restitution",tiers:"X"})))E.push("remboursement sans contrat");
+  if(!__try(()=>sortieCaisse({categorie:"Remboursement dépôt de garantie",montant:99000,motif:"Restitution",tiers:"X",contract_id:cid})))E.push("remboursement > dépôt");
+  const sol=soldeTheo(openSession());if(sol>=5000){atomic(()=>sortieCaisse({categorie:"Remboursement dépôt de garantie",montant:5000,motif:"Restitution partielle",tiers:"Chauffeur",contract_id:cid}));
+   if(by(S.contracts,cid).depot_verse!==15000)E.push("dépôt non diminué");if(!S.entries.some(e=>e.lines.some(l=>l.compte===cdef("depot")&&l.debit===5000&&l.tiers===tid)))E.push("ligne 165 sans tiers")}
+  // sinistre accident ⇒ ordre de maintenance
+  __as("flotte");const n0=S.maintenance.length;atomic(()=>creerIncident({vehicle_id:"vcn",type:"accident",description:"Choc arrière",date:today()}));if(S.maintenance.length!==n0+1)E.push("accident sans ordre");
+  // résiliation avec dépôt restant ⇒ alerte
+  atomic(()=>resilier(cid,today(),"Fin"));if(!alertes().some(a=>a.k==="depot"&&/CN-|Dépôt de garantie à restituer/.test(a.t)))E.push("alerte dépôt");
+  // portail : contrat suspendu visible
+  const cs=ctOuvert({statut:"suspendu"});if(!cs)E.push("ctOuvert suspendu");
+  __as("caissier");if(openSession()){const th=soldeTheo(openSession());atomic(()=>cloturerCaisse(th,"",openSession().caisse_id))}
+  __as("directeur");by(S.contracts,cid).depot_verse=0;atomic(()=>supprimerContrat(cid,"Nettoyage test"));S.vehicles=S.vehicles.filter(x=>x.id!=="vcn");
+  return E.length?E.join(" ; "):true});
  await t("COM-05","période clôturée : écriture refusée ; plan comptable refusé au caissier",()=>{__as("comptable");let e=__try(()=>periodeAction(today().slice(0,7),"close"));if(e)return e;
   const a=__try(()=>saisirOD({date:today(),libelle:"test",lines:[{compte:"571",debit:100},{compte:"121",credit:100}]}));__as("caissier");const b=__try(()=>creerCompte("999","X","Autre"));
   __as("directeur");e=__try(()=>periodeAction(today().slice(0,7),"open"));return(a&&/clôturée/.test(a)&&b&&/Droits/.test(b)&&!e)||("a="+a+" b="+b+" e="+e)});

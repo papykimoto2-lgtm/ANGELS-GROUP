@@ -236,6 +236,7 @@ const tiersDe=id=>by(S.tiers,id)||{};
 
 /* ---------- Contrats, affectations, échéances ---------- */
 const contractEnd=c=>c.statut==="supprime"?"0000-01-01":c.statut==="resilie"?c.effet:(c.fin||"9999-12-31");
+const ctOuvert=c=>!!c&&["actif","suspendu"].includes(c.statut);
 const suspendu=(c,d)=>!!((c.susp&&d>=c.susp.from)||(c.suspensions||[]).some(s=>d>=s.from&&d<s.to));
 const montantA=(c,d)=>{let m=c.versions[0].montant;for(const v of c.versions)if(v.from<=d)m=v.montant;return m};
 const chauffeurNom=id=>(by(S.drivers,id)||{}).nom||"—",vehImmat=id=>(by(S.vehicles,id)||{}).immat||"—";
@@ -282,7 +283,6 @@ function resilier(cid,effet,motif,internal){
  const as=S.assignments.find(a=>a.vehicle_id===c.vehicle_id&&a.driver_id===c.driver_id&&!a.fin);if(as)as.fin=effet;
  audit("Contrat résilié",c.numero+" effet "+effet);
 }
-const ctOuvert=c=>c&&["actif","suspendu"].includes(c.statut);
 function modifierContrat(cid,f){
  needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!ctOuvert(c))throw new Error("Contrat inactif.");
  const obs=S.obligations.filter(o=>o.contract_id===cid),am=allocMap(),fin=f.fin||null,repos=f.repos||c.repos,depot=+f.depot||0;
@@ -303,16 +303,16 @@ function modifierContrat(cid,f){
  }
  audit("Contrat modifié",c.numero);return c;
 }
-function suspendre(cid,from,motif){
- needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="actif")throw new Error("Seul un contrat actif peut être suspendu.");
+function suspendre(cid,from,motif,auto){
+ if(!auto)needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="actif")throw new Error("Seul un contrat actif peut être suspendu.");
  if(!String(motif||"").trim())throw new Error("Motif obligatoire.");if(from<c.debut)throw new Error("Date de suspension antérieure au début du contrat.");
- if(from<today())need("contrats","a","Suspension rétroactive : validation requise.");
+ if(!auto&&from<today())need("contrats","a","Suspension rétroactive : validation requise.");
  const am=allocMap();c.statut="suspendu";c.susp={from,motif:String(motif).trim(),par:ME.nom,at:now()};
  S.obligations.filter(o=>o.contract_id===cid&&o.date_ech>=from&&!o.exo&&!am[o.id]).forEach(o=>exonerer(o,"Suspension "+c.numero,true));
  audit("Contrat suspendu",c.numero+" dès "+from+" — "+motif);
 }
-function reprendre(cid,date){
- needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="suspendu")throw new Error("Contrat non suspendu.");
+function reprendre(cid,date,auto){
+ if(!auto)needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="suspendu")throw new Error("Contrat non suspendu.");
  if(date<c.susp.from)throw new Error("Date de reprise antérieure à la suspension.");
  (c.suspensions=c.suspensions||[]).push({from:c.susp.from,to:date,motif:c.susp.motif,par:c.susp.par});c.susp=null;c.statut="actif";
  audit("Contrat repris",c.numero+" le "+date);
@@ -455,9 +455,10 @@ function ouvrirCaisse(fond,cid){
 const CX_IN={"Apport de l'exploitant (compte courant)":"apport","Autre entrée (produit divers)":"produit_div"},CX_OUT=["Versement en banque","Remboursement dépôt de garantie"],CX_OUT_ANC=["Frais divers"]; // « Frais divers » : charges via le module Dépenses (anciens bons conservés)
 function cxNum(sens){const pre=(sens==="entree"?"BE":"BS")+"-"+today().replace(/-/g,"")+"-";return pre+String(S.cash_mv.filter(m=>(m.numero||"").startsWith(pre)).length+1).padStart(3,"0")}
 function postSortie(m){
+ let tid;if(m.categorie==="Remboursement dépôt de garantie"&&m.contract_id){const c=by(S.contracts,m.contract_id);if(!c||(c.depot_verse||0)<m.montant)throw new Error("Dépôt versé insuffisant pour ce remboursement.");c.depot_verse-=m.montant;tid=(by(S.drivers,c.driver_id)||{}).tiers_id}
  const ent=m.sens==="entree",cpt=ent?(CX_IN[m.categorie]?cdef(CX_IN[m.categorie]):null):(({"Versement en banque":"treso_banque","Remboursement dépôt de garantie":"depot","Frais divers":"c_frais"})[m.categorie]?cdef(({"Versement en banque":"treso_banque","Remboursement dépôt de garantie":"depot","Frais divers":"c_frais"})[m.categorie]):null);
  if(!cpt)return;
- const cc=cptCaisse(by(S.cash_sessions,m.session_id)),L=ent?[{compte:cc,debit:m.montant},{compte:cpt,credit:m.montant}]:[{compte:cpt,debit:m.montant},{compte:cc,credit:m.montant}];
+ const cc=cptCaisse(by(S.cash_sessions,m.session_id)),L=ent?[{compte:cc,debit:m.montant},{compte:cpt,credit:m.montant}]:[{compte:cpt,debit:m.montant,tiers:tid},{compte:cc,credit:m.montant}];
  const e=postEntry({journal:"CAI",date:today(),libelle:m.categorie+" — "+m.motif,piece:m.numero||"MV-"+m.id.slice(-5),source:{type:"cashout",id:m.id},lines:L});
  m.entry_id=e.id;
 }
@@ -469,11 +470,12 @@ function entreeCaisse(f){
  S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon d'entrée "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")");return m;
 }
 function sortieCaisse(f){
- need("caisse","c");if(!CX_OUT.includes(f.categorie))throw new Error("Catégorie de sortie invalide : les charges (carburant, entretien, frais divers) se saisissent dans le module Dépenses.");const cs=openSession(f.caisse);if(!cs)throw new Error("Aucune caisse ouverte.");
+ need("caisse","c");if(!CX_OUT.includes(f.categorie))throw new Error("Catégorie de sortie invalide : les charges (carburant, entretien, frais divers) se saisissent dans le module Dépenses.");const cs=openSession(f.caisse);
+ if(f.categorie==="Remboursement dépôt de garantie"){const c=by(S.contracts,f.contract_id);if(!c)throw new Error("Remboursement de dépôt : choisir le contrat concerné.");if(f.montant>(c.depot_verse||0))throw new Error("Montant supérieur au dépôt versé ("+fcfa(c.depot_verse)+").")}if(!cs)throw new Error("Aucune caisse ouverte.");
  if(!(f.montant>0))throw new Error("Montant invalide.");if(!String(f.motif||"").trim())throw new Error("Motif obligatoire.");
  if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
  if(f.montant>soldeTheo(cs))throw new Error("Solde théorique insuffisant ("+fcfa(soldeTheo(cs))+").");
- const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",numero:cxNum("sortie"),montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
+ const m={id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",numero:cxNum("sortie"),montant:f.montant,categorie:f.categorie,motif:f.motif,tiers:f.tiers||"",contract_id:f.contract_id||null,justificatif:f.justificatif||"",statut:f.montant>S.settings.seuil_validation?"a_valider":"validee",par:ME.nom};
  S.cash_mv.push(m);if(m.statut==="validee")postSortie(m);audit("Bon de sortie "+m.numero,f.categorie+" "+f.montant+" F ("+m.statut+")");
 }
 function validerSortie(id,ok,motif){
@@ -560,6 +562,9 @@ const VST={actif:"En service",immobilise:"Immobilisé",fourriere:"En fourrière"
 function setStatutVeh(v,s,motif){
  if(v.statut===s)return;(S.veh_hist=S.veh_hist||[]).push({vehicle_id:v.id,de:v.statut,a:s,t:now(),par:ME?ME.nom:"système",motif:motif||""});
  v.statut=s;if(s==="sorti")v.date_sortie=today();
+ if(S.settings.susp_auto_ot!==false){ // immobilisation → contrat suspendu (aucune recette due) ; remise en service → reprise
+  if(s==="actif"){const c=S.contracts.find(x=>x.vehicle_id===v.id&&x.statut==="suspendu"&&x.susp&&x.susp.auto);if(c)reprendre(c.id,today(),true)}
+  else if(s!=="sorti"){const c=contratActif(v.id);if(c&&c.statut==="actif"){suspendre(c.id,today(),"Véhicule "+(VST[s]||s).toLowerCase()+(motif?" — "+motif:""),true);c.susp.auto=true}}}
 }
 function creerMaintenance(f,sys){
  if(!sys)need("maintenance","c");if(!f.vehicle_id||!String(f.motif||"").trim())throw new Error("Véhicule et motif requis.");
@@ -733,6 +738,7 @@ function alertes(){
  S.vehicles.filter(v=>v.statut!=="sorti").forEach(v=>{doc(daysTo(v.assurance_fin),"Assurance",v.immat);doc(daysTo(v.visite_fin),"Visite technique",v.immat);doc(daysTo(v.carte_fin),"Carte de transport",v.immat);
   if(v.prochain_km&&v.km>=v.prochain_km-500)a.push({er:v.km>=v.prochain_km,k:"km",t:`Entretien dû : ${v.immat} (${v.km}/${v.prochain_km} km)`})});
  S.plans.filter(p=>p.actif!==false).forEach(p=>{const v=by(S.vehicles,p.vehicle_id);if(!v||v.statut==="sorti")return;const e=planEtat(p);if(e.st!=="ok")a.push({er:e.st==="retard",k:"entretien",t:`Entretien ${e.st==="retard"?"en retard":"à prévoir"} : ${v.immat} — ${p.type}`})});
+ S.contracts.filter(c=>c.statut==="resilie"&&(c.depot_verse||0)>0).forEach(c=>a.push({er:false,k:"depot",t:`Dépôt de garantie à restituer ou imputer : ${chauffeurNom(c.driver_id)} — ${fcfa(c.depot_verse)} (contrat ${c.numero} résilié)`}));
  S.pieces.filter(q=>q.seuil>0&&stockPiece(q.id)<=q.seuil).forEach(q=>a.push({er:stockPiece(q.id)<=0,k:"piece",t:`Stock de pièces bas : ${q.nom} (${nb(stockPiece(q.id),1)} ${q.unite}, seuil ${q.seuil})`}));
  S.vehicles.filter(v=>v.statut!=="sorti"&&dossierVeh(v).length).forEach(v=>a.push({er:false,k:"dossier",t:`Dossier véhicule incomplet : ${v.immat} — ${dossierVeh(v).join(", ").toLowerCase()} manquant(s)`}));
  S.drivers.filter(d=>dossierChf(d).length).forEach(d=>a.push({er:false,k:"dossier",t:`Dossier chauffeur incomplet : ${d.nom} — ${dossierChf(d).join(", ")} manquant(e)s`}));
@@ -953,7 +959,7 @@ const drvFields=()=>[{k:"nom",l:"Nom complet",req:1,sec:"Identité"},{k:"tel",l:
 V.chauffeurs=()=>{
  const q=(UI.f.chf&&UI.f.chf.q||"").toLowerCase();
  return head("Chauffeurs",`<input data-f="chf:q" placeholder="Rechercher…" value="${esc(UI.f.chf&&UI.f.chf.q||"")}" style="width:180px">${can("chauffeurs","c")?`<button class="btn" data-a="chf.add">+ Chauffeur</button>`:""}${csvBtn("chauffeurs","chauffeurs")}`)+
- tbl(["Nom","Téléphone","Véhicule","Mode","Permis","Solde dû","Compte portail",""],S.drivers.filter(d=>!q||d.nom.toLowerCase().includes(q)).map(d=>{const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),c=S.contracts.find(c=>c.driver_id===d.id&&c.statut==="actif"),u=by(S.users,d.user_id),s=soldeTiers(d.tiers_id);
+ tbl(["Nom","Téléphone","Véhicule","Mode","Permis","Solde dû","Compte portail",""],S.drivers.filter(d=>!q||d.nom.toLowerCase().includes(q)).map(d=>{const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),c=S.contracts.find(c=>c.driver_id===d.id&&ctOuvert(c)),u=by(S.users,d.user_id),s=soldeTiers(d.tiers_id);
   return tr([(d.photo&&by(S.attachments,d.photo)&&by(S.attachments,d.photo).type!=="application/pdf"?`<img src="${esc(fichier(d.photo))}" alt="" style="width:28px;height:28px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px">`:"")+esc(d.nom)+(dossierChf(d).length?" "+badge("Dossier incomplet","wa"):""),esc(d.tel),esc(as?vehImmat(as.vehicle_id):"—"),c?esc(c.mode):"—",dateBadge(d.permis_fin),s?`<b style="color:var(--er)">${fcfa(s)}</b>`:"—",u?badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"):"—",`<div class="flex">${btn("chf.fiche",d.id,"Fiche","ghost")}${can("chauffeurs","e")?btn("chf.edit",d.id,"✏️","ghost"):""}</div>`])}));
 };
 CSVS.chauffeurs=()=>[["Nom","Téléphone","Solde dû"],S.drivers.map(d=>[d.nom,d.tel,soldeTiers(d.tiers_id)])];
@@ -1153,7 +1159,7 @@ A["cs.open"]=cid=>{cid=cid||cxCaisse().id;const last=lastClosed(cid),th=last?las
  const m=form("Ouvrir la caisse — "+cxNom(cid),[{k:"fond",l:"Fond de caisse constaté (F)",t:"number",req:1,h:last?"Doit égaler le dernier comptage : "+fcfa(th)+(last.ecart?" (écart de la dernière clôture : "+fcfa(last.ecart)+(last.ecart_regul?", régularisé":", non régularisé")+")":""):"Première ouverture : aucun solde antérieur"}],{fond:th},o=>{ouvrirCaisse(o.fond,cid);cxUI().c=cid},"🔓 Ouvrir la caisse");
  const f=m.querySelector("[name=fond]"),hint=m.querySelector("label span.mu");f.oninput=()=>{const e=Math.round(+f.value)-th;if(f.value==="")return;hint.innerHTML=e?`<b style="color:var(--er)">Écart avec le solde théorique : ${e>0?"+":""}${fcfa(e)}</b> (ouverture refusée : le fond doit égaler le dernier comptage)`:'<b style="color:var(--ok)">Conforme au solde théorique.</b>'}};
 A["cs.reopen"]=id=>motifForm("Rouvrir la session de caisse",m=>rouvrirCaisse(id,m));
-const bonFields=(sens)=>{const ent=sens==="entree";return[{k:"categorie",l:"Catégorie",t:"select",o:(ent?Object.keys(CX_IN):CX_OUT).map(x=>[x,x]),sec:ent?"Bon d'entrée de caisse":"Bon de sortie de caisse",h:ent?"":"Les charges (carburant, entretien, frais divers) se saisissent dans le module Dépenses."},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"motif",l:"Motif / libellé",req:1,full:1},{k:"tiers",l:ent?"Déposant":"Bénéficiaire",req:1},{k:"justificatif",l:"N° de pièce justificative",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+" · validation au-delà de "+fcfa(S.settings.seuil_validation)}]};
+const bonFields=(sens)=>{const ent=sens==="entree";return[{k:"categorie",l:"Catégorie",t:"select",o:(ent?Object.keys(CX_IN):CX_OUT).map(x=>[x,x]),sec:ent?"Bon d'entrée de caisse":"Bon de sortie de caisse",h:ent?"":"Les charges (carburant, entretien, frais divers) se saisissent dans le module Dépenses."},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"motif",l:"Motif / libellé",req:1,full:1},{k:"tiers",l:ent?"Déposant":"Bénéficiaire",req:1},...(ent?[]:[{k:"contract_id",l:"Contrat (remboursement de dépôt)",t:"select",o:()=>[["","—"],...S.contracts.filter(c=>(c.depot_verse||0)>0).map(c=>[c.id,c.numero+" — "+chauffeurNom(c.driver_id)+" ("+fcfa(c.depot_verse)+")"])],h:"Obligatoire pour un remboursement de dépôt : le dépôt versé du contrat est diminué"}]),{k:"justificatif",l:"N° de pièce justificative",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+" · validation au-delà de "+fcfa(S.settings.seuil_validation)}]};
 A["cs.in"]=cid=>{cid=cid||cxCaisse().id;form("📥 Bon d'entrée — "+cxNom(cid),bonFields("entree"),{},o=>{entreeCaisse({...o,caisse:cid})},"💾 Enregistrer le bon")};
 A["cs.out"]=cid=>{cid=cid||cxCaisse().id;form("📤 Bon de sortie — "+cxNom(cid),bonFields("sortie"),{},o=>sortieCaisse({...o,caisse:cid}),"💾 Enregistrer le bon")};
 A["cs.close"]=cid=>{const cs=openSession(cid||cxCaisse().id);if(!cs)return;const th=soldeTheo(cs),vl=S.cash_mv.filter(m=>m.session_id===cs.id&&m.statut==="validee");
@@ -1395,7 +1401,7 @@ function creerIncident(f,sys){
  const d=f.driver_id||((S.assignments.find(a=>a.vehicle_id===f.vehicle_id&&!a.fin)||{}).driver_id)||null;
  const i={id:uid("in"),numero:seq("in","SIN"),vehicle_id:f.vehicle_id,driver_id:d,date:f.date||today(),type:f.type,description:f.description,cout:+f.cout||0,pj:f.pj||null,statut:"ouvert",source:sys?"portail":"bureau",t:now(),resolution:""};
  S.incidents.push(i);audit("Sinistre / incident",i.numero+" "+f.type);
- if(f.type==="panne"){const m=creerMaintenance({vehicle_id:f.vehicle_id,motif:"Panne signalée : "+f.description.slice(0,120),source:sys?"portail":"bureau"},true);i.maintenance_id=m.id}
+ if(f.type==="panne"||f.type==="accident"){const m=creerMaintenance({vehicle_id:f.vehicle_id,motif:(f.type==="accident"?"Accident déclaré : ":"Panne signalée : ")+f.description.slice(0,120),source:sys?"portail":"bureau"},true);i.maintenance_id=m.id}
  (S.notifs=S.notifs||[]).push({id:uid("nt"),to:"staff",titre:"Incident "+i.numero,texte:f.type+" — "+vehImmat(f.vehicle_id),t:now(),lu:{}});
  return i;
 }
@@ -1481,14 +1487,14 @@ function signalerIncident(f){const d=meDriver();if(!d)throw new Error("Réservé
 function changerPin(oldp,newp){if(ME.h!==hashPin(ME.id,oldp))throw new Error("PIN actuel incorrect.");if(!/^\d{4}$/.test(newp))throw new Error("Nouveau PIN : 4 chiffres.");ME.h=hashPin(ME.id,newp);by(S.users,ME.id).h=ME.h;audit("PIN modifié")}
 const myNotifs=()=>{const d=meDriver();return S.notifs.filter(n=>n.to==="*"||n.to===d.id).slice().reverse()};
 V.p_accueil=()=>{
- const d=meDriver();if(!d)return"<h1>Accueil</h1><div class='card'>Profil chauffeur introuvable.</div>";const P=portalData(d.id),as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),c=S.contracts.find(c=>c.driver_id===d.id&&c.statut==="actif"),next=P.obs.filter(o=>soldeM(o,P.am)>0).slice().reverse().slice(0,3),nn=myNotifs();
+ const d=meDriver();if(!d)return"<h1>Accueil</h1><div class='card'>Profil chauffeur introuvable.</div>";const P=portalData(d.id),as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),c=S.contracts.find(c=>c.driver_id===d.id&&ctOuvert(c)),next=P.obs.filter(o=>soldeM(o,P.am)>0).slice().reverse().slice(0,3),nn=myNotifs();
  return `<h1>Bonjour ${esc(d.nom.split(" ")[0])}</h1><div class="grid"><div class="kpi"><div class="v">${esc(as?vehImmat(as.vehicle_id):"—")}</div><div class="l">Mon véhicule</div></div><div class="kpi"><div class="v">${c?esc(c.mode==="recette"?"Recette "+fcfa(c.montant)+"/jour":"Location "+fcfa(c.montant)+"/"+c.periodicite):"—"}</div><div class="l">Mode d'exploitation</div></div><div class="kpi ${P.solde?"e":"o"}"><div class="v">${fcfa(P.solde)}</div><div class="l">Solde restant dû</div></div></div>
  <h2>Prochaines échéances</h2>${tbl(["Date","Montant","Solde","Retard"],next.map(o=>tr([fd(o.date_ech),fcfa(o.montant),fcfa(soldeM(o,P.am)),retardJ(o,P.am)?`<b style="color:var(--er)">${retardJ(o,P.am)} j</b>`:"—"])),{empty:"Aucune échéance impayée."})}
  <h2>Notifications (${nn.length})</h2>${nn.slice(0,10).map(n=>`<div class="card"><b>${esc(n.titre)}</b> <span class="mu sm">${fdt(n.t)}</span><br>${esc(n.texte)}</div>`).join("")||'<div class="card mu">Aucune notification.</div>'}`;
 };
 V.p_compte=()=>{const d=meDriver(),P=portalData(d.id);return `<h1>Mon compte</h1><div class="grid"><div class="kpi ${P.solde?"e":"o"}"><div class="v">${fcfa(P.solde)}</div><div class="l">Solde restant dû</div></div></div><div class="note">Seuls les paiements confirmés par le bureau sont affichés.</div>`+tbl(["Date","Montant","Versé","Solde","État",""],P.obs.slice(0,60).map(o=>{const s=soldeM(o,P.am);return tr([fd(o.date_ech),fcfa(o.montant),fcfa(P.am[o.id]||0),fcfa(s),o.exo?badge("Exonérée","wa"):s===0?badge("Soldée","ok"):badge(retardJ(o,P.am)?"En retard":"À payer",retardJ(o,P.am)?"er":""),btn("p.contest",o.id,"Contester","ghost")])}))};
 V.p_recus=()=>{const d=meDriver(),P=portalData(d.id);return `<h1>Mes reçus</h1>`+tbl(["N°","Date","Montant",""],P.recus.map(r=>tr([esc(r.numero),fd(r.date),fcfa(r.montant),btn("rc.print",r.id,"Voir / imprimer","ghost")])),{empty:"Aucun reçu."})};
-V.p_vehicule=()=>{const d=meDriver(),as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),v=as&&by(S.vehicles,as.vehicle_id),c=S.contracts.find(c=>c.driver_id===d.id&&c.statut==="actif");return `<h1>Mon véhicule</h1>`+(v?`<div class="card"><b>${esc(v.immat)}</b> — ${esc(v.marque+" "+(v.modele||""))} · ${badge(VST[v.statut],v.statut==="actif"?"ok":"wa")}<p>Assurance ${dateBadge(v.assurance_fin)} · Visite technique ${dateBadge(v.visite_fin)} · Carte de transport ${dateBadge(v.carte_fin)}</p>${c?`<p>Contrat ${esc(c.numero)} : ${esc(c.mode)} ${fcfa(c.montant)} (${esc(c.periodicite)}) depuis ${fd(c.debut)}</p>`:""}</div>`:'<div class="card mu">Aucun véhicule affecté.</div>')};
+V.p_vehicule=()=>{const d=meDriver(),as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),v=as&&by(S.vehicles,as.vehicle_id),c=S.contracts.find(c=>c.driver_id===d.id&&ctOuvert(c));return `<h1>Mon véhicule</h1>`+(v?`<div class="card"><b>${esc(v.immat)}</b> — ${esc(v.marque+" "+(v.modele||""))} · ${badge(VST[v.statut],v.statut==="actif"?"ok":"wa")}<p>Assurance ${dateBadge(v.assurance_fin)} · Visite technique ${dateBadge(v.visite_fin)} · Carte de transport ${dateBadge(v.carte_fin)}</p>${c?`<p>Contrat ${esc(c.numero)} : ${esc(c.mode)} ${fcfa(c.montant)} (${esc(c.periodicite)}) depuis ${fd(c.debut)}</p>`:""}</div>`:'<div class="card mu">Aucun véhicule affecté.</div>')};
 V.p_incident=()=>{const d=meDriver();return `<h1>Signaler un incident</h1><p><button class="btn" data-a="p.inc">Signaler une panne / un incident</button></p>`+tbl(["N°","Date","Type","Description","Statut"],S.incidents.filter(i=>i.driver_id===d.id).slice().reverse().map(i=>tr([esc(i.numero),fd(i.date),esc(i.type),esc(i.description),badge(SIN[i.statut],i.statut==="clos"?"ok":"wa")])),{empty:"Aucun signalement."})};
 V.p_demandes=()=>{const d=meDriver();return `<h1>Mes demandes</h1><p><button class="btn" data-a="p.dem">Nouvelle demande</button></p>`+tbl(["Date","Type","Message","Statut","Réponse"],S.requests.filter(r=>r.driver_id===d.id).slice().reverse().map(r=>tr([fdt(r.t),esc(r.type),esc(r.texte),badge(r.statut,r.statut==="ouverte"?"wa":r.statut==="traitee"?"ok":"er"),esc(r.reponse||"")])),{empty:"Aucune demande."})};
 V.p_profil=()=>{const d=meDriver();return `<h1>Mon profil</h1><div class="card"><p><b>${esc(d.nom)}</b><br>Téléphone : ${esc(d.tel||"—")}<br>Adresse : ${esc(d.adresse||"—")}<br>Permis : ${esc(d.permis_no||"—")} ${dateBadge(d.permis_fin)}</p><div class="flex"><button class="btn" data-a="p.prof">Modifier mes coordonnées</button><button class="btn ghost" data-a="p.pin">Changer mon PIN</button></div><p class="mu sm">Les changements de coordonnées sont soumis à validation du bureau.</p></div>`};

@@ -228,3 +228,10 @@ Mise à niveau selon le skill `compta-syscohada-caisse` et le modèle ImmoSuite 
 - **Immobilisations motos** : valeur d'acquisition, mise en service et durée dans la fiche moto → écritures déduites (acquisition 245 / 481, dotations mensuelles 681 / 2845). Valeur et date verrouillées une fois comptabilisées.
 - **TVA** : liquidation mensuelle (4431 / 4452 → 4441 ou 4449), état de TVA avec statut de liquidation, synthèse tenant compte de 4441 / 4449.
 - **Contrôle d'intégrité** : comptes par défaut présents et inscrits au plan. Les écritures déjà déduites restent identiques tant que les comptes par défaut ne sont pas changés.
+
+### Transport — revue d'interconnexion des modules
+- **Véhicule ↔ contrat** : un véhicule immobilisé / en fourrière / hors service (manuellement ou via un ordre de maintenance) suspend automatiquement son contrat actif (aucune recette due, échéances non encaissées exonérées) ; la remise en service le reprend. Une suspension manuelle n'est jamais reprise automatiquement. Désactivable par `settings.susp_auto_ot = false`.
+- **Caisse ↔ contrat** : le remboursement d'un dépôt de garantie exige le contrat, diminue le dépôt versé et passe en 165 avec le compte tiers du chauffeur ; alerte « dépôt à restituer » pour un contrat résilié.
+- **Sinistre ↔ maintenance** : un accident crée comme une panne un ordre de maintenance.
+- **Portail chauffeur** : un contrat suspendu reste visible.
+- **Hub ↔ Transport** : trésorerie (toutes les caisses 57x et comptes par défaut) et chiffre d'affaires lus sur les comptes paramétrés.
