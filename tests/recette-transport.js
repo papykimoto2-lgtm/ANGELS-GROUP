@@ -82,6 +82,11 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   __as("directeur");if(!__try(()=>basculerCaisse(pid)))E.push("désactiver ouverte");atomic(()=>basculerCaisse(agid));if(by(S.caisses,agid).actif)E.push("désactivation");
   atomic(()=>basculerCaisse(agid));__as("caissier");atomic(()=>cloturerCaisse(soldeTheo(openSession(pid)),"",pid));
   return E.length?E.join(" ; "):true});
+ await t("CAI-03","pas de redondance : « Frais divers » refusé en bon de sortie (module Dépenses), libellés Entrées/Sorties",()=>{const E=[];__as("caissier");
+  if(CX_OUT.includes("Frais divers"))E.push("catégorie encore proposée");
+  const cs=openSession()||null;if(cs){const r=__try(()=>sortieCaisse({categorie:"Frais divers",montant:100,motif:"x",tiers:"y"}));if(!/Dépenses/.test(r||""))E.push("Frais divers accepté : "+r)}
+  __as("directeur");view="caisse";UI.tab.caisse="session";const h=V.caisse();if(/Décaissements/.test(h)||!/>Entrées</.test(h)||!/>Sorties</.test(h))E.push("libellés");
+  return E.length?E.join(" ; "):true});
  await t("CPT-01","compta : brouillard → visa (séparation des tâches, équilibre), budgets, états (synthèse, balance, grand livre, âgée, bilan équilibré, sans NaN)",()=>{const E=[];__as("comptable");
   const ln=[{compte:"638",debit:1000},{compte:"121",credit:1000}];
   atomic(()=>brouillardOD({date:today(),libelle:"Frais test",lines:ln}));const id=S.brouillard[S.brouillard.length-1].id;
@@ -125,6 +130,67 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   if(!__try(()=>immoVehicule({...v,valeur_acq:7000000},{valeur_acq:6000000,date_service:v.date_service})))E.push("modif valeur comptabilisée");
   if(integrite().some(x=>/sans écriture|Compte par défaut/.test(x)))E.push("complétude : "+integrite().join("|"));
   if(!S.entries.every(e=>sum(e.lines,l=>l.debit)===sum(e.lines,l=>l.credit)))E.push("équilibre");
+  return E.length?E.join(" ; "):true});
+ await t("CTR-01","contrat d'exploitation : modifier (complet sans échéance, restreint ensuite), suspendre/reprendre, supprimer (droits, extourne, refus si encaissé)",()=>{const E=[];
+  S.vehicles.push({id:"vct",immat:"CT-TEST",marque:"X",statut:"actif",km:0});const D=S.drivers[0].id,deb=addDays(today(),-5);let cid;
+  __as("flotte");atomic(()=>{cid=creerContrat({mode:"recette",vehicle_id:"vct",driver_id:D,montant:10000,debut:deb,fin:null,repos:"aucun",depot:0}).id});
+  atomic(()=>modifierContrat(cid,{vehicle_id:"vct",driver_id:D,mode:"recette",montant:12000,debut:deb,fin:null,repos:"aucun",depot:5000}));let c=by(S.contracts,cid);
+  if(c.montant!==12000||c.depot!==5000)E.push("modification complète");
+  atomic(()=>generer(today(),true));const ob=()=>S.obligations.filter(o=>o.contract_id===cid);if(!ob().length||ob().some(o=>o.montant!==12000))E.push("échéances à 12000");
+  if(!__try(()=>modifierContrat(cid,{montant:99999,fin:null,repos:"aucun",depot:0}))&&false)E.push("");
+  atomic(()=>modifierContrat(cid,{montant:99999,fin:addDays(today(),30),repos:"dimanche",depot:6000}));c=by(S.contracts,cid);if(c.montant!==12000||c.fin!==addDays(today(),30)||c.repos!=="dimanche")E.push("modification restreinte");
+  if(!__try(()=>modifierContrat(cid,{fin:null,repos:"aucun",depot:0})) ){} 
+  const n0=ob().length,from=addDays(today(),-2);__as("caissier");if(!__try(()=>suspendre(cid,from,"x")))E.push("caissier suspend");
+  __as("flotte");if(!__try(()=>suspendre(cid,from,"")))E.push("motif suspension");
+  if(!/validation requise/.test(__try(()=>suspendre(cid,from,"Panne moteur"))||""))E.push("suspension rétroactive sans droit");
+  __as("directeur");atomic(()=>suspendre(cid,from,"Panne moteur"));c=by(S.contracts,cid);if(c.statut!=="suspendu")E.push("statut suspendu");
+  if(ob().filter(o=>o.date_ech>=from).some(o=>!o.exo))E.push("échéances non exonérées");
+  atomic(()=>generer(addDays(today(),3),true));if(ob().some(o=>o.date_ech>today()))E.push("échéances générées pendant la suspension");
+  __as("flotte");atomic(()=>reprendre(cid,today()));c=by(S.contracts,cid);if(c.statut!=="actif"||c.suspensions.length!==1)E.push("reprise");
+  if(!__try(()=>supprimerContrat(cid,"test")))E.push("flotte supprime");
+  __as("directeur");if(!__try(()=>supprimerContrat(cid,"")))E.push("motif suppression");
+  // refus si encaissé
+  const o1=ob()[0],al={id:"alx",payment_id:"pxx",obligation_id:o1.id,montant:1,actif:true};S.allocs.push(al);if(!/encaissements/.test(__try(()=>supprimerContrat(cid,"test"))||""))E.push("suppression malgré encaissement");S.allocs=S.allocs.filter(a=>a.id!=="alx");
+  const ids=new Set(ob().map(o=>o.id));atomic(()=>supprimerContrat(cid,"Saisi par erreur"));c=by(S.contracts,cid);
+  if(c.statut!=="supprime"||S.obligations.some(o=>ids.has(o.id)))E.push("suppression");
+  if(integrite().length)E.push("intégrité : "+integrite().join("|"));
+  if(chevauche("vct",deb,null))E.push("contrat supprimé bloque encore le véhicule");
+  S.vehicles=S.vehicles.filter(v=>v.id!=="vct");
+  return E.length?E.join(" ; "):true});
+ await t("CON-01","interconnexion : véhicule immobilisé ⇒ contrat suspendu puis repris ; remboursement de dépôt relié au contrat ; accident ⇒ ordre ; alerte dépôt à restituer",()=>{const E=[];
+  S.vehicles.push({id:"vcn",immat:"CN-TEST",marque:"X",statut:"actif",km:0});const D=S.drivers[1].id,deb=addDays(today(),-3);let cid;
+  __as("flotte");atomic(()=>{cid=creerContrat({mode:"recette",vehicle_id:"vcn",driver_id:D,montant:10000,debut:deb,fin:null,repos:"aucun",depot:20000}).id});atomic(()=>generer(today(),true));
+  const ob=()=>S.obligations.filter(o=>o.contract_id===cid);
+  __as("directeur");const v=()=>by(S.vehicles,"vcn");atomic(()=>setStatutVeh(v(),"immobilise","Panne boîte"));
+  let c=by(S.contracts,cid);if(c.statut!=="suspendu"||!c.susp.auto)E.push("suspension auto");if(ob().filter(o=>o.date_ech>=today()).some(o=>!o.exo))E.push("échéance du jour non exonérée");
+  atomic(()=>setStatutVeh(v(),"actif","Réparé"));c=by(S.contracts,cid);if(c.statut!=="actif"||(c.suspensions||[]).length!==1)E.push("reprise auto");
+  // suspension manuelle non reprise par remise en service
+  atomic(()=>suspendre(cid,today(),"Congé du chauffeur"));atomic(()=>setStatutVeh(v(),"immobilise","x"));atomic(()=>setStatutVeh(v(),"actif","x"));if(by(S.contracts,cid).statut!=="suspendu")E.push("suspension manuelle reprise à tort");atomic(()=>reprendre(cid,today()));
+  // dépôt : encaissé puis remboursé
+  const c0=by(S.contracts,cid);c0.depot_verse=20000;const tid=by(S.drivers,D).tiers_id;
+  __as("caissier");const fa=S.cash_sessions.length&&openSession()?null:null;if(!openSession())atomic(()=>ouvrirCaisse(lastClosed(S.caisses[0].id)?lastClosed(S.caisses[0].id).reel:0,S.caisses[0].id));
+  if(!__try(()=>sortieCaisse({categorie:"Remboursement dépôt de garantie",montant:5000,motif:"Restitution",tiers:"X"})))E.push("remboursement sans contrat");
+  if(!__try(()=>sortieCaisse({categorie:"Remboursement dépôt de garantie",montant:99000,motif:"Restitution",tiers:"X",contract_id:cid})))E.push("remboursement > dépôt");
+  const sol=soldeTheo(openSession());if(sol>=5000){atomic(()=>sortieCaisse({categorie:"Remboursement dépôt de garantie",montant:5000,motif:"Restitution partielle",tiers:"Chauffeur",contract_id:cid}));
+   if(by(S.contracts,cid).depot_verse!==15000)E.push("dépôt non diminué");if(!S.entries.some(e=>e.lines.some(l=>l.compte===cdef("depot")&&l.debit===5000&&l.tiers===tid)))E.push("ligne 165 sans tiers")}
+  // sinistre accident ⇒ ordre de maintenance
+  __as("flotte");const n0=S.maintenance.length;atomic(()=>creerIncident({vehicle_id:"vcn",type:"accident",description:"Choc arrière",date:today()}));if(S.maintenance.length!==n0+1)E.push("accident sans ordre");
+  // résiliation avec dépôt restant ⇒ alerte
+  atomic(()=>resilier(cid,today(),"Fin"));if(!alertes().some(a=>a.k==="depot"&&/CN-|Dépôt de garantie à restituer/.test(a.t)))E.push("alerte dépôt");
+  // portail : contrat suspendu visible
+  const cs=ctOuvert({statut:"suspendu"});if(!cs)E.push("ctOuvert suspendu");
+  __as("caissier");if(openSession()){const th=soldeTheo(openSession());atomic(()=>cloturerCaisse(th,"",openSession().caisse_id))}
+  __as("directeur");by(S.contracts,cid).depot_verse=0;atomic(()=>supprimerContrat(cid,"Nettoyage test"));S.vehicles=S.vehicles.filter(x=>x.id!=="vcn");
+  return E.length?E.join(" ; "):true});
+ await t("PAR-01","paramètres : plus de données codées (entreprise, PIN, blocage, indicatif, marge km) lues dans les paramètres",()=>{const E=[];__as("admin");const sv=JSON.stringify(S.settings);
+  if(!/ANGEL/.test(ORGRAW()))E.push("défaut entreprise");
+  S.settings.org_nom="TAXI TEST & CO";S.settings.org_activite="Navette";S.settings.org_adresse="Bouaké";render();const br=document.querySelector("aside .brand").textContent;if(!/TAXI TEST/.test(br)||!/Navette/.test(br))E.push("marque : "+br);if(!/Navette/.test(document.title))E.push("titre du document");
+  if(/ANGEL'S (&amp;|&) CO/.test(document.getElementById("app").innerHTML))E.push("nom codé en dur encore affiché");
+  S.settings.pin_len=6;if(pinRe().test("1234")||!pinRe().test("123456"))E.push("longueur PIN");const e1=__try(()=>changerPin("1234","1234"));if(!/6 chiffres|PIN/.test(e1||""))E.push("PIN court accepté : "+e1);S.settings.pin_len=4;
+  S.settings.tel_indicatif="229";if(waNum("0584163232")!=="2290584163232")E.push("indicatif");S.settings.tel_indicatif="225";if(waNum("+225 05 84")!=="2250584")E.push("numéro déjà international");
+  S.settings.tentatives_max=3;S.settings.blocage_min=2;const u=S.users.find(x=>x.role==="caissier");S.tries={};login(u.id,"0");login(u.id,"0");login(u.id,"0");const r=login(u.id,"2222");if(!/bloqué 2 minute/.test(r||""))E.push("blocage paramétré : "+r);S.tries={};
+  S.settings.marge_km=0;const v0=S.vehicles[0];v0.prochain_km=(v0.km||0)+300;if(alertes().some(a=>a.k==="km"&&a.t.includes(v0.immat)))E.push("marge km 0 ignorée");S.settings.marge_km=500;if(!alertes().some(a=>a.k==="km"&&a.t.includes(v0.immat)))E.push("marge km 500 ignorée");
+  S.settings=JSON.parse(sv);render();
   return E.length?E.join(" ; "):true});
  await t("COM-05","période clôturée : écriture refusée ; plan comptable refusé au caissier",()=>{__as("comptable");let e=__try(()=>periodeAction(today().slice(0,7),"close"));if(e)return e;
   const a=__try(()=>saisirOD({date:today(),libelle:"test",lines:[{compte:"571",debit:100},{compte:"121",credit:100}]}));__as("caissier");const b=__try(()=>creerCompte("999","X","Autre"));

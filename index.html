@@ -63,13 +63,12 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
   <div class="kp"><div><b id="t-ot">—</b><span>Encaissé du jour</span></div><div><b id="t-v">—</b><span>Taxis</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <a class="card" style="--c:var(--g3)" href="avicosuite.html" id="c-agro">
-  <div class="ic">🐔</div><h2>Angel's Agro</h2><p>ERP avicole complet : lots, ponte, conditionnement, stock, ventes, achats, GMAO, finance et rapports. Données en ligne (Supabase).</p>
+ <a class="card" style="--c:var(--g3)" href="agro.html" id="c-agro">
+  <div class="ic">🐔</div><h2>Angel's Agro</h2><p>Élevage avicole : lots, ponte, conditionnement, nutrition, prophylaxie, stock, ventes, achats, comptabilité SYSCOHADA et rapports.</p>
   <span class="badge">Actif</span>
-  <div class="kp"><div><b>En ligne</b><span>Données Supabase</span></div></div><span hidden><b id="a-v"></b><b id="a-l"></b><b id="a-s"></b></span>
+  <div class="kp"><div><b id="a-v">—</b><span>Sujets vivants</span></div><div><b id="a-l">—</b><span>Lots en cours</span></div><div><b id="a-s">—</b><span>Stocks bas</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <p class="sm" style="grid-column:1/-1;text-align:center;margin:0"><a href="agro.html" id="c-agro-local">Version locale hors ligne d'Angel's Agro</a> — les chiffres consolidés ci-dessous viennent de cette version.</p>
 </div>
 <h3>Socle commun du groupe (à mutualiser)</h3>
 <div class="mod">
@@ -115,7 +114,7 @@ const AUJ=new Date().toISOString().slice(0,10),MOIS=AUJ.slice(0,7),jmoins=n=>new
 const F=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const lignes=(G,cmp)=>(G.entries||[]).flatMap(e=>(e.lignes||e.lines||[]).filter(l=>cmp(l)).map(l=>({e,l})));
 function resCompta(G){const dm=e=>String(e.date).startsWith(MOIS);let p=0,c=0;(G.entries||[]).filter(dm).forEach(e=>(e.lignes||e.lines||[]).forEach(l=>{if(l.compte[0]==="7")p+=(l.credit||0)-(l.debit||0);if(l.compte[0]==="6")c+=(l.debit||0)-(l.credit||0)}));return p-c}
-function treso(G){return som(lignes(G,l=>l.compte==="571"||l.compte==="521"),x=>(x.l.debit||0)-(x.l.credit||0))}
+function treso(G){const cc=(G.settings&&G.settings.comptes)||{},set=new Set(["571","521"]);["treso_caisse","treso_banque","treso_mobile"].forEach(k=>{if(cc[k])set.add(cc[k])});(G.caisses||[]).forEach(c=>{if(c.compte)set.add(c.compte)});return som(lignes(G,l=>set.has(l.compte)),x=>(x.l.debit||0)-(x.l.credit||0))}
 function distribution(G){
  if(!G||!G.commandes)return null;
  const paye=c=>som((G.fonds||[]).filter(f=>f.commande_id===c.id&&(f.type==="acompte"||f.type==="encaissement")),f=>f.montant),livrees=G.commandes.filter(c=>c.statut==="livree");
@@ -130,10 +129,10 @@ function distribution(G){
 function transport(G){
  if(!G||!G.obligations)return null;
  const am={};(G.allocs||[]).forEach(a=>{if(a.actif)am[a.obligation_id]=(am[a.obligation_id]||0)+a.montant});const solde=o=>o.exo?0:o.montant-(am[o.id]||0);
- const ret={};(G.obligations||[]).forEach(o=>{if(solde(o)>0&&o.date_ech<jmoins(3))ret[o.driver_id]=1});
+ const ret={};(G.obligations||[]).forEach(o=>{if(solde(o)>0&&o.date_ech<jmoins((G.settings||{}).retard_alerte_jours??3))ret[o.driver_id]=1});
  const dl=n=>Math.round((new Date(n+"T00:00:00Z")-new Date(AUJ+"T00:00:00Z"))/864e5);let docs=0;
- (G.vehicles||[]).filter(v=>v.statut!=="sorti").forEach(v=>["assurance_fin","visite_fin","carte_fin"].forEach(k=>{if(v[k]&&dl(v[k])<=30)docs++}));(G.drivers||[]).forEach(d=>{if(d.permis_fin&&dl(d.permis_fin)<=30)docs++});
- return{tres:treso(G),ca:som(lignes(G,l=>l.compte==="706").filter(x=>String(x.e.date).startsWith(MOIS)),x=>(x.l.credit||0)-(x.l.debit||0)),
+ (G.vehicles||[]).filter(v=>v.statut!=="sorti").forEach(v=>["assurance_fin","visite_fin","carte_fin"].forEach(k=>{if(v[k]&&dl(v[k])<=((G.settings||{}).delai_alerte??30))docs++}));(G.drivers||[]).forEach(d=>{if(d.permis_fin&&dl(d.permis_fin)<=((G.settings||{}).delai_alerte??30))docs++});
+ return{tres:treso(G),ca:som(lignes(G,l=>l.compte===((G.settings&&G.settings.comptes&&G.settings.comptes.produit)||"706")).filter(x=>String(x.e.date).startsWith(MOIS)),x=>(x.l.credit||0)-(x.l.debit||0)),
   enc:som((G.payments||[]).filter(p=>p.statut==="confirme"&&p.type!=="depot"&&String(p.date_valeur).startsWith(MOIS)),p=>p.montant),cre:som(G.obligations,solde),res:resCompta(G),
   alt:docs+Object.keys(ret).length,act:(G.vehicles||[]).filter(v=>v.statut==="actif").length+"/"+(G.vehicles||[]).filter(v=>v.statut!=="sorti").length+" taxis en service · "+Object.keys(ret).length+" chauffeur(s) en retard"};
 }
