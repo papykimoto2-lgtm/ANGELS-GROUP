@@ -41,6 +41,10 @@ h3{margin:26px 0 10px;font-size:15px}
 .big div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.big b{display:block;font-size:20px}.big span{font-size:12px;color:var(--mu)}
 .tw{overflow:auto;border:1px solid var(--bd);border-radius:12px;background:var(--card)}table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--mu)}tr.t td{font-weight:800}
 .nd{color:var(--mu);font-weight:400}.er{color:#c62828;font-weight:700}.ok{color:var(--ok);font-weight:700}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tab{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;min-height:40px;cursor:pointer}.tab.on{background:var(--c);color:#fff;border-color:var(--c)}.pill{font-style:normal;background:#c62828;color:#fff;border-radius:99px;padding:0 7px;font-size:11px;margin-left:4px}
+.two{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.pan{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.pan h4{margin:0 0 10px;font-size:13px;color:var(--mu)}
+.bars{display:flex;align-items:flex-end;gap:8px;height:150px}.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mu)}.bar i{display:block;width:100%;min-height:2px;border-radius:5px 5px 0 0}.bar em{font-style:normal;margin-top:4px}.bar small{font-size:10px}
+.det{list-style:none;margin:0;padding:0}.det li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}.det li:last-child{border:0}
 .note{font-size:12px;color:var(--mu);margin:8px 0 0}
 footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </style>
@@ -49,6 +53,8 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <header><div class="w top"><div><h1>🅰️ ANGEL'S GROUP — Hub</h1><p>Pilotage unique des filiales · <span id="date"></span></p></div></div></header>
 <main><div class="w">
 <section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="tw"><table id="tcons"></table></div><p class="note" id="ncons"></p></section>
+<h2 style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
+<div class="tabs" id="tabs"></div><section id="tdb"></section>
 <h3 style="margin-top:22px">Filiales</h3>
 <div class="cards">
  <a class="card" style="--c:var(--g1)" href="distribution.html" id="c-dist">
@@ -111,19 +117,23 @@ if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&navigator.standalone!==true){$
 const lire=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
 const som=(a,f)=>(a||[]).reduce((s,x)=>s+(+f(x)||0),0);
 const AUJ=new Date().toISOString().slice(0,10),MOIS=AUJ.slice(0,7),jmoins=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
+const M6=(()=>{const a=[],d=new Date();d.setDate(1);for(let i=5;i>=0;i--){const x=new Date(d.getFullYear(),d.getMonth()-i,1);a.push(x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0"))}return a})();
+const mens=(items,dt,mt)=>M6.map(m=>som(items.filter(x=>String(dt(x)).startsWith(m)),mt));
 const F=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const lignes=(G,cmp)=>(G.entries||[]).flatMap(e=>(e.lignes||e.lines||[]).filter(l=>cmp(l)).map(l=>({e,l})));
-function resCompta(G){const dm=e=>String(e.date).startsWith(MOIS);let p=0,c=0;(G.entries||[]).filter(dm).forEach(e=>(e.lignes||e.lines||[]).forEach(l=>{if(l.compte[0]==="7")p+=(l.credit||0)-(l.debit||0);if(l.compte[0]==="6")c+=(l.debit||0)-(l.credit||0)}));return p-c}
+function resCompta(G){const dm=e=>String(e.date).startsWith(MOIS)&&e.journal!=="CLO"&&!(e.source&&e.source.type==="cloture");let p=0,c=0;(G.entries||[]).filter(dm).forEach(e=>(e.lignes||e.lines||[]).forEach(l=>{if(l.compte[0]==="7")p+=(l.credit||0)-(l.debit||0);if(l.compte[0]==="6")c+=(l.debit||0)-(l.credit||0)}));return p-c}
 function treso(G){const cc=(G.settings&&G.settings.comptes)||{},set=new Set(["571","521"]);["treso_caisse","treso_banque","treso_mobile"].forEach(k=>{if(cc[k])set.add(cc[k])});(G.caisses||[]).forEach(c=>{if(c.compte)set.add(c.compte)});return som(lignes(G,l=>set.has(l.compte)),x=>(x.l.debit||0)-(x.l.credit||0))}
 function distribution(G){
  if(!G||!G.commandes)return null;
  const paye=c=>som((G.fonds||[]).filter(f=>f.commande_id===c.id&&(f.type==="acompte"||f.type==="encaissement")),f=>f.montant),livrees=G.commandes.filter(c=>c.statut==="livree");
  const tres=som(G.caisses||[],c=>{const ss=(G.caisse_sessions||[]).filter(s=>s.caisse_id===c.id).sort((a,b)=>String(b.ouverte_le).localeCompare(String(a.ouverte_le))),o=ss.find(s=>s.statut==="ouverte");
   if(o)return o.fond_ouverture+som((G.caisse_mvts||[]).filter(m=>m.session_id===o.id&&m.statut==="valide"),m=>m.type==="entree"?m.montant:-m.montant);const l=ss.find(s=>s.statut==="cloturee");return l?l.fond_cloture_reel||0:0});
+ const vv=(G.versements||[]).filter(v=>v.statut==="declare").length,ii=(G.incidents||[]).filter(i=>i.statut==="ouvert").length,ee=(G.caisse_sessions||[]).filter(s=>s.statut==="cloturee"&&s.ecart&&!s.ecart_regularise).length;
  const ouv=G.commandes.filter(c=>!["livree","annulee","echouee","brouillon","retour_recu"].includes(c.statut)).length;
  return{tres,ca:som(livrees.filter(c=>String(c.date).startsWith(MOIS)),c=>c.total),enc:som((G.fonds||[]).filter(f=>(f.type==="acompte"||f.type==="encaissement")&&String(f.ts).startsWith(MOIS)),f=>f.montant),
   cre:som(livrees,c=>Math.max(0,c.total-paye(c))),res:null,
-  alt:(G.versements||[]).filter(v=>v.statut==="declare").length+(G.incidents||[]).filter(i=>i.statut==="ouvert").length+(G.caisse_sessions||[]).filter(s=>s.statut==="cloturee"&&s.ecart&&!s.ecart_regularise).length,
+  alt:vv+ii+ee,mens:mens(livrees,c=>c.date,c=>c.total),
+  det:[["Commandes en cours",ouv],["Livrées (total)",livrees.length],["Livreurs",(G.livreurs||[]).length],["Caisses",(G.caisses||[]).length],["Versements à valider",vv,1],["Incidents ouverts",ii,1],["Écarts de caisse à régulariser",ee,1]],
   act:ouv+" commande(s) en cours · "+livrees.length+" livrée(s)"};
 }
 function transport(G){
@@ -134,7 +144,10 @@ function transport(G){
  (G.vehicles||[]).filter(v=>v.statut!=="sorti").forEach(v=>["assurance_fin","visite_fin","carte_fin"].forEach(k=>{if(v[k]&&dl(v[k])<=((G.settings||{}).delai_alerte??30))docs++}));(G.drivers||[]).forEach(d=>{if(d.permis_fin&&dl(d.permis_fin)<=((G.settings||{}).delai_alerte??30))docs++});
  return{tres:treso(G),ca:som(lignes(G,l=>l.compte===((G.settings&&G.settings.comptes&&G.settings.comptes.produit)||"706")).filter(x=>String(x.e.date).startsWith(MOIS)),x=>(x.l.credit||0)-(x.l.debit||0)),
   enc:som((G.payments||[]).filter(p=>p.statut==="confirme"&&p.type!=="depot"&&String(p.date_valeur).startsWith(MOIS)),p=>p.montant),cre:som(G.obligations,solde),res:resCompta(G),
-  alt:docs+Object.keys(ret).length,act:(G.vehicles||[]).filter(v=>v.statut==="actif").length+"/"+(G.vehicles||[]).filter(v=>v.statut!=="sorti").length+" taxis en service · "+Object.keys(ret).length+" chauffeur(s) en retard"};
+  alt:docs+Object.keys(ret).length,
+  mens:mens(lignes(G,l=>l.compte===((G.settings&&G.settings.comptes&&G.settings.comptes.produit)||"706")),x=>x.e.date,x=>(x.l.credit||0)-(x.l.debit||0)),
+  det:[["Taxis en service",(G.vehicles||[]).filter(v=>v.statut==="actif").length+" / "+(G.vehicles||[]).filter(v=>v.statut!=="sorti").length],["Chauffeurs",(G.drivers||[]).length],["Encaissé du jour",F(som((G.payments||[]).filter(p=>p.statut==="confirme"&&p.type!=="depot"&&p.date_valeur===AUJ),p=>p.montant))],["Chauffeurs en retard",Object.keys(ret).length,1],["Documents à renouveler",docs,1]],
+  act:(G.vehicles||[]).filter(v=>v.statut==="actif").length+"/"+(G.vehicles||[]).filter(v=>v.statut!=="sorti").length+" taxis en service · "+Object.keys(ret).length+" chauffeur(s) en retard"};
 }
 function agro(G){
  if(!G||!G.lots)return null;
@@ -146,7 +159,9 @@ function agro(G){
  const crean=V.filter(v=>sold(v)>0&&v.date<jmoins((G.settings||{}).delai_creance||30)).length;
  const en=(G.lots||[]).filter(l=>l.statut==="en_cours"),viv=l=>Math.max(0,l.initial-som((G.suivis||[]).filter(x=>x.lot_id===l.id),x=>x.morts)-som((G.sorties||[]).filter(s=>s.lot_id===l.id&&!s.annule),s=>s.tetes));
  return{tres:treso(G),ca:som(V.filter(v=>String(v.date).startsWith(MOIS)),v=>v.total),enc:som((G.encaiss||[]).filter(e=>e.statut==="valide"&&String(e.date).startsWith(MOIS)),e=>e.montant),cre:som(V,sold),res:resCompta(G),
-  alt:stockBas+soins+crean,act:som(en,viv).toLocaleString("fr-FR")+" sujets vivants · "+en.length+" lot(s) en cours"};
+  alt:stockBas+soins+crean,mens:mens(V,v=>v.date,v=>v.total),
+  det:[["Sujets vivants",som(en,viv).toLocaleString("fr-FR")],["Lots en cours",en.length],["Stocks bas",stockBas,1],["Soins en retard",soins,1],["Créances en retard",crean,1]],
+  act:som(en,viv).toLocaleString("fr-FR")+" sujets vivants · "+en.length+" lot(s) en cours"};
 }
 function consolide(){
  const D=distribution(lire("angels_erp_v1")),T=transport(lire("angels_transport_v3")),A=agro(lire("angels_agro_v1")),X=[["Distributions",D],["Transport",T],["Agro",A]];
@@ -157,7 +172,22 @@ function consolide(){
   <tr><td>Résultat comptable du mois</td>${X.map(x=>`<td>${!x[1]?'<span class="nd">non ouvert</span>':x[1].res==null?'<span class="nd">dans son module</span>':'<span class="'+(x[1].res>=0?"ok":"er")+'">'+F(x[1].res)+'</span>'}</td>`).join("")}<td><b>${F(som(X.filter(x=>x[1]&&x[1].res!=null),x=>x[1].res))}</b></td></tr>
   <tr><td>Activité</td>${X.map(x=>`<td class="nd act">${x[1]?x[1].act:"—"}</td>`).join("")}<td></td></tr>
   <tr><td>Alertes à traiter</td>${X.map(x=>`<td>${x[1]?'<span class="'+(x[1].alt?"er":"ok")+'">'+x[1].alt+'</span>':'<span class="nd">—</span>'}</td>`).join("")}<td><b>${tot("alt")}</b></td></tr></tbody>`;
+ tdb(X);
  $("ncons").textContent="Chiffres lus sur cet appareil (données locales de chaque application). « Non ouvert » : l'application n'a pas encore été utilisée ici. Résultat de Distributions : voir son module Comptabilité.";
+}
+/* ---------- Tableau de bord par module ---------- */
+const MODS=[{id:"dist",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)"},{id:"trans",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)"},{id:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)"}];
+let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||"dist"}catch(e){return"dist"}})();
+function tdb(X){
+ const i=Math.max(0,MODS.findIndex(m=>m.id===MOD)),m=MODS[i],d=X[i][1];
+ $("tabs").innerHTML=MODS.map((x,k)=>`<button class="tab${k===i?" on":""}" data-m="${x.id}" style="--c:${x.c}">${x.ic} ${x.nom}${X[k][1]&&X[k][1].alt?` <i class="pill">${X[k][1].alt}</i>`:""}</button>`).join("");
+ $("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{MOD=b.dataset.m;try{sessionStorage.setItem("hub_mod",MOD)}catch(e){}tdb(X)});
+ if(!d){$("tdb").innerHTML=`<p class="note">${m.nom} : application pas encore utilisée sur cet appareil. <a href="${m.href}">Ouvrir l'ERP</a></p>`;return}
+ const mx=Math.max(1,...d.mens.map(Math.abs)),tile=(l,v,w)=>`<div><b${w?' class="er"':""}>${v}</b><span>${l}</span></div>`;
+ const bars=d.mens.map((v,k)=>`<div class="bar"><i style="height:${Math.round(Math.abs(v)/mx*100)}%;background:${m.c}" title="${F(v)}"></i><em>${M6[k].slice(5)}/${M6[k].slice(2,4)}</em><small>${v?Math.round(v/1000).toLocaleString("fr-FR")+" k":"—"}</small></div>`).join("");
+ $("tdb").innerHTML=`<div class="big" style="--c:${m.c}">${tile("Trésorerie",F(d.tres))}${tile("Chiffre d'affaires du mois",F(d.ca))}${tile("Encaissé du mois",F(d.enc))}${tile("Créances à recouvrer",F(d.cre))}${tile("Résultat du mois",d.res==null?"voir module":F(d.res),d.res!=null&&d.res<0)}${tile("Alertes à traiter",d.alt,d.alt>0)}</div>
+ <div class="two"><div class="pan"><h4>Chiffre d'affaires — 6 derniers mois</h4><div class="bars">${bars}</div></div>
+ <div class="pan"><h4>Indicateurs</h4><ul class="det">${d.det.map(([l,v,w])=>`<li><span>${l}</span><b class="${w&&+v>0?"er":""}">${v}</b></li>`).join("")}</ul><a class="btn" style="--c:${m.c};margin-top:10px" href="${m.href}">Ouvrir ${m.nom}</a></div></div>`;
 }
 $("maj").onclick=consolide;window.addEventListener("storage",consolide);document.addEventListener("visibilitychange",()=>{if(!document.hidden)consolide()});consolide();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
