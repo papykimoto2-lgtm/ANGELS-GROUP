@@ -222,3 +222,9 @@ Mise à niveau selon le skill `compta-syscohada-caisse` et le modèle ImmoSuite 
 - **Numérotation** par journal `JOURNAL-AAAA-NNNN`, colonne « Origine » (auto / manuelle) et filtre.
 - **Contrôles de complétude** : échéances, encaissements, dépenses et bons de caisse sans écriture ; comptes par défaut manquants.
 - Limites : plan de comptes, TVA et durées à faire valider par un expert-comptable ; pas de cession d'immobilisation ni de TVA sur encaissement.
+
+### Livraison — comptabilité automatique à l'image d'ImmoSuite
+- **Comptes par défaut** (Comptabilité → 🧩 Comptes par défaut) : 31 usages paramétrables, plus aucun compte codé en dur dans les écritures automatiques. Code invalide refusé, code inexistant créé au plan, compte déjà mouvementé non modifiable (les écritures étant recalculées, un changement réécrirait l'historique : reclasser par écriture).
+- **Immobilisations motos** : valeur d'acquisition, mise en service et durée dans la fiche moto → écritures déduites (acquisition 245 / 481, dotations mensuelles 681 / 2845). Valeur et date verrouillées une fois comptabilisées.
+- **TVA** : liquidation mensuelle (4431 / 4452 → 4441 ou 4449), état de TVA avec statut de liquidation, synthèse tenant compte de 4441 / 4449.
+- **Contrôle d'intégrité** : comptes par défaut présents et inscrits au plan. Les écritures déjà déduites restent identiques tant que les comptes par défaut ne sont pas changés.

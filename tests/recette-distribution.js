@@ -71,6 +71,23 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await p.setInputFiles("#p_imp",{name:"sauvegarde.json",mimeType:"application/json",buffer:Buffer.from(exp)});await p.waitForTimeout(400);
  const n2=await p.evaluate(()=>({n:S.commandes.length,copie:!!localStorage.getItem(KEY+"_avant_import"),aud:S.audit.some(a=>/Import de données/.test(a.action))}));
  const r16=n2.n===n0&&n2.copie&&n2.aud;console.log(r16?"PASS":"FAIL","DIS-16 import valide : données restaurées, copie de sécurité conservée, import tracé",r16?"":JSON.stringify(n2)+" attendu "+n0);r16?ok++:ko++;
+ await t("DIS-18","compta automatique : comptes par défaut (invalide, mouvementé, auto-création), immobilisation + amortissements motos, TVA et liquidation",()=>{const E=[];__as("admin");const C=cpt();
+  if(!cptDefSave({client:"4"},0,5))E.push("code invalide accepté");
+  const used=cdd("client");if(!/mouvementé/.test(cptDefSave({client:"412"},0,5)||""))E.push("compte mouvementé modifiable");
+  if(cptDefSave({tva_credit:"44495"},0,5))E.push("changement libre refusé");if(!cptPlan().some(p=>p[0]==="44495")||cdd("tva_credit")!=="44495")E.push("auto-création");cptDefSave({tva_credit:"4449"},0,5);
+  if(C.cd.client!==used)E.push("client modifié");
+  const d0=new Date();d0.setMonth(d0.getMonth()-14);d0.setDate(1);const ds=ymd(d0);S.motos.push({id:"mtest",immat:"MOTO-TEST",modele:"X",km:0,prochain_km:1000,statut:"disponible",valeur_acq:1200000,date_service:ds,duree_amort:5});
+  const A=cptEcr().filter(e=>e.source_table==="motos");const am=A.filter(e=>e.id.indexOf("motos:amort:")===0);
+  if(A.length!==15||am.length!==14)E.push("écritures moto "+A.length+"/"+am.length);if(!am.every(e=>e.lignes.some(l=>l.compte===cdd("amort_cumul")&&l.sens==="C"&&l.montant===20000)))E.push("dotation 20000");
+  if(!A.find(e=>e.id==="motos:immo:mtest").lignes.some(l=>l.compte===cdd("immo")&&l.sens==="D"&&l.montant===1200000))E.push("acquisition");
+  if(!cptEcr().every(e=>e.lignes.reduce((a,l)=>a+(l.sens==="D"?l.montant:-l.montant),0)===0))E.push("équilibre");
+  const R=cptControles();if(R.some(r=>!r.ok&&/par défaut/.test(r.t)))E.push("contrôle comptes par défaut");
+  C.tva=18;const ev=cptDef(cptEcr()),mm=ev.filter(e=>e.lignes.some(l=>l.compte===cdd("tva_coll"))).map(e=>cptDte(e.date).slice(0,7))[0];
+  if(mm){const T=cptTvaMois(ev,mm);if(!(T.c>0))E.push("TVA facturée nulle");cptLiquiderTVA(mm);const T2=cptTvaMois(cptDef(cptEcr()),mm);if(!T2.liq||T2.c!==T.c)E.push("liquidation TVA");
+   const L=cptEcr().find(e=>e.tva_liq===mm);if(!L||L.lignes.reduce((a,l)=>a+(l.sens==="D"?l.montant:-l.montant),0)!==0)E.push("écriture liquidation");
+   C.manuelles=C.manuelles.filter(e=>e.tva_liq!==mm);C.tvaliq=C.tvaliq.filter(x=>x.mois!==mm)}
+  C.tva=0;S.motos=S.motos.filter(m=>m.id!=="mtest");
+  return E.length?E.join(" ; "):true});
  // ---- hors ligne (service worker, bandeau)
  await p.goto(base+"/distribution.html");await p.evaluate(()=>navigator.serviceWorker.ready);await p.waitForTimeout(400);await ctx.setOffline(true);
  let off="";try{await p.reload();await p.waitForTimeout(500);off=await p.evaluate(()=>(document.getElementById("pwaBar")||{}).textContent||"");const len=await p.evaluate(()=>document.body.innerText.length);if(len<50)off="page vide"}catch(e){off="rechargement impossible : "+e.message.slice(0,60)}
