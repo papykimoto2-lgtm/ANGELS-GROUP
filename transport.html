@@ -235,7 +235,8 @@ const soldeTiers=(tid,compte=cdef("client"))=>{let s=0;S.entries.forEach(e=>e.li
 const tiersDe=id=>by(S.tiers,id)||{};
 
 /* ---------- Contrats, affectations, échéances ---------- */
-const contractEnd=c=>c.statut==="resilie"?c.effet:(c.fin||"9999-12-31");
+const contractEnd=c=>c.statut==="supprime"?"0000-01-01":c.statut==="resilie"?c.effet:(c.fin||"9999-12-31");
+const suspendu=(c,d)=>!!((c.susp&&d>=c.susp.from)||(c.suspensions||[]).some(s=>d>=s.from&&d<s.to));
 const montantA=(c,d)=>{let m=c.versions[0].montant;for(const v of c.versions)if(v.from<=d)m=v.montant;return m};
 const chauffeurNom=id=>(by(S.drivers,id)||{}).nom||"—",vehImmat=id=>(by(S.vehicles,id)||{}).immat||"—";
 const contratActif=(vid,d=today())=>S.contracts.find(c=>c.vehicle_id===vid&&c.debut<=d&&contractEnd(c)>=d);
@@ -272,14 +273,60 @@ function ajusterOb(o,delta,motif){
  postEntry({journal:"VT",date:today(),libelle:"Régularisation tarif — "+motif,piece:"ECH-"+o.num,source:{type:"regul",id:o.id},lines:ventesLignes(tid,o,delta)});
 }
 function resilier(cid,effet,motif,internal){
- if(!internal)needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="actif")throw new Error("Contrat inactif.");
+ if(!internal)needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||!["actif","suspendu"].includes(c.statut))throw new Error("Contrat inactif.");
  if(!motif)throw new Error("Motif obligatoire.");if(effet<c.debut)throw new Error("Date d'effet antérieure au début.");
  if(!internal&&effet<today())need("contrats","a","Résiliation rétroactive : validation requise.");
- c.statut="resilie";c.effet=effet;c.motif_resil=motif;
+ c.statut="resilie";c.effet=effet;c.motif_resil=motif;c.susp=null;
  const am=allocMap();
  S.obligations.filter(o=>o.contract_id===cid&&o.date_ech>effet&&!o.exo&&!am[o.id]).forEach(o=>exonerer(o,"Résiliation "+c.numero,true));
  const as=S.assignments.find(a=>a.vehicle_id===c.vehicle_id&&a.driver_id===c.driver_id&&!a.fin);if(as)as.fin=effet;
  audit("Contrat résilié",c.numero+" effet "+effet);
+}
+const ctOuvert=c=>c&&["actif","suspendu"].includes(c.statut);
+function modifierContrat(cid,f){
+ needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!ctOuvert(c))throw new Error("Contrat inactif.");
+ const obs=S.obligations.filter(o=>o.contract_id===cid),am=allocMap(),fin=f.fin||null,repos=f.repos||c.repos,depot=+f.depot||0;
+ if(depot<(c.depot_verse||0))throw new Error("Dépôt inférieur au dépôt déjà versé ("+fcfa(c.depot_verse)+").");
+ if(!obs.length){ // aucune échéance : modification complète
+  const v=by(S.vehicles,f.vehicle_id||c.vehicle_id),d=by(S.drivers,f.driver_id||c.driver_id),debut=f.debut||c.debut,mode=f.mode||c.mode,montant=+f.montant;
+  if(!v||!d)throw new Error("Véhicule et chauffeur requis.");if(v.statut==="sorti")throw new Error("Véhicule sorti du parc.");if(!(montant>0))throw new Error("Montant invalide.");
+  if(fin&&fin<debut)throw new Error("Date de fin antérieure au début.");if(chevauche(v.id,debut,fin,cid))throw new Error("Un contrat couvre déjà ce véhicule sur la période : double obligation interdite.");
+  const i=S.assignments.findIndex(a=>a.vehicle_id===c.vehicle_id&&a.driver_id===c.driver_id&&!a.fin&&a.debut===c.debut);
+  if(v.id!==c.vehicle_id||d.id!==c.driver_id){if(i>=0)S.assignments.splice(i,1);creerAffectation(v.id,d.id,debut)}else if(i>=0)S.assignments[i].debut=debut;
+  Object.assign(c,{vehicle_id:v.id,driver_id:d.id,mode,montant,periodicite:mode==="recette"?"jour":(f.periodicite||c.periodicite||"mois"),debut,fin,repos,depot});delete c.gen;
+  c.versions=[{from:debut,montant,motif:"Modification (avant toute échéance)",par:ME.nom,at:now()}];
+ }else{ // échéances existantes : fin, repos et dépôt seulement (tarif : avenant ; mode : changement de mode)
+  if(fin){if(fin<c.debut)throw new Error("Date de fin antérieure au début.");const dp=obs.filter(o=>am[o.id]).map(o=>o.date_ech).sort().pop();
+   if(dp&&fin<dp)throw new Error("Fin antérieure à une échéance déjà encaissée ("+fd(dp)+").");if(fin<today())need("contrats","a","Fin rétroactive : validation requise.");
+   obs.filter(o=>o.date_ech>fin&&!o.exo).forEach(o=>exonerer(o,"Modification de la fin du contrat "+c.numero,true))}
+  Object.assign(c,{fin,repos,depot});
+ }
+ audit("Contrat modifié",c.numero);return c;
+}
+function suspendre(cid,from,motif){
+ needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="actif")throw new Error("Seul un contrat actif peut être suspendu.");
+ if(!String(motif||"").trim())throw new Error("Motif obligatoire.");if(from<c.debut)throw new Error("Date de suspension antérieure au début du contrat.");
+ if(from<today())need("contrats","a","Suspension rétroactive : validation requise.");
+ const am=allocMap();c.statut="suspendu";c.susp={from,motif:String(motif).trim(),par:ME.nom,at:now()};
+ S.obligations.filter(o=>o.contract_id===cid&&o.date_ech>=from&&!o.exo&&!am[o.id]).forEach(o=>exonerer(o,"Suspension "+c.numero,true));
+ audit("Contrat suspendu",c.numero+" dès "+from+" — "+motif);
+}
+function reprendre(cid,date){
+ needAny("contrats",["e","a"]);const c=by(S.contracts,cid);if(!c||c.statut!=="suspendu")throw new Error("Contrat non suspendu.");
+ if(date<c.susp.from)throw new Error("Date de reprise antérieure à la suspension.");
+ (c.suspensions=c.suspensions||[]).push({from:c.susp.from,to:date,motif:c.susp.motif,par:c.susp.par});c.susp=null;c.statut="actif";
+ audit("Contrat repris",c.numero+" le "+date);
+}
+function supprimerContrat(cid,motif){
+ need("contrats","a");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const c=by(S.contracts,cid);if(!c||c.statut==="supprime")throw new Error("Contrat introuvable.");
+ const obs=S.obligations.filter(o=>o.contract_id===cid),ids=new Set(obs.map(o=>o.id));
+ if(S.allocs.some(a=>ids.has(a.obligation_id)))throw new Error("Des encaissements (même annulés) sont liés à ce contrat : le résilier plutôt que le supprimer.");
+ if((c.depot_verse||0)>0)throw new Error("Un dépôt de garantie a été versé : le rembourser puis résilier le contrat.");
+ if(S.payments.some(p=>p.contract_id===cid&&p.statut==="a_verifier"))throw new Error("Un paiement à vérifier existe sur ce contrat.");
+ S.entries.filter(e=>e.lines.some(l=>l.ob&&ids.has(l.ob)&&!l.ext)).forEach(e=>extourner(e,"Suppression du contrat "+c.numero+" : "+motif,l=>l.ob&&ids.has(l.ob)));
+ S.obligations=S.obligations.filter(o=>!ids.has(o.id));
+ if(!S.contracts.some(x=>x.id!==cid&&x.vehicle_id===c.vehicle_id&&x.driver_id===c.driver_id&&ctOuvert(x))){const i=S.assignments.findIndex(a=>a.vehicle_id===c.vehicle_id&&a.driver_id===c.driver_id&&!a.fin&&a.debut===c.debut);if(i>=0)S.assignments.splice(i,1)}
+ c.statut="supprime";c.motif_suppr=String(motif).trim();c.supprime_par=ME.nom;c.supprime_le=now();c.susp=null;audit("Contrat supprimé",c.numero+" — "+motif);
 }
 function changerMode(cid,effet,mode,montant,periodicite){
  need("contrats","c");const c=by(S.contracts,cid);if(!c||c.statut!=="actif")throw new Error("Contrat inactif.");
@@ -302,10 +349,12 @@ function generer(upTo,sys){
  if(!sys)need("planning","c");
  const out={n:0,skip:0},byDate={};
  S.contracts.forEach(c=>{
+  if(c.statut==="supprime")return;
   const end=contractEnd(c),stop=end<upTo?end:upTo;if(stop<c.debut)return;
   const have=new Set(S.obligations.filter(o=>o.contract_id===c.id).map(o=>o.date_ech)),dates=[];
   if(c.mode==="recette"){for(let d=c.gen?addDays(c.gen,1):c.debut;d<=stop;d=addDays(d,1)){if(c.repos==="dimanche"&&new Date(d+"T00:00:00Z").getUTCDay()===0)continue;dates.push(d)}}
   else for(let k=0;;k++){const d=c.periodicite==="mois"?addMonths(c.debut,k):addDays(c.debut,k*(c.periodicite==="semaine"?7:1));if(d>stop)break;dates.push(d)}
+  dates.splice(0,dates.length,...dates.filter(d=>!suspendu(c,d)));
   let skipped=false;
   dates.forEach(d=>{
    if(have.has(d))return;
@@ -927,14 +976,23 @@ A["chf.fiche"]=id=>{
 V.affectations=()=>head("Affectations",can("vehicules","e")?`<button class="btn" data-a="aff.add">+ Affectation</button>`:"")+tbl(["Véhicule","Chauffeur","Début","Fin",""],S.assignments.slice().reverse().map(a=>tr([esc(vehImmat(a.vehicle_id)),esc(chauffeurNom(a.driver_id)),fd(a.debut),a.fin?fd(a.fin):badge("En cours","ok"),!a.fin&&can("vehicules","e")?btn("aff.end",a.id,"Terminer","ghost"):""])));
 A["aff.add"]=()=>form("Nouvelle affectation",[{k:"v",l:"Véhicule",t:"select",o:vehOpts},{k:"d",l:"Chauffeur",t:"select",o:drvOpts},{k:"debut",l:"Début",t:"date",req:1}],{debut:today()},o=>{need("vehicules","e");creerAffectation(o.v,o.d,o.debut);audit("Affectation",vehImmat(o.v)+" → "+chauffeurNom(o.d))});
 A["aff.end"]=id=>form("Terminer l'affectation",[{k:"fin",l:"Date de fin",t:"date",req:1}],{fin:today()},o=>{need("vehicules","e");const a=by(S.assignments,id);if(contratActif(a.vehicle_id,o.fin)&&S.contracts.some(c=>c.vehicle_id===a.vehicle_id&&c.driver_id===a.driver_id&&c.statut==="actif"))throw new Error("Résilier d'abord le contrat actif.");a.fin=o.fin;audit("Affectation terminée",vehImmat(a.vehicle_id))});
-V.contrats=()=>head("Contrats d'exploitation",can("contrats","c")?`<button class="btn" data-a="ct.add">+ Contrat</button>`:"")+
- tbl(["N°","Véhicule","Chauffeur","Mode","Montant","Périodicité","Début","Fin / effet","Dépôt","Statut",""],S.contracts.slice().reverse().map(c=>tr([esc(c.numero),esc(vehImmat(c.vehicle_id)),esc(chauffeurNom(c.driver_id)),esc(c.mode),fcfa(c.montant),esc(c.periodicite),fd(c.debut),fd(c.statut==="resilie"?c.effet:c.fin),fcfa(c.depot_verse)+" / "+fcfa(c.depot),badge(c.statut,c.statut==="actif"?"ok":"mu"),
-  `<div class="flex">${btn("ct.hist",c.id,"Versions","ghost")}${c.statut==="actif"&&(can("contrats","e")||can("contrats","a"))?btn("ct.av",c.id,"Avenant","ghost")+btn("ct.res",c.id,"Résilier","er"):""}${c.statut==="actif"&&can("contrats","c")?btn("ct.mode",c.id,"Changer de mode","ghost"):""}</div>`])));
+V.contrats=()=>{const f=UI.f.ct||(UI.f.ct={s:""}),ST={actif:["actif","ok"],suspendu:["suspendu","wa"],resilie:["résilié","mu"],supprime:["supprimé","er"]};
+ return head("Contrats d'exploitation",`<select data-f="ct:s" style="width:auto">${opt([["tous","Tous (dont supprimés)"]],f.s,"Actifs, suspendus et clos")}</select>${can("contrats","c")?`<button class="btn" data-a="ct.add">+ Contrat</button>`:""}`)+
+ tbl(["N°","Véhicule","Chauffeur","Mode","Montant","Périodicité","Début","Fin / effet","Dépôt","Statut",""],S.contracts.filter(c=>f.s==="tous"||c.statut!=="supprime").slice().reverse().map(c=>{const st=ST[c.statut]||[c.statut,"mu"],ed=can("contrats","e")||can("contrats","a"),ouv=ctOuvert(c);
+  return tr([esc(c.numero),esc(vehImmat(c.vehicle_id)),esc(chauffeurNom(c.driver_id)),esc(c.mode),fcfa(c.montant),esc(c.periodicite),fd(c.debut),fd(c.statut==="resilie"?c.effet:c.fin),fcfa(c.depot_verse)+" / "+fcfa(c.depot),badge(st[0],st[1])+(c.susp?`<br><span class="sm mu">depuis le ${fd(c.susp.from)} — ${esc(c.susp.motif)}</span>`:"")+(c.motif_suppr?`<br><span class="sm mu">${esc(c.motif_suppr)}</span>`:""),
+  `<div class="flex">${btn("ct.hist",c.id,"Versions","ghost")}${ouv&&ed?btn("ct.edit",c.id,"✏️ Modifier","ghost"):""}${c.statut==="actif"&&ed?btn("ct.av",c.id,"Avenant","ghost")+btn("ct.susp",c.id,"⏸ Suspendre","ghost"):""}${c.statut==="suspendu"&&ed?btn("ct.rep",c.id,"▶ Reprendre","ok"):""}${ouv&&ed?btn("ct.res",c.id,"Résilier","er"):""}${c.statut==="actif"&&can("contrats","c")?btn("ct.mode",c.id,"Changer de mode","ghost"):""}${c.statut!=="supprime"&&can("contrats","a")?btn("ct.del",c.id,"🗑 Supprimer","er"):""}</div>`])}));
+};
 A["ct.add"]=()=>form("Nouveau contrat",[{k:"vehicle_id",l:"Véhicule",t:"select",o:vehOpts},{k:"driver_id",l:"Chauffeur",t:"select",o:drvOpts},{k:"mode",l:"Mode d'exploitation",t:"select",o:[["recette","A — Recette journalière"],["location","B — Location périodique"]]},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"periodicite",l:"Périodicité (location)",t:"select",o:[["jour","Jour"],["semaine","Semaine"],["mois","Mois"]]},{k:"debut",l:"Début",t:"date",req:1},{k:"fin",l:"Fin (facultatif)",t:"date"},{k:"repos",l:"Jour de repos (recette)",t:"select",o:[["dimanche","Dimanche"],["aucun","Aucun"]]},{k:"depot",l:"Dépôt de garantie (F)",t:"number"}],{debut:today(),mode:"recette"},o=>{creerContrat(o)});
+A["ct.edit"]=id=>{const c=by(S.contracts,id),libre=!S.obligations.some(o=>o.contract_id===id);
+ form("Modifier "+c.numero,libre?[{k:"vehicle_id",l:"Véhicule",t:"select",o:vehOpts,sec:"Contrat sans échéance : modification complète"},{k:"driver_id",l:"Chauffeur",t:"select",o:drvOpts},{k:"mode",l:"Mode d'exploitation",t:"select",o:[["recette","A — Recette journalière"],["location","B — Location périodique"]]},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"periodicite",l:"Périodicité (location)",t:"select",o:[["jour","Jour"],["semaine","Semaine"],["mois","Mois"]]},{k:"debut",l:"Début",t:"date",req:1},{k:"fin",l:"Fin (facultatif)",t:"date"},{k:"repos",l:"Jour de repos (recette)",t:"select",o:[["dimanche","Dimanche"],["aucun","Aucun"]]},{k:"depot",l:"Dépôt de garantie (F)",t:"number"}]
+ :[{k:"fin",l:"Fin (facultatif)",t:"date",sec:"Des échéances existent : fin, repos et dépôt seulement",h:"Tarif : utiliser « Avenant » · mode : « Changer de mode » · une fin plus proche exonère les échéances non encaissées"},{k:"repos",l:"Jour de repos (recette)",t:"select",o:[["dimanche","Dimanche"],["aucun","Aucun"]]},{k:"depot",l:"Dépôt de garantie (F)",t:"number",h:"Au moins le dépôt déjà versé : "+fcfa(c.depot_verse)}],c,o=>modifierContrat(id,o),"Enregistrer")};
+A["ct.susp"]=id=>form("Suspendre le contrat",[{k:"from",l:"Suspendu à partir du",t:"date",req:1,h:"Aucune échéance n'est générée pendant la suspension ; les échéances non encaissées à partir de cette date sont exonérées."},{k:"motif",l:"Motif",req:1,full:1}],{from:today()},o=>suspendre(id,o.from,o.motif),"Suspendre");
+A["ct.rep"]=id=>form("Reprendre le contrat",[{k:"date",l:"Reprise le",t:"date",req:1,h:"La génération des échéances reprend à cette date."}],{date:today()},o=>reprendre(id,o.date),"Reprendre");
+A["ct.del"]=id=>form("Supprimer le contrat",[{k:"motif",l:"Motif de la suppression",req:1,full:1,h:"Possible seulement sans encaissement ni dépôt versé : les échéances sont retirées et leurs écritures extournées. Le contrat reste consultable (affichage « Tous »). Sinon : résilier."}],{},o=>supprimerContrat(id,o.motif),"Supprimer");
 A["ct.av"]=id=>form("Avenant — tarif",[{k:"montant",l:"Nouveau montant (F)",t:"number",req:1},{k:"from",l:"Date d'effet",t:"date",req:1},{k:"motif",l:"Motif (obligatoire si rétroactif)"}],{from:today()},o=>avenant(id,o.montant,o.from,o.motif));
 A["ct.res"]=id=>form("Résilier le contrat",[{k:"effet",l:"Date d'effet",t:"date",req:1},{k:"motif",l:"Motif",req:1}],{effet:today()},o=>resilier(id,o.effet,o.motif));
 A["ct.mode"]=id=>form("Changer le mode d'exploitation",[{k:"mode",l:"Nouveau mode",t:"select",o:[["recette","A — Recette journalière"],["location","B — Location périodique"]]},{k:"montant",l:"Nouveau montant (F)",t:"number",req:1},{k:"periodicite",l:"Périodicité (location)",t:"select",o:[["jour","Jour"],["semaine","Semaine"],["mois","Mois"]]},{k:"effet",l:"Date d'effet",t:"date",req:1}],{effet:addDays(today(),1)},o=>changerMode(id,o.effet,o.mode,o.montant,o.mode==="location"?o.periodicite:undefined));
-A["ct.hist"]=id=>{const c=by(S.contracts,id);modal(`<div class="between"><h2 style="margin:0">${esc(c.numero)} — versions</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>${tbl(["Effet","Montant","Motif","Par","Le"],c.versions.map(v=>tr([fd(v.from),fcfa(v.montant),esc(v.motif),esc(v.par),fdt(v.at)])))}`)};
+A["ct.hist"]=id=>{const c=by(S.contracts,id);modal(`<div class="between"><h2 style="margin:0">${esc(c.numero)} — versions</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>${tbl(["Effet","Montant","Motif","Par","Le"],c.versions.map(v=>tr([fd(v.from),fcfa(v.montant),esc(v.motif),esc(v.par),fdt(v.at)])))}${(c.suspensions||[]).length||c.susp?"<h2>Suspensions</h2>"+tbl(["Du","Au","Motif","Par"],[...(c.suspensions||[]).map(x=>tr([fd(x.from),fd(x.to),esc(x.motif),esc(x.par)])),...(c.susp?[tr([fd(c.susp.from),"en cours",esc(c.susp.motif),esc(c.susp.par)])]:[])]):""}`)};
 function journeeExceptionnelle(cid,date,motif){
  need("planning","a");const c=by(S.contracts,cid);if(!c||c.mode!=="recette"||c.statut!=="actif")throw new Error("Contrat de recette actif requis.");
  if(!motif)throw new Error("Motif obligatoire.");if(S.obligations.some(o=>o.contract_id===cid&&o.date_ech===date))throw new Error("Échéance déjà existante à cette date.");
