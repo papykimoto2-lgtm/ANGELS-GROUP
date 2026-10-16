@@ -118,7 +118,7 @@ const ACL={ // qui peut faire quoi (appliqué aussi dans les fonctions, pas seul
  lot:["admin","chef"],suivi:["admin","chef","soigneur"],sante:["admin","chef","soigneur"],couvoir:["admin","chef"],batiment:["admin","chef"],
  stock:["admin","chef","magasinier"],cond:["admin","chef","magasinier"],relance:["admin","commercial","caissier","comptable"],nutri:["admin","chef"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
  vente:["admin","commercial","caissier"],annulvente:["admin","direction"],paiement:["admin","caissier","commercial"],
- charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],extourne:["admin","comptable","direction"],
+ charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],plan:["admin","comptable"],extourne:["admin","comptable","direction"],
  periode:["admin","comptable","direction"],visa:["admin","comptable","direction"],caisse_op:["admin","caissier"],caisse_val:["admin","direction"],caisse_cfg:["admin","direction"],perso:["admin","direction","chef"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
 const can=a=>!!ME&&(ME.role==="seed"||(ACL[a]||[]).includes(ME.role));
 const need=(a,msg)=>{if(!can(a))throw new Error(msg||"Droits insuffisants pour cette action.")};
@@ -139,33 +139,186 @@ const NAV=[
 const LOTTYPE={chair:"Chair",ponte:"Ponte"};
 const CATP={aliment:"Aliment",medicament:"Médicament / vaccin",poussin:"Poussin",emballage:"Emballage",fini:"Produit fini",autre:"Autre"};
 const CPT_ACHAT={poussin:"c_poussins",aliment:"c_aliment",medicament:"c_medic",emballage:"c_emball",autre:"c_divers",fini:"c_divers"};
-const DEF_CPT={client:["Clients","411","Tiers"],fournisseur:["Fournisseurs","401","Tiers"],caisse:["Caisse (compte par défaut)","571","Trésorerie"],banque:["Banque et mobile money","521","Trésorerie"],produit:["Produit — ventes avicoles","701","Produit"],produit_div:["Produits divers (subventions, excédents de caisse)","758","Produit"],capital:["Capital — apports et prélèvements","101","Capitaux"],emprunt:["Emprunts","162","Capitaux"],
- c_poussins:["Achats poussins","6011","Charge"],c_aliment:["Achats aliment","6013","Charge"],c_medic:["Achats médicaments / vaccins","6015","Charge"],c_emball:["Achats emballages","6022","Charge"],c_eau:["Charge — eau","6051","Charge"],c_energie:["Charge — énergie","6052","Charge"],c_assur:["Primes d'assurance","6161","Charge"],c_loyer:["Locations","622","Charge"],c_transport:["Transport","6222","Charge"],c_entretien:["Entretien, réparations","6224","Charge"],c_divers:["Charges diverses","628","Charge"],c_impot:["Impôts et taxes","646","Charge"],c_mo:["Charges de personnel — salaires","6410","Charge"],
+const DEF_CPT={client:["Clients","4111","Tiers"],fournisseur:["Fournisseurs","4011","Tiers"],caisse:["Caisse (compte par défaut)","571","Trésorerie"],banque:["Banque et mobile money","5211","Trésorerie"],produit:["Produit — ventes avicoles","7021","Produit"],produit_div:["Produits divers (subventions, excédents de caisse)","758","Produit"],capital:["Capital — apports et prélèvements","1013","Capitaux"],emprunt:["Emprunts","162","Capitaux"],
+ c_poussins:["Achats poussins","6011","Charge"],c_aliment:["Achats aliment","6021","Charge"],c_medic:["Achats médicaments / vaccins","6041","Charge"],c_emball:["Achats emballages","608","Charge"],c_eau:["Charge — eau","6051","Charge"],c_energie:["Charge — énergie","6052","Charge"],c_assur:["Primes d'assurance","6251","Charge"],c_loyer:["Locations","6222","Charge"],c_transport:["Transport","618","Charge"],c_entretien:["Entretien, réparations","6241","Charge"],c_divers:["Charges diverses","658","Charge"],c_impot:["Impôts et taxes","641","Charge"],c_mo:["Charges de personnel — salaires","6611","Charge"],
  ecart_manq:["Écart de caisse — manquant (charge)","658","Charge"],ecart_exc:["Écart de caisse — excédent (produit)","758","Produit"],tva_coll:["TVA facturée (collectée)","4431","Tiers"],tva_ded:["TVA récupérable","4452","Tiers"],tva_due:["État — TVA due","4441","Tiers"],tva_credit:["État — crédit de TVA à reporter","4449","Tiers"],
- immo:["Immobilisations — bâtiments et installations","231","Immobilisation"],amort_dot:["Amortissements — dotation (charge)","681","Charge"],amort_cumul:["Amortissements — cumul bâtiments","2831","Immobilisation"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481","Tiers"],
+ immo:["Immobilisations — bâtiments et installations","231","Immobilisation"],amort_dot:["Amortissements — dotation (charge)","6812","Charge"],amort_cumul:["Amortissements — cumul bâtiments","283","Immobilisation"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481","Tiers"],
  virement_interne:["Virements de fonds — remises de caisse en transit","585","Trésorerie"],caisse_dir:["Fonds remis à la direction (caisse direction)","5712","Trésorerie"],resultat_benef:["Résultat net de l'exercice — bénéfice","131","Capitaux"],resultat_perte:["Résultat net de l'exercice — perte","139","Capitaux"]};
 const CPT_FIGES=["client","fournisseur","caisse","banque","capital","emprunt","tva_coll","tva_ded","tva_due","tva_credit","immo","amort_cumul","immo_contre"];
 const defComptes=()=>Object.fromEntries(Object.entries(DEF_CPT).map(([k,v])=>[k,v[1]]));
 function cdef(k){const v=((S&&S.settings)||{}).comptes&&S.settings.comptes[k];if(!v)throw new Error("Compte non paramétré : « "+DEF_CPT[k][0]+" ». Renseignez-le dans Comptabilité → Comptes par défaut avant de comptabiliser cette opération.");return v}
 function definirComptes(m){
- need("periode");const old=S.settings.comptes||{},nv={};
- Object.keys(DEF_CPT).forEach(k=>{const v=String(m[k]===undefined?old[k]:m[k]).trim();if(!/^\d{3,8}$/.test(v))throw new Error("« "+DEF_CPT[k][0]+" » : code de compte invalide (3 à 8 chiffres).");
-  if(old[k]&&old[k]!==v&&CPT_FIGES.includes(k)&&S.entries.some(e=>e.lignes.some(l=>l.compte===old[k])))throw new Error("« "+DEF_CPT[k][0]+" » : le compte "+old[k]+" est déjà mouvementé ; reclassez par écriture avant de changer.");nv[k]=v});
- Object.keys(nv).forEach(k=>{if(!by(S.accounts,nv[k],"num")){const par=[...S.accounts].filter(a=>nv[k].startsWith(a.num)).sort((a,b)=>b.num.length-a.num.length)[0];S.accounts.push({num:nv[k],nom:par?par.nom+" — détail":DEF_CPT[k][0]+" (créé automatiquement — à affiner)",type:par?par.type:DEF_CPT[k][2]})}});
- S.settings.comptes=nv;audit("Comptes par défaut modifiés","");
+ need("periode");const old=S.settings.comptes||{},nv={},chg=[];
+ Object.keys(DEF_CPT).forEach(k=>{const v=String(m[k]===undefined?old[k]:m[k]).trim();if(!CODE_RE.test(v))throw new Error("« "+DEF_CPT[k][0]+" » : code de compte invalide (3 à 8 chiffres).");
+  if(old[k]&&old[k]!==v&&CPT_FIGES.includes(k)&&estImp(accOf(old[k]))&&S.entries.some(e=>e.lignes.some(l=>l.compte===old[k])))throw new Error("« "+DEF_CPT[k][0]+" » : le compte "+old[k]+" est déjà mouvementé ; reclassez par écriture avant de changer.");nv[k]=v;if(old[k]!==v)chg.push(k+" "+(old[k]||"∅")+" → "+v)});
+ Object.keys(nv).forEach(k=>{const a=accOf(nv[k])||ensureCompte(nv[k],libDefaut(k,nv[k]));if(!estImp(a)){const f=S.accounts.filter(x=>x.num!==a.num&&x.num.startsWith(a.num)&&estImp(x)).slice(0,3).map(x=>x.num).join(", ");throw new Error("« "+DEF_CPT[k][0]+" » : le compte "+a.num+" ("+a.nom+") est un compte de regroupement ; choisissez un compte imputable"+(f?" (ex. "+f+")":"")+".")}});
+ S.settings.comptes=Object.assign({},nv,{treso_banque:nv.banque});audit("Comptes par défaut modifiés",chg.join(" ; "));
 }
 const tvaTaux=()=>+((S.settings||{}).tva_taux||0);
 const tvaIn=ttc=>{const t=tvaTaux();return t>0?Math.round(ttc*t/(100+t)):0};
 const CH_SANS_TVA=["main_oeuvre","impot"];
 const CHARGES={main_oeuvre:["Main-d'œuvre","c_mo"],energie:["Énergie","c_energie"],eau:["Eau","c_eau"],entretien:["Entretien, réparations","c_entretien"],transport:["Transport","c_transport"],assurance:["Assurance","c_assur"],loyer:["Loyer","c_loyer"],impot:["Impôts et taxes","c_impot"],autre:["Charges diverses","c_divers"]};
-const PLAN=[["101","Capital — apport","Capitaux"],["162","Emprunts","Capitaux"],["401","Fournisseurs","Tiers"],["411","Clients","Tiers"],["422","Personnel — rémunérations dues","Tiers"],["521","Banque et mobile money","Trésorerie"],["571","Caisse","Trésorerie"],["6011","Achats poussins","Charge"],["6013","Achats aliment","Charge"],["6015","Achats médicaments / vaccins","Charge"],["6022","Achats emballages","Charge"],["6051","Achats eau","Charge"],["6052","Achats énergie","Charge"],["6161","Primes d'assurance","Charge"],["622","Locations","Charge"],["6222","Transport","Charge"],["6224","Entretien, réparations","Charge"],["628","Charges diverses","Charge"],["646","Impôts et taxes","Charge"],["6410","Charges de personnel — salaires","Charge"],["701","Ventes — produits avicoles","Produit"],["758","Autres produits divers","Produit"],["231","Bâtiments et installations","Immobilisation"],["2831","Amortissements des bâtiments","Immobilisation"],["481","Fournisseurs d'investissements","Tiers"],["4431","TVA facturée sur ventes","Tiers"],["4441","État, TVA due","Tiers"],["4449","État, crédit de TVA à reporter","Tiers"],["4452","TVA récupérable sur achats","Tiers"],["572","Caisse succursale A","Trésorerie"],["573","Caisse succursale B","Trésorerie"],["658","Charges diverses (écarts de caisse)","Charge"],["681","Dotations aux amortissements","Charge"],["585","Virements de fonds (remises en transit)","Trésorerie"],["5712","Caisse direction (fonds remis)","Trésorerie"],["131","Résultat net : bénéfice","Capitaux"],["139","Résultat net : perte","Capitaux"]];
+/* ---------- Plan comptable SYSCOHADA révisé : référentiel complet (559 comptes, source tools/plan_syscohada.json) ---------- */
+/* format : code|libellé|nature (a actif, p passif, k actif-contra, c charge, r produit, h HAO, v variable) + imputable (1) ou regroupement (0) */
+const PLAN_TXT="10|Capital|p0\n101|Capital social|p0\n1011|Capital souscrit, non appelé|p1\n1013|Capital souscrit, appelé, versé, non amorti|p1\n102|Capital par dotation|p1\n103|Capital personnel|p1\n104|Compte de l'exploitant|p1\n105|Primes liées au capital social|p1\n106|Écarts de réévaluation|p1\n109|Apporteurs, capital souscrit, non appelé|k1\n11|Réserves|p0\n111|Réserve légale|p1\n112|Réserves statutaires ou contractuelles|p1\n113|Réserves réglementées|p1\n118|Autres réserves|p1\n12|Report à nouveau|p0\n121|Report à nouveau créditeur|p1\n129|Report à nouveau débiteur|k1\n13|Résultat net de l'exercice|p0\n130|Résultat en instance d'affectation|p1\n131|Résultat net : bénéfice|p1\n132|Marge commerciale (indicateur de gestion)|p1\n133|Valeur ajoutée (indicateur de gestion)|p1\n134|Excédent brut d'exploitation (indicateur de gestion)|p1\n135|Résultat d'exploitation (indicateur de gestion)|p1\n136|Résultat financier (indicateur de gestion)|p1\n137|Résultat des activités ordinaires (indicateur de gestion)|p1\n138|Résultat hors activités ordinaires (indicateur de gestion)|p1\n139|Résultat net : perte|k1\n14|Subventions d'investissement|p0\n141|Subventions d'équipement|p1\n148|Autres subventions d'investissement|p1\n15|Provisions réglementées et fonds assimilés|p0\n151|Amortissements dérogatoires|p1\n152|Plus-values de cession à réinvestir|p1\n153|Fonds réglementés|p1\n154|Provisions spéciales de réévaluation|p1\n155|Provisions réglementées relatives aux immobilisations|p1\n156|Provisions réglementées relatives aux stocks|p1\n157|Provisions pour investissement|p1\n158|Autres provisions et fonds réglementés|p1\n16|Emprunts et dettes assimilées|p0\n161|Emprunts obligataires|p1\n162|Emprunts et dettes auprès des établissements de crédit|p1\n163|Avances reçues de l'État|p1\n164|Avances reçues et comptes courants bloqués|p1\n165|Dépôts et cautionnements reçus|p1\n166|Intérêts courus|p1\n167|Avances assorties de conditions particulières|p1\n168|Autres emprunts et dettes|p1\n169|Primes de remboursement des obligations|k1\n17|Dettes de location-acquisition|p0\n172|Dettes de crédit-bail immobilier|p1\n173|Dettes de crédit-bail mobilier|p1\n174|Dettes de location-vente|p1\n176|Intérêts courus sur dettes de location-acquisition|p1\n178|Dettes sur autres contrats de location-acquisition|p1\n18|Dettes liées à des participations et comptes de liaison des établissements et sociétés en participation|p0\n181|Dettes liées à des participations|p1\n182|Dettes liées à des sociétés en participation|p1\n183|Intérêts courus sur dettes liées à des participations|p1\n184|Comptes permanents bloqués des établissements et succursales|p1\n185|Comptes permanents non bloqués des établissements et succursales|p1\n186|Comptes de liaison charges|v1\n187|Comptes de liaison produits|v1\n188|Comptes de liaison des sociétés en participation|p1\n19|Provisions pour risques et charges|p0\n191|Provisions pour litiges|p1\n192|Provisions pour garanties données aux clients|p1\n193|Provisions pour pertes sur marchés à achèvement futur|p1\n194|Provisions pour pertes de change|p1\n195|Provisions pour impôts|p1\n196|Provisions pour pensions et obligations similaires|p1\n197|Provisions pour charges à répartir sur plusieurs exercices|p1\n198|Autres provisions pour risques et charges|p1\n21|Immobilisations incorporelles|a0\n211|Frais de développement|a1\n212|Brevets, licences, concessions et droits similaires|a1\n213|Logiciels et sites internet|a1\n214|Marques|a1\n215|Fonds commercial|a1\n216|Droit au bail|a1\n217|Investissements de création|a1\n218|Autres droits et valeurs incorporels|a1\n219|Immobilisations incorporelles en cours|a1\n22|Terrains|a0\n221|Terrains agricoles et forestiers|a1\n222|Terrains nus|a1\n223|Terrains bâtis|a1\n224|Travaux de mise en valeur des terrains|a1\n225|Terrains de carrières, tourbières, sablières|a1\n226|Terrains d'aménagement|a1\n227|Terrains mis en concession|a1\n228|Autres terrains|a1\n229|Aménagements de terrains en cours|a1\n23|Bâtiments, installations techniques et agencements|a0\n231|Bâtiments industriels, agricoles, administratifs et commerciaux sur sol propre|a1\n232|Bâtiments industriels, agricoles, administratifs et commerciaux sur sol d'autrui|a1\n233|Ouvrages d'infrastructure|a1\n234|Aménagements, agencements et installations techniques|a1\n235|Aménagements de bureaux|a1\n237|Bâtiments industriels, agricoles et commerciaux mis en concession|a1\n238|Autres installations et agencements|a1\n239|Bâtiments et installations en cours|a1\n24|Matériel, mobilier et actifs biologiques|a0\n241|Matériel et outillage industriel et commercial|a1\n242|Matériel et outillage agricole|a1\n243|Matériel d'emballage récupérable et identifiable|a1\n244|Matériel et mobilier|a0\n2441|Matériel de bureau|a1\n2442|Matériel informatique|a1\n2444|Mobilier de bureau|a1\n245|Matériel de transport|a0\n2451|Matériel automobile|a1\n246|Actifs biologiques|a1\n247|Agencements, aménagements du matériel et autres actifs biologiques|a1\n248|Autres matériels et mobiliers|a1\n249|Matériels et actifs biologiques en cours|a1\n25|Avances et acomptes versés sur immobilisations|a0\n251|Avances et acomptes versés sur immobilisations incorporelles|a1\n252|Avances et acomptes versés sur immobilisations corporelles|a1\n26|Titres de participation|a0\n261|Titres de participation dans des sociétés sous contrôle exclusif|a1\n262|Titres de participation dans des sociétés sous contrôle conjoint|a1\n263|Titres de participation dans des sociétés conférant une influence notable|a1\n265|Participations dans des organismes professionnels|a1\n266|Parts dans des groupements d'intérêt économique (GIE)|a1\n268|Autres titres de participation|a1\n27|Autres immobilisations financières|a0\n271|Prêts et créances non commerciales|a1\n272|Prêts au personnel|a1\n273|Créances sur l'État|a1\n274|Titres immobilisés|a1\n275|Dépôts et cautionnements versés|a1\n276|Intérêts courus|a1\n277|Créances rattachées à des participations et avances à des GIE|a1\n278|Immobilisations financières diverses|a1\n28|Amortissements|k0\n281|Amortissements des immobilisations incorporelles|k1\n282|Amortissements des terrains|k1\n283|Amortissements des bâtiments, installations techniques et agencements|k1\n284|Amortissements du matériel, mobilier et actifs biologiques|k1\n29|Dépréciations des immobilisations|k0\n291|Dépréciations des immobilisations incorporelles|k1\n292|Dépréciations des terrains|k1\n293|Dépréciations des bâtiments, installations techniques et agencements|k1\n294|Dépréciations du matériel, mobilier et actifs biologiques|k1\n295|Dépréciations des avances et acomptes versés sur immobilisations|k1\n296|Dépréciations des titres de participation|k1\n297|Dépréciations des autres immobilisations financières|k1\n31|Marchandises|a0\n311|Marchandises A|a1\n312|Marchandises B|a1\n313|Actifs biologiques|a1\n318|Marchandises hors activités ordinaires (HAO)|a1\n32|Matières premières et fournitures liées|a0\n321|Matières A|a1\n322|Matières B|a1\n323|Fournitures liées|a1\n33|Autres approvisionnements|a0\n331|Matières consommables|a1\n332|Fournitures d'atelier et d'usine|a1\n333|Fournitures de magasin|a1\n334|Fournitures de bureau|a1\n335|Emballages|a1\n338|Autres matières|a1\n34|Produits en cours|a0\n341|Produits en cours|a1\n342|Travaux en cours|a1\n343|Produits intermédiaires en cours|a1\n344|Produits résiduels en cours|a1\n345|Actifs biologiques en cours|a1\n35|Services en cours|a0\n351|Études en cours|a1\n352|Prestations de services en cours|a1\n36|Produits finis|a0\n361|Produits finis A|a1\n362|Produits finis B|a1\n363|Actifs biologiques|a1\n37|Produits intermédiaires et résiduels|a0\n371|Produits intermédiaires A|a1\n372|Produits intermédiaires B|a1\n373|Actifs biologiques|a1\n374|Produits résiduels (déchets, rebuts, matières de récupération)|a1\n38|Stocks en cours de route, en consignation ou en dépôt|a0\n381|Marchandises en cours de route|a1\n382|Matières premières et fournitures liées en cours de route|a1\n383|Autres approvisionnements en cours de route|a1\n386|Produits finis en cours de route|a1\n387|Stock en consignation ou en dépôt|a1\n388|Stock provenant d'immobilisations mises hors service ou au rebut|a1\n39|Dépréciations des stocks et encours de production|k0\n391|Dépréciations des stocks de marchandises|k1\n392|Dépréciations des stocks de matières premières et fournitures liées|k1\n393|Dépréciations des stocks d'autres approvisionnements|k1\n394|Dépréciations des productions en cours|k1\n395|Dépréciations des services en cours|k1\n396|Dépréciations des stocks de produits finis|k1\n397|Dépréciations des stocks de produits intermédiaires et résiduels|k1\n398|Dépréciations des stocks en cours de route, en consignation ou en dépôt|k1\n40|Fournisseurs et comptes rattachés|p0\n401|Fournisseurs, dettes en compte|p0\n4011|Fournisseurs|p1\n402|Fournisseurs, effets à payer|p0\n4021|Fournisseurs, effets à payer|p1\n408|Fournisseurs, factures non parvenues|p0\n4081|Fournisseurs, factures non parvenues|p1\n409|Fournisseurs débiteurs|a1\n41|Clients et comptes rattachés|a0\n411|Clients|a0\n4111|Clients|a1\n4116|Clients, réserve de propriété|a1\n412|Clients, effets à recevoir en portefeuille|a1\n413|Clients, chèques, effets et autres valeurs impayés|a1\n414|Créances sur cessions courantes d'immobilisations|a1\n415|Clients, effets escomptés non échus|a1\n416|Créances clients litigieuses ou douteuses|a0\n4161|Créances litigieuses|a1\n4162|Créances douteuses|a1\n418|Clients, produits à recevoir|a0\n4181|Clients, factures à établir|a1\n419|Clients créditeurs|p1\n42|Personnel|p0\n421|Personnel, avances et acomptes|a0\n4211|Personnel, avances|a1\n4212|Personnel, acomptes|a1\n422|Personnel, rémunérations dues|p1\n423|Personnel, oppositions, saisies-arrêts|p1\n424|Personnel, œuvres sociales internes|p1\n425|Représentants du personnel|p1\n426|Personnel, participation au capital|p1\n427|Personnel, dépôts|p1\n428|Personnel, charges à payer et produits à recevoir|p1\n43|Organismes sociaux|v0\n431|Sécurité sociale|v0\n4311|Sécurité sociale, prestations familiales|v1\n4312|Sécurité sociale, accidents de travail|v1\n4313|Caisse de retraite obligatoire|v1\n432|Caisses de retraite complémentaire|v1\n433|Autres organismes sociaux|v1\n438|Organismes sociaux, charges à payer et produits à recevoir|v1\n44|État et collectivités publiques|v0\n441|État, impôt sur les bénéfices|v1\n442|État, autres impôts et taxes|v1\n443|État, TVA facturée|p0\n4431|État, TVA facturée sur ventes|p1\n4432|État, TVA facturée sur prestations de services|p1\n444|État, TVA due ou crédit de TVA|v0\n4441|État, TVA due|p1\n4449|État, crédit de TVA à reporter|a1\n445|État, TVA récupérable|a0\n4451|État, TVA récupérable sur immobilisations|a1\n4452|État, TVA récupérable sur achats|a1\n4456|État, TVA transférée par d'autres entreprises|a1\n4457|État, TVA collectée transférée à d'autres entreprises|a1\n446|État, autres impôts, taxes et droits assimilés|v1\n447|État, impôts retenus à la source|p1\n448|État, charges à payer et produits à recevoir|v1\n449|État, créances et dettes diverses|v1\n45|Organismes internationaux|v0\n451|Opérations avec les organismes africains|v1\n452|Opérations avec les autres organismes internationaux|v1\n458|Organismes internationaux, fonds de dotation et subventions à recevoir|v1\n46|Apporteurs, associés et groupe|v0\n461|Apporteurs, opérations sur le capital|v1\n462|Associés, comptes courants|v1\n463|Associés, opérations faites en commun et en GIE|v1\n465|Associés, dividendes à payer|v1\n466|Groupe, comptes courants|v1\n467|Actionnaires, restant dû sur capital appelé|v1\n468|Associés, charges à payer et produits à recevoir|v1\n47|Débiteurs et créditeurs divers|v0\n471|Débiteurs et créditeurs divers|v0\n4711|Débiteurs divers|v1\n4712|Créditeurs divers|v1\n472|Créances et dettes sur cessions courantes d'immobilisations|v1\n474|Compte de répartition périodique des charges et des produits|v1\n476|Charges constatées d'avance|v1\n477|Produits constatés d'avance|v1\n478|Écarts de conversion - Actif|v1\n479|Écarts de conversion - Passif|v1\n48|Créances et dettes hors activités ordinaires|v0\n481|Fournisseurs d'investissements|p1\n482|Fournisseurs d'investissements, effets à payer|p1\n483|Dettes sur acquisitions de valeurs mobilières de placement|p1\n484|Autres dettes HAO|p1\n485|Créances sur cessions d'immobilisations|v1\n486|Créances sur cessions de valeurs mobilières de placement|v1\n488|Autres créances HAO|v1\n49|Dépréciations et risques provisionnés (comptes de tiers)|k0\n490|Dépréciations des comptes fournisseurs|k1\n491|Dépréciations des comptes clients|k1\n492|Dépréciations des comptes personnel|k1\n493|Dépréciations des comptes organismes sociaux|k1\n494|Dépréciations des comptes État et collectivités publiques|k1\n495|Dépréciations des comptes organismes internationaux|k1\n496|Dépréciations des comptes associés et groupe|k1\n497|Dépréciations des comptes débiteurs divers|k1\n498|Dépréciations des comptes de créances HAO|k1\n499|Provisions pour risques à court terme|k1\n50|Titres de placement|a0\n501|Titres du Trésor et bons de caisse à court terme|a1\n502|Actions|a1\n503|Obligations|a1\n504|Bons de souscription|a1\n505|Titres négociables hors région|a1\n506|Intérêts courus|a1\n508|Autres titres de placement et valeurs assimilées|a1\n51|Valeurs à encaisser|a0\n511|Effets à encaisser|a1\n512|Effets à l'encaissement|a1\n513|Chèques à encaisser|a1\n514|Chèques à l'encaissement|a1\n515|Cartes de crédit à encaisser|a1\n518|Autres valeurs à l'encaissement|a1\n52|Banques|a0\n521|Banques locales|a0\n5211|Banques locales en monnaie nationale|a1\n5215|Banques locales en devises|a1\n522|Banques autres États de la région|a1\n523|Banques autres États de la zone monétaire|a1\n524|Banques hors zone monétaire|a1\n525|Banques, dépôts à terme|a1\n526|Banques, intérêts courus|a1\n53|Établissements financiers et assimilés|a0\n531|Chèques postaux|a1\n532|Trésor|a1\n533|Sociétés de gestion et d'intermédiation (SGI)|a1\n536|Établissements financiers, intérêts courus|a1\n538|Autres organismes financiers|a1\n54|Instruments de trésorerie|a0\n541|Options de taux d'intérêts|a1\n542|Options de taux de change|a1\n543|Options de taux boursiers|a1\n544|Instruments de marchés à terme|a1\n545|Avoirs d'or et autres métaux précieux|a1\n55|Instruments de monnaie électronique|a0\n551|Monnaie électronique, carte prépayée|a1\n552|Porte-monnaie électronique|a1\n553|Mobile money|a1\n558|Autres instruments de monnaie électronique|a1\n56|Banques, crédits de trésorerie et d'escompte|p0\n561|Crédits de trésorerie|p1\n564|Crédits d'escompte de campagne|p1\n565|Crédits d'escompte ordinaires|p1\n566|Banques, crédits de trésorerie, intérêts courus|p1\n57|Caisse|a0\n571|Caisse siège social|a1\n572|Caisse succursale A|a1\n573|Caisse succursale B|a1\n58|Régies d'avances, accréditifs et virements internes|v0\n581|Régies d'avances|v1\n582|Accréditifs|v1\n585|Virements de fonds|v1\n588|Autres virements internes|v1\n59|Dépréciations et risques provisionnés (trésorerie)|k0\n590|Dépréciations des titres de placement|k1\n591|Dépréciations des titres et valeurs à encaisser|k1\n592|Dépréciations des comptes banques|k1\n593|Dépréciations des comptes établissements financiers et assimilés|k1\n594|Dépréciations des instruments de trésorerie|k1\n595|Dépréciations des instruments de monnaie électronique|k1\n599|Risques provisionnés de trésorerie|k1\n60|Achats et variations de stocks|c0\n601|Achats de marchandises|c0\n6011|Achats de marchandises dans la Région|c1\n6012|Achats de marchandises hors Région|c1\n6019|Rabais, remises et ristournes obtenus sur achats de marchandises|c1\n602|Achats de matières premières et fournitures liées|c0\n6021|Achats de matières premières dans la Région|c1\n6022|Achats de matières premières hors Région|c1\n6029|Rabais, remises et ristournes obtenus sur achats de matières premières|c1\n603|Variations des stocks de biens achetés|c0\n6031|Variations des stocks de marchandises|c1\n6032|Variations des stocks de matières premières et fournitures liées|c1\n6033|Variations des stocks d'autres approvisionnements|c1\n604|Achats stockés de matières et fournitures consommables|c0\n6041|Matières consommables|c1\n605|Autres achats|c0\n6051|Fournitures non stockables - Eau|c1\n6052|Fournitures non stockables - Électricité|c1\n608|Achats d'emballages|c1\n61|Transports|c0\n611|Transports sur achats|c1\n612|Transports sur ventes|c1\n613|Transports pour le compte de tiers|c1\n614|Transports du personnel|c1\n616|Transports de plis|c1\n618|Autres frais de transport|c1\n62|Services extérieurs A|c0\n621|Sous-traitance générale|c1\n622|Locations et charges locatives|c0\n6222|Locations de bâtiments|c1\n623|Redevances de location-acquisition|c1\n624|Entretien, réparations, remises en état et maintenance|c0\n6241|Entretien et réparations des biens immobiliers|c1\n6242|Entretien et réparations des biens mobiliers|c1\n625|Primes d'assurance|c0\n6251|Primes d'assurance multirisques|c1\n626|Études, recherches et documentation|c1\n627|Publicité, publications, relations publiques|c1\n628|Frais de télécommunications|c1\n63|Services extérieurs B|c0\n631|Frais bancaires|c1\n632|Rémunérations d'intermédiaires et de conseils|c1\n633|Frais de formation du personnel|c1\n634|Redevances pour brevets, licences, logiciels, concessions et droits similaires|c1\n635|Cotisations|c1\n637|Rémunérations de personnel extérieur à l'entité|c1\n638|Autres charges externes|c1\n64|Impôts et taxes|c0\n641|Impôts et taxes directs|c1\n645|Impôts et taxes indirects|c1\n646|Droits d'enregistrement|c1\n647|Pénalités et amendes fiscales|c1\n648|Autres impôts et taxes|c1\n65|Autres charges|c0\n651|Pertes sur créances clients et autres débiteurs|c1\n652|Quote-part de résultat sur opérations faites en commun|c1\n654|Valeurs comptables des cessions courantes d'immobilisations|c1\n655|Pertes de change sur créances et dettes commerciales|c1\n657|Pénalités et amendes pénales|c1\n658|Charges diverses|c1\n659|Charges pour dépréciations et provisions pour risques à court terme d'exploitation|c1\n66|Charges de personnel|c0\n661|Rémunérations directes versées au personnel national|c0\n6611|Appointements, salaires et commissions|c1\n6612|Primes et gratifications|c1\n662|Rémunérations directes versées au personnel non national|c1\n663|Indemnités forfaitaires versées au personnel|c1\n664|Charges sociales|c0\n6641|Charges sociales sur rémunérations du personnel national|c1\n666|Rémunérations et charges sociales de l'exploitant individuel|c1\n667|Rémunération transférée de personnel extérieur|c1\n668|Autres charges sociales|c1\n67|Frais financiers et charges assimilées|c0\n671|Intérêts des emprunts|c0\n6711|Intérêts des emprunts obligataires|c1\n6712|Intérêts des emprunts auprès des établissements de crédit|c1\n672|Intérêts dans loyers de location-acquisition|c1\n673|Escomptes accordés|c1\n674|Autres intérêts|c1\n675|Escomptes des effets de commerce|c1\n676|Pertes de change financières|c1\n677|Pertes sur cessions de titres de placement|c1\n678|Pertes et charges sur risques financiers|c1\n679|Charges pour dépréciations et provisions pour risques à court terme financières|c1\n68|Dotations aux amortissements|c0\n681|Dotations aux amortissements d'exploitation|c0\n6812|Dotations aux amortissements des immobilisations incorporelles|c1\n6813|Dotations aux amortissements des immobilisations corporelles|c1\n687|Dotations aux amortissements à caractère financier|c1\n69|Dotations aux provisions et aux dépréciations|c0\n691|Dotations aux provisions et aux dépréciations d'exploitation|c1\n697|Dotations aux provisions et aux dépréciations financières|c1\n70|Ventes|r0\n701|Ventes de marchandises|r0\n7011|Ventes de marchandises dans la Région|r1\n7012|Ventes de marchandises hors Région|r1\n7019|Rabais, remises et ristournes accordés sur ventes de marchandises|r1\n702|Ventes de produits finis|r0\n7021|Ventes de produits finis dans la Région|r1\n703|Ventes de produits intermédiaires|r1\n704|Ventes de produits résiduels|r1\n705|Travaux facturés|r1\n706|Services vendus|r0\n7061|Services vendus dans la Région|r1\n707|Produits accessoires|r1\n71|Subventions d'exploitation|r0\n711|Subventions d'exploitation sur produits à l'exportation|r1\n712|Subventions d'exploitation sur produits à l'importation|r1\n713|Subventions d'exploitation sur produits de péréquation|r1\n714|Indemnités et subventions d'exploitation (entité agricole)|r1\n718|Autres subventions d'exploitation|r1\n72|Production immobilisée|r0\n721|Immobilisations incorporelles|r1\n722|Immobilisations corporelles|r1\n724|Production auto-consommée|r1\n726|Immobilisations financières|r1\n73|Variations des stocks de biens et de services produits|r0\n734|Variations des stocks de produits en cours|r1\n735|Variations des en-cours de services|r1\n736|Variations des stocks de produits finis|r1\n737|Variations des stocks de produits intermédiaires et résiduels|r1\n75|Autres produits|r0\n751|Profits sur créances clients et autres débiteurs|r1\n752|Quote-part de résultat sur opérations faites en commun|r1\n754|Produits des cessions courantes d'immobilisations|r1\n755|Gains de change sur créances et dettes commerciales|r1\n756|Gains sur risques commerciaux|r1\n758|Produits divers|r1\n759|Reprises de charges pour dépréciations et provisions pour risques à court terme d'exploitation|r1\n77|Revenus financiers et produits assimilés|r0\n771|Intérêts de prêts et créances diverses|r1\n772|Revenus de participations et des autres titres immobilisés|r1\n773|Escomptes obtenus|r1\n774|Revenus de placement|r1\n775|Intérêts dans loyers de location-acquisition|r1\n776|Gains de change financiers|r1\n777|Gains sur cessions de titres de placement|r1\n778|Gains sur risques financiers|r1\n779|Reprises de charges pour dépréciations et provisions pour risques à court terme financières|r1\n78|Transferts de charges|r0\n781|Transferts de charges d'exploitation|r1\n787|Transferts de charges financières|r1\n79|Reprises de provisions, de dépréciations et autres|r0\n791|Reprises de provisions et de dépréciations d'exploitation|r1\n797|Reprises de provisions et de dépréciations financières|r1\n798|Reprises d'amortissements|r1\n799|Reprises de subventions d'investissement|r1\n81|Valeurs comptables des cessions d'immobilisations|h0\n811|Valeurs comptables des cessions d'immobilisations incorporelles|h1\n812|Valeurs comptables des cessions d'immobilisations corporelles|h1\n816|Valeurs comptables des cessions d'immobilisations financières|h1\n82|Produits des cessions d'immobilisations|h0\n821|Produits des cessions d'immobilisations incorporelles|h1\n822|Produits des cessions d'immobilisations corporelles|h1\n826|Produits des cessions d'immobilisations financières|h1\n83|Charges hors activités ordinaires|h0\n831|Charges HAO constatées|h1\n833|Charges HAO sur exercices antérieurs|h1\n835|Dons et libéralités accordés|h1\n836|Abandons de créances consentis|h1\n837|Charges liées aux opérations de restructuration|h1\n838|Autres charges HAO|h1\n84|Produits hors activités ordinaires|h0\n841|Produits HAO constatés|h1\n843|Produits liés aux opérations de restructuration|h1\n844|Indemnités et subventions HAO (entité agricole)|h1\n845|Dons et libéralités obtenus|h1\n846|Abandons de créances obtenus|h1\n847|Subventions d'équilibre|h1\n848|Autres produits HAO|h1\n85|Dotations hors activités ordinaires|h0\n851|Dotations aux provisions réglementées|h1\n852|Dotations aux amortissements HAO|h1\n853|Dotations aux dépréciations HAO|h1\n854|Dotations aux provisions pour risques et charges HAO|h1\n858|Autres dotations HAO|h1\n86|Reprises hors activités ordinaires|h0\n861|Reprises de provisions réglementées|h1\n862|Reprises d'amortissements HAO|h1\n863|Reprises de dépréciations HAO|h1\n864|Reprises de provisions pour risques et charges HAO|h1\n868|Autres reprises HAO|h1\n87|Participation des travailleurs|h0\n871|Participation légale aux bénéfices|h1\n872|Participation contractuelle aux bénéfices|h1\n873|Autres participations|h1\n88|Subventions d'équilibre|h0\n881|Subventions d'équilibre de l'État|h1\n884|Subventions d'équilibre des collectivités publiques|h1\n886|Subventions d'équilibre du groupe|h1\n888|Autres subventions d'équilibre|h1\n89|Impôts sur le résultat|h0\n891|Impôts sur les bénéfices de l'exercice|h1\n892|Rappel d'impôts sur résultats antérieurs|h1\n895|Impôt minimum forfaitaire (IMF)|h1\n899|Dégrèvements d'impôts sur résultats antérieurs|h1";
+const NATS={a:"actif",p:"passif",k:"actif_contra",c:"charge",r:"produit",h:"hao",v:"variable"};
+const NAT_LIB={actif:"Actif",passif:"Passif",actif_contra:"Actif (contra)",charge:"Charge",produit:"Produit",hao:"HAO",variable:"Actif / passif"};
+const NAT_CLS={1:"passif",2:"actif",3:"actif",4:"variable",5:"actif",6:"charge",7:"produit",8:"hao"};
+const CLS_LIB={1:"Comptes de ressources durables",2:"Comptes d'actif immobilisé",3:"Comptes de stocks",4:"Comptes de tiers",5:"Comptes de trésorerie",6:"Comptes de charges des activités ordinaires",7:"Comptes de produits des activités ordinaires",8:"Comptes des autres charges et produits (HAO)"};
+const CLS_TYPE={1:"Capitaux",2:"Immobilisation",3:"Stock",4:"Tiers",5:"Trésorerie",6:"Charge",7:"Produit",8:"HAO"};
+const CODE_RE=/^[1-8]\d{2,7}$/;
+let _pb=null;
+const planBase=()=>_pb||(_pb=PLAN_TXT.split("\n").map(l=>{const[n,lib,f]=l.split("|");return{num:n,nom:lib,nat:NATS[f[0]],imp:+f[1],type:CLS_TYPE[n[0]]}}));
+const planBaseMap=()=>new Map(planBase().map(a=>[a.num,a]));
+const planInit=()=>planBase().map(a=>({...a}));
+const accOf=n=>by(S.accounts,n,"num");
+const estImp=a=>!!a&&a.imp!==0&&a.imp!==false;
+const parentCode=(num,has)=>{for(let k=num.length-1;k>=2;k--){const p=num.slice(0,k);if(has(p))return p}return null};
+const normTxt=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+/* un compte n'est accepté en écriture que s'il est au plan ET imputable */
+function verifCompte(num){
+ const a=accOf(num);
+ if(!a)throw new Error("Compte inconnu (hors plan comptable) : "+num+". Choisissez un compte du plan ou créez-le dans Comptabilité → Plan comptable.");
+ if(!estImp(a)){const f=S.accounts.filter(x=>x.num!==num&&x.num.startsWith(num)&&estImp(x)).slice(0,3).map(x=>x.num).join(", ");throw new Error("Compte de regroupement : "+num+" — "+a.nom+" ne reçoit pas d'écriture."+(f?" Utilisez un compte imputable (ex. "+f+").":""))}
+ return a;
+}
+function ensureCompte(code,lib){ // crée au plan (sous un parent existant) le compte manquant, libellé issu du plan
+ code=String(code||"").trim();const e=accOf(code);if(e)return e;
+ if(!CODE_RE.test(code))throw new Error("Code de compte invalide : "+code+" (3 à 8 chiffres, classe 1 à 8).");
+ const pc=parentCode(code,n=>!!accOf(n));if(!pc)throw new Error("Compte "+code+" : aucun compte parent au plan (préfixe d'au moins 2 chiffres) — rattachement impossible.");
+ const p=accOf(pc),b=planBaseMap().get(code),a={num:code,nom:String(lib||(b&&b.nom)||p.nom+" — détail").trim(),type:CLS_TYPE[code[0]],nat:(b&&b.nat)||p.nat||NAT_CLS[code[0]],imp:b?b.imp:1};
+ if(!b)a.o="a";else if(a.nom!==b.nom)a.o="m";
+ S.accounts.push(a);return a;
+}
+function compteUsages(num){ // pourquoi un compte ne peut être ni supprimé ni recodé
+ const u=[],nl=sum(S.entries,e=>e.lignes.filter(l=>l.compte===num).length);if(nl)u.push("mouvementé ("+nl+" ligne(s) d'écriture)");
+ if((S.brouillard||[]).some(b=>b.lignes.some(l=>l.compte===num)))u.push("utilisé dans une écriture en brouillard");
+ Object.entries(S.settings.comptes||{}).forEach(([k,v])=>{if(v===num&&DEF_CPT[k])u.push("compte par défaut « "+DEF_CPT[k][0]+" »")});
+ (S.caisses||[]).forEach(c=>{if(c.compte===num)u.push("compte de la caisse « "+c.nom+" »")});
+ (S.budgets||[]).forEach(b=>{if(b.compte===num)u.push("compte d'un budget mensuel")});
+ return u;
+}
+const compteDesc=num=>S.accounts.filter(x=>x.num!==num&&x.num.startsWith(num));
+const libDefaut=(k,code)=>{const b=planBaseMap().get(code);return b?b.nom:(code===defComptes()[k]?DEF_CPT[k][0]:null)};
+function planAjouter(f){
+ need("plan");const code=String(f.num||"").trim(),nom=String(f.nom||"").trim();
+ if(!CODE_RE.test(code))throw new Error("Code invalide : 3 à 8 chiffres, commençant par 1 à 8.");
+ if(!nom)throw new Error("Libellé obligatoire.");if(nom.length>120)throw new Error("Libellé trop long (120 caractères maximum).");
+ const ex=accOf(code);if(ex)throw new Error("Le compte "+code+" existe déjà ("+ex.nom+").");
+ const pc=parentCode(code,n=>!!accOf(n));if(!pc)throw new Error("Compte parent absent : le code doit commencer par un compte existant du plan (par exemple "+code.slice(0,2)+" ou "+code.slice(0,3)+").");
+ const p=accOf(pc),nat=f.nat||p.nat||NAT_CLS[code[0]];if(!Object.values(NATS).includes(nat))throw new Error("Nature invalide.");
+ const a={num:code,nom,type:CLS_TYPE[code[0]],nat,imp:String(f.imp)==="0"?0:1,o:"a"};S.accounts.push(a);S.accounts.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);
+ audit("Compte ajouté au plan",code+" — "+nom+" (parent "+pc+", "+(a.imp?"imputable":"regroupement")+")");return a;
+}
+function planModifier(num,f){
+ need("plan");const a=accOf(num);if(!a)throw new Error("Compte introuvable : "+num+".");
+ const nom=String(f.nom==null?a.nom:f.nom).trim(),code=String(f.num==null?num:f.num).trim(),nat=f.nat||a.nat,imp=f.imp==null?(estImp(a)?1:0):(String(f.imp)==="0"?0:1);
+ if(!nom)throw new Error("Libellé obligatoire.");if(nom.length>120)throw new Error("Libellé trop long (120 caractères maximum).");if(!Object.values(NATS).includes(nat))throw new Error("Nature invalide.");
+ const us=compteUsages(num),av=[];
+ if(code!==num){
+  if(us.length)throw new Error("Changement de code refusé : le compte "+num+" est "+us.join(" ; ")+".");
+  if(compteDesc(num).length)throw new Error("Changement de code refusé : le compte "+num+" a des sous-comptes.");
+  if(!CODE_RE.test(code))throw new Error("Code invalide : 3 à 8 chiffres, commençant par 1 à 8.");if(accOf(code))throw new Error("Le code "+code+" existe déjà.");
+  if(!parentCode(code,n=>n!==num&&!!accOf(n)))throw new Error("Compte parent absent : le nouveau code doit commencer par un compte existant du plan.");av.push("code "+num+" → "+code)}
+ if(imp===0&&estImp(a)&&us.length)throw new Error("Passage en compte de regroupement refusé : le compte "+num+" est "+us.join(" ; ")+".");
+ if(nom!==a.nom)av.push("libellé « "+a.nom+" » → « "+nom+" »");if(nat!==a.nat)av.push("nature "+a.nat+" → "+nat);if(imp!==(estImp(a)?1:0))av.push(imp?"regroupement → imputable":"imputable → regroupement");
+ if(!av.length)throw new Error("Aucune modification à enregistrer.");
+ Object.assign(a,{num:code,nom,nat,imp,type:CLS_TYPE[code[0]]});if(imp===0)delete a.h;
+ const b=planBaseMap().get(code);if(b){if(a.nom===b.nom&&a.nat===b.nat&&a.imp===b.imp)delete a.o;else a.o="m"}else a.o="a";
+ S.accounts.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);
+ audit("Compte modifié",num+" : "+av.join(" ; "));return a;
+}
+function planSupprimer(num){
+ need("plan");const a=accOf(num);if(!a)throw new Error("Compte introuvable : "+num+".");
+ const us=compteUsages(num);if(us.length)throw new Error("Suppression refusée : le compte "+num+" est "+us.join(" ; ")+".");
+ const d=compteDesc(num);if(d.length)throw new Error("Suppression refusée : le compte "+num+" a "+d.length+" sous-compte(s) (supprimez-les d'abord).");
+ S.accounts=S.accounts.filter(x=>x!==a);audit("Compte supprimé du plan",num+" — "+a.nom);
+}
+function planCompleter(){ // rebuildPlanComptable : réinjecte les comptes de référence manquants, sans toucher aux comptes existants
+ need("plan");const has=new Set(S.accounts.map(a=>a.num));let n=0;planBase().forEach(b=>{if(!has.has(b.num)){S.accounts.push({...b});n++}});
+ S.accounts.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);audit("Plan complété avec le référentiel SYSCOHADA",n+" compte(s) ajouté(s)");return n;
+}
+function planHorsPlan(){ // comptes utilisés (écritures, brouillard, défauts, caisses, budgets) mais absents du plan
+ const ix=new Set(S.accounts.map(a=>a.num)),M={},add=(c,t,n)=>{if(!c||ix.has(c))return;const r=M[c]=M[c]||{num:c,u:[]};r.u.push(t+(n?" ("+n+")":""))};
+ const nl={};S.entries.forEach(e=>e.lignes.forEach(l=>{nl[l.compte]=(nl[l.compte]||0)+1}));Object.keys(nl).forEach(c=>add(c,"écritures",nl[c]+" ligne(s)"));
+ (S.brouillard||[]).forEach(b=>b.lignes.forEach(l=>add(l.compte,"brouillard")));
+ Object.entries(S.settings.comptes||{}).forEach(([k,v])=>{if(DEF_CPT[k])add(v,"compte par défaut",DEF_CPT[k][0])});
+ (S.caisses||[]).forEach(c=>add(c.compte,"caisse",c.nom));(S.budgets||[]).forEach(b=>add(b.compte,"budget"));
+ return Object.values(M).sort((x,y)=>x.num<y.num?-1:1).map(r=>({...r,parent:parentCode(r.num,n=>ix.has(n))}));
+}
+function planRattacher(code){
+ need("plan");const k=Object.keys(DEF_CPT).find(x=>(S.settings.comptes||{})[x]===code),a=ensureCompte(code,k?libDefaut(k,code):null);
+ S.accounts.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);audit("Compte hors plan rattaché",code+" → "+a.nom);return a;
+}
+const ligneCsvPlan=a=>[a.num,a.nom,a.nat,estImp(a)?"imputable":"regroupement",a.num[0],a.o==="a"?"ajouté":a.o==="m"?"modifié":"référentiel"];
+function planImporter(txt,mode){
+ need("plan");if(mode!=="fusion"&&mode!=="remplace")throw new Error("Stratégie d'import invalide (fusionner ou remplacer sans perte).");
+ const R={mode,lues:0,ajoutes:[],modifies:[],identiques:0,rejetes:[],doublons:[],supprimes:[],conserves:[]},bm=planBaseMap(),natV=Object.values(NATS),rows=[],seen=new Set();let first=true;
+ String(txt||"").replace(/^﻿/,"").split(/\r?\n/).forEach((ln,i)=>{
+  if(!ln.trim())return;const sep=ln.includes(";")?";":ln.includes("\t")?"\t":",",f=ln.split(sep).map(x=>x.trim().replace(/^"(.*)"$/,"$1").trim());
+  if(first){first=false;if(!/^\d/.test(f[0]))return}
+  R.lues++;const code=f[0],nom=f[1]||"",nat=normTxt(f[2]||"").replace(/[\s()]+/g,"_").replace(/_+$/,"");
+  if(!(CODE_RE.test(code)||(accOf(code)&&/^[1-8]\d$/.test(code))))return R.rejetes.push({ligne:i+1,code,motif:"code invalide (3 à 8 chiffres, classe 1 à 8)"});
+  if(!nom)return R.rejetes.push({ligne:i+1,code,motif:"libellé manquant"});if(nom.length>120)return R.rejetes.push({ligne:i+1,code,motif:"libellé trop long (120 caractères maximum)"});
+  if(nat&&!natV.includes(nat))return R.rejetes.push({ligne:i+1,code,motif:"nature inconnue « "+f[2]+" » (actif, passif, actif_contra, charge, produit, hao, variable)"});
+  if(seen.has(code))return R.doublons.push({ligne:i+1,code,motif:"doublon dans le fichier : ligne ignorée"});
+  seen.add(code);rows.push({l:i+1,code,nom,nat});
+ });
+ if(mode==="remplace"&&!rows.length)throw new Error("Fichier vide ou sans compte valide : le remplacement est refusé (aucune suppression).");
+ rows.sort((x,y)=>x.code.length-y.code.length||(x.code<y.code?-1:1));const cree=new Set();
+ rows.forEach(r=>{const a=accOf(r.code);
+  if(a){const nn=r.nat||a.nat;if(a.nom===r.nom&&a.nat===nn){R.identiques++;return}
+   R.modifies.push({code:r.code,avant:a.nom,apres:r.nom});a.nom=r.nom;a.nat=nn;const b=bm.get(a.num);if(b){if(a.nom===b.nom&&a.nat===b.nat&&a.imp===b.imp)delete a.o;else a.o="m"}return}
+  const pc=parentCode(r.code,n=>!!accOf(n));if(!pc)return R.rejetes.push({ligne:r.l,code:r.code,motif:"aucun compte parent au plan"});
+  const b=bm.get(r.code),p=accOf(pc),n={num:r.code,nom:r.nom,type:CLS_TYPE[r.code[0]],nat:r.nat||(b&&b.nat)||p.nat||NAT_CLS[r.code[0]],imp:b?b.imp:1};
+  if(!b)n.o="a";else if(n.nom!==b.nom)n.o="m";S.accounts.push(n);cree.add(r.code);R.ajoutes.push({code:r.code,nom:r.nom,parent:pc})});
+ cree.forEach(c=>{if(!bm.has(c)&&compteDesc(c).length)accOf(c).imp=0});
+ if(mode==="remplace"){
+  S.accounts.filter(a=>!seen.has(a.num)).sort((x,y)=>y.num.length-x.num.length||(x.num<y.num?-1:1)).forEach(a=>{
+   const us=compteUsages(a.num);if(us.length)return R.conserves.push({code:a.num,motif:us.join(" ; ")});
+   if(compteDesc(a.num).length)return R.conserves.push({code:a.num,motif:"porte des sous-comptes conservés"});
+   S.accounts=S.accounts.filter(x=>x!==a);R.supprimes.push({code:a.num,nom:a.nom})})}
+ S.accounts.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);
+ audit("Import du plan comptable ("+(mode==="fusion"?"fusion":"remplacement sans perte")+")",R.lues+" ligne(s) : "+R.ajoutes.length+" ajoutée(s), "+R.modifies.length+" modifiée(s), "+R.identiques+" identique(s), "+R.rejetes.length+" rejetée(s), "+R.doublons.length+" doublon(s), "+R.supprimes.length+" supprimée(s), "+R.conserves.length+" conservée(s)");
+ return R;
+}
+function soldeCumule(code,from,to){ // compte + tous ses sous-comptes, à la demande
+ code=String(code||"").trim();if(!/^[1-8]\d{0,7}$/.test(code))throw new Error("Compte ou classe invalide (1 à 8 chiffres).");
+ if(from&&to&&from>to)throw new Error("Période invalide : la date de début suit la date de fin.");
+ const R={};S.entries.forEach(e=>{if(to&&e.date>to)return;e.lignes.forEach(l=>{if(!l.compte.startsWith(code))return;const r=R[l.compte]=R[l.compte]||{o:0,d:0,c:0};
+  if(from&&e.date<from){if((l.compte[0]==="6"||l.compte[0]==="7")&&e.date<yStart(from))return;r.o+=(l.debit||0)-(l.credit||0)}else{r.d+=l.debit||0;r.c+=l.credit||0}})});
+ const rows=Object.keys(R).sort().map(c=>({num:c,nom:cptNom(c)||"— hors plan —",o:R[c].o,d:R[c].d,c:R[c].c,s:R[c].o+R[c].d-R[c].c}));
+ return{code,from,to,rows,o:sum(rows,r=>r.o),d:sum(rows,r=>r.d),c:sum(rows,r=>r.c),s:sum(rows,r=>r.s)};
+}
+function migrerPlan(){ // anciennes données : plan v1 (≈68 comptes) → référentiel complet ; comptes personnalisés conservés
+ const st=S.settings;st.comptes=Object.assign(defComptes(),st.comptes||{});
+ if(S.plan_v!==2){
+  const old=Array.isArray(S.accounts)?S.accounts:[],om=new Map(old.map(a=>[a.num,a])),mouv=new Set();
+  (S.entries||[]).forEach(e=>e.lignes.forEach(l=>mouv.add(l.compte)));(S.brouillard||[]).forEach(b=>b.lignes.forEach(l=>mouv.add(l.compte)));
+  const garde=n=>mouv.has(n)||Object.values(st.comptes).includes(n)||(S.caisses||[]).some(c=>c.compte===n)||(S.budgets||[]).some(b=>b.compte===n);
+  const bm=planBaseMap(),out=[];let herites=0,perso=0;const remap=[];
+  planBase().forEach(b=>{const o=om.get(b.num),a={...b};
+   if(o){if(garde(b.num)&&o.nom&&o.nom!==b.nom){a.nom=o.nom;a.o="m"}
+    if(b.imp===0&&mouv.has(b.num)){a.imp=1;a.h=1;a.o="m";herites++}}
+   out.push(a)});
+  old.forEach(o=>{if(bm.has(o.num)||!o.num)return;const cl=String(o.num)[0];out.push({num:o.num,nom:o.nom||("Compte "+o.num),type:o.type||CLS_TYPE[cl]||"",nat:o.nat||NAT_CLS[cl]||"variable",imp:o.imp===0?0:1,o:"a"});perso++});
+  out.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);S.accounts=out;
+  // comptes par défaut devenus des regroupements (non mouvementés) : repli sur le défaut imputable du référentiel
+  const dflt=defComptes();Object.keys(DEF_CPT).forEach(k=>{const a=accOf(st.comptes[k]);if(a&&a.imp===0){remap.push(k+" "+st.comptes[k]+" → "+dflt[k]);st.comptes[k]=dflt[k]}});
+  S.plan_v=2;
+  if(old.length)audit("Plan comptable migré vers le référentiel SYSCOHADA révisé",out.length+" comptes ; "+perso+" compte(s) personnalisé(s) conservé(s) ; "+herites+" regroupement(s) mouvementé(s) maintenu(s) imputable(s) (historique)"+(remap.length?" ; défauts repris : "+remap.join(", "):""));
+ }
+ Object.keys(DEF_CPT).forEach(k=>{try{ensureCompte(st.comptes[k],libDefaut(k,st.comptes[k]))}catch(e){}});
+ (S.caisses||[]).forEach(c=>{try{ensureCompte(c.compte,"Caisse — "+c.nom)}catch(e){}});
+ S.accounts.sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0);
+ st.comptes.treso_banque=st.comptes.banque; // lecture par le hub groupe (index.html)
+}
 const JOURNAUX=[["VE","Ventes"],["AC","Achats et charges"],["TR","Trésorerie"],["PAIE","Paie"],["OD","Opérations diverses"],["CLO","Clôture d'exercice"]];
 const PROTOCOLES=[["chair",1,"Vaccin Marek"],["chair",7,"Vaccin Gumboro"],["chair",14,"Vaccin Newcastle + IB"],["chair",21,"Rappel Gumboro"],["chair",28,"Anticoccidien"],["chair",35,"Rappel Newcastle"],["ponte",1,"Vaccin Marek"],["ponte",7,"Vaccin Gumboro"],["ponte",14,"Vaccin Newcastle + IB"],["ponte",28,"Rappel Gumboro"],["ponte",42,"Rappel Newcastle"],["ponte",56,"Vaccin EDS"],["ponte",112,"Rappel EDS avant ponte"]];
 const PROD_REQ={"Vaccin Marek":["Vaccin Marek","dose"],"Vaccin Gumboro":["Vaccin Gumboro","dose"],"Rappel Gumboro":["Vaccin Gumboro","dose"],"Vaccin Newcastle + IB":["Vaccin Newcastle + IB","dose"],"Rappel Newcastle":["Vaccin Newcastle + IB","dose"],"Anticoccidien":["Anticoccidien","dose"],"Vaccin EDS":["Vaccin EDS","dose"],"Rappel EDS avant ponte":["Vaccin EDS","dose"]};
 const UNITES=["dose","mL","kg","L","g","tête"];
 function migrerCompta(){
- const st=S.settings;st.comptes=Object.assign(defComptes(),st.comptes||{});PLAN.forEach(([num,nom,type])=>{if(!S.accounts.some(a=>a.num===num))S.accounts.push({num,nom,type})});
- ["brouillard","budgets","tva_liq","exercices"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+ const st=S.settings;["brouillard","budgets","tva_liq","exercices"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});migrerPlan();
  if(!S.rapp||typeof S.rapp!=="object")S.rapp={releves:[],pointages:{},valides:[]};
 }
 function migrerSante(){
@@ -193,7 +346,7 @@ function postEntry({journal,date,libelle,piece,source,lignes}){
  lignes=lignes.filter(l=>l.debit||l.credit);
  const d=sum(lignes,l=>l.debit),c=sum(lignes,l=>l.credit);
  if(lignes.length<2||d!==c||d<=0)throw new Error("Écriture déséquilibrée ou incomplète (débit "+fcfa(d)+" / crédit "+fcfa(c)+").");
- lignes.forEach(l=>{if(!by(S.accounts,l.compte,"num"))throw new Error("Compte inconnu : "+l.compte);if(l.debit&&l.credit)throw new Error("Ligne à la fois au débit et au crédit.")});
+ lignes.forEach(l=>{verifCompte(l.compte);if(l.debit&&l.credit)throw new Error("Ligne à la fois au débit et au crédit.")});
  periodOpen(date);
  const e={id:uid("je"),numero:numJ(journal,date),journal,date,libelle,piece:piece||"",source:source||null,lignes,par:ME?ME.nom:"système",t:now()};
  S.entries.push(e);return e;
@@ -221,7 +374,7 @@ function trCompte(mode,sens,m,motif,src,cat,cid){ // compte de trésorerie d'un 
  if(sens==="sortie"&&m>soldeTheo(cs))throw new Error("Caisse insuffisante ("+fcfa(soldeTheo(cs))+").");
  S.cash_mv.push({id:uid("cm"),session_id:cs.id,date:now(),sens,montant:m,categorie:cat||"Opération",motif,statut:"validee",source:src||null,par:ME?ME.nom:"système"});return cptCaisse(cs)}
 function creerCaisse(nom,compte){need("caisse_cfg");nom=String(nom||"").trim();if(!nom)throw new Error("Nom de la caisse obligatoire.");if(!/^57[1-9]$/.test(compte))throw new Error("Compte de caisse invalide (571 à 579).");
- if(S.caisses.some(c=>c.nom.toLowerCase()===nom.toLowerCase()))throw new Error("Une caisse porte déjà ce nom.");if(!by(S.accounts,compte,"num"))S.accounts.push({num:compte,nom:"Caisse — "+nom,type:"Trésorerie"});
+ if(S.caisses.some(c=>c.nom.toLowerCase()===nom.toLowerCase()))throw new Error("Une caisse porte déjà ce nom.");ensureCompte(compte,"Caisse — "+nom);verifCompte(compte);
  const c={id:uid("cx"),nom,compte,actif:true,cree_le:now(),fond_init:0};S.caisses.push(c);audit("Caisse créée",nom+" (compte "+compte+")");return c}
 function basculerCaisse(id){need("caisse_cfg");const c=by(S.caisses,id);if(!c)throw new Error("Caisse introuvable.");
  if(c.actif){if(openSession(id))throw new Error("Clôturer la caisse avant de la désactiver.");if(caissesAct().length<2)throw new Error("Il faut au moins une caisse active.")}c.actif=!c.actif;audit(c.actif?"Caisse réactivée":"Caisse désactivée",c.nom)}
@@ -278,7 +431,7 @@ function migrerCaisse(){
  if(!S.caisses.length){const bal=sum(S.entries.flatMap(e=>e.lignes.filter(l=>l.compte===cdef("caisse"))),l=>(l.debit||0)-(l.credit||0));
   const c={id:uid("cx"),nom:"Caisse principale",compte:cdef("caisse"),actif:true,cree_le:now(),fond_init:bal};S.caisses.push(c);
   if(!S.cash_sessions.length)S.cash_sessions.push({id:uid("cs"),caisse_id:c.id,ouverte_le:now(),ouverte_par:(ME&&ME.role==="seed"?"Initialisation":"Reprise des données"),fond:bal,statut:"ouverte",technique:true})}
- [["572","Caisse succursale A"],["573","Caisse succursale B"]].forEach(([n,l])=>{if(!S.accounts.some(a=>a.num===n))S.accounts.push({num:n,nom:l,type:"Trésorerie"})})}
+}
 
 /* ---- Caisse : remises (banque / direction), réapprovisionnement, rapprochement ---- */
 const REM_DEST={banque:["Remise en banque","banque"],direction:["Remise à la direction","caisse_dir"]};
@@ -294,7 +447,7 @@ function confirmerRemise(id,preuve){
  if(ME.role!=="seed"&&r.par===ME.nom)throw new Error("La réception doit être confirmée par une autre personne que celle qui a remis les fonds.");
  const mv=by(S.cash_mv,r.mv_id);if(!mv||mv.statut!=="validee")throw new Error("Le bon de sortie de cette remise n'est pas encore validé.");
  if(String(preuve||"").trim().length<3)throw new Error("Preuve de réception obligatoire (n° de reçu bancaire ou signature de la direction).");
- const D=REM_DEST[r.dest],e=postEntry({journal:"TR",date:today(),libelle:"Réception "+D[0].toLowerCase()+" "+r.numero,piece:r.numero,source:{type:"remise",id:r.id},lignes:[{compte:cdef(D[1]),debit:r.montant},{compte:cdef("virement_interne"),credit:r.montant}]});
+ const e=ecrRemise(r);
  Object.assign(r,{statut:"confirmee",recu_par:ME.nom,recu_le:now(),preuve:String(preuve).trim(),entry_id:e.id});audit("Remise confirmée",r.numero+" — reçue, preuve "+r.preuve)}
 const remisesAttente=()=>S.remises.filter(r=>r.statut==="en_attente");
 function demanderReappro(f){
@@ -547,9 +700,7 @@ function creerAchat(f){
 function recevoirAchat(id,date){
  need("achat");const a=by(S.achats,id);if(!a||a.statut!=="commande")throw new Error("Commande non réceptionnable.");date=date||today();
  a.lignes.forEach(l=>mouvement({produit_id:l.produit_id,sens:"entree",qte:l.qte,pu:l.pu,motif:"Réception "+a.numero,date,source:{type:"achat",id}}));
- const par={};a.lignes.forEach(l=>{const c=cdef(CPT_ACHAT[prod(l.produit_id).categorie]||"c_divers");par[c]=(par[c]||0)+Math.round(l.qte*l.pu)});
- const tot=sum(Object.values(par),x=>x),ecart=a.total-tot;if(ecart)par[Object.keys(par)[0]]+=ecart;
- postEntry({journal:"AC",date,libelle:"Achat "+a.numero+" — "+tiers("f",a.fournisseur_id).nom,piece:a.numero,source:{type:"achat",id},lignes:[...Object.entries(par).map(([c,m])=>({compte:c,debit:m-tvaIn(m)})),...(Object.values(par).some(m=>tvaIn(m))?[{compte:cdef("tva_ded"),debit:sum(Object.values(par),m=>tvaIn(m))}]:[]),{compte:cdef("fournisseur"),tiers:a.fournisseur_id,credit:a.total}]});
+ ecrAchat(a,date);
  a.statut="recu";a.recu_le=date;audit("Achat réceptionné",a.numero);
 }
 function annulerAchat(id,motif){need("achat");const a=by(S.achats,id);if(!a||a.statut!=="commande")throw new Error("Seule une commande non reçue peut être annulée.");if(!motif)throw new Error("Motif obligatoire.");a.statut="annule";a.motif=motif;audit("Commande annulée",a.numero)}
@@ -558,7 +709,7 @@ function payerFournisseur(id,f){
  const m=Math.round(+f.montant);if(!(m>0))throw new Error("Montant invalide.");if(m>a.total-a.paye)throw new Error("Montant supérieur au solde ("+fcfa(a.total-a.paye)+").");
  if(f.mode!=="especes"&&!String(f.ref||"").trim())throw new Error("Référence de transaction obligatoire.");
  const r={id:uid("rg"),numero:seq("rg","RGF"),achat_id:id,date:f.date,montant:m,mode:f.mode,ref:f.ref||""};S.reglements.push(r);
- postEntry({journal:"TR",date:f.date,libelle:"Règlement "+a.numero,piece:r.numero,source:{type:"reglement",id:r.id},lignes:[{compte:cdef("fournisseur"),tiers:a.fournisseur_id,debit:m},{compte:trCompte(f.mode,"sortie",m,"Règlement "+a.numero,{type:"reglement",id:r.id},"Règlement fournisseur"),credit:m}]});
+ ecrReglement(r);
  a.paye+=m;audit("Règlement fournisseur",a.numero+" "+m);return r;
 }
 /* ---------- Ventes & encaissements ---------- */
@@ -584,7 +735,7 @@ function creerVente(f){
  });
  const total=sum(lignes,l=>l.total);if(total<=0)throw new Error("Montant total nul.");
  const v={id,numero:seq("vt","FAC"),date:f.date,client_id:c.id,lignes,total,echeance:addDays(f.date,delaiClient(c)),statut:"valide",par:ME.nom};S.ventes.push(v);
- postEntry({journal:"VE",date:f.date,libelle:"Vente "+v.numero+" — "+c.nom,piece:v.numero,source:{type:"vente",id},lignes:[{compte:cdef("client"),tiers:c.id,debit:total},{compte:cdef("produit"),credit:total-tvaIn(total),lot:lignes.find(l=>l.lot_id)?.lot_id},...(tvaIn(total)?[{compte:cdef("tva_coll"),credit:tvaIn(total)}]:[])]});
+ ecrVente(v);
  audit("Vente",v.numero+" "+total+" F");
  if(+f.paye>0)encaisserVente(id,{montant:+f.paye,mode:f.mode||"especes",ref:f.ref,date:f.date});
  return v;
@@ -595,7 +746,7 @@ function encaisserVente(vid,f){
  if(f.mode!=="especes"&&!String(f.ref||"").trim())throw new Error("Référence de transaction obligatoire (mobile money / virement).");
  if((f.date||today())>today())throw new Error("Date dans le futur.");
  const e={id:uid("en"),numero:seq("rc","REC"),vente_id:vid,client_id:v.client_id,date:f.date||today(),montant:m,mode:f.mode,ref:f.ref||"",statut:"valide",par:ME.nom};S.encaiss.push(e);
- postEntry({journal:"TR",date:e.date,libelle:"Encaissement "+e.numero+" — "+tiers("c",v.client_id).nom,piece:e.numero,source:{type:"encaiss",id:e.id},lignes:[{compte:trCompte(e.mode,"entree",m,"Encaissement "+e.numero,{type:"encaiss",id:e.id},"Encaissement client"),debit:m},{compte:cdef("client"),tiers:v.client_id,credit:m}]});
+ ecrEncaiss(e);
  audit("Encaissement",e.numero+" "+m+" F");return e;
 }
 function annulerEncaissement(id,motif){
@@ -615,8 +766,7 @@ function ajouterCharge(f){
  if(f.date>today())throw new Error("Date dans le futur.");if(f.mode!=="especes"&&f.mode!=="banque"&&f.mode!=="mobile")throw new Error("Mode de règlement invalide.");
  if(f.lot_id&&!by(S.lots,f.lot_id))throw new Error("Lot inconnu.");
  const c={id:uid("ch"),numero:seq("ch","CHG"),date:f.date,lot_id:f.lot_id||null,categorie:f.categorie,libelle:f.libelle||CHARGES[f.categorie][0],montant:m,mode:f.mode,statut:"valide",par:ME.nom};S.charges.push(c);
- const tvaC=CH_SANS_TVA.includes(c.categorie)?0:tvaIn(m);
- postEntry({journal:"AC",date:c.date,libelle:c.libelle,piece:c.numero,source:{type:"charge",id:c.id},lignes:[{compte:cdef(CHARGES[c.categorie][1]),debit:m-tvaC,lot:c.lot_id||undefined},...(tvaC?[{compte:cdef("tva_ded"),debit:tvaC}]:[]),{compte:trCompte(c.mode==="especes"?"especes":"banque","sortie",m,c.libelle,{type:"charge",id:c.id},"Charge : "+CHARGES[c.categorie][0]),credit:m}]});
+ ecrCharge(c);
  audit("Charge",c.numero+" "+m+" F");return c;
 }
 function annulerCharge(id,motif){need("charge");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const c=by(S.charges,id);if(!c||c.statut!=="valide")throw new Error("Charge introuvable ou annulée.");if(!can("extourne")&&ME.role!=="chef")throw new Error("Droits insuffisants.");extournerSource("charge",id,motif);c.statut="annule";c.motif=motif;audit("Charge annulée",c.numero)}
@@ -642,17 +792,16 @@ function payerSalaires(mois,mode){
  const st=S.staff.filter(s=>s.actif&&s.salaire>0);if(!st.length)throw new Error("Aucun salarié actif.");const tot=sum(st,s=>s.salaire);
  if(mode!=="especes"&&tot>soldeCompte(cdef("banque")))throw new Error("Trésorerie insuffisante ("+fcfa(soldeCompte(cdef("banque")))+" pour "+fcfa(tot)+").");
  const id=uid("pa"),d=mois+"-"+String(Math.min(28,new Date().getUTCDate())).padStart(2,"0");
- postEntry({journal:"PAIE",date:d>today()?today():d,libelle:"Salaires "+mois,piece:"PAIE-"+mois,source:{type:"paie",id},lignes:[{compte:cdef("c_mo"),debit:tot},{compte:trCompte(mode==="especes"?"especes":"banque","sortie",tot,"Salaires "+mois,{type:"paie",id},"Salaires"),credit:tot}]});
- S.paies.push({id,mois,total:tot,mode,detail:st.map(s=>({id:s.id,nom:s.nom,montant:s.salaire})),par:ME.nom});audit("Salaires payés",mois+" "+tot+" F");
+ const p={id,mois,total:tot,mode,date:d>today()?today():d,detail:st.map(s=>({id:s.id,nom:s.nom,montant:s.salaire})),par:ME.nom};ecrPaie(p);S.paies.push(p);audit("Salaires payés",mois+" "+tot+" F");
 }
+
 const monthEnd=m=>{const[y,mo]=m.split("-").map(Number);return new Date(Date.UTC(y,mo,0)).toISOString().slice(0,7)+"-"+String(new Date(Date.UTC(y,mo,0)).getUTCDate()).padStart(2,"0")};
 const monthNext=m=>{const[y,mo]=m.split("-").map(Number);return new Date(Date.UTC(y,mo,1)).toISOString().slice(0,7)};
 function immoBat(b,prev){
  need("batiment");const val=Math.round(+b.valeur_acq||0);
  if(b.immo_ecr){if((prev.valeur_acq||0)!==val||(prev.date_service||"")!==(b.date_service||""))throw new Error("Valeur et date de mise en service déjà comptabilisées : extourner l'écriture d'acquisition avant de les modifier.");return}
  if(!(val>0))return;const d=b.date_service||today();if(d>today())throw new Error("Date de mise en service dans le futur.");
- const e=postEntry({journal:"OD",date:d,libelle:"Acquisition immobilisation — "+b.nom,piece:"IMMO-"+b.nom,source:{type:"immo",id:b.id},lignes:[{compte:cdef("immo"),debit:val},{compte:cdef("immo_contre"),credit:val}]});
- b.valeur_acq=val;b.date_service=d;b.immo_ecr=e.id;b.amort_cumul=0;audit("Immobilisation comptabilisée",b.nom+" "+fcfa(val));
+ b.valeur_acq=val;b.date_service=d;b.amort_cumul=0;const e=ecrImmo(b);audit("Immobilisation comptabilisée",b.nom+" "+fcfa(val));
 }
 function dotationsAuto(){ // linéaire mensuel sur les mois révolus ; s'arrête à une période clôturée
  let n=0;S.batiments.forEach(b=>{if(!b.immo_ecr||!(b.valeur_acq>0))return;
@@ -671,7 +820,7 @@ function liquiderTVA(m){
  const e=postEntry({journal:"OD",date:monthEnd(m),libelle:"Liquidation de la TVA — "+m,piece:"TVA-"+m,source:{type:"tva",mois:m},lignes});S.tva_liq.push({mois:m,entry:e.id,net:t.net});audit("TVA liquidée",m+" : "+fcfa(t.net));return e}
 function brouillardOD(f){
  need("compta");if(!String(f.libelle||"").trim())throw new Error("Libellé obligatoire.");const lignes=(f.lignes||[]).filter(l=>l.compte);if(lignes.length<2)throw new Error("Au moins deux lignes sont nécessaires.");
- lignes.forEach(l=>{if(!by(S.accounts,l.compte,"num"))throw new Error("Compte inconnu : "+l.compte);if((S.caisses||[]).some(c=>c.compte===l.compte))throw new Error("Les mouvements d'espèces se saisissent dans le module Caisse (bons), pas en écriture manuelle.")});
+ lignes.forEach(l=>{verifCompte(l.compte);if((S.caisses||[]).some(c=>c.compte===l.compte))throw new Error("Les mouvements d'espèces se saisissent dans le module Caisse (bons), pas en écriture manuelle.")});
  const b={id:uid("bo"),date:f.date||today(),journal:f.journal||"OD",piece:f.piece||"",libelle:String(f.libelle).trim(),lignes,par:ME.nom,t:now()};S.brouillard.push(b);audit("Écriture en brouillard",b.libelle);return b}
 function viserBrouillard(id){
  need("visa");const b=by(S.brouillard,id);if(!b)throw new Error("Écriture introuvable.");
@@ -681,7 +830,7 @@ function supprimerBrouillard(id){
  need("compta");const b=by(S.brouillard,id);if(!b)throw new Error("Écriture introuvable.");if(b.par!==ME.nom&&!can("visa"))throw new Error("Seul l'auteur ou un viseur peut supprimer ce brouillard.");
  S.brouillard=S.brouillard.filter(x=>x.id!==id);audit("Brouillard supprimé",b.libelle)}
 function definirBudget(compte,max){
- need("periode");if(!by(S.accounts,compte,"num")||compte[0]!=="6")throw new Error("Compte de charges (classe 6) requis.");if(!(max>0))throw new Error("Plafond invalide.");
+ need("periode");verifCompte(compte);if(compte[0]!=="6")throw new Error("Compte de charges (classe 6) requis.");if(!(max>0))throw new Error("Plafond invalide.");
  const b=S.budgets.find(x=>x.compte===compte);if(b)b.max=max;else S.budgets.push({id:uid("bg"),compte,max});audit("Budget mensuel",compte+" : "+fcfa(max))}
 const budgetConso=(compte,mois)=>sum(S.entries.filter(e=>e.date.startsWith(mois)).flatMap(e=>e.lignes.filter(l=>l.compte===compte)),l=>(l.debit||0)-(l.credit||0));
 const budgetAlertes=()=>{const m=today().slice(0,7);return S.budgets.map(g=>({g,u:budgetConso(g.compte,m)})).filter(x=>x.u>=.8*x.g.max)};
@@ -694,6 +843,97 @@ function saisirOD(f){
 function extournerOD(id,motif){
  need("extourne");if(!String(motif||"").trim())throw new Error("Motif obligatoire.");const e=by(S.entries,id);if(!e||!e.source||e.source.type!=="manual"||e.extournee)throw new Error("Seules les écritures manuelles non extournées peuvent l'être (annuler l'opération source sinon).");
  extournerSource("manual",id,motif);audit("Écriture extournée",e.numero);
+}
+/* ---------- Écritures automatiques (une seule définition par type d'opération : saisie ET rattrapage) ---------- */
+function trCompteSrc(mode,sens,m,motif,src,cat){ // rattrapage : réutilise le mouvement d'espèces déjà enregistré pour cette opération
+ if(mode==="especes"&&src){const mv=S.cash_mv.find(x=>x.source&&x.source.type===src.type&&x.source.id===src.id&&x.statut==="validee");if(mv){const cs=by(S.cash_sessions,mv.session_id);if(cs)return cptCaisse(cs)}}
+ return trCompte(mode,sens,m,motif,src,cat);
+}
+function ecrVente(v){
+ const c=by(S.clients,v.client_id),tv=tvaIn(v.total);
+ return postEntry({journal:"VE",date:v.date,libelle:"Vente "+v.numero+" — "+c.nom,piece:v.numero,source:{type:"vente",id:v.id},lignes:[{compte:cdef("client"),tiers:c.id,debit:v.total},{compte:cdef("produit"),credit:v.total-tv,lot:(v.lignes.find(l=>l.lot_id)||{}).lot_id},...(tv?[{compte:cdef("tva_coll"),credit:tv}]:[])]});
+}
+function ecrEncaiss(e){
+ const v=by(S.ventes,e.vente_id),cl=v?v.client_id:e.client_id;
+ return postEntry({journal:"TR",date:e.date,libelle:"Encaissement "+e.numero+" — "+tiers("c",cl).nom,piece:e.numero,source:{type:"encaiss",id:e.id},lignes:[{compte:trCompteSrc(e.mode,"entree",e.montant,"Encaissement "+e.numero,{type:"encaiss",id:e.id},"Encaissement client"),debit:e.montant},{compte:cdef("client"),tiers:cl,credit:e.montant}]});
+}
+function ecrAchat(a,date){
+ const par={};a.lignes.forEach(l=>{const c=cdef(CPT_ACHAT[prod(l.produit_id).categorie]||"c_divers");par[c]=(par[c]||0)+Math.round(l.qte*l.pu)});
+ const tot=sum(Object.values(par),x=>x),ecart=a.total-tot;if(ecart)par[Object.keys(par)[0]]+=ecart;
+ return postEntry({journal:"AC",date,libelle:"Achat "+a.numero+" — "+tiers("f",a.fournisseur_id).nom,piece:a.numero,source:{type:"achat",id:a.id},lignes:[...Object.entries(par).map(([c,m])=>({compte:c,debit:m-tvaIn(m)})),...(Object.values(par).some(m=>tvaIn(m))?[{compte:cdef("tva_ded"),debit:sum(Object.values(par),m=>tvaIn(m))}]:[]),{compte:cdef("fournisseur"),tiers:a.fournisseur_id,credit:a.total}]});
+}
+function ecrReglement(r){
+ const a=by(S.achats,r.achat_id);
+ return postEntry({journal:"TR",date:r.date,libelle:"Règlement "+a.numero,piece:r.numero,source:{type:"reglement",id:r.id},lignes:[{compte:cdef("fournisseur"),tiers:a.fournisseur_id,debit:r.montant},{compte:trCompteSrc(r.mode,"sortie",r.montant,"Règlement "+a.numero,{type:"reglement",id:r.id},"Règlement fournisseur"),credit:r.montant}]});
+}
+function ecrCharge(c){
+ const tvaC=CH_SANS_TVA.includes(c.categorie)?0:tvaIn(c.montant),m=c.montant;
+ return postEntry({journal:"AC",date:c.date,libelle:c.libelle,piece:c.numero,source:{type:"charge",id:c.id},lignes:[{compte:cdef(CHARGES[c.categorie][1]),debit:m-tvaC,lot:c.lot_id||undefined},...(tvaC?[{compte:cdef("tva_ded"),debit:tvaC}]:[]),{compte:trCompteSrc(c.mode==="especes"?"especes":"banque","sortie",m,c.libelle,{type:"charge",id:c.id},"Charge : "+CHARGES[c.categorie][0]),credit:m}]});
+}
+function ecrPaie(p){
+ return postEntry({journal:"PAIE",date:p.date,libelle:"Salaires "+p.mois,piece:"PAIE-"+p.mois,source:{type:"paie",id:p.id},lignes:[{compte:cdef("c_mo"),debit:p.total},{compte:trCompteSrc(p.mode==="especes"?"especes":"banque","sortie",p.total,"Salaires "+p.mois,{type:"paie",id:p.id},"Salaires"),credit:p.total}]});
+}
+function ecrImmo(b){
+ const e=postEntry({journal:"OD",date:b.date_service,libelle:"Acquisition immobilisation — "+b.nom,piece:"IMMO-"+b.nom,source:{type:"immo",id:b.id},lignes:[{compte:cdef("immo"),debit:b.valeur_acq},{compte:cdef("immo_contre"),credit:b.valeur_acq}]});
+ b.immo_ecr=e.id;b.amort_cumul=b.amort_cumul||0;return e;
+}
+function ecrRemise(r){
+ const D=REM_DEST[r.dest];
+ return postEntry({journal:"TR",date:today(),libelle:"Réception "+D[0].toLowerCase()+" "+r.numero,piece:r.numero,source:{type:"remise",id:r.id},lignes:[{compte:cdef(D[1]),debit:r.montant},{compte:cdef("virement_interne"),credit:r.montant}]});
+}
+/* ---------- Règles de comptabilisation : types d'opérations → journal, comptes, état par opération ---------- */
+const srcSet=()=>new Set(S.entries.filter(e=>e.source&&e.source.id).map(e=>e.source.type+":"+e.source.id));
+const tierNom=(t,id)=>{try{return tiers(t,id).nom}catch(e){return"?"}};
+const REGLES=[
+ {k:"vente",l:"Vente (facture)",j:"VE",d:["client"],c:["produit","tva_coll"],ctl:n=>n+" vente(s) sans écriture comptable",ops:()=>S.ventes.filter(v=>v.statut==="valide").map(v=>({id:v.id,lib:v.numero+" — "+tierNom("c",v.client_id),date:v.date,mt:v.total})),post:id=>ecrVente(by(S.ventes,id))},
+ {k:"encaiss",l:"Encaissement client",j:"TR",d:["@treso"],c:["client"],ctl:n=>n+" encaissement(s) sans écriture",ops:()=>S.encaiss.filter(e=>e.statut==="valide").map(e=>({id:e.id,lib:e.numero,date:e.date,mt:e.montant})),post:id=>ecrEncaiss(by(S.encaiss,id))},
+ {k:"achat",l:"Achat (réception)",j:"AC",d:["@achat","tva_ded"],c:["fournisseur"],ctl:n=>n+" achat(s) réceptionné(s) sans écriture",ops:()=>S.achats.filter(a=>a.statut==="recu").map(a=>({id:a.id,lib:a.numero+" — "+tierNom("f",a.fournisseur_id),date:a.recu_le||a.date,mt:a.total})),post:id=>{const a=by(S.achats,id);ecrAchat(a,a.recu_le||a.date)}},
+ {k:"reglement",l:"Règlement fournisseur",j:"TR",d:["fournisseur"],c:["@treso"],ctl:n=>n+" règlement(s) fournisseur sans écriture",ops:()=>S.reglements.map(r=>({id:r.id,lib:r.numero,date:r.date,mt:r.montant})),post:id=>ecrReglement(by(S.reglements,id))},
+ {k:"charge",l:"Dépense (charge)",j:"AC",d:["@charge","tva_ded"],c:["@treso"],ctl:n=>n+" charge(s) sans écriture",ops:()=>S.charges.filter(c=>c.statut==="valide").map(c=>({id:c.id,lib:c.numero+" — "+c.libelle,date:c.date,mt:c.montant})),post:id=>ecrCharge(by(S.charges,id))},
+ {k:"paie",l:"Paie (salaires)",j:"PAIE",d:["c_mo"],c:["@treso"],ctl:n=>n+" paie(s) sans écriture",ops:()=>S.paies.map(p=>({id:p.id,lib:"Salaires "+p.mois,date:p.date||p.mois+"-28",mt:p.total})),post:id=>{const p=by(S.paies,id);if(!p.date)p.date=p.mois+"-"+String(Math.min(28,new Date().getUTCDate())).padStart(2,"0");if(p.date>today())p.date=today();ecrPaie(p)}},
+ {k:"bon",l:"Caisse : bons d'entrée / sortie validés",j:"TR",d:["@bon"],c:["@bon"],ctl:n=>n+" bon(s) de caisse validé(s) sans écriture",ops:()=>S.cash_mv.filter(m=>m.kind&&m.statut==="validee").map(m=>({id:m.id,lib:(m.numero||"bon")+" — "+m.categorie,date:(m.date||"").slice(0,10),mt:m.montant})),post:id=>postBon(by(S.cash_mv,id))},
+ {k:"remise",l:"Caisse : remise confirmée (banque / direction)",j:"TR",d:["banque","caisse_dir"],c:["virement_interne"],ctl:n=>n+" remise(s) confirmée(s) sans écriture",ops:()=>S.remises.filter(r=>r.statut==="confirmee").map(r=>({id:r.id,lib:r.numero,date:r.date,mt:r.montant})),post:id=>{const r=by(S.remises,id);const e=ecrRemise(r);r.entry_id=e.id}},
+ {k:"immo",l:"Immobilisation (acquisition d'un bâtiment)",j:"OD",d:["immo"],c:["immo_contre"],ctl:n=>n+" immobilisation(s) sans écriture d'acquisition",ops:()=>S.batiments.filter(b=>b.valeur_acq>0&&b.date_service).map(b=>({id:b.id,lib:"IMMO-"+b.nom,date:b.date_service,mt:b.valeur_acq})),post:id=>ecrImmo(by(S.batiments,id))},
+ {k:"amort",l:"Dotation aux amortissements (mensuelle)",j:"OD",d:["amort_dot"],c:["amort_cumul"],virtuel:true,ops:()=>amortAttente(),bulk:()=>dotationsAuto()},
+ {k:"tva",l:"TVA : liquidation mensuelle",j:"OD",d:["tva_coll"],c:["tva_ded","tva_due","tva_credit"],manuel:"Comptabilité → TVA",virtuel:true,ops:()=>tvaAttente()},
+ {k:"ecart",l:"Écart de caisse (régularisation)",j:"TR",d:["ecart_manq"],c:["caisse"],manuel:"Caisse → clôtures (décision motivée)",virtuel:true,ops:()=>S.cash_sessions.filter(x=>x.statut==="cloturee"&&x.ecart&&!x.ecart_regul).map(x=>({id:x.id,lib:"Écart de "+fcfa(x.ecart)+" — session du "+fd(x.cloturee_le),date:(x.cloturee_le||"").slice(0,10),mt:Math.abs(x.ecart)}))},
+ {k:"brouillard",l:"Opération diverse manuelle (brouillard)",j:"OD",d:["@manuel"],c:["@manuel"],manuel:"Saisie & visa (séparation des tâches)",virtuel:true,ops:()=>S.brouillard.map(b=>({id:b.id,lib:b.libelle,date:b.date,mt:sum(b.lignes,l=>l.debit)}))},
+ {k:"treso",l:"Trésorerie : apport, emprunt, subvention, remboursement, prélèvement",j:"TR",d:["@treso2"],c:["@treso2"],direct:"treso"},
+ {k:"extourne",l:"Annulation / extourne",j:"selon l'écriture",d:["@inverse"],c:["@inverse"],direct:"extourne"},
+ {k:"stock",l:"Stock : entrées, sorties, ajustements, fabrication",j:"—",analytique:"Suivi en quantités et en valeur (coût moyen). La charge est constatée à l'achat (classe 6) : aucune écriture de variation de stock.",cnt:()=>S.mvts.length},
+ {k:"mort",l:"Mortalité, réforme, sorties de lot",j:"—",analytique:"Effectifs et coût par lot (analytique). Aucune écriture : la perte n'a pas de flux d'argent propre.",cnt:()=>sum(S.suivis,x=>x.morts>0?1:0)+S.sorties.filter(s=>!s.annule&&s.type!=="vente").length},
+ {k:"lot",l:"Lot : calcul du coût de revient",j:"—",analytique:"Coût de revient par lot dérivé des charges, achats et amortissements déjà comptabilisés (étiquette « lot » sur les lignes d'écriture).",cnt:()=>S.lots.length}
+];
+function amortAttente(){ // mois révolus sans dotation (calcul identique à dotationsAuto, sans écrire)
+ const o=[];S.batiments.forEach(b=>{if(!b.immo_ecr||!(b.valeur_acq>0))return;const duree=+b.duree_amort||S.settings.amort_duree||20,men=Math.round(b.valeur_acq/(duree*12));let m=b.amort_jusqu?monthNext(b.amort_jusqu):per(b.date_service),cum=b.amort_cumul||0;
+  for(;m<per(today());m=monthNext(m)){const dot=Math.min(men,b.valeur_acq-cum);if(dot<=0)break;const p=by(S.periods,m);if(p&&p.statut==="cloturee")break;cum+=dot;o.push({id:b.id+":"+m,lib:"Dotation "+m+" — "+b.nom,date:monthEnd(m),mt:dot})}});
+ return o;
+}
+function tvaAttente(){
+ const ms=new Set();S.entries.forEach(e=>e.lignes.forEach(l=>{if(l.compte===(S.settings.comptes||{}).tva_coll||l.compte===(S.settings.comptes||{}).tva_ded)ms.add(per(e.date))}));
+ return[...ms].sort().filter(m=>m<per(today())&&!(S.tva_liq||[]).some(x=>x.mois===m)).map(m=>{const t=tvaMois(m);return{id:m,lib:"TVA "+m,date:monthEnd(m),mt:Math.abs(t.net)}}).filter(x=>x.mt>0);
+}
+function rgEtat(){ // état de chaque règle : opérations, comptabilisées, en attente
+ const ss=srcSet();
+ return REGLES.map(r=>{
+  if(r.analytique)return{r,total:r.cnt(),ok:0,pend:[]};
+  if(r.direct){const n=S.entries.filter(e=>e.source&&e.source.type===r.direct).length;return{r,total:n,ok:n,pend:[]}}
+  const ops=r.ops();if(r.virtuel){const ok=r.k==="amort"?S.entries.filter(e=>e.source&&e.source.type==="amort").length:r.k==="tva"?(S.tva_liq||[]).length:0;return{r,total:ok+ops.length,ok,pend:ops}}
+  const pend=ops.filter(o=>!ss.has(r.k+":"+o.id));return{r,total:ops.length,ok:ops.length-pend.length,pend,ids:ops};
+ });
+}
+function tryOp(fn){ // exécute une opération isolément : en cas d'échec l'état est restauré, le message est renvoyé
+ const snap=JSON.stringify(S),me=ME&&ME.id;
+ try{fn();return null}catch(e){S=JSON.parse(snap);ME=me?by(S.users,me)||null:null;return e.message}
+}
+function comptabiliserAttente(){ // idempotent : ne traite que les opérations sans écriture ; un échec n'arrête pas les autres
+ need("compta");const res={n:0,ech:[],manuel:0},E=rgEtat();
+ E.forEach(x=>{
+  if(x.r.analytique||x.r.direct)return;if(x.r.manuel){res.manuel+=x.pend.length;return}
+  if(x.r.bulk){if(x.pend.length){const m=tryOp(()=>{res.n+=x.r.bulk()});if(m)res.ech.push(x.r.l+" : "+m)}return}
+  x.pend.forEach(o=>{const m=tryOp(()=>x.r.post(o.id));if(m===null)res.n++;else res.ech.push(x.r.l+" "+o.lib+" : "+m)})});
+ audit("Comptabilisation des opérations en attente",res.n+" écriture(s) créée(s), "+res.ech.length+" échec(s), "+res.manuel+" opération(s) à traiter manuellement");
+ return res;
 }
 /* ---------- Lettrage des comptes tiers ---------- */
 const tiersNom=id=>(by(S.clients,id)||by(S.fournisseurs,id)||{}).nom||id||"";
@@ -825,11 +1065,10 @@ function integrite(){
  {const cc=new Set(S.caisses.map(c=>c.compte)),led=sum(S.entries.flatMap(e=>e.lignes.filter(l=>cc.has(l.compte))),l=>(l.debit||0)-(l.credit||0)),mvs=sum(S.caisses,c=>c.fond_init||0)+sum(S.cash_mv.filter(m=>m.statut==="validee"),m=>m.sens==="entree"?m.montant:-m.montant)+sum(S.cash_sessions.filter(x=>x.ecart&&x.ecart_regul),x=>x.ecart);
   if(led!==mvs)o.push("Comptes de caisse ("+fcfa(led)+") ≠ mouvements de caisse validés ("+fcfa(mvs)+")")}
   {const vt=soldeCompte(cdef("virement_interne")),att=sum(S.remises.filter(r=>r.statut==="en_attente"&&(by(S.cash_mv,r.mv_id)||{}).statut==="validee"),r=>r.montant);if(vt!==att)o.push("Fonds en transit ("+cdef("virement_interne")+") "+fcfa(vt)+" ≠ remises non confirmées "+fcfa(att))}
- const src=new Set(S.entries.filter(e=>e.source).map(e=>e.source.type+":"+e.source.id));
- const nV=S.ventes.filter(v=>v.statut==="valide"&&!src.has("vente:"+v.id)).length;if(nV)o.push(nV+" vente(s) sans écriture comptable");
- const nA=S.achats.filter(a=>a.statut==="recu"&&!src.has("achat:"+a.id)).length;if(nA)o.push(nA+" achat(s) réceptionné(s) sans écriture");
- const nC=S.charges.filter(c=>c.statut==="valide"&&!src.has("charge:"+c.id)).length;if(nC)o.push(nC+" charge(s) sans écriture");
- Object.keys(DEF_CPT).forEach(k=>{const c=(S.settings.comptes||{})[k];if(!c)o.push("Compte par défaut non paramétré : "+DEF_CPT[k][0]);else if(!by(S.accounts,c,"num"))o.push("Compte par défaut inexistant au plan : "+c+" ("+DEF_CPT[k][0]+")")});
+ rgEtat().forEach(x=>{if(x.r.ctl&&x.pend.length)o.push(x.r.ctl(x.pend.length))});
+ {const ix=new Map(S.accounts.map(a=>[a.num,a])),bad={};S.entries.forEach(e=>e.lignes.forEach(l=>{const a=ix.get(l.compte),k=!a?"h":estImp(a)?(a.h?"i":""):"r";if(k)(bad[l.compte]=bad[l.compte]||{k,n:0}).n++}));
+  Object.keys(bad).sort().forEach(c=>{const b=bad[c],a=ix.get(c);o.push(b.k==="h"?"Écriture sur compte hors plan : "+c+" ("+b.n+" ligne(s)) — rattacher le compte au plan":b.k==="r"?"Écriture sur compte de regroupement : "+c+" "+a.nom+" ("+b.n+" ligne(s)) — reclasser vers un compte imputable":"Compte de regroupement "+c+" "+a.nom+" utilisé en imputation (historique, "+b.n+" ligne(s)) — prévoir un reclassement vers un compte imputable")})}
+ Object.keys(DEF_CPT).forEach(k=>{const c=(S.settings.comptes||{})[k],a=c&&accOf(c);if(!c)o.push("Compte par défaut non paramétré : "+DEF_CPT[k][0]);else if(!a)o.push("Compte par défaut inexistant au plan : "+c+" ("+DEF_CPT[k][0]+")");else if(a.imp===0)o.push("Compte par défaut de regroupement : "+c+" ("+DEF_CPT[k][0]+") — choisir un compte imputable")});
  return o;
 }
 
@@ -843,9 +1082,9 @@ const SETTINGS0={...DEF_SET,seuil_mort_jour:0.5,seuil_mort_cum:5,seuil_ponte:75,
 function seed(){
  const d=n=>addDays(today(),n);
  S={seq:{},audit:[],users:[],batiments:[],lots:[],suivis:[],sorties:[],soins:[],traitements:[],incubations:[],produits:[],mvts:[],recettes:[],fabs:[],fournisseurs:[],clients:[],achats:[],reglements:[],ventes:[],encaiss:[],charges:[],staff:[],paies:[],
-  accounts:PLAN.map(([num,nom,type])=>({num,nom,type})),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action,produit:(PROD_REQ[action]||[""])[0],unite:(PROD_REQ[action]||[0,"dose"])[1]})),settings:{...SETTINGS0,comptes:defComptes()},brouillard:[],budgets:[],tva_liq:[],exercices:[],rapp:{releves:[],pointages:{},valides:[]},caisses:[],cash_sessions:[],cash_mv:[],tries:{}};
+  accounts:planInit(),entries:[],periods:[],protocoles:PROTOCOLES.map(([type,age,action])=>({type,age,action,produit:(PROD_REQ[action]||[""])[0],unite:(PROD_REQ[action]||[0,"dose"])[1]})),settings:{...SETTINGS0,comptes:defComptes()},brouillard:[],budgets:[],tva_liq:[],exercices:[],rapp:{releves:[],pointages:{},valides:[]},caisses:[],cash_sessions:[],cash_mv:[],tries:{}};
  ME={id:"seed",nom:"Initialisation",role:"seed"};
- migrerCond();migrerNutri();migrerVentes();migrerCaisse();
+ migrerPlan();migrerCond();migrerNutri();migrerVentes();migrerCaisse();
  const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.h=hashPin(u.id,pin);S.users.push(u)};
  mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Chef d'exploitation","chef","1111");mkU("Soigneur","soigneur","2222");mkU("Magasinier","magasinier","3333");mkU("Commercial","commercial","4444");mkU("Caissier","caissier","5555");mkU("Comptable","comptable","6666");
  const bA={id:uid("b"),nom:"Poulailler A",capacite:1000,usage:"Chair"},bB={id:uid("b"),nom:"Poulailler B",capacite:600,usage:"Ponte"};S.batiments.push(bA,bB);
@@ -898,7 +1137,7 @@ const lotsOpts=(all)=>S.lots.filter(l=>all||l.statut==="en_cours").map(l=>[l.id,
 const prodOpts=(cat)=>S.produits.filter(p=>!cat||cat.includes(p.categorie)).map(p=>[p.id,p.nom+" ("+p.unite+")"]);
 function modal(html){const m=document.createElement("div");m.className="md";m.innerHTML="<div>"+html+"</div>";m.addEventListener("mousedown",e=>{if(e.target===m)m.remove()});document.body.appendChild(m);return m}
 function form(title,fields,init,onSave,ok){
- const m=modal(`<h2 style="margin-top:0">${esc(title)}</h2><form class="fg" novalidate>${fields.map(f=>{const o=typeof f.o==="function"?f.o():f.o;return `<div ${f.full?'style="grid-column:1/-1"':""}><label>${esc(f.l)}${f.req?" *":""}</label>${f.t==="select"?`<select name="${f.k}">${o.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("")}</select>`:f.t==="area"?`<textarea name="${f.k}" rows="2"></textarea>`:`<input name="${f.k}" type="${f.t||"text"}" ${f.t==="number"?'step="any" min="0"':""} autocomplete="off">`}${f.h?`<span class="mu sm">${esc(f.h)}</span>`:""}</div>`}).join("")}<div style="grid-column:1/-1" class="flex"><button class="btn">${ok||"Enregistrer"}</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
+ const m=modal(`<h2 style="margin-top:0">${esc(title)}</h2><form class="fg" novalidate>${fields.map(f=>{const o=typeof f.o==="function"?f.o():f.o;return `<div ${f.full?'style="grid-column:1/-1"':""}><label>${esc(f.l)}${f.req?" *":""}</label>${f.t==="select"?`<select name="${f.k}">${o.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("")}</select>`:f.t==="area"?`<textarea name="${f.k}" rows="2"></textarea>`:`<input name="${f.k}" type="${f.t||"text"}" ${f.t==="number"?'step="any" min="0"':""} ${f.list?`list="${f.list}"`:""} autocomplete="off">`}${f.h?`<span class="mu sm">${esc(f.h)}</span>`:""}</div>`}).join("")}<div style="grid-column:1/-1" class="flex"><button class="btn">${ok||"Enregistrer"}</button><button type="button" class="btn ghost" data-x>Annuler</button></div></form>`);
  const fm=$("form",m);fields.forEach(f=>{const e=fm.elements[f.k];if(e&&init&&init[f.k]!=null)e.value=init[f.k]});
  $("[data-x]",m).onclick=()=>m.remove();
  fm.onsubmit=e=>{e.preventDefault();const o={};try{for(const f of fields){const v=fm.elements[f.k].value.trim();if(f.req&&v==="")throw new Error(f.l+" requis.");o[f.k]=f.t==="number"?(v===""?0:+v):v}}catch(x){return alert(x.message)}
@@ -1358,7 +1597,7 @@ A["cx.per"]=id=>{cxUI().p=id;render()};
 A["cx.nav"]=id=>{const x=cxUI(),n=+id;if(!n){x.ref=new Date().toISOString();return render()}const r=new Date(x.ref);if(x.p==="jour")r.setDate(r.getDate()+n);else if(x.p==="annee")r.setFullYear(r.getFullYear()+n);else r.setMonth(r.getMonth()+n);x.ref=r.toISOString();render()};
 A["cx.sel"]=id=>{cxUI().c=id;UI.tab.tresor="session";render()};
 A["cx.tog"]=id=>{if(atomic(()=>basculerCaisse(id))!==false)render()};
-A["cx.new"]=()=>form("Nouvelle caisse",[{k:"nom",l:"Nom de la caisse",req:1,h:"Ex. : Caisse du couvoir, Caisse boutique"},{k:"compte",l:"Compte comptable",t:"select",o:[["571","571 — Caisse principale"],["572","572 — Caisse succursale A"],["573","573 — Caisse succursale B"]]}],{compte:"572"},o=>{const c=creerCaisse(o.nom,o.compte);cxUI().c=c.id},"Créer la caisse");
+A["cx.new"]=()=>form("Nouvelle caisse",[{k:"nom",l:"Nom de la caisse",req:1,h:"Ex. : Caisse du couvoir, Caisse boutique"},{k:"compte",l:"Compte comptable",t:"select",o:()=>S.accounts.filter(a=>/^57[1-9]$/.test(a.num)&&estImp(a)).map(a=>[a.num,a.num+" — "+a.nom])}],{compte:"572"},o=>{const c=creerCaisse(o.nom,o.compte);cxUI().c=c.id},"Créer la caisse");
 A["cs.br"]=()=>cxBrPrint();
 A["cs.open"]=cid=>{cid=cid||cxCaisse().id;const last=lastClosed(cid),th=last?last.reel:0;
  const m=form("Ouvrir la caisse — "+cxNom(cid),[{k:"fond",l:"Fond de caisse constaté (F)",t:"number",req:1,h:last?"Dernier comptage : "+fcfa(th)+(last.ecart?" (écart de la dernière clôture : "+fcfa(last.ecart)+(last.ecart_regul?", régularisé":", non régularisé")+")":""):"Première ouverture : aucun solde antérieur"},{k:"motif",l:"Motif de la différence",t:"area",full:1,h:"Obligatoire si le fond diffère du dernier comptage"}],{fond:th},o=>{ouvrirCaisse(o.fond,cid,o.motif);cxUI().c=cid},"🔓 Ouvrir la caisse");
@@ -1413,8 +1652,8 @@ function ageData(){const T=["Non échu","1-30 j","31-60 j","61-90 j","> 90 j"],i
 V.compta=()=>{
  const t=tabOf("compta","syn"),f=UI.f.cp||(UI.f.cp={j:"",p:today().slice(0,7),o:"",from:today().slice(0,4)+"-01-01",to:today(),cpt:"",cfrom:"",cto:"",jc:"",q:"",rbd:today(),rbs:"",lc:"",exa:""});
  const ins=e=>e.date>=f.from&&e.date<=f.to,ok=m=>`<div class="al" style="background:var(--okbg);color:var(--ok)">${m}</div>`,w=can("compta"),wa=can("periode");let ex=null,h="";
- const flt=t==="age"||t==="bro"||t==="bud"||t==="cd"||t==="plan"||t==="per"||t==="ecr"||t==="let"||t==="rb"||t==="exo"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="cp:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="cp:to" value="${f.to}"></div></div>`;
- const hd=head("Comptabilité SYSCOHADA",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="cp.csv">⬇ CSV</button>`)+`<div class="note">Comptabilité automatique : écritures déduites des ventes, achats, encaissements, charges, salaires, trésorerie, immobilisations et TVA. Plan, TVA et durées à valider par le comptable (SYSCOHADA révisé).</div>`+tabs("compta",[["syn","📊 Synthèse"],["ecr","Écritures"],["bro","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["jr","Journaux"],["gl","📖 Grand livre"],["let","🔗 Lettrage"],["rb","🏦 Rapprochement bancaire"],["bal","⚖️ Balance"],["age","⏳ Balance âgée"],["tva","🧮 TVA"],["res","📈 Résultat & bilan"],["bud","💰 Budgets"],["cd","⚙️ Comptes par défaut"],["plan","Plan comptable"],["per","Périodes"],["exo","🔒 Clôture & FEC"],["ctl","🔎 Contrôles"]])+flt;
+ const flt=t==="age"||t==="bro"||t==="bud"||t==="cd"||t==="plan"||t==="rg"||t==="per"||t==="ecr"||t==="let"||t==="rb"||t==="exo"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="cp:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="cp:to" value="${f.to}"></div></div>`;
+ const hd=head("Comptabilité SYSCOHADA",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="cp.csv">⬇ CSV</button>`)+`<div class="note">Comptabilité automatique : écritures déduites des ventes, achats, encaissements, charges, salaires, trésorerie, immobilisations et TVA. Plan, TVA et durées à valider par le comptable (SYSCOHADA révisé).</div>`+tabs("compta",[["syn","📊 Synthèse"],["ecr","Écritures"],["bro","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["jr","Journaux"],["gl","📖 Grand livre"],["let","🔗 Lettrage"],["rb","🏦 Rapprochement bancaire"],["bal","⚖️ Balance"],["age","⏳ Balance âgée"],["tva","🧮 TVA"],["res","📈 Résultat & bilan"],["bud","💰 Budgets"],["cd","⚙️ Comptes par défaut"],["plan","📚 Plan comptable"],["rg","⚙ Règles de comptabilisation"],["per","Périodes"],["exo","🔒 Clôture & FEC"],["ctl","🔎 Contrôles"]])+flt;
  if(t==="syn"){const r=sum(entP().filter(ins).flatMap(e=>e.lignes),l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):l.compte[0]==="6"?-((l.debit||0)-(l.credit||0)):0),prod=sum(entP().filter(ins).flatMap(e=>e.lignes),l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):0),
    tre=sum([...new Set([cdef("caisse"),cdef("banque")])],n=>soldeA(n,f.to)),cl=sum(S.clients,c=>soldeClient(c.id)),dt=sum(S.achats.filter(a=>a.statut==="recu"),a=>a.total-a.paye),R=integrite(),ba=budgetAlertes();
   h=`<div class="grid">${kpi(fcfa(prod),"Produits","o")}${kpi(fcfa(prod-r),"Charges","w")}${kpi(fcfa(r),"Résultat",r>=0?"o":"e")}${kpi(fcfa(tre),"Trésorerie (classe 5)")}${kpi(fcfa(cl),"Créances clients (411)","w")}${kpi(fcfa(dt),"Dettes fournisseurs (401)")}</div>`+
@@ -1424,13 +1663,13 @@ V.compta=()=>{
   h+=`<div class="card flex"><select data-f="cp:o" style="width:auto">${opt([["auto","Automatiques"],["manuelle","Manuelles (visées)"]],f.o,"Toutes origines")}</select><select data-f="cp:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input type="month" data-f="cp:p" value="${f.p}" style="width:auto">${w?`<button class="btn" data-a="od.new">+ Écriture manuelle</button>`:""}</div>`+tbl(["N°","Date","Journal","Libellé","Origine","Pièce","Montant","État",""],L.map(e=>tr([esc(e.numero),fd(e.date),esc(e.journal),esc(e.libelle),esc(SRC_LIB[(e.source||{}).type]||"—"),esc(e.piece),fcfa(sum(e.lignes,l=>l.debit)),e.extournee_par?badge("Extourné","mu"):badge("Validée","ok"),`<div class="flex">${btn("ec.det",e.id,"Détail","ghost")}${e.source&&e.source.type==="manual"&&!e.extournee_par&&can("extourne")?btn("ec.ext",e.id,"Extourner","er"):""}</div>`])))}
  if(t==="bro"){h+=`<div class="flex" style="margin-bottom:10px">${w?`<button class="btn" data-a="od.new">➕ Nouvelle écriture manuelle</button>`:""}</div>`+tbl(["Date","Journal","Libellé","Lignes","Débit","Crédit","Saisi par",""],S.brouillard.map(b=>{const d=sum(b.lignes,l=>l.debit),c=sum(b.lignes,l=>l.credit);return tr([fd(b.date),esc(b.journal),esc(b.libelle),b.lignes.length,fcfa(d),fcfa(c)+(d!==c?" "+badge("Déséquilibrée","er"):""),esc(b.par),`<div class="flex">${btn("bo.det",b.id,"Détail","ghost")}${can("visa")?btn("bo.vis",b.id,"✅ Viser","ok"):""}${w?btn("bo.del",b.id,"Supprimer","er"):""}</div>`])}),{empty:"Aucune écriture en brouillard"})+`<div class="sm mu">Une écriture manuelle reste en brouillard jusqu'à son visa par un autre utilisateur (séparation des tâches). Le visa vérifie l'équilibre, les comptes et la période ouverte. Une écriture visée est définitive : correction par extourne.</div>`}
  if(t==="jr"){const q=(f.q||"").toLowerCase(),es=S.entries.filter(e=>ins(e)&&(!f.j||e.journal===f.j)&&(!f.jc||e.lignes.some(l=>l.compte.startsWith(f.jc)))&&(!q||(e.libelle+" "+e.piece+" "+e.numero).toLowerCase().includes(q))).sort((x,y)=>x.date.localeCompare(y.date)||x.numero.localeCompare(y.numero));
-  h+=`<div class="card flex noprint"><select data-f="cp:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input data-f="cp:jc" placeholder="Compte (préfixe)" value="${esc(f.jc||"")}" style="width:150px"><input data-f="cp:q" placeholder="Libellé, pièce, n°…" value="${esc(f.q||"")}" style="width:190px"></div>`+tbl(["Date","Écriture","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lignes.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.libelle),esc(l.compte)+(l.lettre?` <span class="sm mu">[${esc(l.lettre)}]</span>`:""),dc(l,"debit"),dc(l,"credit")]))),{max:600})+`<div class="sm mu">${es.length} écriture(s) · débit ${fcfa(sum(es,e=>sum(e.lignes,l=>l.debit)))} = crédit ${fcfa(sum(es,e=>sum(e.lignes,l=>l.credit)))}</div>`;
+  h+=`<div class="card flex noprint"><select data-f="cp:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input data-f="cp:jc" list="dl-planall" placeholder="Compte (préfixe)" value="${esc(f.jc||"")}" style="width:150px"><input data-f="cp:q" placeholder="Libellé, pièce, n°…" value="${esc(f.q||"")}" style="width:190px"></div>`+tbl(["Date","Écriture","Libellé","Compte","Débit","Crédit"],es.flatMap(e=>e.lignes.map((l,i)=>tr([i?"":fd(e.date),i?"":esc(e.numero),i?"":esc(e.libelle),esc(l.compte)+(l.lettre?` <span class="sm mu">[${esc(l.lettre)}]</span>`:""),dc(l,"debit"),dc(l,"credit")]))),{max:600})+`<div class="sm mu">${es.length} écriture(s) · débit ${fcfa(sum(es,e=>sum(e.lignes,l=>l.debit)))} = crédit ${fcfa(sum(es,e=>sum(e.lignes,l=>l.credit)))}</div>`;
   ex={name:"journal",head:["Date","Écriture","Journal","Libellé","Compte","Débit","Crédit","Lettre"],rows:es.flatMap(e=>e.lignes.map(l=>[e.date,e.numero,e.journal,e.libelle,l.compte,l.debit||"",l.credit||"",l.lettre||""]))}}
  if(t==="gl"){const G=glIntervalle(f.cfrom||f.cpt,f.cto||f.cpt,f.from,f.to),rows=[],csvr=[];
   G.forEach(r=>{rows.push(tr([`<b>${r.a.num} — ${esc(r.a.nom)}</b>`,"","Report","","",fcfa(Math.abs(r.o))+(r.o<0?" C":" D")]));csvr.push([r.a.num,"","","Report","","",r.o]);
    r.lignes.forEach(({e,l,run})=>{rows.push(tr([fd(e.date),esc(e.numero),esc(e.libelle),dc(l,"debit"),dc(l,"credit"),fcfa(Math.abs(run))+(run<0?" C":" D")]));csvr.push([e.date,e.numero,r.a.num,e.libelle,l.debit||"",l.credit||"",run])});
    rows.push(tr([`Total ${r.a.num}`,"","",`<b>${fcfa(r.d)}</b>`,`<b>${fcfa(r.c)}</b>`,`<b>${fcfa(Math.abs(r.s))}${r.s<0?" C":" D"}</b>`]))});
-  h+=`<div class="card flex noprint"><div><label>Du compte</label><input data-f="cp:cfrom" list="dl-gl" placeholder="ex. 401" value="${esc(f.cfrom||"")}" style="width:120px"></div><div><label>Au compte</label><input data-f="cp:cto" list="dl-gl" placeholder="ex. 411" value="${esc(f.cto||"")}" style="width:120px"></div><span class="sm mu">Laisser vide = tous les comptes ; « Au compte » inclut les sous-comptes (préfixe).</span><datalist id="dl-gl">${S.accounts.map(a=>`<option value="${esc(a.num)}" label="${esc(a.nom)}"></option>`).join("")}</datalist></div>`+tbl(["Date","Écriture","Libellé","Débit","Crédit","Solde"],rows,{empty:"Aucune écriture sur la période",max:800});
+  h+=`<div class="card flex noprint"><div><label>Du compte</label><input data-f="cp:cfrom" list="dl-planall" placeholder="ex. 401" value="${esc(f.cfrom||"")}" style="width:120px"></div><div><label>Au compte</label><input data-f="cp:cto" list="dl-planall" placeholder="ex. 411" value="${esc(f.cto||"")}" style="width:120px"></div><span class="sm mu">Laisser vide = tous les comptes ; « Au compte » inclut les sous-comptes (préfixe).</span><datalist id="dl-gl">${S.accounts.map(a=>`<option value="${esc(a.num)}" label="${esc(a.nom)}"></option>`).join("")}</datalist></div>`+tbl(["Date","Écriture","Libellé","Débit","Crédit","Solde"],rows,{empty:"Aucune écriture sur la période",max:800});
   ex={name:"grand-livre",head:["Date","Écriture","Compte","Libellé","Débit","Crédit","Solde"],rows:csvr}}
  if(t==="bal"){const rows=balRows(f.from,f.to);{const od=sum(rows,r=>r.o);if(od)rows.push({a:{num:"12",nom:"Résultat des exercices antérieurs (report)"},o:-od,d:0,c:0,s:-od})}const T=[0,0,0,0,0,0],body=rows.map(r=>{const v=[r.o>0?r.o:0,r.o<0?-r.o:0,r.d,r.c,r.s>0?r.s:0,r.s<0?-r.s:0];v.forEach((x,i)=>T[i]+=x);return[r.a.num,r.a.nom,...v]});
   h+=tbl(["Compte","Intitulé","Ouv. débit","Ouv. crédit","Mvt débit","Mvt crédit","Solde débit","Solde crédit"],[...body.map(r=>tr([r[0],esc(r[1]),...r.slice(2).map(x=>x?fcfa(x):"")])),tr(["","<b>TOTAUX</b>",...T.map(x=>`<b>${fcfa(x)}</b>`)])])+(T[0]===T[1]&&T[2]===T[3]&&T[4]===T[5]?ok("Balance équilibrée sur toutes les colonnes."):`<div class="al er">Balance déséquilibrée.</div>`);
@@ -1450,10 +1689,11 @@ V.compta=()=>{
   `<h2>Bilan simplifié au ${fd(f.to)}</h2><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div>${tbl(["Compte","ACTIF","Montant"],[...act.map(x=>rl(x[0],x[1])),...(cum<0?[tr(["","Résultat cumulé (perte)",fcfa(-cum)])]:[]),tr(["","<b>TOTAL ACTIF</b>",`<b>${fcfa(ta)}</b>`])])}</div><div>${tbl(["Compte","PASSIF","Montant"],[...pas.map(x=>rl(x[0],-x[1])),...(cum>0?[tr(["","Résultat cumulé (bénéfice)",fcfa(cum)])]:[]),tr(["","<b>TOTAL PASSIF</b>",`<b>${fcfa(tpa)}</b>`])])}</div></div>`+(ta===tpa?ok("Bilan équilibré."):`<div class="al er">Bilan déséquilibré (${fcfa(ta-tpa)}).</div>`);
   ex={name:"resultat-bilan",head:["Compte","Intitulé","Montant"],rows:[...pr.map(x=>[x[0],cptNom(x[0]),x[1]]),["","Total produits",tp],...ch.map(x=>[x[0],cptNom(x[0]),-x[1]]),["","Total charges",-tc],["","Résultat",rs]]}}
  if(t==="bud"){const m=today().slice(0,7);h+=(wa?`<p><button class="btn" data-a="bg.add">➕ Budget mensuel</button></p>`:"")+tbl(["Compte","Plafond mensuel","Consommé ("+m+")","%",""],S.budgets.map(g=>{const u=budgetConso(g.compte,m),p=Math.round(u/g.max*100);return tr([esc(g.compte+" "+cptNom(g.compte)),fcfa(g.max),fcfa(u),badge(p+" %",p>=100?"er":p>=80?"wa":"ok"),wa?btn("bg.del",g.id,"Supprimer","er"):""])}),{empty:"Aucun budget défini"})+`<div class="sm mu">Une alerte apparaît dans la synthèse dès 80 % du plafond.</div>`}
- if(t==="cd"){const c=S.settings.comptes||{};h+=`<div class="sm mu" style="margin-bottom:8px">Aucune valeur n'est codée en dur : chaque écriture automatique prend ses comptes ici. Si un compte est vide ou inconnu du plan, l'opération est bloquée. Un code inexistant est créé automatiquement au plan (à affiner). Un compte de bilan déjà mouvementé ne peut plus être changé (reclasser par écriture).</div><datalist id="dl-plan">${S.accounts.map(a=>`<option value="${esc(a.num)}" label="${esc(a.num+" — "+a.nom)}"></option>`).join("")}</datalist>`+
-  tbl(["Usage","Compte","Intitulé au plan"],Object.entries(DEF_CPT).map(([k,v])=>tr([esc(v[0]),`<input data-cd="${k}" list="dl-plan" value="${esc(c[k]||"")}" style="width:110px" ${wa?"":"disabled"}>`,esc(cptNom(c[k]||"")||"— inconnu —")])))+
+ if(t==="cd"){const c=S.settings.comptes||{};h+=`<div class="sm mu" style="margin-bottom:8px">Aucune valeur n'est codée en dur : chaque écriture automatique prend ses comptes ici. Si un compte est vide ou inconnu du plan, l'opération est bloquée. Un code inexistant est créé automatiquement au plan (à affiner). Un compte de bilan déjà mouvementé ne peut plus être changé (reclasser par écriture).</div>`+
+  tbl(["Usage","Compte","Intitulé au plan"],Object.entries(DEF_CPT).map(([k,v])=>tr([esc(v[0]),`<input data-cd="${k}" list="dl-plan" value="${esc(c[k]||"")}" style="width:110px" ${wa?"":"disabled"}>`,esc(cptNom(c[k]||"")||"— inconnu —")+(accOf(c[k]||"")&&!estImp(accOf(c[k]))?" "+badge("regroupement","er"):"")])))+
   `<div class="card flex"><div><label>Taux de TVA (%) — 0 si non assujetti</label><input id="tva_t" type="number" min="0" max="30" step="0.5" value="${tvaTaux()}" style="width:110px" ${wa?"":"disabled"}></div><div><label>Durée d'amortissement des bâtiments (années)</label><input id="am_d" type="number" min="1" max="50" value="${S.settings.amort_duree||20}" style="width:110px" ${wa?"":"disabled"}></div><div><label>Délai de règlement fournisseurs (jours)</label><input id="fo_d" type="number" min="0" max="365" value="${S.settings.delai_fournisseur||30}" style="width:110px" ${wa?"":"disabled"}></div>${wa?`<button class="btn" data-a="cd.save">💾 Enregistrer</button>`:""}</div>`}
- if(t==="plan")h+=tbl(["N°","Intitulé","Type","Solde"],S.accounts.slice().sort((x,y)=>x.num.localeCompare(y.num)).map(a=>{const s=soldeCompte(a.num);return tr([a.num,esc(a.nom),esc(a.type),fcfa(Math.abs(s))+(s<0?" C":s>0?" D":"")])}));
+ if(t==="plan")h+=planUI();
+ if(t==="rg")h+=rgUI();
  if(t==="per"){const c=today().slice(0,7);if(!by(S.periods,c))S.periods.push({id:c,statut:"ouverte"});h+=tbl(["Période","État",""],S.periods.slice().sort((x,y)=>y.id.localeCompare(x.id)).map(p=>tr([p.id,badge(p.statut==="ouverte"?"Ouverte":"Clôturée",p.statut==="ouverte"?"ok":"mu"),can("periode")?btn("per.tg",p.id,p.statut==="ouverte"?"Clôturer":"Rouvrir",p.statut==="ouverte"?"er":"ghost"):""])))}
  if(t==="let"){const NL=nonLettres().filter(g=>!f.lc||g.compte===f.lc),LT=lignesTiers(),done=LT.filter(x=>x.l.lettre),codes={};done.forEach(x=>{(codes[x.l.lettre]=codes[x.l.lettre]||[]).push(x)});
   h+=`<div class="card flex noprint"><select data-f="cp:lc" style="width:auto">${opt([...cptsTiers()].map(c=>[c,c+" "+cptNom(c)]),f.lc,"Tous les comptes tiers")}</select>${w?`<button class="btn" data-a="lt.auto">⚙ Lettrage automatique</button><button class="btn ok" data-a="lt.man">🔗 Lettrer la sélection</button>`:""}<span class="sm mu">${LT.length-done.length} ligne(s) non lettrée(s) · ${Object.keys(codes).length} lettre(s)</span></div><div class="sm mu">Cocher des lignes d'un même compte et d'un même tiers dont la somme débit − crédit est nulle, puis « Lettrer la sélection ». Le lettrage automatique rapproche les montants identiques (débit / crédit) puis les groupes soldés d'un tiers.</div>`+
@@ -1499,7 +1739,7 @@ A["tva.liq"]=m=>{if(atomic(()=>liquiderTVA(m))!==false)render()};
 A["bo.det"]=id=>{const b=by(S.brouillard,id);modal(`<div class="between"><h2 style="margin:0">${esc(b.libelle)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p>${fd(b.date)} · ${esc(b.journal)} · pièce ${esc(b.piece||"—")} · saisi par ${esc(b.par)}</p>${tbl(["Compte","Intitulé","Débit","Crédit"],b.lignes.map(l=>tr([esc(l.compte),esc(cptNom(l.compte)),dc(l,"debit"),dc(l,"credit")])))}`)};
 A["bo.vis"]=id=>{if(atomic(()=>viserBrouillard(id))!==false)render()};
 A["bo.del"]=id=>{if(confirm("Supprimer cette écriture en brouillard ?")&&atomic(()=>supprimerBrouillard(id))!==false)render()};
-A["bg.add"]=()=>form("Budget mensuel",[{k:"compte",l:"Compte de charges",t:"select",o:()=>S.accounts.filter(a=>a.num[0]==="6").map(a=>[a.num,a.num+" "+a.nom])},{k:"max",l:"Plafond mensuel (F)",t:"number",req:1}],{},o=>definirBudget(o.compte,o.max),"Enregistrer");
+A["bg.add"]=()=>form("Budget mensuel",[{k:"compte",l:"Compte de charges (classe 6, imputable)",list:"dl-plan",req:1},{k:"max",l:"Plafond mensuel (F)",t:"number",req:1}],{},o=>definirBudget(o.compte,o.max),"Enregistrer");
 A["bg.del"]=id=>{if(atomic(()=>{need("periode");S.budgets=S.budgets.filter(x=>x.id!==id)})!==false)render()};
 A["cd.save"]=()=>{const m={};document.querySelectorAll("[data-cd]").forEach(i=>m[i.dataset.cd]=i.value);const tv=+document.getElementById("tva_t").value||0,du=+document.getElementById("am_d").value||20,fd_=+document.getElementById("fo_d").value;
  if(atomic(()=>{definirComptes(m);if(!(tv>=0&&tv<=30))throw new Error("Taux de TVA invalide (0 à 30).");if(!(du>=1&&du<=50))throw new Error("Durée d'amortissement invalide.");if(!(fd_>=0))throw new Error("Délai fournisseurs invalide.");S.settings.tva_taux=tv;S.settings.amort_duree=du;S.settings.delai_fournisseur=fd_;audit("TVA / amortissement","taux "+tv+" %, durée "+du+" ans")})!==false)render()};
@@ -1509,13 +1749,129 @@ A["ec.ext"]=id=>motifForm("Extourner l'écriture",m=>extournerOD(id,m));A["per.t
 A["od.new"]=()=>{
  const m=modal(""),box=m.firstChild,L=[{},{}];
  const draw=()=>{const d=sum(L,l=>+l.debit),c=sum(L,l=>+l.credit);box.innerHTML=`<div class="between"><h2 style="margin:0">Opération diverse</h2><button class="btn ghost" data-x>Fermer</button></div><div class="fg"><div><label>Date</label><input id="dt" type="date" value="${box.dataset.dt||today()}"></div><div><label>Pièce</label><input id="pc" value="${esc(box.dataset.pc||"")}"></div><div style="grid-column:1/-1"><label>Libellé</label><input id="lb" value="${esc(box.dataset.lb||"")}"></div></div>
-  <table><thead><tr><th>Compte</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${L.map((l,i)=>`<tr><td><select data-i="${i}" data-k="compte">${opt(S.accounts.map(a=>[a.num,a.num+" "+a.nom]),l.compte||"","—")}</select></td><td><input type="number" min="0" data-i="${i}" data-k="debit" value="${l.debit||""}"></td><td><input type="number" min="0" data-i="${i}" data-k="credit" value="${l.credit||""}"></td></tr>`).join("")}</tbody></table>
+  <table><thead><tr><th>Compte</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${L.map((l,i)=>`<tr><td><input data-i="${i}" data-k="compte" list="dl-plan" value="${esc(l.compte||"")}" placeholder="code du compte" style="width:130px"> <span class="sm mu">${esc(cptNom(l.compte||""))}</span></td><td><input type="number" min="0" data-i="${i}" data-k="debit" value="${l.debit||""}"></td><td><input type="number" min="0" data-i="${i}" data-k="credit" value="${l.credit||""}"></td></tr>`).join("")}</tbody></table>
   <p><button class="btn ghost sm" id="al">+ Ligne</button> <b>Débit ${fcfa(d)} · Crédit ${fcfa(c)}</b> ${d===c&&d>0?badge("Équilibrée","ok"):badge("Non équilibrée","er")}</p><button class="btn" id="sv">Enregistrer en brouillard</button>`;
   const keep=()=>{box.dataset.dt=$("#dt",box).value;box.dataset.pc=$("#pc",box).value;box.dataset.lb=$("#lb",box).value};
   $("[data-x]",box).onclick=()=>m.remove();$("#al",box).onclick=()=>{keep();L.push({});draw()};
-  box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.dataset.k==="compte"?e.value:(+e.value||0);draw()});
+  box.querySelectorAll("[data-k]").forEach(e=>e.onchange=()=>{keep();L[+e.dataset.i][e.dataset.k]=e.dataset.k==="compte"?e.value.trim().split(/\s/)[0]:(+e.value||0);draw()});
   $("#sv",box).onclick=()=>{keep();if(atomic(()=>brouillardOD({date:box.dataset.dt,piece:box.dataset.pc,libelle:box.dataset.lb,lignes:L.filter(l=>l.compte).map(l=>({compte:l.compte,debit:+l.debit||0,credit:+l.credit||0}))}))!==false){m.remove();render()}};};draw();
 };
+/* ---- Plan comptable : arbre, tableau de bord, soldes cumulés, import / export ---- */
+let _dlSig="";
+function populateDatalistPlanComptable(){ // autocomplétion « code — libellé » : dl-plan (imputables, écritures) et dl-planall (tous, filtres / préfixes)
+ if(!S)return;let sig=S.accounts.length+":";for(const a of S.accounts){sig+=a.num+a.nom+(a.imp===0?"0":"1")+"|"}
+ if(sig===_dlSig&&$("#dl-plan"))return;_dlSig=sig;
+ const mk=(id,L)=>{let d=$("#"+id);if(!d){d=document.createElement("datalist");d.id=id;document.body.appendChild(d)}d.innerHTML=L.map(a=>`<option value="${esc(a.num)}" label="${esc(a.num+" — "+a.nom)}"></option>`).join("")};
+ mk("dl-plan",S.accounts.filter(estImp));mk("dl-planall",S.accounts);
+}
+const plUI=()=>UI.f.pc||(UI.f.pc={q:"",cls:"",max:150,open:{},all:false,s_code:"",s_from:today().slice(0,4)+"-01-01",s_to:today(),res:null,rapport:null});
+const compteNatLib=a=>NAT_LIB[a.nat]||a.nat||"—";
+function planArbre(P,pw){
+ const ix=new Map(S.accounts.map(a=>[a.num,a])),kids=new Map(),par=new Map(),q=normTxt(P.q).trim();
+ S.accounts.slice().sort((x,y)=>x.num<y.num?-1:x.num>y.num?1:0).forEach(a=>{const p=parentCode(a.num,n=>ix.has(n))||("C"+a.num[0]);par.set(a.num,p);if(!kids.has(p))kids.set(p,[]);kids.get(p).push(a)});
+ const match=a=>a.num.startsWith(q)||normTxt(a.nom).includes(q)||(/^\d+$/.test(q)&&a.num.includes(q));
+ let vis=null,nbm=0;
+ if(q){vis=new Set();S.accounts.forEach(a=>{if(match(a)){nbm++;let c=a.num;vis.add(c);while(par.has(c)){c=par.get(c);vis.add(c)}}})}
+ const lim=P.max||150,rows=[],eff=P._eff={};let more=false;
+ const kv=n=>(kids.get(n)||[]).filter(k=>!vis||vis.has(k.num));
+ const isOpen=n=>{const has=(kids.get(n)||[]).length>0;if(!has)return false;if(P.all||P.open[n]===1)return true;if(P.open[n]===0)return false;return !!vis&&kv(n).length>0};
+ const line=(a,depth,isCls)=>{
+  const key=isCls?a:a.num,hasK=(kids.get(key)||[]).length>0,op=isOpen(key);eff[key]=op;
+  const tg=hasK?`<button class="btn sm ghost" data-a="pl.t" data-id="${esc(key)}" style="padding:0 7px">${op?"▾":"▸"}</button>`:`<span class="mu" style="padding:0 9px">·</span>`;
+  if(isCls){rows.push(tr([`${tg} <b>Classe ${a[1]}</b>`,`<b>${esc(CLS_LIB[a[1]])}</b>`,badge("classe","mu"),"—",pw?btn("pl.add",a[1],"➕","ghost"):""]));return}
+  const bd=[estImp(a)?badge("imputable","ok"):badge("regroupement","mu")];if(a.h)bd.push(badge("hérité","wa"));if(a.o==="a")bd.push(badge("ajouté","wa"));else if(a.o==="m")bd.push(badge("modifié","wa"));
+  rows.push(tr([`<span style="padding-left:${depth*16}px">${tg} <b>${esc(a.num)}</b></span>`,q&&match(a)?`<mark>${esc(a.nom)}</mark>`:esc(a.nom),bd.join(" "),esc(compteNatLib(a)),pw?`<div class="flex">${btn("pl.add",a.num,"➕","ghost")}${btn("pl.edit",a.num,"✏️","ghost")}${btn("pl.del",a.num,"🗑","ghost")}</div>`:""]))};
+ const walk=(key,depth)=>{const L=P.open[key]===1&&vis?kids.get(key)||[]:kv(key);for(const a of L){if(rows.length>=lim){more=true;return}line(a,depth,false);if(isOpen(a.num))walk(a.num,depth+1);if(more)return}};
+ for(const c of(P.cls?[P.cls]:[1,2,3,4,5,6,7,8].map(String))){
+  const cn="C"+c;if(vis&&!kv(cn).length)continue;
+  if(rows.length>=lim){more=true;break}line(cn,0,true);if(isOpen(cn))walk(cn,1);if(more)break}
+ return{rows,more,nbm,total:S.accounts.length};
+}
+function planKpis(){
+ const hp=planHorsPlan(),mv=new Set();S.entries.forEach(e=>e.lignes.forEach(l=>mv.add(l.compte)));
+ const imp=S.accounts.filter(estImp).length;
+ return{tot:S.accounts.length,imp,reg:S.accounts.length-imp,aj:S.accounts.filter(a=>a.o==="a").length,mo:S.accounts.filter(a=>a.o==="m").length,hp,mv,he:S.accounts.filter(a=>a.h)};
+}
+function planUI(){
+ const P=plUI(),pw=can("plan"),sub=tabOf("plan2","arbre");
+ let h=`<div class="note">Plan comptable SYSCOHADA révisé : ${S.accounts.length} comptes. Seuls les comptes <b>imputables</b> reçoivent des écritures ; les comptes de regroupement servent à la structure et aux soldes cumulés. ${pw?"":"Consultation seule : la gestion du plan est réservée au comptable et à l'administrateur."}</div>`+tabs("plan2",[["arbre","🌳 Arbre"],["dash","📊 Tableau de bord"],["soldes","Σ Soldes cumulés"],["imp","⬆⬇ Import / export"]]);
+ if(sub==="arbre"){
+  const T=planArbre(P,pw);
+  h+=`<div class="card flex noprint"><div><label>Recherche (code ou libellé)</label><input data-f="pc:q" value="${esc(P.q)}" placeholder="ex. 411, banque, tva…" list="dl-planall" style="width:210px"></div><div><label>Classe</label><select data-f="pc:cls" style="width:auto">${opt([1,2,3,4,5,6,7,8].map(c=>[String(c),c+" — "+CLS_LIB[c]]),P.cls,"Toutes les classes")}</select></div><button class="btn ghost" data-a="pl.all">⊞ Tout déplier</button><button class="btn ghost" data-a="pl.none">⊟ Tout replier</button>${pw?`<button class="btn" data-a="pl.add" data-id="">➕ Nouveau compte</button>`:""}</div>`+
+   `<div class="sm mu" style="margin-bottom:6px">${P.q?T.nbm+" compte(s) trouvé(s). ":""}${T.total} comptes au plan · rendu à la demande (${T.rows.length} ligne(s) affichée(s)).</div>`+
+   tbl(["Compte","Intitulé","Statut","Nature",""],T.rows,{max:99999,empty:"Aucun compte ne correspond à la recherche"})+(T.more?`<p><button class="btn ghost" data-a="pl.more">Afficher ${150} lignes de plus…</button></p>`:"");
+ }
+ if(sub==="dash"){
+  const K=planKpis();
+  h+=`<div class="grid">${kpi(K.tot,"Comptes actifs","o")}${kpi(K.imp,"Imputables")}${kpi(K.reg,"Regroupements")}${kpi(K.aj,"Ajoutés","w")}${kpi(K.mo,"Modifiés","w")}${kpi(K.hp.length,"Hors plan",K.hp.length?"e":"o")}</div>`;
+  if(K.hp.length)h+=`<h2>⚠ Comptes hors plan</h2><div class="al er">Ces comptes sont utilisés mais absents du plan. Rattachez-les (création sous leur compte parent) pour réinitialiser la conformité.</div>`+tbl(["Compte","Utilisation","Parent proposé",""],K.hp.map(x=>tr([esc(x.num),esc(x.u.join(" ; ")),x.parent?esc(x.parent+" — "+cptNom(x.parent)):`<span class="mu">aucun parent : créer le parent d'abord</span>`,pw&&x.parent?btn("pl.fix",x.num,"Rattacher","ok"):""])));
+  else h+=`<div class="al" style="background:var(--okbg);color:var(--ok)">Aucun compte hors plan : tous les comptes utilisés figurent au plan.</div>`;
+  if(K.he.length)h+=`<div class="al">${K.he.length} compte(s) de regroupement du référentiel restent imputables car déjà mouvementés (historique) : ${K.he.map(a=>esc(a.num)).join(", ")} — prévoir un reclassement vers un compte imputable.</div>`;
+  const cl=[1,2,3,4,5,6,7,8].map(c=>{const L=S.accounts.filter(a=>a.num[0]===String(c));return{c,n:L.length,i:L.filter(estImp).length,m:L.filter(a=>K.mv.has(a.num)).length}}),mx=Math.max(1,...cl.map(x=>x.n));
+  h+=`<h2>Répartition par classe</h2>`+tbl(["Classe","Libellé","Comptes","Imputables","Regroupements","Mouvementés","Répartition"],cl.map(x=>tr([x.c,esc(CLS_LIB[x.c]),x.n,x.i,x.n-x.i,x.m,`<div style="background:var(--b);height:10px;border-radius:3px;width:${Math.max(2,x.n/mx*100)}%"></div>`])));
+ }
+ if(sub==="soldes"){
+  const r=P.res;
+  h+=`<div class="card flex noprint"><div><label>Compte ou classe (somme du compte et de ses sous-comptes)</label><input data-f="pc:s_code" list="dl-planall" value="${esc(P.s_code)}" placeholder="ex. 41, 521, 6" style="width:200px"></div><div><label>Du</label><input type="date" data-f="pc:s_from" value="${esc(P.s_from)}"></div><div><label>Au</label><input type="date" data-f="pc:s_to" value="${esc(P.s_to)}"></div><button class="btn" data-a="pl.sold">Calculer</button></div><div class="sm mu">Calcul à la demande (rien n'est précalculé) : report avant la période (comptes de bilan, et comptes 6/7 de l'exercice en cours), mouvements de la période et solde.</div>`;
+  if(r){const dc=v=>fcfa(Math.abs(v))+(v<0?" C":v>0?" D":"");h+=`<h2>${esc(r.code)} — ${esc(cptNom(r.code)||CLS_LIB[r.code]||"")}</h2>`+tbl(["Compte","Intitulé","Report","Débit","Crédit","Solde"],[...r.rows.map(x=>tr([esc(x.num),esc(x.nom),dc(x.o),fcfa(x.d),fcfa(x.c),dc(x.s)])),tr(["<b>Cumul</b>",`${r.rows.length} compte(s)`,`<b>${dc(r.o)}</b>`,`<b>${fcfa(r.d)}</b>`,`<b>${fcfa(r.c)}</b>`,`<b>${dc(r.s)}</b>`])],{max:400,empty:"Aucun mouvement sur la période"})+`<p><button class="btn ghost" data-a="pl.soldcsv">⬇ CSV</button></p>`}
+ }
+ if(sub==="imp"){
+  h+=`<div class="card"><p class="sm">Format CSV : <code>code;libellé[;nature]</code> (séparateur ; , ou tabulation, en-tête facultatif). Nature : actif, passif, actif_contra, charge, produit, hao, variable.</p><div class="flex"><button class="btn" data-a="pl.exp">⬇ Exporter le plan (CSV)</button>${pw?`<button class="btn" data-a="pl.imp">⬆ Importer un CSV…</button><button class="btn ghost" data-a="pl.rebuild">Compléter avec le référentiel SYSCOHADA</button>`:""}</div><p class="sm mu"><b>Fusionner</b> : ajoute les nouveaux comptes et met à jour les libellés ; ne supprime rien. <b>Remplacer sans perte</b> : le fichier devient le plan, mais un compte mouvementé, par défaut, de caisse, de budget ou portant des sous-comptes conservés n'est jamais supprimé. Les doublons et les codes sans compte parent sont rejetés et signalés.</p></div>`;
+  const R=P.rapport;
+  if(R)h+=`<h2>Rapport du dernier import (${R.mode==="fusion"?"fusion":"remplacement sans perte"})</h2><div class="grid">${kpi(R.lues,"Lignes lues")}${kpi(R.ajoutes.length,"Ajoutés","o")}${kpi(R.modifies.length,"Modifiés","w")}${kpi(R.identiques,"Identiques")}${kpi(R.rejetes.length+R.doublons.length,"Rejetés / doublons",R.rejetes.length+R.doublons.length?"e":"")}${kpi(R.supprimes.length,"Supprimés")}${kpi(R.conserves.length,"Conservés","w")}</div>`+
+   tbl(["Résultat","Compte","Détail"],[...R.ajoutes.map(x=>["Ajouté",x.code,x.nom+" (parent "+x.parent+")"]),...R.modifies.map(x=>["Modifié",x.code,x.avant+" → "+x.apres]),...R.rejetes.map(x=>["Rejeté",x.code,"ligne "+x.ligne+" : "+x.motif]),...R.doublons.map(x=>["Doublon",x.code,"ligne "+x.ligne+" : "+x.motif]),...R.supprimes.map(x=>["Supprimé",x.code,x.nom]),...R.conserves.map(x=>["Conservé",x.code,x.motif])].map(r=>tr(r.map(esc))),{max:200,empty:"Rien à signaler"})+`<p><button class="btn ghost" data-a="pl.rapcsv">⬇ Rapport CSV</button></p>`;
+ }
+ return h;
+}
+A["pl.t"]=id=>{const P=plUI(),cur=P.all?true:!!(P._eff||{})[id];
+ if(P.all){P.all=false;P.open={};S.accounts.forEach(a=>P.open[a.num]=1);for(let c=1;c<=8;c++)P.open["C"+c]=1}
+ P.open[id]=cur?0:1;render()};
+A["pl.all"]=()=>{const P=plUI();P.all=true;render()};
+A["pl.none"]=()=>{const P=plUI();P.all=false;P.open={};P.q="";render()};
+A["pl.more"]=()=>{const P=plUI();P.max=(P.max||150)+150;render()};
+const PL_NAT=()=>Object.entries(NAT_LIB).map(([k,v])=>[k,v]);
+const cptAuto=(m,names)=>names.forEach(n=>{const e=m.querySelector("[name="+n+"]");if(e)e.setAttribute("list","dl-planall")});
+A["pl.add"]=pid=>{const p=pid&&accOf(pid);
+ form("Nouveau compte au plan",[{k:"num",l:"Code (3 à 8 chiffres)",req:1,h:"Doit commencer par un compte existant (le parent)."},{k:"nom",l:"Libellé",req:1},{k:"nat",l:"Nature",t:"select",o:PL_NAT},{k:"imp",l:"Type",t:"select",o:[["1","Imputable (reçoit des écritures)"],["0","Regroupement (structure)"]]}],{num:pid||"",nat:p?p.nat:"actif",imp:"1"},o=>planAjouter(o),"Créer le compte")};
+A["pl.edit"]=num=>{const a=accOf(num);const m=form("Modifier le compte "+num,[{k:"num",l:"Code",req:1,h:"Refusé si le compte est mouvementé, par défaut, de caisse ou a des sous-comptes."},{k:"nom",l:"Libellé",req:1},{k:"nat",l:"Nature",t:"select",o:PL_NAT},{k:"imp",l:"Type",t:"select",o:[["1","Imputable"],["0","Regroupement"]]}],{num:a.num,nom:a.nom,nat:a.nat,imp:estImp(a)?"1":"0"},o=>planModifier(num,o),"Enregistrer")};
+A["pl.del"]=num=>{if(confirm("Supprimer le compte "+num+" — "+cptNom(num)+" ?\n\nRefusé s'il est mouvementé, par défaut, de caisse ou s'il a des sous-comptes."))if(atomic(()=>planSupprimer(num))!==false)render()};
+A["pl.fix"]=code=>{if(atomic(()=>planRattacher(code))!==false)render()};
+A["pl.rebuild"]=()=>{if(confirm("Ajouter au plan les comptes du référentiel SYSCOHADA absents ? Les comptes existants ne sont pas modifiés."))if(atomic(()=>planCompleter())!==false)render()};
+A["pl.sold"]=()=>{const P=plUI();try{need("compta");P.res=soldeCumule(P.s_code,P.s_from,P.s_to)}catch(e){P.res=null;alert(e.message)}render()};
+A["pl.soldcsv"]=()=>{const r=plUI().res;if(r)csvOut("soldes-cumules-"+r.code,["Compte","Intitulé","Report","Débit","Crédit","Solde"],[...r.rows.map(x=>[x.num,x.nom,x.o,x.d,x.c,x.s]),["Cumul","",r.o,r.d,r.c,r.s]])};
+A["pl.exp"]=()=>csvOut("plan-comptable",["Code","Libellé","Nature","Type","Classe","Origine"],S.accounts.slice().sort((x,y)=>x.num<y.num?-1:1).map(ligneCsvPlan));
+A["pl.rapcsv"]=()=>{const R=plUI().rapport;if(R)csvOut("rapport-import-plan",["Résultat","Compte","Détail"],[...R.ajoutes.map(x=>["Ajouté",x.code,x.nom]),...R.modifies.map(x=>["Modifié",x.code,x.avant+" → "+x.apres]),...R.rejetes.map(x=>["Rejeté",x.code,x.motif]),...R.doublons.map(x=>["Doublon",x.code,x.motif]),...R.supprimes.map(x=>["Supprimé",x.code,x.nom]),...R.conserves.map(x=>["Conservé",x.code,x.motif])])};
+A["pl.imp"]=()=>{const m=form("Importer le plan comptable (CSV)",[{k:"mode",l:"Stratégie",t:"select",o:[["fusion","Fusionner (ajouter / mettre à jour, rien supprimer)"],["remplace","Remplacer sans perte (jamais un compte mouvementé)"]]},{k:"txt",l:"Contenu CSV (coller ou charger un fichier)",t:"area",req:1,full:1,h:"code;libellé;nature — une ligne par compte"}],{mode:"fusion"},o=>{plUI().rapport=planImporter(o.txt,o.mode);UI.tab.plan2="imp"},"Importer");
+ const fi=document.createElement("input");fi.type="file";fi.accept=".csv,.txt";fi.onchange=()=>{const fr=new FileReader();fr.onload=()=>{const t=m.querySelector("[name=txt]");if(t)t.value=String(fr.result||"").replace(/^﻿/,"")};if(fi.files[0])fr.readAsText(fi.files[0])};m.querySelector("form").insertBefore(fi,m.querySelector("form").firstChild)};
+/* ---- Règles de comptabilisation (compta automatique) ---- */
+function rgCpt(tok){
+ const nm=(k,court)=>{try{const c=cdef(k);return court?esc(c):`<b>${esc(c)}</b> <span class="sm mu">${esc(cptNom(c)||"hors plan")}</span>`}catch(e){return `<span class="sm" style="color:var(--er)">${esc(DEF_CPT[k]?DEF_CPT[k][0]:k)} : non paramétré</span>`}};
+ if(tok==="@treso")return "caisse "+nm("caisse",1)+" ou banque "+nm("banque",1)+" (selon le mode)";
+ if(tok==="@achat")return [...new Set(Object.values(CPT_ACHAT))].map(k=>nm(k,1)).join(" · ")+" (selon la catégorie)";
+ if(tok==="@charge")return [...new Set(Object.values(CHARGES).map(x=>x[1]))].map(k=>nm(k,1)).join(" · ")+" (selon la catégorie)";
+ if(tok==="@bon")return "caisse / banque / contrepartie selon la nature du bon";
+ if(tok==="@treso2")return "banque "+nm("banque",1)+" ↔ capital "+nm("capital",1)+" · emprunt "+nm("emprunt",1)+" · "+nm("produit_div",1);
+ if(tok==="@manuel")return "comptes saisis (imputables uniquement)";
+ if(tok==="@inverse")return "sens inverse de l'écriture annulée";
+ return nm(tok);
+}
+function rgUI(){
+ const E=rgEtat(),w=can("compta"),auto=E.filter(x=>!x.r.analytique&&!x.r.direct&&!x.r.manuel),att=sum(auto,x=>x.pend.length),man=sum(E.filter(x=>x.r.manuel),x=>x.pend.length),ok=sum(auto,x=>x.ok);
+ const ctl=integrite().filter(m=>/sans écriture|hors plan|regroupement|défaut|par défaut/i.test(m));
+ let h=`<div class="note">Chaque opération est comptabilisée au moment où elle est saisie, avec les comptes paramétrés dans « Comptes par défaut » (aucun compte en dur). Cet écran liste les règles et l'état par opération ; le bouton rattrape les opérations restées sans écriture, sans jamais créer de doublon.</div>`+
+  `<div class="grid">${kpi(ok,"Opérations comptabilisées","o")}${kpi(att,"En attente d'écriture",att?"e":"o")}${kpi(man,"À traiter manuellement",man?"w":"")}${kpi(ctl.length,"Anomalies d'intégrité",ctl.length?"e":"o")}</div>`+
+  `<div class="flex" style="margin:8px 0">${w?`<button class="btn" data-a="rg.run" ${att?"":"disabled"}>⚙ Comptabiliser les opérations en attente (${att})</button>`:`<span class="mu sm">Réservé au comptable et à l'administrateur.</span>`}</div>`;
+ h+=ctl.length?ctl.map(x=>`<div class="al er">${esc(x)}</div>`).join(""):`<div class="al" style="background:var(--okbg);color:var(--ok)">Contrôle d'intégrité : aucune opération sans écriture, aucun compte hors plan ou de regroupement dans les écritures.</div>`;
+ h+=tbl(["Opération","Journal","Débit","Crédit","Opérations","Comptabilisées","En attente","État",""],E.map(x=>{const r=x.r;
+  if(r.analytique)return tr([esc(r.l),"—",`<span class="sm mu">${esc(r.analytique)}</span>`,"—",x.total,"—","—",badge("Analytique — sans écriture","mu"),""]);
+  const st=r.direct?badge("Écriture à la saisie","ok"):x.pend.length?badge(r.manuel?"À traiter : "+r.manuel:"Non comptabilisé","er"):badge("Comptabilisé","ok");
+  return tr([esc(r.l),esc(r.j),r.d.map(rgCpt).join("<br>"),r.c.map(rgCpt).join("<br>"),x.total,x.ok,x.pend.length,st,r.direct?"":btn("rg.det",r.k,"Détail","ghost")])}),{max:60});
+ return h;
+}
+A["rg.run"]=()=>{const r=atomic(()=>comptabiliserAttente());if(r&&r!==true){alert(r.n+" écriture(s) créée(s)."+(r.ech.length?"\n\nÉchecs ("+r.ech.length+") :\n"+r.ech.slice(0,8).join("\n"):"")+(r.manuel?"\n\n"+r.manuel+" opération(s) à traiter manuellement (TVA, écart de caisse, brouillard).":""));render()}};
+A["rg.det"]=k=>{const x=rgEtat().find(y=>y.r.k===k);if(!x)return;const ss=srcSet(),ops=x.r.virtuel?x.pend:x.r.ops();
+ modal(`<div class="between"><h2 style="margin:0">${esc(x.r.l)}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><p class="sm mu">Journal ${esc(x.r.j)} · ${x.ok} comptabilisée(s), ${x.pend.length} en attente${x.r.manuel?" — traitement manuel : "+esc(x.r.manuel):""}</p>`+
+  tbl(["Opération","Date","Montant","État","Écriture"],ops.slice(-200).reverse().map(o=>{const k2=x.r.k+":"+o.id,e=x.r.virtuel?null:S.entries.find(z=>z.source&&z.source.type===x.r.k&&z.source.id===o.id),done=!x.r.virtuel&&ss.has(k2);return tr([esc(o.lib),fd(o.date),fcfa(o.mt),done?badge("Comptabilisé","ok"):badge("Non comptabilisé","er"),e?esc(e.numero):"—"])}),{max:200,empty:"Aucune opération"}))};
 /* ---- Conditionnement : page ---- */
 function svgBars(pts,u){
  if(!pts.length)return `<div class="mu" style="text-align:center;padding:30px">Aucune donnée sur la période</div>`;
@@ -1735,6 +2091,7 @@ function render(){
  let g="",nav="";items.forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
  let body;try{body=V[view]()}catch(e){body=`<div class="card"><b>Erreur d'affichage</b><p>${esc(e.message)}</p></div>`}
  app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">${"🐔 "+ORG()+"<small>"+ORGACT()+"</small>"}</div>${clkBox()}${nav}<a href="index.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
+ populateDatalistPlanComptable();
 }
 A.out=()=>{atomic(()=>audit("Déconnexion"),true);ME=null;try{sessionStorage.removeItem("ag_me")}catch(x){}render()};A.bg=()=>$("#sb").classList.toggle("open");
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t||!S||t.tagName==="INPUT")return;const fn=A[t.dataset.a];if(fn){e.preventDefault();fn(t.dataset.id,t,e)}});
