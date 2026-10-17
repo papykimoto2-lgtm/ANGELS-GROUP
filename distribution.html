@@ -8,8 +8,10 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ANGEL'S GROUP"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document.documentElement.dataset.theme=_t}catch(e){}</script>
+<script>/* Espace vendeur installable : ?app=vendeur ou /vendeur → manifeste, titre et couleur dédiés */var APPV=/[?&]app=vendeur/.test(location.search)||/\/vendeur\/?$/.test(location.pathname);if(APPV){var _m=document.querySelector('link[rel=manifest]');if(_m)_m.setAttribute("href","manifest-vendeur.webmanifest");var _i=document.querySelector('link[rel=apple-touch-icon]');if(_i)_i.setAttribute("href","icons/vendeur-apple-180.png");var _f=document.querySelector('link[rel=icon]');if(_f)_f.setAttribute("href","icons/vendeur-192.png");var _a=document.querySelector('meta[name=apple-mobile-web-app-title]');if(_a)_a.setAttribute("content","Espace vendeur");var _tc=document.querySelector('meta[name=theme-color]');if(_tc)_tc.setAttribute("content","#6d28d9")}
+try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <title>ANGEL'S GROUP ERP — Livraisons</title>
+<script>if(APPV)document.title="Espace vendeur — ANGEL'S GROUP"</script>
 <style>
 :root{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3f8}
 *{box-sizing:border-box}
@@ -466,7 +468,12 @@ const themeCur=()=>document.documentElement.dataset.theme||"turquoise";
 const themeDots=()=>`<div class="themes" title="Couleur du logiciel">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" aria-label="${t}" title="${t}"></button>`).join("")}</div>`;
 function setTheme(k){if(k==="turquoise")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=k;try{localStorage.setItem("angels_theme",k)}catch(e){}
  const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue("--b").trim()}
-const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
+const HERO_V=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Espace vendeur partenaire</h1><p>Vos commandes, vos colis et vos règlements, dans votre poche.</p>
+ <ul><li><span class="i">📝</span><div><b>Déposez vos commandes</b>Saisie rapide ou directement depuis WhatsApp.</div></li>
+ <li><span class="i">📦</span><div><b>Collecte de vos colis</b>Votre code à 4 chiffres, remis au livreur contre les colis.</div></li>
+ <li><span class="i">🏍️</span><div><b>Suivi des livraisons</b>Chaque commande, de la confirmation à la remise au client.</div></li>
+ <li><span class="i">💰</span><div><b>Vos règlements</b>Ce qui vous est dû, clairement.</div></li></ul></div>`;
+const HERO=APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
  <ul><li><span class="i">📍</span><div><b>Adresse sur carte pour le livreur</b>Le client place lui-même son repère depuis son téléphone.</div></li>
  <li><span class="i">🏷️</span><div><b>Étiquette QR sur chaque colis</b>Scan au départ et à la remise : aucun colis perdu ou échangé.</div></li>
  <li><span class="i">🔐</span><div><b>Code de livraison + signature</b>La livraison n'est validée que par le client.</div></li>
@@ -476,15 +483,15 @@ function demoFill(b){const f=document.getElementById("lf");if(!f)return;const d=
 const DEMO_PIN={"admin": "1234", "direction": "0000", "superviseur": "1111", "caissier": "2222", "commercial": "3333", "preparateur": "4444", "livreur": "0001", "vendeur": "5555"};
 const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["superviseur","🏍️","Superviseur","Affecter, suivre les courses"],["commercial","📞","Commercial","Prendre les commandes"],["preparateur","📦","Préparateur","Préparer, étiqueter"],["caissier","💰","Caissier","Reversements, écarts"],["direction","📊","Direction","Tableau de bord, marges"],["livreur","🛵","Livreur","Mission, scan, carte, code"],["vendeur","🏪","Vendeur partenaire","Déposer ses commandes"]];
 function loginHTMLLocal(){
- const act=S.users.filter(u=>u.actif);
- const cards=DEMO_P.map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}" data-pin="${DEMO_PIN[r]||""}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
- return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">Essayez sans rien installer</div><div class="mu sm">Choisissez un profil : utilisateur et PIN se remplissent, puis « Se connecter ».</div>
+ const act=S.users.filter(u=>u.actif&&(!APPV||u.role==="vendeur"));
+ const cards=DEMO_P.filter(x=>!APPV||x[0]==="vendeur").map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}" data-pin="${DEMO_PIN[r]||""}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
+ return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">${APPV?"Connexion vendeur":"Essayez sans rien installer"}</div><div class="mu sm">${APPV?"Choisissez votre profil, puis « Se connecter ».":"Choisissez un profil : utilisateur et PIN se remplissent, puis « Se connecter »."}</div>
  <div class="pcards">${cards}</div>
  <details><summary class="mu sm" style="cursor:pointer">Connexion avec un code PIN</summary><form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${ROLES[u.role]}</option>`).join("")}</select></label>
  <label style="margin-top:10px">Code PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" required></label>
  <button class="btn" style="width:100%;margin-top:12px">Se connecter</button></form>
  <div class="al warn sm" style="margin-top:10px">PIN : admin 1234 · direction 0000 · superviseur 1111 · caissier 2222 · commercial 3333 · préparateur 4444 · livreurs 0001 / 0002 / 0003 · vendeur 5555.</div></details>
- <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div><div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div></div></div>`}
+ <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
 function render(){render0();try{sosBar()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
@@ -519,7 +526,7 @@ const instBox=()=>`<div class="inst"></div>`;
 function refreshInstall(){
  let h="";
  if(!isStandalone()&&/^https?:$/.test(location.protocol)){
-  if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer l'application</button>`;
+  if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer ${APPV?"l'espace vendeur":"l'application"}</button>`;
   else if(isIOS())h=`<div class="sm mu">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l'écran d'accueil</b>.</div>`}
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;refreshInstall()});
@@ -1655,6 +1662,7 @@ document.addEventListener("submit",e=>{
    else if(r!==false&&ui.mid===mid)closeModal()}}
  if(e.target.id==="lf"){e.preventDefault();if(CL.on)return CL.login(e.target);const d=Object.fromEntries(new FormData(e.target)),u=usr(d.u);
   const tr0=u&&((S.tries=S.tries||{})[u.id]||(S.tries[u.id]={n:0,until:0}));if(tr0&&Date.now()<tr0.until)return toast("Compte bloqué "+cfv("blocage_min")+" minute(s) (trop de tentatives)","err");
+  if(u&&APPV&&u.role!=="vendeur")return toast("Cet espace est réservé aux vendeurs partenaires","err");
   if(u&&u.actif&&u.pin_h===hashPin(u.id,d.pin)){tr0.n=0;ME=u;sessionStorage.setItem("angels_me",u.id);view="dashboard";audit("Connexion",u.nom);save();render()}else{if(tr0){tr0.n++;if(tr0.n>=+cfv("tentatives_max")){tr0.until=Date.now()+cfv("blocage_min")*6e4;tr0.n=0}try{save()}catch(e){}}toast("PIN incorrect","err")}}});
 document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.f;if(k){ui[k]=e.target.value;render()}
  if(e.target.id==="p_imp"&&e.target.files[0]){const r=new FileReader();r.onload=()=>{try{
@@ -1934,7 +1942,7 @@ function creerCmdVendeur(v,d){
 VIEWS.mesCmd=()=>{
  const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché à une fiche vendeur. Contactez ANGEL\'S GROUP.</div>';
  const mine=S.commandes.filter(c=>c.vendeur_id===v.id),d=vendDue(v),n=f=>mine.filter(f).length;
- return`<div class="between"><h1>Mes commandes à livrer</h1><div class="flex"><button class="btn" data-act="waOpen">💬 Saisie depuis WhatsApp</button><button class="btn" data-act="cmdLien">🔗 Lien de commande client</button><button class="btn ghost" data-act="newVCmd">➕ Nouvelle commande</button><button class="btn ghost" data-act="vImport">⬆ Importer un fichier CSV</button></div></div>
+ return`${instBox()}<div class="between"><h1>Mes commandes à livrer</h1><div class="flex"><button class="btn" data-act="waOpen">💬 Saisie depuis WhatsApp</button><button class="btn" data-act="cmdLien">🔗 Lien de commande client</button><button class="btn ghost" data-act="newVCmd">➕ Nouvelle commande</button><button class="btn ghost" data-act="vImport">⬆ Importer un fichier CSV</button></div></div>
  <p class="mu">Bienvenue <b>${esc(v.nom)}</b>. Déposez ici les commandes de vos clients : ${ORG()} confirme, prépare et livre à moto, puis vous règle le prix de vos articles.</p>
  <div class="grid">${kpi("À confirmer",n(c=>c.statut==="attente"),"w")}${kpi("En cours",n(c=>["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut)))}${kpi("Livrées",n(c=>c.statut==="livree"),"o")}${kpi("Échecs / retours",n(c=>["echouee","retour_cours","retour_recu"].includes(c.statut)),"e")}${kpi("Reste à recevoir",fcfa(d.restant),"o")}</div>
  ${demandesSection(v)}${vendCollectes(v)}
@@ -2189,7 +2197,7 @@ Object.assign(CL,{
  async fn(name,body){const{data,error}=await CL.sb.functions.invoke(name,{body});if(error){let m=error.message;try{const j=await error.context.json();m=j.erreur||m}catch(e){}throw new Error(m)}if(data&&data.erreur)throw new Error(data.erreur);return data},
  async go(fn,msg,after){try{await fn();await refresh();const m=typeof msg==="function"?msg():msg;if(m)toast(m,"ok");render();if(after)after();return true}catch(e){toast(fixErr(e),"err");return false}},
  async login(form){const d=Object.fromEntries(new FormData(form));
-  try{const{data,error}=await CL.sb.auth.signInWithPassword({email:toEmail(d.ident),password:d.pwd});if(error)throw new Error("Identifiant ou code incorrect");CL.uid=data.user.id;await refresh();view="dashboard";render()}
+  try{const{data,error}=await CL.sb.auth.signInWithPassword({email:toEmail(d.ident),password:d.pwd});if(error)throw new Error("Identifiant ou code incorrect");CL.uid=data.user.id;await refresh();if(APPV&&(!ME||ME.role!=="vendeur"))throw new Error("Cet espace est réservé aux vendeurs partenaires");view="dashboard";render()}
   catch(e){try{await CL.sb.auth.signOut()}catch(x){}ME=null;CL.uid=null;toast(fixErr(e),"err")}},
  async logout(){try{await CL.sb.auth.signOut()}catch(e){}ME=null;CL.uid=null;CL.pos={};S=emptyS();render()},
  /* ---- commandes ---- */

@@ -67,6 +67,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/vendeur",
+      "destination": "/distribution.html"
+    },
+    {
       "source": "/distribution",
       "destination": "/distribution.html"
     },
