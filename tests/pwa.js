@@ -51,6 +51,26 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  // l'ancien défaut : une navigation ne doit pas écraser la page d'accueil en cache
  const idx=await p.evaluate(async()=>{const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v")));const a=await c.match("distribution.html"),h=await c.match("agro.html");return[(await a.text()).includes("ANGEL'S GROUP ERP"),(await h.text()).includes("ANGEL'S AGRO")]});
  t("PWA-9","chaque page garde sa propre entrée de cache",idx[0]&&idx[1]?true:JSON.stringify(idx));
+ // Espace vendeur installable (Livraison ?app=vendeur)
+ {const m=await (await p.request.get(base+"/manifest-vendeur.webmanifest")).json(),bad=[];
+  ["name","short_name","start_url","scope","display","icons","theme_color","background_color","id"].forEach(k=>{if(!m[k])bad.push("manque "+k)});
+  if(m.display!=="standalone")bad.push("display");if(!/app=vendeur/.test(m.start_url))bad.push("start_url");if(!(m.icons||[]).some(i=>i.purpose==="maskable"))bad.push("maskable");
+  for(const i of m.icons||[]){const r=await p.request.get(base+"/"+i.src);if(r.status()!==200)bad.push("icône "+i.src)}
+  t("PWA-V1","manifeste de l'espace vendeur complet (id propre, start_url ?app=vendeur, icônes)",bad.length?bad.join(", "):true);
+  const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8"));t("PWA-V2","adresse courte /vendeur → Livraison",(vj.rewrites||[]).some(r=>r.source==="/vendeur"&&/distribution/.test(r.destination))?true:"rewrite absent");
+  const vp=await ctx.newPage();await vp.goto(base+"/distribution.html?app=vendeur");await vp.evaluate(()=>navigator.serviceWorker.ready);await vp.waitForTimeout(500);
+  const info=await vp.evaluate(()=>({man:document.querySelector("link[rel=manifest]").getAttribute("href"),titre:document.title,cartes:[...document.querySelectorAll(".pcard")].map(x=>x.innerText),opts:[...document.querySelectorAll("#lf [name=u] option")].map(o=>o.textContent)}));
+  t("PWA-V3","?app=vendeur : manifeste, titre dédiés",info.man==="manifest-vendeur.webmanifest"&&/vendeur/i.test(info.titre)?true:JSON.stringify(info));
+  t("PWA-V4","connexion limitée aux vendeurs (aucun profil admin/livreur proposé)",info.cartes.length===1&&info.opts.length>=1&&info.opts.every(o=>/vendeur/i.test(o))?true:JSON.stringify(info));
+  const cdp=await ctx.newCDPSession(vp);const er=(await cdp.send("Page.getInstallabilityErrors")).installabilityErrors.map(e=>e.errorId).filter(x=>x!=="in-incognito");
+  t("PWA-V5","l'espace vendeur est installable (Chromium)",er.length===0?true:JSON.stringify(er));
+  const refus=await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="admin"),f=document.getElementById("lf");f.u.innerHTML='<option value="'+u.id+'">a</option>';f.u.value=u.id;(f.pin||f.p).value="1234";f.requestSubmit();return new Promise(r=>setTimeout(()=>r({me:typeof ME!=="undefined"&&ME?ME.role:null}),300))});
+  t("PWA-V6","un compte non vendeur est refusé dans l'espace vendeur",refus.me===null?true:JSON.stringify(refus));
+  await vp.reload();await vp.waitForSelector("#lf",{state:"attached"});
+ await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="vendeur"),f=document.getElementById("lf");f.u.value=u.id;(f.pin||f.p).value="5555";f.requestSubmit()});await vp.waitForTimeout(400);
+  const ok2=await vp.evaluate(()=>({role:ME&&ME.role,txt:document.body.innerText.includes("Mes commandes")}));
+  t("PWA-V7","le vendeur se connecte et arrive sur ses commandes",ok2.role==="vendeur"&&ok2.txt?true:JSON.stringify(ok2));
+  await vp.close()}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);
  await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();
