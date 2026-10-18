@@ -67,6 +67,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/portail",
+      "destination": "/portail.html"
+    },
+    {
       "source": "/compta-groupe",
       "destination": "/compta-groupe.html"
     },
