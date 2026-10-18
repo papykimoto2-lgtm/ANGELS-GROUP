@@ -908,7 +908,7 @@ function verserMomoForm(){
   if(!(m>0)||m>max)return toast("Montant invalide (maximum "+fcfa(max)+")","err"),false;if(ref.length<4)return toast("Référence de la transaction obligatoire","err"),false;
   if(CL.on)return CL.go(()=>CL.rpc("declarer_versement",{p_montant:m,p_mode:d.mode,p_ref:ref,p_note:d.note||null}),"Versement déclaré : la caisse va le valider");
   if(refUtilisee(ref))return toast("Cette référence de transaction est déjà enregistrée","err"),false;
-  S.versements=S.versements||[];S.prestations=S.prestations||[];S.demandes=S.demandes||[];S.caisses=S.caisses||[];S.caisse_sessions=S.caisse_sessions||[];S.caisse_mvts=S.caisse_mvts||[];S.sos=S.sos||[];S.versements.push({id:uid("vd"),livreur_id:lv.id,montant:m,mode:d.mode,ref,note:d.note||"",statut:"declare",cree_le:now()});audit("Versement Mobile Money déclaré",`${lv.nom} — ${fcfa(m)} (${d.mode} ${ref})`);save();render();toast("Versement déclaré : la caisse va le valider","ok")}})}
+  S.versements=S.versements||[];S.candidatures=S.candidatures||[];S.prestations=S.prestations||[];S.demandes=S.demandes||[];S.caisses=S.caisses||[];S.caisse_sessions=S.caisse_sessions||[];S.caisse_mvts=S.caisse_mvts||[];S.sos=S.sos||[];S.versements.push({id:uid("vd"),livreur_id:lv.id,montant:m,mode:d.mode,ref,note:d.note||"",statut:"declare",cree_le:now()});audit("Versement Mobile Money déclaré",`${lv.nom} — ${fcfa(m)} (${d.mode} ${ref})`);save();render();toast("Versement déclaré : la caisse va le valider","ok")}})}
 function versPending(){
  const L=(S.versements||[]).filter(v=>v.statut==="declare").sort((a,b)=>new Date(a.cree_le)-new Date(b.cree_le));if(!L.length)return"";
  return`<div class="card" style="margin:0 0 12px;border-left:4px solid var(--b)"><b>📲 Versements Mobile Money déclarés à valider (${L.length})</b><div class="sm mu">Vérifiez dans votre application Mobile Money que la somme est bien arrivée avec cette référence.</div>
@@ -1959,9 +1959,43 @@ VIEWS.mesReg=()=>{
  <p class="mu sm">Net = prix de vos articles − commission de ${v.commission_pct||0} %. Les frais de livraison reviennent à ${ORG()}. Un règlement est dû dès que la commande est livrée et entièrement payée par le client.</p>
  <h2>Commandes à régler / réglées</h2>${tbl(["Commande","Livrée le","Articles","Net pour vous"],d.elig.map(c=>`<tr><td>${c.numero}</td><td>${fdt((livsOf(c.id).filter(l=>l.statut==="livree").slice(-1)[0]||{}).fin_at||livreeLe(c))}</td><td class="sm">${c.lignes.map(l=>esc(l.qte+"× "+lname(l))).join(", ")}</td><td><b>${fcfa(d.net(c))}</b></td></tr>`),"Aucune commande livrée")}
  <h2>Règlements reçus</h2>${tbl(["Date","Montant","Mode","Note"],S.reglements.filter(r=>r.vendeur_id===v.id).slice().reverse().map(r=>`<tr><td>${fdt(r.ts)}</td><td><b>${fcfa(r.montant)}</b></td><td>${esc(r.mode)}</td><td class="sm">${esc(r.note||"")}</td></tr>`),"Aucun règlement")}`};
+/* --- Candidatures « devenir vendeur partenaire » reçues du portail (message WhatsApp avec marqueur [VENDEUR:…]) --- */
+const CAND_ST={attente:["À étudier","wa"],approuvee:["Approuvée","ok"],refusee:["Refusée","er"]};
+function candCreer(d){
+ S.candidatures=S.candidatures||[];
+ const ref=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,12);if(!ref)throw new Error("référence absente");
+ if(S.candidatures.some(c=>c.ref===ref))throw new Error("déjà importée");
+ const nom=String(d.n||"").trim().replace(/\s+/g," ").slice(0,80),tel=String(d.t||"").replace(/[^0-9+]/g,"").slice(0,20);
+ if(!nom||digits(tel).length<8)throw new Error("nom ou téléphone invalide");
+ if(S.vendeurs.some(v=>digits(v.tel)===digits(tel)))throw new Error("un vendeur partenaire porte déjà ce numéro");
+ if(S.candidatures.some(c=>c.statut==="attente"&&digits(c.tel)===digits(tel)))throw new Error("une candidature de ce numéro est déjà à étudier");
+ const c={id:uid("cd"),ref,nom,tel,ville:String(d.v||"").trim().slice(0,80),activite:String(d.a||"").trim().slice(0,200),produits:String(d.p||"").trim().slice(0,300),message:String(d.m||"").trim().slice(0,400),statut:"attente",t:now(),hist:[{t:now(),statut:"attente",note:"Candidature reçue du portail"}]};
+ S.candidatures.push(c);audit("Candidature vendeur partenaire importée",nom+" ("+ref+")");return c}
+function candImporter(text){
+ const mk=[...String(text).matchAll(/\[VENDEUR:([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
+ if(!mk.length)throw new Error("Aucune candidature dans ce texte (le marqueur [VENDEUR:…] est absent)");
+ mk.forEach(m=>{let d;try{d=unb64(m[1])}catch(e){res.ko.push("message illisible");return}
+  try{res.ok.push(candCreer(d))}catch(e){res.ko.push(String(d&&d.n||"Candidat").slice(0,40)+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
+ return res}
+function candApprouver(id,pin,com){
+ if(!can("admin","commercial"))throw new Error("Droits insuffisants.");const c=(S.candidatures||[]).find(x=>x.id===id);if(!c||c.statut!=="attente")throw new Error("Candidature introuvable ou déjà traitée.");
+ if(!new RegExp("^[0-9]{"+PINMIN+",8}$").test(String(pin||"")))throw new Error("PIN : "+PINMIN+" à 8 chiffres.");
+ const cp=Math.max(0,Math.min(100,+com||0));
+ if(S.vendeurs.some(v=>digits(v.tel)===digits(c.tel)))throw new Error("Un vendeur partenaire porte déjà ce numéro.");
+ const nu={id:uid("u"),nom:c.nom,role:"vendeur",actif:true};nu.pin_h=hashPin(nu.id,String(pin));S.users.push(nu);
+ const v={id:uid("v"),user_id:nu.id,nom:c.nom,tel:c.tel,commission_pct:cp};S.vendeurs.push(v);
+ c.statut="approuvee";c.vendeur_id=v.id;c.hist.push({t:now(),statut:"approuvee",note:"Approuvée par "+who()+" (commission "+cp+" %)"});audit("Candidature vendeur approuvée",c.nom);return v}
+function candRefuser(id,motif){
+ if(!can("admin","commercial"))throw new Error("Droits insuffisants.");const c=(S.candidatures||[]).find(x=>x.id===id);if(!c||c.statut!=="attente")throw new Error("Candidature introuvable ou déjà traitée.");
+ motif=String(motif||"").trim();if(motif.length<5)throw new Error("Motif obligatoire (5 caractères minimum).");
+ c.statut="refusee";c.motif=motif;c.hist.push({t:now(),statut:"refusee",note:motif+" ("+who()+")"});audit("Candidature vendeur refusée",c.nom)}
+const candBloc=()=>{if(CL.on)return"";const L=(S.candidatures||[]).slice().reverse(),adm=can("admin","commercial"),n=L.filter(c=>c.statut==="attente").length;
+ return`<div class="card"><h2>Candidatures reçues du portail${n?" ("+n+" à étudier)":""}</h2><p class="sm mu">Une personne qui postule depuis le portail vous envoie un message WhatsApp : collez-le ici. Vous décidez : approuver (compte vendeur + PIN) ou refuser avec un motif. Rien n'est créé sans votre accord.</p>
+ ${adm?`<textarea id="cd_txt" rows="3" placeholder="🤝 Candidature vendeur partenaire … [VENDEUR:…]" style="width:100%"></textarea><div class="flex" style="margin:8px 0"><button class="btn" data-act="candImport">📥 Importer</button></div>`:""}
+ ${tbl(["Reçue","Candidat","Activité / produits","Statut",""],L.map(c=>`<tr><td class="sm">${fdt(c.t)}<br>${esc(c.ref)}</td><td><b>${esc(c.nom)}</b><br>${esc(c.tel)}<br><span class="sm mu">${esc(c.ville)}</span></td><td>${esc(c.activite)}<br><span class="sm mu">${esc(c.produits)}${c.message?" · "+esc(c.message):""}</span></td><td>${badge(CAND_ST[c.statut][0],CAND_ST[c.statut][1])}${c.motif?`<br><span class="sm mu">${esc(c.motif)}</span>`:""}</td><td>${adm&&c.statut==="attente"?`<button class="btn sm ok" data-act="candOk" data-id="${c.id}">Approuver</button> <button class="btn sm er ghost" data-act="candNo" data-id="${c.id}">Refuser</button>`:""}</td></tr>`),"Aucune candidature pour le moment.")}</div>`};
 VIEWS.vendeurs=()=>`<div class="between"><h1>Vendeurs partenaires</h1>${can("admin","commercial")?'<button class="btn" data-act="newVend">➕ Vendeur partenaire</button>':""}</div>
  <p class="mu">Vendeurs en ligne et fournisseurs qui déposent eux-mêmes leurs commandes à livrer. Chacun ne voit que ses propres commandes.</p>
- ${tbl(["Vendeur","Téléphone","Commission","Commandes","À confirmer","Reste à régler","Compte",""],S.vendeurs.map(v=>{const u=usr(v.user_id),d=vendDue(v),m=S.commandes.filter(c=>c.vendeur_id===v.id);return`<tr><td><b>${esc(v.nom)}</b></td><td>${esc(v.tel)}</td><td>${v.commission_pct||0} %</td><td>${m.length}</td><td>${m.filter(c=>c.statut==="attente").length||"—"}</td><td>${fcfa(d.restant)}</td><td>${u?(u.actif?badge("Actif","ok"):badge("Désactivé","er")):badge("—","mu")}</td><td>${can("admin","commercial")?`<button class="btn sm ghost" data-act="editVend" data-id="${v.id}">Modifier</button>`:""}</td></tr>`}),"Aucun vendeur partenaire. Créez-en un pour qu'il puisse déposer ses commandes.")}`;
+ ${tbl(["Vendeur","Téléphone","Commission","Commandes","À confirmer","Reste à régler","Compte",""],S.vendeurs.map(v=>{const u=usr(v.user_id),d=vendDue(v),m=S.commandes.filter(c=>c.vendeur_id===v.id);return`<tr><td><b>${esc(v.nom)}</b></td><td>${esc(v.tel)}</td><td>${v.commission_pct||0} %</td><td>${m.length}</td><td>${m.filter(c=>c.statut==="attente").length||"—"}</td><td>${fcfa(d.restant)}</td><td>${u?(u.actif?badge("Actif","ok"):badge("Désactivé","er")):badge("—","mu")}</td><td>${can("admin","commercial")?`<button class="btn sm ghost" data-act="editVend" data-id="${v.id}">Modifier</button>`:""}</td></tr>`}),"Aucun vendeur partenaire. Créez-en un pour qu'il puisse déposer ses commandes.")}${candBloc()}`;
 function vendForm(v){const u=v&&usr(v.user_id);
  modal(v?"Modifier le vendeur":"Nouveau vendeur partenaire",`<div class="g2"><label>Nom / boutique<input name="nom" required value="${esc(v?v.nom:"")}"></label><label>Téléphone<input name="tel" required value="${esc(v?v.tel:"")}"></label></div>${!v&&CL.on?'<label>Identifiant de connexion (par défaut : téléphone)<input name="ident" autocapitalize="none"></label>':""}<div class="g2"><label>Commission sur ses articles (%)<input type="number" name="com" min="0" max="100" step="0.5" value="${v?v.commission_pct||0:0}"></label><label>${v?"Nouveau PIN (vide = inchangé)":"PIN de connexion (${PINMIN} à 8 chiffres)"}<input name="pin" inputmode="numeric" pattern="[0-9]{${PINMIN},8}" ${v?"":"required"}></label></div>${v?`<label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="actif" style="width:auto" ${u&&u.actif?"checked":""}> Compte actif</label>`:""}`,
  {onSubmit:d=>{if(CL.on)return CL.vendSave(v,d);if(v){v.nom=d.nom;v.tel=d.tel;v.commission_pct=+d.com||0;u.nom=d.nom;u.actif=!!d.actif;if(d.pin)u.pin_h=hashPin(u.id,d.pin);audit("Modification vendeur",d.nom)}
@@ -4221,6 +4255,12 @@ Object.assign(ACT,{
   if(r.ok.length)save();
   toast((r.ok.length?r.ok.length+" commande(s) importée(s) : "+r.ok.map(x=>x.numero+" ("+fcfa(x.total)+")").join(", ")+". ":"")+(r.ko.length?"Refusée(s) : "+r.ko.join(" | "):"")+(r.ok.some(x=>x.notes.length)?" À vérifier : "+r.ok.filter(x=>x.notes.length).map(x=>x.numero+" — "+x.notes.join(", ")).join(" | "):""),r.ko.length?"err":"ok");
   render()},
+ candImport:()=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err");let r;try{r=candImporter($("#cd_txt").value)}catch(e){return toast(e.message,"err")}
+  if(r.ok.length)save();toast((r.ok.length?r.ok.length+" candidature(s) importée(s). ":"")+(r.ko.length?"Refusée(s) : "+r.ko.join(" | "):""),r.ko.length?"err":"ok");render()},
+ candOk:id=>{const c=(S.candidatures||[]).find(x=>x.id===id);if(!c)return;modal("Approuver "+c.nom,`<p class="sm mu">Un compte vendeur sera créé pour ${esc(c.nom)} (${esc(c.tel)}). Communiquez-lui son PIN de vive voix ou par message privé.</p><div class="g2"><label>Commission sur ses articles (%)<input type="number" name="com" min="0" max="100" step="0.5" value="5"></label><label>PIN de connexion (${PINMIN} à 8 chiffres)<input name="pin" inputmode="numeric" required></label></div>`,
+   {onSubmit:d=>{try{candApprouver(id,d.pin,d.com)}catch(e){toast(e.message,"err");return false}save();render();toast("Vendeur partenaire créé : "+c.nom,"ok")}})},
+ candNo:id=>{const c=(S.candidatures||[]).find(x=>x.id===id);if(!c)return;modal("Refuser "+c.nom,`<label>Motif (conservé au dossier)<textarea name="motif" rows="3" required></textarea></label>`,
+   {onSubmit:d=>{try{candRefuser(id,d.motif)}catch(e){toast(e.message,"err");return false}save();render();toast("Candidature refusée","ok")}})},
  webPayOk:id=>{if(!can("admin","caissier"))return toast("Réservé à l'administrateur et au caissier","err");const c=cmd(id);if(!c||!c.web||c.web.pay!=="a_verifier")return;
   if(!confirm("Confirmer la réception de "+fcfa(c.total)+" sur le compte Mobile Money (réf. "+c.web.rf+") ?"))return;
   const op=c.web.op||"Mobile Money";S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,montant:c.total,mode:op,ref:c.web.rf,ts:now(),par:who()});
