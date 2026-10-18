@@ -44,14 +44,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  t("PRE-9","commande mixte : total = produits + prestations + frais, noms lisibles",r.total===2*1800+2000+2*1000+1000&&r.noms.join()===["Eau minérale (pack)","Livraison express (moins de 2 h)","Emballage cadeau"].join()?true:JSON.stringify(r));
  t("PRE-10","préparation : seul le produit sort du stock (aucun mouvement pour les prestations)",r.pret===true&&r.apres===r.s0-2&&r.mv===1?true:JSON.stringify(r));
  const cpt=await st.evaluate(id=>{const c=cmd(id);c.statut="livree";c.hist.push({ts:now(),de:"en_cours",a:"livree",par:"test",note:""});const E=cptAuto().find(e=>e.source_id===id);const sum=s=>E.lignes.filter(l=>l.sens===s).reduce((t,l)=>t+l.montant,0);
-  const credit=k=>E.lignes.filter(l=>l.sens==="C"&&l.compte===cdd(k)).reduce((t,l)=>t+l.montant,0);return{D:sum("D"),C:sum("C"),art:credit("vente_art"),serv:credit("vente_serv"),total:c.total}},r.id);
- t("PRE-11","comptabilité : écriture équilibrée ; marchandises en ventes d'articles, prestations + livraison en ventes de services",cpt.D===cpt.C&&cpt.D===cpt.total&&cpt.art===3600&&cpt.serv===4000+1000?true:JSON.stringify(cpt));
+  const credit=k=>E.lignes.filter(l=>l.sens==="C"&&l.compte===cdd(k)).reduce((t,l)=>t+l.montant,0);return{D:sum("D"),C:sum("C"),art:credit("vente_art"),serv:credit("vente_serv"),prest:credit("vente_prest"),total:c.total}},r.id);
+ t("PRE-11","comptabilité : écriture équilibrée ; marchandises en ventes d'articles, prestations en prestations vendues (7062), livraison en services vendus (7061)",cpt.D===cpt.C&&cpt.D===cpt.total&&cpt.art===3600&&cpt.prest===4000&&cpt.serv===1000?true:JSON.stringify(cpt));
  // 4. remise répartie
  const rm=await st.evaluate(()=>{const ex=S.prestations.find(p=>p.code==="PR-COU"),cl=S.clients[0],eau=__P("P-EAU");
   const c=creerCmd({client_id:cl.id,adr:Object.assign({},cl.adresses[0]),lignes:[{produit_id:eau.id,qte:1,pu:1800},{produit_id:null,prestation_id:ex.id,desig:ex.nom,qte:1,pu:3000}],frais:0,remise:2500,paiement:"livraison",mode:"Espèces",canal:"Téléphone",confirmer:true});
   c.statut="livree";c.hist.push({ts:now(),de:"en_cours",a:"livree",par:"test",note:""});const E=cptAuto().find(e=>e.source_id===c.id),cr=k=>E.lignes.filter(l=>l.sens==="C"&&l.compte===cdd(k)).reduce((t,l)=>t+l.montant,0);
-  return{total:c.total,art:cr("vente_art"),serv:cr("vente_serv"),D:E.lignes.filter(l=>l.sens==="D").reduce((t,l)=>t+l.montant,0)}});
- t("PRE-12","remise : imputée d'abord sur les articles, le reste sur les prestations ; écriture équilibrée",rm.total===2300&&rm.art===0&&rm.serv===2300&&rm.D===2300?true:JSON.stringify(rm));
+  return{total:c.total,art:cr("vente_art"),serv:cr("vente_serv"),prest:cr("vente_prest"),D:E.lignes.filter(l=>l.sens==="D").reduce((t,l)=>t+l.montant,0)}});
+ t("PRE-12","remise : imputée d'abord sur les articles, le reste sur les prestations ; écriture équilibrée",rm.total===2300&&rm.art===0&&rm.prest===2300&&rm.serv===0&&rm.D===2300?true:JSON.stringify(rm));
  // 5. boutique en ligne
  await st.evaluate(()=>{__P("P-RIZ").en_ligne=true;S.config.whatsapp="0707000000";S.config.momo_comptes=[];S.prestations.find(p=>p.code==="PR-EXP").en_ligne=true;S.prestations.find(p=>p.code==="PR-EMB").actif=false;S.prestations.find(p=>p.code==="PR-EMB").en_ligne=true;save()});
  const link=await st.evaluate(()=>boutLink());const sh=await open("distribution.html#boutique="+link.split("#boutique=")[1]);

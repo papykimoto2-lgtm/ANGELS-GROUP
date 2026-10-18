@@ -328,7 +328,11 @@ function migrerSante(){
 const phase=(t,a)=>t==="ponte"?(a<84?"Démarrage":a<126?"Pré-ponte":a<350?"Pic de ponte":a<500?"Déclin":"Réforme"):(a<10?"Démarrage":a<28?"Croissance":a<42?"Finition":"Prêt à vendre");
 
 /* ---------- Persistance, audit, transactions ---------- */
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend (Supabase) est requis.")}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend (Supabase) est requis.")}try{localStorage.setItem("angels_compta_agro",JSON.stringify(comptaResume()))}catch(e){}};
+function comptaResume(){ // synthèse lue par le Hub (consolidation du groupe)
+ const E=S.entries||[],d=x=>sum(x.lignes,l=>l.debit),c=x=>sum(x.lignes,l=>l.credit),hp=new Set();E.forEach(e=>e.lignes.forEach(l=>{try{if(!accOf(l.compte))hp.add(l.compte)}catch(x){hp.add(l.compte)}}));
+ return{t:new Date().toISOString(),module:"agro",nb_ecritures:E.length,debit:sum(E,d),credit:sum(E,c),desequilibres:E.filter(e=>d(e)!==c(e)).length,non_comptabilisees:0,anomalies:E.filter(e=>d(e)!==c(e)).length+hp.size,hors_plan:hp.size,brouillards:(S.brouillard||[]).length,comptes:(S.accounts||[]).length}}
+
 const audit=(a,d)=>{S.audit.unshift({t:now(),u:ME?ME.nom:"système",r:ME?ME.role:"",a,d:d||""});if(S.audit.length>2000)S.audit.length=2000};
 function atomic(fn,quiet){
  const snap=JSON.stringify(S),me=ME&&ME.id;
