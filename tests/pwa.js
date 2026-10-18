@@ -29,7 +29,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   await pg.close();
  }
  const keys=await p.goto(base+"/index.html").then(()=>p.evaluate(async()=>{await navigator.serviceWorker.ready;const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v"))),r=await c.keys();return r.map(x=>new URL(x.url).pathname)}));
- const need=["/index.html","/transport.html","/agro.html","/distribution.html","/icons/agro-512.png","/icons/transport-512.png","/manifest-agro.webmanifest"];
+ const need=["/index.html","/parametres.html","/transport.html","/agro.html","/distribution.html","/icons/agro-512.png","/icons/transport-512.png","/manifest-agro.webmanifest"];
  t("PWA-4","coque mise en cache à l'installation du service worker",need.every(x=>keys.includes(x))?true:"manquants : "+need.filter(x=>!keys.includes(x)));
  // hors ligne : chaque page se recharge, la navigation du hub vers les apps fonctionne
  const off=[];

@@ -67,6 +67,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/parametres",
+      "destination": "/parametres.html"
+    },
+    {
       "source": "/vendeur",
       "destination": "/distribution.html"
     },
