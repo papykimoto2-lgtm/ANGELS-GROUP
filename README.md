@@ -493,3 +493,28 @@ Tests : `node tests/rh-revue.js` (11) et `node tests/revue-qualite.js` (9).
 **Carte permanente** : le portail affiche désormais une carte de la zone de livraison sur l'accueil et sur la page Suivi (même sans lien de suivi) ; la position du livreur et la destination s'y ajoutent avec le lien d'une commande en route. Centre réglable par `carte:{lat,lng,zoom,libelle}` dans la configuration (Abidjan par défaut). Le fond de carte OpenStreetMap exige une connexion Internet.
 
 **Signature du développeur** : « Logiciel développé par Sanix Africa Division Technologies — Contact (WhatsApp) : +225 0779181075 / 0140017751 » apparaît sur l'écran de connexion des trois applications, le hub, les Paramètres, le portail, la page de vérification, le consolidé du groupe. Elle ne figure jamais sur les documents imprimés remis aux clients.
+
+## Protection des numéros des clients (étape 1)
+
+Les numéros des clients ne doivent pas être divulgués aux livreurs (loi ivoirienne n° 2013-450 sur les données personnelles). Dans Distributions, Paramètres → option « Protéger les numéros des clients » (**désactivée par défaut** : l'ancien fonctionnement, avec appel direct du livreur, est conservé tant que vous ne l'activez pas) :
+
+- **Livreur** : plus de bouton « Appeler » vers le client ; le numéro n'apparaît ni sur la fiche mission, ni dans les instructions, repères et observations (les suites de chiffres y sont masquées), ni dans le lien de partage de position (plus de lien WhatsApp direct).
+- **Joindre le client** : le livreur choisit le motif (arrivé et sans réponse, adresse introuvable, client absent, retard, autre) et envoie une demande au bureau ; il voit aussi les numéros du bureau pour les urgences.
+- **Bureau (administrateur, superviseur)** : Notifications → encadré « Demandes des livreurs » avec le numéro à appeler et le bouton « Traité » ; une alerte apparaît au tableau de bord ; chaque demande est tracée au journal d'audit.
+- **Documents** : l'étiquette colis et le bon de livraison n'impriment plus le téléphone du client (les factures et reçus restent inchangés).
+
+Limites actuelles : fonctionne en mode local ; le mode serveur (Supabase) devra appliquer la même règle côté base (accès par rôle) ; un client qui appelle lui-même le livreur laisse son numéro dans le téléphone de celui-ci. Étapes suivantes : appel par pont téléphonique et appel interne depuis le lien du portail.
+
+Test : `node tests/masque-tel.js` (6 contrôles).
+
+## Pont téléphonique (étape 2)
+
+**Option, désactivée par défaut** : tant que le pont n'est pas activé dans les Paramètres, rien ne change pour les livreurs.
+
+Le livreur touche « Joindre le client » puis « Appeler maintenant » : le serveur fait sonner son téléphone, puis le relie au client depuis le numéro de l'entreprise. Ni l'un ni l'autre ne voit le numéro de l'autre ; les appels sont limités (4 par mission, 20 secondes minimum entre deux), enregistrés au journal (heure, statut, durée, sans numéro ni audio) et fermés à la fin de la livraison. Si le pont n'est pas configuré ou échoue, la demande au bureau (étape 1) reste disponible.
+
+Le code serveur (fonctions Supabase pour Africa's Talking) est dans `supabase/` — mise en service dans `supabase/README.md`. Le bureau pousse automatiquement le ticket d'une mission à l'affectation et le ferme à la fin ; réglages dans Distributions → Paramètres.
+
+Tests : `node tests/appel-pont.js` (9, logique serveur) et `node tests/masque-tel.js` (8).
+
+**Menu du portail sur mobile** : sous 700 px, le menu est replié derrière une barre « ☰ MENU · page en cours » ; le contenu de la page est visible dès l'ouverture, le menu s'ouvre au toucher (défilable) et se referme après le choix d'une page ou un toucher à l'extérieur. Sur ordinateur et tablette large, le menu reste affiché. Tests : `tests/revue-qualite.js` (RQ-12, RQ-13) et `tests/portail-livraison.js` (PL-13).
