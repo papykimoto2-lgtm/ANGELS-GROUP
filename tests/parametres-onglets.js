@@ -21,12 +21,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
  const vis=()=>ps.evaluate(()=>({tabs:[...document.querySelectorAll("#ptabs .tab")].map(b=>b.dataset.pt),on:[...document.querySelectorAll("#ptabs .tab.on")].map(b=>b.dataset.pt),users:!document.getElementById("s-users").hidden,ptl:!document.getElementById("s-ptl").hidden,med:!document.getElementById("s-med").hidden,panels:[...document.querySelectorAll("#ptl .pp")].filter(p=>!p.hidden&&p.offsetParent!==null).map(p=>p.dataset.pp).filter((x,i,a)=>a.indexOf(x)===i)}));
  const v0=await vis();
- chk("ONG-1","7 onglets ; ouverture sur « Utilisateurs et rôles » : seul ce contenu est affiché",v0.tabs.join()==="users,identite,accueil,boutique,contact,medias,publication"&&v0.on.join()==="users"&&v0.users&&!v0.ptl&&!v0.med,JSON.stringify(v0));
+ chk("ONG-1","9 onglets ; ouverture sur « Utilisateurs et rôles » : seul ce contenu est affiché",v0.tabs.join()==="users,identite,accueil,boutique,contact,medias,stats,acces,publication"&&v0.on.join()==="users"&&v0.users&&!v0.ptl&&!v0.med,JSON.stringify(v0));
  const res={};
- for(const t of ["identite","accueil","boutique","contact","medias","publication"]){await ps.click('#ptabs [data-pt="'+t+'"]');res[t]=await vis()}
+ for(const t of ["identite","accueil","boutique","contact","medias","stats","acces","publication"]){await ps.click('#ptabs [data-pt="'+t+'"]');res[t]=await vis()}
  const want={identite:["identite"],accueil:["accueil"],boutique:["boutique"],contact:["contact"],publication:["publication"]};
  chk("ONG-2","chaque onglet n'affiche que son contenu : identité (nom, logo, couleurs, bandeau), accueil (activités, avis, FAQ), boutique et vendeurs, contact et légal, médias, publication",
-  Object.keys(want).every(t=>res[t].ptl&&!res[t].users&&!res[t].med&&res[t].panels.join()===want[t].join())&&res.medias.med&&!res.medias.ptl&&!res.medias.users,JSON.stringify(res));
+  Object.keys(want).every(t=>res[t].ptl&&!res[t].users&&!res[t].med&&res[t].panels.join()===want[t].join())&&res.medias.med&&!res.medias.ptl&&!res.medias.users&&!res.stats.ptl&&!res.acces.ptl,JSON.stringify(res));
  const contenu=await ps.evaluate(()=>{const g=k=>[...document.querySelectorAll('#ptl .pp[data-pp="'+k+'"]')].map(p=>p.textContent).join(" ");return{id:/Logo du portail/.test(g("identite"))&&/Couleur primaire/.test(g("identite"))&&/Bandeau défilant/.test(g("identite")),ac:/Page d'accueil/.test(g("accueil"))&&/Activités/.test(g("accueil"))&&/Questions fréquentes/.test(g("accueil"))&&/Avis clients/.test(g("accueil")),bo:/Lien de la boutique/.test(g("boutique"))&&/vendeur partenaire/.test(g("boutique")),co:/WhatsApp/.test(g("contact"))&&/Informations légales/.test(g("contact"))&&/Mentions légales/.test(g("contact")),pu:/portail-data\.js/.test(g("publication"))&&/portail autonome/.test(g("publication"))}});
  chk("ONG-3","contenu rangé au bon endroit dans chaque onglet",Object.values(contenu).every(Boolean),JSON.stringify(contenu));
  await ps.reload();await ps.waitForTimeout(400);const v1=await vis();

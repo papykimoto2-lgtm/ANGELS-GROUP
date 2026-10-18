@@ -50,7 +50,7 @@ h3{margin:26px 0 10px;font-size:15px}
 .uf input,.uf select,.ut select{font:inherit;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-height:40px;display:block;margin-top:3px}
 button.sb{border:0;border-radius:8px;padding:8px 12px;background:var(--c,var(--b));color:#fff;font:inherit;font-weight:700;cursor:pointer;min-height:38px}button.sb.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}
 .umsg{margin:8px 0;padding:8px 12px;border-radius:8px;font-size:13px;background:#e3f5ea;color:var(--ok)}.umsg.er{background:#fde8e8;color:#c62828}.off{opacity:.55}
-#ptabs .tab.on{background:var(--b2);color:#fff;border-color:var(--b2)}#ptabs .tab{min-height:42px}
+.tabs .tab.on{background:var(--b2);color:#fff;border-color:var(--b2)}.bar i{background:var(--b)}.bar span{font-size:10px}#ptabs .tab{min-height:42px}
 footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 
 .back{color:#fff;opacity:.9;text-decoration:none;font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,.4);border-radius:99px;padding:6px 12px}
@@ -65,7 +65,9 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </div><div id="s-ptl" hidden><h2 style="margin:6px 0 10px;font-size:16px">🌐 Portail unique du groupe</h2>
 <p class="note">Le portail est le site public du groupe et sa boutique en ligne (<a href="portail.html">portail.html</a>) : il ne donne jamais accès aux applications de gestion. Réglez ici l'identité, la boutique, les candidatures de vendeurs partenaires, les services, la FAQ et le contact. Les réglages sont enregistrés sur cet appareil ; pour les publier, copiez le <b>lien du portail</b> (il contient les réglages) et partagez-le. Modification réservée à un administrateur : déverrouillez d'abord une application avec le PIN d'un administrateur (onglet « Utilisateurs et rôles »).</p>
 <section id="ptl"></section>
-</div><div id="s-med" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
+</div><div id="s-stats" hidden><h2 style="margin:6px 0 10px;font-size:16px">📊 Statistiques portail</h2><p class="note">Activité commerciale venue du portail : commandes de la boutique en ligne et candidatures de vendeurs partenaires, lues dans les données de Distributions de cet appareil. Le portail est un site public sans serveur : le nombre de visites n'est pas mesuré.</p><section id="pstat"></section></div>
+<div id="s-acces" hidden><h2 style="margin:6px 0 10px;font-size:16px">🔑 Accès portail (tous acteurs)</h2><p class="note">Toutes les personnes en lien avec le portail : clients de la boutique en ligne, candidats vendeurs et vendeurs partenaires. Contactez-les sur WhatsApp et gérez l'accès des vendeurs partenaires (activation / désactivation du compte, après déverrouillage de Distributions dans l'onglet Utilisateurs).</p><section id="pacc"></section></div>
+<div id="s-med" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
 <p class="note">Ajoutez des photos, des vidéos (par lien YouTube / Vimeo / fichier https) et des documents PDF qui s'affichent sur le portail public : diaporama d'accueil, galerie, pages d'activité, page Société, documents à télécharger. Les photos sont compressées automatiquement ; documents PDF : 1,5 Mo maximum (au-delà, utilisez « Document par lien »).</p>
 <section id="pmed"></section>
 </div></div></main>
@@ -340,12 +342,83 @@ document.addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(
  if(b.dataset.p==="logo"){if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return pView()}$("m_logo").click()}
  if(b.dataset.p==="logox"&&pDebloque()){const C=pLire();C.logo="";localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Logo retiré."};pDiffuse();pView()}});
 
+
+/* ---------- Statistiques portail et accès portail (lus dans les données de Distributions) ---------- */
+const eE=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fF=n=>Math.round(+n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+const telWA=t=>{t=String(t||"").replace(/\D/g,"");return t.length===10?"225"+t:t};
+const donneesDist=()=>{const G=lire("angels_erp_v1");return G&&Array.isArray(G.commandes)&&Array.isArray(G.clients)?G:null};
+const estWeb=c=>!!(c.web||c.canal==="Vente en ligne");
+let SJ=30;
+function sCalc(G,jours){
+ const lim=jours?Date.now()-jours*864e5:0,dans=t=>!lim||new Date(t).getTime()>=lim;
+ const W=G.commandes.filter(c=>estWeb(c)&&dans(c.date)),liv=W.filter(c=>c.statut==="livree"),ann=W.filter(c=>c.statut==="annulee"),cours=W.filter(c=>!["livree","annulee"].includes(c.statut));
+ const ca=liv.reduce((t,c)=>t+(+c.total||0),0),mm=W.filter(c=>c.web&&c.web.pm==="mm"),esp=W.length-mm.length;
+ const prod={};W.filter(c=>c.statut!=="annulee").forEach(c=>(c.lignes||[]).forEach(l=>{const p=(G.produits||[]).find(x=>x.id===l.produit_id),nom=l.desig||(p&&p.nom)||"Article";const r=prod[nom]||(prod[nom]={n:nom,q:0,ca:0});r.q+=+l.qte||0;r.ca+=(+l.qte||0)*(+l.pu||0)}));
+ const zones={};W.forEach(c=>{const z=(c.adr&&c.adr.zone)||"—";zones[z]=(zones[z]||0)+1});
+ const premiers={};G.commandes.filter(estWeb).forEach(c=>{const k=c.client_id,t=new Date(c.date).getTime();if(!(k in premiers)||t<premiers[k])premiers[k]=t});
+ const nouveaux=Object.values(premiers).filter(t=>!lim||t>=lim).length;
+ const n=jours||30,jour={};for(let i=n-1;i>=0;i--){jour[new Date(Date.now()-i*864e5).toISOString().slice(0,10)]=0}
+ W.forEach(c=>{const d=String(c.date).slice(0,10);if(d in jour)jour[d]++});
+ const C=(G.candidatures||[]).filter(c=>dans(c.t));
+ return{W,liv,ann,cours,ca,mm,esp,prod:Object.values(prod).sort((a,b)=>b.ca-a.ca).slice(0,8),zones:Object.entries(zones).sort((a,b)=>b[1]-a[1]),nouveaux,jour,C,
+  cand:{tot:C.length,att:C.filter(c=>c.statut==="attente").length,ok:C.filter(c=>c.statut==="approuvee").length,ko:C.filter(c=>c.statut==="refusee").length}}}
+function sView(){
+ const el=$("pstat");if(!el)return;const G=donneesDist();
+ if(!G){el.innerHTML='<div class="umsg er">Aucune donnée de Distributions sur cet appareil : ouvrez Distributions une fois, puis revenez ici.</div>';return}
+ const R=sCalc(G,SJ),pm={valide:0,a_verifier:0,rejete:0};R.mm.forEach(c=>{const k=c.web.pay;if(k in pm)pm[k]++});
+ const kp=(v,l,c)=>`<div class="pan" style="text-align:center"><div style="font-size:24px;font-weight:800;${c?"color:"+c:""}">${v}</div><div class="note" style="margin:2px 0 0">${l}</div></div>`;
+ const mx=Math.max(1,...Object.values(R.jour)),d=Object.entries(R.jour);
+ const taux=R.W.length?Math.round(R.liv.length*100/R.W.length):0,tauxC=R.cand.tot?Math.round(R.cand.ok*100/R.cand.tot):0;
+ el.innerHTML=`<div class="uf"><label>Période<select id="sper">${[[7,"7 derniers jours"],[30,"30 derniers jours"],[90,"90 derniers jours"],[0,"Depuis le début"]].map(x=>`<option value="${x[0]}" ${SJ===x[0]?"selected":""}>${x[1]}</option>`).join("")}</select></label><button type="button" class="sb g" data-s="csv">⬇️ Exporter (CSV)</button></div>
+ <h3 style="margin:10px 0 6px;font-size:14px">🛒 Boutique en ligne</h3>
+ <div class="two" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${kp(R.W.length,"commandes reçues")}${kp(R.liv.length,"livrées ("+taux+" %)","var(--ok)")}${kp(R.cours.length,"en cours / à confirmer","var(--wa)")}${kp(R.ann.length,"annulées")}${kp(fF(R.ca),"chiffre d'affaires livré")}${kp(R.liv.length?fF(R.ca/R.liv.length):"—","panier moyen")}${kp(R.nouveaux,"nouveaux clients en ligne")}</div>
+ <div class="two" style="margin-top:12px"><div class="pan"><h4>Commandes par jour</h4><div class="bars">${d.map(([k,v])=>`<div class="bar" title="${eE(k)} : ${v}">${v?`<span>${v}</span>`:""}<i style="height:${Math.round(v*100/mx)}%"></i></div>`).join("")}</div></div>
+  <div class="pan"><h4>Paiement</h4><ul class="det"><li><span>Espèces à la livraison</span><b>${R.esp}</b></li><li><span>Mobile Money — vérifiés</span><b>${pm.valide}</b></li><li><span>Mobile Money — à vérifier</span><b style="color:var(--wa)">${pm.a_verifier}</b></li><li><span>Mobile Money — non reçus</span><b>${pm.rejete}</b></li></ul></div></div>
+ <div class="two" style="margin-top:12px"><div class="pan"><h4>Produits les plus commandés</h4><ul class="det">${R.prod.map(p=>`<li><span>${eE(p.n)} × ${p.q}</span><b>${fF(p.ca)}</b></li>`).join("")||'<li class="note">Aucune commande.</li>'}</ul></div>
+  <div class="pan"><h4>Zones de livraison</h4><ul class="det">${R.zones.map(z=>`<li><span>${eE(z[0])}</span><b>${z[1]}</b></li>`).join("")||'<li class="note">Aucune commande.</li>'}</ul></div></div>
+ <h3 style="margin:16px 0 6px;font-size:14px">🤝 Candidatures de vendeurs partenaires</h3>
+ <div class="two" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${kp(R.cand.tot,"candidatures reçues")}${kp(R.cand.att,"à étudier","var(--wa)")}${kp(R.cand.ok,"approuvées ("+tauxC+" %)","var(--ok)")}${kp(R.cand.ko,"refusées")}${kp((G.vendeurs||[]).length,"vendeurs partenaires au total")}</div>
+ <h3 style="margin:16px 0 6px;font-size:14px">Dernières commandes en ligne</h3>
+ <div style="overflow-x:auto"><table class="ut" style="min-width:560px"><tr><th>Date</th><th>N°</th><th>Client</th><th>Zone</th><th>Total</th><th>Statut</th></tr>${R.W.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,10).map(c=>{const cl=G.clients.find(x=>x.id===c.client_id)||{};return`<tr><td>${eE(String(c.date).slice(0,10))}</td><td>${eE(c.numero)}</td><td>${eE(cl.nom||"—")}</td><td>${eE((c.adr||{}).zone||"—")}</td><td>${fF(c.total)}</td><td>${eE(c.statut)}</td></tr>`}).join("")||'<tr><td colspan="6" class="note">Aucune commande en ligne sur la période.</td></tr>'}</table></div>`;
+}
+let AF={t:"tous",q:""},AMSG=null;
+function aActeurs(G){
+ const web=G.commandes.filter(estWeb),A=[];
+ const parCl={};web.forEach(c=>{(parCl[c.client_id]||(parCl[c.client_id]=[])).push(c)});
+ Object.entries(parCl).forEach(([id,L])=>{const cl=G.clients.find(x=>x.id===id);if(!cl)return;const last=L.map(c=>c.date).sort().pop();A.push({k:"client",id,nom:cl.nom,tel:cl.tel,info:L.length+" commande(s) · "+fF(L.filter(c=>c.statut==="livree").reduce((t,c)=>t+(+c.total||0),0))+" livré",statut:"Client en ligne",der:last})});
+ (G.candidatures||[]).forEach(c=>A.push({k:"candidat",id:c.id,nom:c.nom,tel:c.tel,info:[c.ville,c.activite].filter(Boolean).join(" · "),statut:c.statut==="attente"?"Candidature à étudier":c.statut==="approuvee"?"Candidature approuvée":"Candidature refusée"+(c.motif?" ("+c.motif+")":""),der:c.t}));
+ (G.vendeurs||[]).forEach(v=>{const u=G.users.find(x=>x.id===v.user_id),cm=G.commandes.filter(c=>c.vendeur_id===v.id),last=cm.map(c=>c.date).sort().pop();A.push({k:"vendeur",id:v.id,uid:v.user_id,nom:v.nom,tel:v.tel,info:cm.length+" commande(s) · commission "+(v.commission_pct||0)+" %",statut:u?(u.actif!==false?"Accès actif":"Accès désactivé"):"Sans compte",actif:u&&u.actif!==false,der:last||""})});
+ return A}
+function aView(){
+ const el=$("pacc");if(!el)return;const G=donneesDist();
+ if(!G){el.innerHTML='<div class="umsg er">Aucune donnée de Distributions sur cet appareil : ouvrez Distributions une fois, puis revenez ici.</div>';return}
+ const q=AF.q.trim().toLowerCase(),A=aActeurs(G).filter(a=>(AF.t==="tous"||a.k===AF.t)&&(!q||(a.nom+" "+a.tel).toLowerCase().includes(q))),N=k=>aActeurs(G).filter(a=>a.k===k).length;
+ const lib={client:"🛍️ Client",candidat:"📝 Candidat vendeur",vendeur:"🤝 Vendeur partenaire"},adm=!!uSess("dist");
+ el.innerHTML=(AMSG?`<div class="umsg ${AMSG.er?"er":""}">${eE(AMSG.t)}</div>`:"")+
+ `<div class="tabs">${[["tous","Tous ("+aActeurs(G).length+")"],["client","Clients ("+N("client")+")"],["candidat","Candidats ("+N("candidat")+")"],["vendeur","Vendeurs partenaires ("+N("vendeur")+")"]].map(x=>`<button type="button" class="tab ${AF.t===x[0]?"on":""}" data-af="${x[0]}">${x[1]}</button>`).join("")}</div>
+ <div class="uf"><label>Rechercher (nom ou téléphone)<input id="aq" value="${eE(AF.q)}"></label><button type="button" class="sb g" data-s="acsv">⬇️ Exporter (CSV)</button></div>
+ ${adm?"":'<p class="note">Pour activer ou désactiver un accès vendeur : onglet « Utilisateurs et rôles » → Distributions → saisissez le PIN d\'un administrateur.</p>'}
+ <div style="overflow-x:auto"><table class="ut" style="min-width:680px"><tr><th>Type</th><th>Nom</th><th>Téléphone</th><th>Détail</th><th>Accès / statut</th><th>Dernière activité</th><th></th></tr>`+
+ (A.map(a=>`<tr><td>${lib[a.k]}</td><td><b>${eE(a.nom)}</b></td><td>${eE(a.tel)}</td><td>${eE(a.info)}</td><td>${eE(a.statut)}</td><td>${eE(String(a.der||"").slice(0,10)||"—")}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${telWA(a.tel).length>=8?`<a class="sb g" style="text-decoration:none;display:inline-flex;align-items:center" href="https://wa.me/${telWA(a.tel)}" target="_blank" rel="noopener">💬</a>`:""}${a.k==="vendeur"&&a.uid?`<button type="button" class="sb g" ${adm?"":"disabled"} data-av="${eE(a.uid)}">${a.actif?"Désactiver l'accès":"Réactiver l'accès"}</button>`:""}</div></td></tr>`).join("")||'<tr><td colspan="7" class="note">Aucun acteur pour ce filtre.</td></tr>')+`</table></div>`;
+}
+const csvTel=(nom,rows)=>{const t="﻿"+rows.map(r=>r.map(x=>'"'+String(x==null?"":x).replace(/"/g,'""')+'"').join(";")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv;charset=utf-8"}));a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};
+document.addEventListener("click",ev=>{
+ const f=ev.target.closest("[data-af]");if(f){AF.t=f.dataset.af;return aView()}
+ const v=ev.target.closest("[data-av]");if(v){const id=v.dataset.av;const av=UMSG;
+  uAgir("dist",(G,R,me)=>{const u=G.users.find(x=>x.id===id&&x.role==="vendeur");if(!u)throw new Error("Compte vendeur introuvable.");u.actif=u.actif===false;R.aud(G,"Accès portail vendeur "+(u.actif?"réactivé":"désactivé")+" (via Hub)",u.nom,me);return u.nom+" : accès "+(u.actif?"réactivé":"désactivé")+"."});
+  AMSG=UMSG;UMSG=av;return aView()}
+ const b=ev.target.closest("[data-s]");if(!b)return;const G=donneesDist();if(!G)return;
+ if(b.dataset.s==="csv"){const R=sCalc(G,SJ);csvTel("statistiques-portail.csv",[["Date","N°","Client","Zone","Total","Statut","Paiement"],...R.W.map(c=>{const cl=G.clients.find(x=>x.id===c.client_id)||{};return[String(c.date).slice(0,10),c.numero,cl.nom||"",(c.adr||{}).zone||"",c.total,c.statut,c.web&&c.web.pm==="mm"?"Mobile Money":"Espèces"]})])}
+ if(b.dataset.s==="acsv")csvTel("acces-portail.csv",[["Type","Nom","Téléphone","Détail","Statut","Dernière activité"],...aActeurs(G).map(a=>[a.k,a.nom,a.tel,a.info,a.statut,String(a.der||"").slice(0,10)])])});
+document.addEventListener("change",ev=>{if(ev.target.id==="sper"){SJ=+ev.target.value;sView()}});
+document.addEventListener("input",ev=>{if(ev.target.id==="aq"){AF.q=ev.target.value;const pos=ev.target.selectionStart;aView();const i=$("aq");i.focus();i.setSelectionRange(pos,pos)}});
 /* ---------- Onglets de la page ---------- */
-const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["publication","🚀 Publication"]];
+const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["publication","🚀 Publication"]];
 let PTAB=(()=>{try{const t=sessionStorage.getItem("angels_param_tab");return PTABS.some(x=>x[0]===t)?t:"users"}catch(e){return"users"}})();
 function pTab(t){if(!PTABS.some(x=>x[0]===t))t="users";PTAB=t;try{sessionStorage.setItem("angels_param_tab",t)}catch(e){}
  $("ptabs").innerHTML=PTABS.map(x=>`<button type="button" role="tab" aria-selected="${x[0]===t}" class="tab ${x[0]===t?"on":""}" data-pt="${x[0]}">${x[1]}</button>`).join("");
- $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";const portail=!["users","medias"].includes(t);$("s-ptl").hidden=!portail;
+ $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","medias","stats","acces"].includes(t);$("s-ptl").hidden=!portail;
  document.querySelectorAll("#ptl .pp").forEach(p=>{p.hidden=p.dataset.pp!==t});const bar=document.querySelector("#pform>.uf");if(bar)bar.style.display=t==="publication"?"none":"flex"}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-pt]");if(b)pTab(b.dataset.pt)});
 pView();mView();pTab(PTAB);
