@@ -448,3 +448,15 @@ Un moteur commun (`rh-engine.js`, modèle du module RH de Menko) est branché da
 - Agro : l'ancienne page « Personnel » renvoie vers ce module ; les salariés existants sont repris comme employés à la première ouverture.
 
 Test : `node tests/rh.js` (26 contrôles sur les trois applications).
+
+## Suivi de livraison et liens de commande via le portail unique
+
+Le portail devient l'unique page publique des clients : plus besoin d'ouvrir l'application de gestion.
+
+- **Suivi de livraison** (`/portail#/suivi/<jeton>`, menu « SUIVI LIVRAISON ») : le client voit l'étape de sa commande (reçue, confirmée, préparée, livreur désigné, en route, livrée), le prénom du livreur, l'heure d'arrivée estimée et le montant à payer à la livraison. Distributions → commande → « Lien de suivi » crée un **jeton signé** (ECDSA, même clé que les documents imprimés) : le portail affiche « information certifiée par l'entreprise » si la signature est valide avec la clé publiée dans `portail-data.js` (Hub → Paramètres → Impression puis Publication), « non vérifiable » si la clé n'est pas publiée, et **refuse tout lien modifié**. Le code de confirmation, la position GPS et le téléphone du client n'y figurent jamais.
+- **Notifications WhatsApp** : les messages « commande confirmée » et « livreur en route » ajoutent automatiquement, à l'envoi, le lien de suivi à jour (l'état est arrêté à la création du lien, d'où un lien neuf à chaque étape ; au-delà de deux heures le portail le signale et propose de demander l'état actuel par WhatsApp). Un suivi en direct pour tous les visiteurs, sans lien renvoyé, demande le backend Supabase.
+- **Lien de commande du vendeur** (Distributions, espace vendeur → « Lien de commande », avec QR) : ouvre sur le portail la page « Commander chez <vendeur> » (articles, quantités, prix s'ils sont connus, adresse, position GPS) ; la commande part sur le WhatsApp du vendeur avec le marqueur `[ANGELS:…]` déjà reconnu par « Saisie depuis WhatsApp ».
+- **Lien de commande client** (fiche client → « Lien de commande », avec QR) : ouvre la boutique du portail avec le nom, le téléphone et l'adresse du client déjà remplis ; la commande s'importe dans Vente en ligne.
+- Les anciens liens (`#suivi=`, `#commande=`) continuent de fonctionner ; en mode serveur (Supabase) le suivi en direct existant est conservé.
+
+Test : `node tests/portail-suivi.js` (17 contrôles).

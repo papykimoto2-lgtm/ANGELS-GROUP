@@ -70,6 +70,7 @@ input[type=radio]{width:auto;min-height:0;margin:0 8px 0 0}label.rd{display:flex
 .bp{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)}.qty{display:flex;align-items:center;gap:8px}.bn{min-width:24px;text-align:center}
 .tot{background:var(--bg);border-radius:12px;padding:12px;display:grid;gap:4px}.tot div{display:flex;justify-content:space-between}.tot .big{font-size:18px}
 .err{background:#fde8e8;color:#b42318;border-radius:10px;padding:10px 12px;font-size:14px}h3{margin:10px 0 4px;font-size:16px}
+.tl{list-style:none;padding:0;margin:16px 0 8px}.tl li{position:relative;margin-left:8px;padding:8px 0 8px 22px;border-left:3px solid var(--bd);color:var(--mu)}.tl li:before{content:"";position:absolute;left:-9px;top:11px;width:15px;height:15px;border-radius:50%;background:var(--card);border:3px solid var(--bd)}.tl li.done{border-color:var(--c);color:var(--tx)}.tl li.done:before{background:var(--c);border-color:var(--c)}.tl li.cur{font-weight:700;color:var(--tx)}.tl small{display:block;font-weight:400;color:var(--mu)}.cert{display:inline-block;border-radius:99px;padding:3px 12px;font-size:13px;font-weight:700;border:1px solid var(--bd)}.cert.ok{color:#1f8a4c;border-color:#1f8a4c}.cert.wa{color:#b26a00;border-color:#b26a00}.cert.ko{color:#b3261e;border-color:#b3261e}.lgn{display:grid;grid-template-columns:1fr 70px 110px auto;gap:6px;align-items:end;margin:6px 0}@media(max-width:560px){.lgn{grid-template-columns:1fr 60px}}
 .mu{color:var(--mu)}.empty{padding:16px;border:1px dashed var(--bd);border-radius:12px;color:var(--mu)}
 .avis{font-style:italic}.avis b{font-style:normal;display:block;margin-top:6px;color:var(--c)}
 .logo-area img{height:40px;max-width:180px;object-fit:contain;display:block}
@@ -185,8 +186,8 @@ let T=charger(),ST={q:{},gps:null,vs:"form",vc:"form"};
 const ref6=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x%32]).join("");
 const waNum=()=>telWA(T.contact.whatsapp||(T.shop&&T.shop.w)||"");
 function lienWA(msg){const n=waNum();return n?"https://wa.me/"+n+"?text="+encodeURIComponent(msg):""}
-function envoi(titre,msg,ref,back){ // dernière étape : WhatsApp, ou copie du message si aucun numéro n'est publié
- const u=lienWA(msg);return `<div class="card" style="align-items:center;text-align:center"><div class="ic" style="color:var(--c)"><svg class="i" viewBox="0 0 24 24" style="width:44px;height:44px" aria-hidden="true">${ICO.send}</svg></div><h3>Dernière étape</h3><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(ref)}</b></p><p class="mu">${titre}</p>
+function envoi(titre,msg,ref,back,num){ // dernière étape : WhatsApp, ou copie du message si aucun numéro n'est publié
+ const u=num?"https://wa.me/"+telWA(num)+"?text="+encodeURIComponent(msg):lienWA(msg);return `<div class="card" style="align-items:center;text-align:center"><div class="ic" style="color:var(--c)"><svg class="i" viewBox="0 0 24 24" style="width:44px;height:44px" aria-hidden="true">${ICO.send}</svg></div><h3>Dernière étape</h3><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(ref)}</b></p><p class="mu">${titre}</p>
  ${u?`<a class="go" href="${esc(u)}" target="_blank" rel="noopener">${ico("chat")}Envoyer sur WhatsApp</a>`:'<div class="empty">Numéro WhatsApp non publié : copiez le message ci-dessous et envoyez-le.</div>'}
  <button type="button" class="chip" data-cp="1">${ico("copy")}Copier le message</button><textarea class="msg" readonly rows="6" style="width:100%;font-size:12px">${esc(msg)}</textarea><button type="button" class="chip" data-vue="${back}">← Nouvelle demande</button></div>`}
 function rendreShop(){
@@ -218,6 +219,7 @@ function rendreShop(){
   const pl={f:ref,n:val("b_nom"),t:val("b_tel"),z:val("b_zone"),q:val("b_q"),r:val("b_rep"),a:ST.gps?ST.gps.lat:null,o:ST.gps?ST.gps.lng:null,l:L.map(i=>[i.c,ST.q[i.c]]),p:pm==="mm"?"m":"e",op,rf,m:val("b_note"),tt:total};
   ST.msg=`Commande en ligne — ${S.org||T.nom} (réf. ${ref})\nNom : ${pl.n}\nTél : ${pl.t}\nZone : ${pl.z}${pl.q?" · "+pl.q:""}${pl.r?" · "+pl.r:""}\n${ST.gps?"Position : https://maps.google.com/?q="+ST.gps.lat+","+ST.gps.lng+"\n":""}Articles :\n${L.map(i=>"- "+ST.q[i.c]+" x "+i.n+" ("+F(i.pu)+")").join("\n")}\nLivraison : ${F(zf())}\nTotal : ${F(total)}\nPaiement : ${pm==="mm"?"Mobile Money "+op+" — réf. "+rf:"espèces à la livraison"}${pl.m?"\nMessage : "+pl.m:""}\n[BOUTIQUE:${b64(pl)}]`;
   ST.ref=ref;ST.vs="cmd";rendreShop()};
+ if(ST.pre){const c=ST.pre;ST.pre=null;if(c.n)$b("b_nom").value=c.n;if(c.t)$b("b_tel").value=c.t;if(c.z&&[...$b("b_zone").options].some(o=>o.value===c.z))$b("b_zone").value=c.z;if(c.q)$b("b_q").value=c.q;if(c.r)$b("b_rep").value=c.r}
  calc()}
 function rendreVend(){
  const el=document.getElementById("vend");
@@ -285,10 +287,80 @@ const shopOk=()=>!!(T.shop&&T.shop.items.length);
 const PARC=()=>[
  {n:1,t:"Découvrir",l:[["accueil","ACCUEIL","home"],["boutique","BOUTIQUE","cart"],...(mPhotos(m=>m.cat!=="document"&&m.cat!=="accueil").length||mVideos(m=>m.cat!=="accueil").length?[["photos","PHOTOS","camera"]]:[]),["@act","ACTIVITÉS ▾","grid"]]},
  {n:2,t:"Comprendre",l:[["societe","SOCIÉTÉ","building"],...(T.avis.length?[["avis","AVIS","star"]]:[]),...(MED.some(m=>m.type==="doc")?[["documents","DOCUMENTS","file"]]:[]),["faq","FAQ","help"]]},
- {n:3,t:"Passer à l'action",l:[["boutique","COMMANDER","bag"],...(vehOk()?[["vehicules","VÉHICULES","car"]]:[]),...(T.vendeurs.actif?[["vendeur","VENDEUR PARTENAIRE","users"]]:[]),["contact","CONTACT","mail"]]}];
+ {n:3,t:"Passer à l'action",l:[["boutique","COMMANDER","bag"],["suivi","SUIVI LIVRAISON","pin"],...(vehOk()?[["vehicules","VÉHICULES","car"]]:[]),...(T.vendeurs.actif?[["vendeur","VENDEUR PARTENAIRE","users"]]:[]),["contact","CONTACT","mail"]]}];
 const titreSec=(t,s)=>`<h2>${t}</h2>${s?`<p class="sub">${esc(s)}</p>`:""}`;
 const motDG=()=>{const m=T.motdg;if(!m.texte&&!m.photo)return"";const par=m.texte.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
  return `<div class="motdg ${m.photo?"":"sans-photo"}"><div class="motdg-grid">${m.photo?`<figure class="motdg-photo"><img src="${esc(m.photo)}" alt="${esc(m.nom||"Direction")}"></figure>`:""}<div class="motdg-texte"><div class="motdg-sur"><i></i>${esc(m.fonction||"Direction")}</div><h3>${esc(m.titre||"Mot du DG")}</h3>${m.accroche?`<p class="acc">${esc(m.accroche)}</p>`:""}<div class="corps">${par.map(x=>`<p>${esc(x).replace(/\n/g,"<br>")}</p>`).join("")}</div>${m.nom?`<div class="sign"><b>${esc(m.nom)}</b>${m.fonction?`<span>${esc(m.fonction)}</span>`:""}</div>`:""}</div></div></div>`};
+/* ---------- Suivi de livraison par lien signé et commande par lien (vendeur ou client) ---------- */
+const cutS=(v,n)=>String(v==null?"":v).slice(0,n);
+const SUIVI_TIT={brouillon:"Commande bien reçue",attente:"Commande bien reçue",confirmee:"Commande confirmée",preparation:"Votre commande est en préparation",prete:"Votre commande est prête : un livreur va être désigné",affectee:"Un livreur est désigné",acceptee:"Un livreur est désigné",en_cours:"Votre livreur est en route",livree:"Commande livrée",echouee:"Livraison non aboutie",retour_cours:"Livraison non aboutie",retour_recu:"Livraison non aboutie",annulee:"Commande annulée"};
+const SUIVI_ET=[["Commande reçue",["brouillon","attente"]],["Confirmée",["confirmee"]],["Préparée",["preparation","prete"]],["Livreur désigné",["affectee","acceptee"]],["En route vers vous",["en_cours"]],["Livrée",["livree"]]];
+const SUIVI_RANG={brouillon:0,attente:0,confirmee:1,preparation:2,prete:2,affectee:3,acceptee:3,en_cours:4,livree:5};
+const jetonDe=()=>{const m=/^#\/[a-z0-9\-]+\/([A-Za-z0-9_.\-]+)/.exec(location.hash);return m?m[1]:""};
+const u8=t=>{t=String(t).replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+="=";const b=atob(t),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a};
+const hm=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+const dhm=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleDateString("fr-FR")+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+function suiviNet(d){return{org:cutS(d.o,80),w:digits(d.w).slice(0,20),n:cutS(d.n,30),s:SUIVI_TIT[d.s]?d.s:"attente",l:cutS(d.l,100),lv:cutS(d.v,30),e:/^\d{4}-\d{2}-\d{2}T/.test(d.e||"")?String(d.e).slice(0,24):"",g:/^\d{4}-\d{2}-\d{2}T/.test(d.g||"")?String(d.g).slice(0,24):"",ap:Math.max(0,Math.round(+d.ap||0)),
+ h:(Array.isArray(d.h)?d.h:[]).slice(0,40).filter(x=>Array.isArray(x)).map(x=>[cutS(x[0],20),/^\d{4}-/.test(x[1]||"")?String(x[1]).slice(0,24):""])}}
+async function suiviVerifier(tok){ // etat : ok (signature valide) · ko (signature fausse) · inconnu (clé non publiée) · simple (non signé) · illisible
+ const p=String(tok).split(".");if(p.length!==3||!/^[A-Za-z0-9_-]{8,}$/.test(p[0]))return{etat:"illisible"};
+ let d;try{d=unb64(p[0])}catch(e){return{etat:"illisible"}}if(!d||typeof d!=="object")return{etat:"illisible"};
+ if(p[1]==="-")return{etat:"simple",d:suiviNet(d)};
+ const keys=[...(((window.__PORTAIL_DATA||{}).print||{}).keys||[])];try{const l=JSON.parse(localStorage.getItem("angels_print_key_v1")||"null");if(l&&l.pub&&l.kid)keys.push({kid:l.kid,pub:l.pub})}catch(e){}
+ const k=keys.filter(x=>x&&x.kid===p[2]&&x.pub)[0];if(!k||!window.crypto||!crypto.subtle)return{etat:"inconnu",d:suiviNet(d)};
+ try{const key=await crypto.subtle.importKey("jwk",k.pub,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+  const ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},key,u8(p[1]),new TextEncoder().encode("T1|"+p[0]));return ok?{etat:"ok",d:suiviNet(d)}:{etat:"ko"}}catch(e){return{etat:"ko"}}}
+const CERT={ok:["ok","Information certifiée par l'entreprise (signature vérifiée)"],inconnu:["wa","Signature non vérifiable ici : confirmez l'état par WhatsApp"],simple:["wa","Lien non signé : confirmez l'état par WhatsApp"]};
+function suiviCarte(d,etat){
+ const fin=["livree","annulee","echouee","retour_cours","retour_recu"].includes(d.s),rg=SUIVI_RANG[d.s],ko=["echouee","retour_cours","retour_recu","annulee"].includes(d.s);
+ const when=sts=>{const h=d.h.filter(x=>sts.includes(x[0]))[0];return h&&h[1]?hm(h[1]):""};
+ const vieux=d.g&&!fin&&Date.now()-new Date(d.g).getTime()>2*3600*1000;
+ const msg=`Bonjour, où en est ma commande n° ${d.n} ?`,wn=d.w||waNum(),u=wn?"https://wa.me/"+telWA(wn)+"?text="+encodeURIComponent(msg):"";
+ return `<div class="card"><div class="mu">${esc(d.org)}</div><h3 style="margin:2px 0 8px">Commande n° ${esc(d.n)}</h3><span class="cert ${CERT[etat][0]}">${esc(CERT[etat][1])}</span>
+ <p style="font-size:18px;color:var(--tx);font-weight:700;margin:14px 0 4px">${esc(SUIVI_TIT[d.s])}</p>
+ ${ko?`<p class="mu">Contactez-nous pour connaître la suite.</p>`:`<ol class="tl">${SUIVI_ET.map(([l,sts],i)=>`<li class="${i<=rg?"done":""} ${i===rg?"cur":""}">${esc(l)}${when(sts)?`<small>à ${esc(when(sts))}</small>`:""}${i===4&&d.s==="en_cours"&&d.lv?`<small>Livreur : ${esc(d.lv)}${d.e?" · arrivée estimée vers "+esc(hm(d.e)):""}</small>`:""}</li>`).join("")}</ol>`}
+ ${d.l?`<p class="mu">${ico("pin")} Livraison : ${esc(d.l)}</p>`:""}${d.ap&&!fin?`<p>À payer à la livraison : <b>${F(d.ap)}</b></p>`:""}
+ <p class="mu" style="font-size:13px">${d.g?"Information arrêtée le "+esc(dhm(d.g))+".":""}${vieux?" <b style=\"color:#b26a00\">Cette information date de plus de deux heures : demandez le point actuel.</b>":""} Vous recevez un nouveau lien à chaque étape importante.</p>
+ ${u?`<a class="go" href="${esc(u)}" target="_blank" rel="noopener">${ico("chat")}Demander l'état actuel sur WhatsApp</a>`:""}</div>`}
+async function suiviRendre(){
+ const el=document.getElementById("sv"),tok=jetonDe();if(!el)return;
+ if(!tok){el.innerHTML=`<div class="card"><h3>J'ai un lien ou un code de suivi</h3><p class="mu">Collez ici le lien reçu par WhatsApp lors de la confirmation ou du départ de votre commande.</p><label>Lien de suivi<input id="sv_in" autocomplete="off" placeholder="https://…/portail#/suivi/…"></label><div id="sv_er" class="err" style="display:none"></div><button type="button" class="go" id="sv_go">Voir ma commande</button></div>
+  <div class="card"><h3>Je n'ai pas de lien</h3><p class="mu">Indiquez la référence reçue à l'envoi de votre commande : nous vous répondons sur WhatsApp.</p><label>Référence<input id="suivi_ref" maxlength="12" autocapitalize="characters"></label><a class="go" id="suivi_go" href="#/suivi">Demander le suivi sur WhatsApp</a></div>`;
+  const go=document.getElementById("sv_go");go.onclick=()=>{const v=document.getElementById("sv_in").value.trim(),m=/#\/suivi\/([A-Za-z0-9_.\-]+)/.exec(v)||/^([A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(v),e=document.getElementById("sv_er");
+   if(!m){e.textContent="Lien non reconnu : collez le lien complet reçu par WhatsApp.";e.style.display="block";return}location.hash="#/suivi/"+m[1]};return}
+ el.innerHTML='<div class="empty">Vérification du lien…</div>';const r=await suiviVerifier(tok);
+ if(r.etat==="illisible")el.innerHTML='<div class="card"><h3>Lien illisible</h3><p class="mu">Ce lien de suivi est incomplet ou abîmé : demandez-en un nouveau sur WhatsApp.</p></div>';
+ else if(r.etat==="ko")el.innerHTML='<div class="card"><span class="cert ko">Lien non authentique</span><h3 style="margin-top:10px">Ne tenez pas compte de ce lien</h3><p class="mu">La signature de ce lien ne correspond pas : il a été modifié ou n\'a pas été émis par l\'entreprise. Contactez-nous directement.</p></div>';
+ else el.innerHTML=suiviCarte(r.d,r.etat)}
+/* Commande par lien : « commande libre » chez un vendeur partenaire, ou boutique préremplie pour un client */
+function commanderTok(){let o=null;try{o=unb64(jetonDe())}catch(e){}if(!o||typeof o!=="object")return null;
+ return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
+function commanderRendre(){
+ const el=document.getElementById("cm"),o=commanderTok();if(!el)return;
+ if(!o){el.innerHTML='<div class="empty">Lien de commande illisible : demandez-en un nouveau à la personne qui vous l\'a envoyé.</div>';return}
+ if(!o.v){ST.pre=o.c;location.replace("#/boutique");return}
+ if(ST.cs==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre commande à <b>"+esc(o.v)+"</b>. Il la vérifie, confirme le prix et organise la livraison par "+esc(o.org||T.nom)+".",ST.cmsg,ST.cref,"cmd",o.t||o.w);return}
+ const L=ST.cl||(ST.cl=[{d:"",q:1,p:""}]),c=o.c||{};
+ const zs=o.z.length?o.z:(T.shop?T.shop.zones.map(z=>z.nom):[]);
+ el.innerHTML=`<div class="card"><div class="mu">${esc(o.org||T.nom)}</div><h3 style="margin:2px 0 6px">Commander chez ${esc(o.v)}</h3><p class="mu">Décrivez votre commande et votre adresse : elle part sur WhatsApp, rien n'est livré avant la validation de ${esc(o.v)}.</p>
+ <h3>1. Articles</h3>${L.map((l,i)=>`<div class="lgn"><label>Article<input class="c_d" data-i="${i}" maxlength="120" value="${esc(l.d)}"></label><label>Qté<input class="c_q" data-i="${i}" type="number" min="1" max="99" value="${esc(l.q)}"></label><label>Prix (F) si connu<input class="c_p" data-i="${i}" inputmode="numeric" value="${esc(l.p)}"></label>${L.length>1?`<button type="button" class="chip" data-cl="del" data-i="${i}" aria-label="Retirer">−</button>`:"<span></span>"}</div>`).join("")}
+ ${L.length<20?'<button type="button" class="chip" data-cl="add">+ Ajouter un article</button>':""}
+ <h3>2. Vous</h3><div class="fg"><label>Votre nom<input id="c_nom" maxlength="80" autocomplete="name" value="${esc(c.n||"")}"></label><label>Téléphone / WhatsApp<input id="c_tel" inputmode="tel" autocomplete="tel" value="${esc(c.t||"")}"></label></div>
+ <h3>3. Où livrer ?</h3><div class="fg"><label>Zone<select id="c_zone"><option value="">— choisir —</option>${zs.map(z=>`<option ${z===c.z?"selected":""} value="${esc(z)}">${esc(z)}</option>`).join("")}</select></label><label>Quartier<input id="c_q" maxlength="120" value="${esc(c.q||"")}"></label></div>
+ <label>Point de repère<input id="c_rep" maxlength="200" value="${esc(c.r||"")}"></label><div><button type="button" class="chip" id="c_gpsb">${ico("pin")}Utiliser ma position</button> <span id="c_gps" class="mu">${ST.cgps?"Position enregistrée (±"+ST.cgps.acc+" m)":"Recommandé : le livreur vous trouvera plus facilement."}</span></div>
+ <label>Message (facultatif)<textarea id="c_note" rows="2" maxlength="300"></textarea></label><div id="c_err" class="err" style="display:none"></div>
+ <button type="button" class="go" id="c_send" style="width:100%;justify-content:center">Envoyer ma commande</button><p class="mu">Si vous avez des captures d'écran des articles, envoyez-les dans la conversation WhatsApp qui s'ouvre.</p></div>`;
+ const $c=id=>document.getElementById(id),lire=()=>{el.querySelectorAll(".c_d").forEach(x=>{L[+x.dataset.i].d=x.value});el.querySelectorAll(".c_q").forEach(x=>{L[+x.dataset.i].q=x.value});el.querySelectorAll(".c_p").forEach(x=>{L[+x.dataset.i].p=x.value})};
+ el.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{lire();const keep=["c_nom","c_tel","c_zone","c_q","c_rep","c_note"].map(k=>[k,$c(k).value]);if(b.dataset.cl==="add")L.push({d:"",q:1,p:""});else L.splice(+b.dataset.i,1);commanderRendre();keep.forEach(([k,v])=>{$c(k).value=v})});
+ $c("c_gpsb").onclick=()=>{if(!navigator.geolocation){$c("c_gps").textContent="Géolocalisation indisponible : indiquez votre quartier et un repère.";return}
+  navigator.geolocation.getCurrentPosition(g=>{ST.cgps={lat:+g.coords.latitude.toFixed(6),lng:+g.coords.longitude.toFixed(6),acc:Math.round(g.coords.accuracy||0)};$c("c_gps").textContent="Position enregistrée (±"+ST.cgps.acc+" m)"},()=>{$c("c_gps").textContent="Position impossible : autorisez la localisation ou indiquez votre quartier."},{enableHighAccuracy:true,timeout:20000})};
+ $c("c_send").onclick=()=>{lire();const err=m=>{const e=$c("c_err");e.textContent=m;e.style.display="block";e.scrollIntoView({block:"center"})},val=id=>$c(id).value.trim(),lg=L.filter(l=>l.d.trim());
+  if(!lg.length)return err("Indiquez au moins un article");if(!val("c_nom"))return err("Indiquez votre nom");if(digits(val("c_tel")).length<8)return err("Indiquez un numéro de téléphone valide");if(!val("c_zone"))return err("Choisissez votre zone de livraison");if(!val("c_q")&&!val("c_rep")&&!ST.cgps)return err("Indiquez votre quartier, un point de repère ou envoyez votre position");
+  const ref=ref6(),ls=lg.map(l=>({d:l.d.trim().slice(0,120),q:Math.max(1,Math.min(99,parseInt(l.q)||1)),p:l.p===""||isNaN(+String(l.p).replace(/\s/g,""))?null:Math.max(0,Math.round(+String(l.p).replace(/\s/g,"")))}));
+  const pay={f:ref,n:val("c_nom"),t:val("c_tel"),z:val("c_zone"),q:val("c_q"),r:val("c_rep"),m:val("c_note"),a:ST.cgps?ST.cgps.lat:null,o:ST.cgps?ST.cgps.lng:null,l:ls.map(l=>[l.d,l.q,l.p])};
+  ST.cmsg=`Commande — ${o.v} (réf. ${ref})\nNom : ${pay.n}\nTél : ${pay.t}\nZone : ${pay.z}${pay.q?" · "+pay.q:""}${pay.r?" · "+pay.r:""}\n${ST.cgps?"Position : https://maps.google.com/?q="+ST.cgps.lat+","+ST.cgps.lng+"\n":""}Articles :\n${ls.map(l=>"- "+l.q+" x "+l.d+(l.p!=null?" ("+F(l.p)+")":"")).join("\n")}${pay.m?"\nMessage : "+pay.m:""}\n(Captures d'écran à envoyer dans cette conversation)\n[ANGELS:${b64(pay)}]`;
+  ST.cref=ref;ST.cs="fin";commanderRendre()}}
+
 const PAGES={
  accueil:()=>{const vh=mVideos(m=>m.cat==="accueil")[0],sh=mPhotos(m=>m.cat==="accueil"),hv=vh?`<div class="hero-video">${vidHtml([vh])}</div>`:T.hero.video?`<div class="hero-video"><video controls preload="none"><source src="${esc(T.hero.video)}"></video></div>`:sh.length?slides(sh):"";
   return `<section class="hero"><div class="container hero-flex"><div class="hero-text"><h2>${esc(T.hero.titre)}</h2><p>${esc(T.hero.texte)}</p>
@@ -300,6 +372,8 @@ const PAGES={
  vehicules:()=>`<section class="pg"><div class="container">${titreSec("Véhicules à vendre","Véhicules disponibles et arrivages prochains. Demandez un devis par WhatsApp.")}${vehOk()?'<div id="vl"></div>':'<div class="empty">Le catalogue de véhicules sera publié prochainement.</div>'}</div></section>`,
  boutique:()=>`<section class="pg"><div class="container">${titreSec("Boutique en ligne","Choisissez vos produits, indiquez votre adresse : la commande part par WhatsApp.")}<div id="shop"></div></div></section>`,
  vendeur:()=>`<section class="pg"><div class="container">${titreSec("Devenir vendeur partenaire","")}<div id="vend"></div></div></section>`,
+ suivi:()=>`<section class="pg"><div class="container">${titreSec("Suivi de livraison","Suivez l'avancement de votre commande, de la préparation à la livraison.")}<div id="sv"></div></div></section>`,
+ commander:()=>`<section class="pg"><div class="container">${titreSec("Passer commande","")}<div id="cm"></div></div></section>`,
  societe:()=>`<section class="pg"><div class="container">${titreSec("Notre société","")}<div class="card"><p style="color:var(--tx);font-size:16px;white-space:pre-wrap">${esc(T.societe)}</p></div>${galHtml(mPhotos(m=>m.cat==="societe"))?`<div style="margin-top:14px">${galHtml(mPhotos(m=>m.cat==="societe"))}</div>`:""}<div class="grid" style="margin-top:14px">${T.activites.map(a=>`<div class="card"><h3>${esc(a.nom)}</h3><p>${esc(a.texte)}</p></div>`).join("")}</div>${(T.legal.raison||T.legal.rccm||T.legal.siege)?`<p class="legal">${[T.legal.raison&&esc(T.legal.raison),T.legal.forme&&esc(T.legal.forme),T.legal.capital&&"Capital : "+esc(T.legal.capital),T.legal.rccm&&"RCCM : "+esc(T.legal.rccm),T.legal.siege&&"Siège : "+esc(T.legal.siege),T.legal.dirigeant&&"Dirigeant : "+esc(T.legal.dirigeant)].filter(Boolean).join(" · ")}</p>`:""}</div></section>`,
  photos:()=>`<section class="pg"><div class="container">${titreSec("Photos et vidéos","")}${vidHtml(mVideos(m=>m.cat!=="accueil"))}${galHtml(mPhotos(m=>m.cat!=="document"&&m.cat!=="accueil"))||'<div class="empty">Les photos seront publiées prochainement.</div>'}</div></section>`,
  documents:()=>`<section class="pg"><div class="container">${titreSec("Documents","Brochures et documents à télécharger.")}${docHtml(MED.filter(m=>m.type==="doc"))||'<div class="empty">Aucun document publié.</div>'}</div></section>`,
@@ -311,7 +385,7 @@ const PAGES={
   if(c.adresse||c.horaires)ct.push(`<div class="card"><div class="ic">${ico("pin")}</div><h3>Adresse</h3><p>${esc(c.adresse)}${c.adresse&&c.horaires?"<br>":""}${esc(c.horaires)}</p></div>`);
   return `<section class="pg"><div class="container">${titreSec("Nous contacter","")}<div class="ct">${ct.join("")||'<div class="empty">Les coordonnées seront publiées prochainement.</div>'}</div></div></section>`},
  "espace-client":()=>`<section class="pg"><div class="container">${titreSec("Espace client","Commandez, puis suivez votre commande par WhatsApp.")}<div class="grid"><div class="card"><div class="ic">${ico("cart")}</div><h3>Passer une commande</h3><p>Choisissez vos produits et envoyez votre commande.</p><button type="button" class="go" data-go="boutique">Ouvrir la boutique →</button></div>
-  <div class="card"><div class="ic">${ico("pin")}</div><h3>Suivre ma commande</h3><p>Indiquez la référence reçue à l'envoi de votre commande : nous vous répondons sur WhatsApp.</p><label>Référence<input id="suivi_ref" maxlength="12" autocapitalize="characters"></label><a class="go" id="suivi_go" href="#/espace-client">Demander le suivi sur WhatsApp</a></div></div></div></section>`,
+  <div class="card"><div class="ic">${ico("pin")}</div><h3>Suivre ma commande</h3><p>Ouvrez le lien de suivi reçu par WhatsApp, ou indiquez votre référence : nous vous répondons.</p><button type="button" class="go" data-go="suivi">Suivre ma livraison →</button></div></div></div></section>`,
  "espace-vendeur":()=>`<section class="pg"><div class="container">${titreSec("Espace vendeur partenaire","")}<div class="grid"><div class="card"><div class="ic">${ico("pen")}</div><h3>Je souhaite devenir partenaire</h3><p>${esc(T.vendeurs.texte)}</p>${T.vendeurs.actif?'<button type="button" class="go" data-go="vendeur">Déposer ma candidature →</button>':'<p class="mu">Les candidatures sont fermées pour le moment.</p>'}</div>
   <div class="card"><div class="ic">${ico("chat")}</div><h3>Je suis déjà partenaire</h3><p>Vos commandes et vos règlements sont gérés avec votre responsable : contactez-le sur WhatsApp. Vos accès de travail vous sont communiqués par l'entreprise.</p>${waNum()?`<a class="go" href="https://wa.me/${waNum()}">Contacter sur WhatsApp</a>`:""}</div></div></div></section>`
 };
@@ -335,7 +409,7 @@ function rendre(){
  navRendre();
  const html=PAGES[PAGE]?PAGES[PAGE]():actPage(PAGE)||PAGES.accueil();
  document.getElementById("page").innerHTML=html;
- slideLance();if(document.getElementById("vl")){vehRendre()}if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
+ slideLance();if(document.getElementById("vl")){vehRendre()}if(document.getElementById("sv"))suiviRendre();if(document.getElementById("cm"))commanderRendre();if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
  const sg=document.getElementById("suivi_ref");if(sg){const go=document.getElementById("suivi_go"),maj=()=>{const r=sg.value.trim().toUpperCase(),n=waNum();go.href=n?"https://wa.me/"+n+"?text="+encodeURIComponent("Bonjour, je souhaite le suivi de ma commande"+(r?" (réf. "+r+")":"")+"."):"#/espace-client"};sg.oninput=maj;maj()}
  document.getElementById("copy").textContent="© "+new Date().getFullYear()+" "+T.nom;
  {const L=T.legal,l=[L.raison,L.forme,L.capital&&"Capital : "+L.capital,L.rccm&&"RCCM : "+L.rccm,L.siege&&"Siège : "+L.siege,L.dirigeant&&"Dirigeant : "+L.dirigeant].filter(Boolean).join("\n");document.getElementById("mentions").textContent=[l,T.mentions].filter(Boolean).join("\n\n")||"Les mentions légales seront publiées prochainement. "+T.nom+"."}
@@ -349,7 +423,7 @@ document.addEventListener("click",e=>{
  if(e.target.dataset&&e.target.dataset.lb){document.getElementById("lbi").src=e.target.src;document.getElementById("lbi").alt=e.target.alt;document.getElementById("lbc").textContent=e.target.closest("figure").innerText;document.getElementById("lb").classList.add("on")}
  if(e.target.id==="lbx"||e.target.id==="lb")document.getElementById("lb").classList.remove("on");
  const vd=e.target.closest("[data-vd]");if(vd){vehFiche(vd.dataset.vd);return}
- const v=e.target.closest("[data-vue]");if(v){if(v.dataset.vue==="shop"){ST.vs="form";ST.q={};ST.gps=null;rendreShop()}else{ST.vc="form";rendreVend()}}
+ const v=e.target.closest("[data-vue]");if(v){if(v.dataset.vue==="cmd"){ST.cs="form";ST.cl=null;ST.cgps=null;commanderRendre()}else if(v.dataset.vue==="shop"){ST.vs="form";ST.q={};ST.gps=null;rendreShop()}else{ST.vc="form";rendreVend()}}
  if(e.target.dataset.cp){const t=e.target.parentElement.querySelector("textarea");(navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).catch(()=>t.select())}});
 addEventListener("storage",ev=>{if(ev.key===KEY){T=charger();rendre()}});try{new BroadcastChannel("angels_portail").onmessage=()=>{T=charger();Promise.all([lireMedias(),lireVehicules()]).then(([m,v])=>{MED=m;VEH=v;rendre()})}}catch(e){}
 addEventListener("hashchange",()=>{if(/[#&]p=/.test(location.hash)){T=charger();location.hash="#/accueil"}else rendre()});

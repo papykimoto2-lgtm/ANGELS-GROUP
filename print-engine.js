@@ -213,6 +213,14 @@
     var h1 = b.querySelector("h1"), titre = o.titre || (h1 ? h1.textContent.replace(/\s+/g, " ").trim() : "Document"); if (!o.titre && h1) h1.remove();
     var ml = d.querySelector(".f"); ouvrir(Object.assign({}, o, { titre: titre.slice(0, 90), corps: b.innerHTML, mention: o.mention || (ml ? ml.textContent.replace(/\s+/g, " ").trim() : "") })); return true;
   }
-  G.ANGELS_PRINT = { DIVS: DIVS, cfg: cfg, sauver: sauver, ident: ident, ouvrir: ouvrir, dernier: function () { return ST.ctl; }, depuisFrame: depuisFrame, hook: hook, fermer: fermer, registre: registre, cleInfo: cleInfo, cleExporter: cleExporter, cleImporter: cleImporter, cleRegenerer: cleRegenerer, cleAssurer: cleAssurer, pubs: pubs,
+  /* Jeton signé pour un lien public (suivi de livraison, etc.) : b64url(json) . signature . identifiant de clé.
+     Le portail le vérifie avec la clé publique publiée (portail-data.js). Sans WebCrypto : signature « - » (non certifié). */
+  async function jeton(obj) {
+    var body = b64u(enc.encode(JSON.stringify(obj))), k = null;
+    try { k = await cleAssurer(); } catch (e) { k = null; }
+    if (!k) return body + ".-.0";
+    var s = await signer("T1|" + body); return body + "." + s.sig + "." + s.kid;
+  }
+  G.ANGELS_PRINT = { DIVS: DIVS, cfg: cfg, sauver: sauver, ident: ident, ouvrir: ouvrir, jeton: jeton, dernier: function () { return ST.ctl; }, depuisFrame: depuisFrame, hook: hook, fermer: fermer, registre: registre, cleInfo: cleInfo, cleExporter: cleExporter, cleImporter: cleImporter, cleRegenerer: cleRegenerer, cleAssurer: cleAssurer, pubs: pubs,
     verifierSig: verifierSig, unb64u: unb64u, sha: sha, canonDe: canonDe, construire: construire, esc: esc, okImg: okImg };
 })(window);
