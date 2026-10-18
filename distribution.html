@@ -2025,7 +2025,7 @@ function loadLeaflet(){if(window.L)return Promise.resolve();if(LP)return LP;
  LP=new Promise((ok,ko)=>{const c=document.createElement("link");c.rel="stylesheet";c.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(c);
   const sc=document.createElement("script");sc.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";sc.onload=ok;sc.onerror=()=>{LP=null;ko(new Error("hors ligne"))};document.head.appendChild(sc);setTimeout(()=>{if(!window.L){LP=null;ko(new Error("délai dépassé"))}},12000)});return LP}
 const pinIcon=e=>L.divIcon({html:`<div style="font-size:30px;line-height:30px;transform:translate(-50%,-100%)">${e}</div>`,className:"",iconSize:[0,0]});
-const osmLink=(lat,lng)=>`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`;
+const osmLink=(lat,lng)=>{lat=+lat||0;lng=+lng||0;return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`};
 /* Affiche une carte dans `el`. o.dest : destination ; o.me : position du livreur ; o.onPick(ll) : repère déplaçable */
 function mapInto(el,o){
  const c=o.dest||o.center||{lat:5.345,lng:-4.02};
@@ -2037,7 +2037,7 @@ function mapInto(el,o){
   if(o.me){L.marker([o.me.lat,o.me.lng],{icon:pinIcon("🏍️")}).addTo(m);if(o.dest)m.fitBounds([[o.dest.lat,o.dest.lng],[o.me.lat,o.me.lng]],{padding:[35,35],maxZoom:17})}
   if(o.onPick)m.on("click",e=>{put(e.latlng);o.onPick(e.latlng)});
   setTimeout(()=>m.invalidateSize(),150);return{map:m,put}})
- .catch(()=>{el.style.height="auto";el.innerHTML=`<div class="al warn sm" style="margin:0">Carte indisponible (pas de connexion Internet).${o.dest?` Coordonnées : ${o.dest.lat}, ${o.dest.lng} — <a target="_blank" rel="noopener" href="${osmLink(o.dest.lat,o.dest.lng)}">ouvrir</a>`:""}</div>`;return null})}
+ .catch(()=>{el.style.height="auto";el.innerHTML=`<div class="al warn sm" style="margin:0">Carte indisponible (pas de connexion Internet).${o.dest?` Coordonnées : ${esc(o.dest.lat)}, ${esc(o.dest.lng)} — <a target="_blank" rel="noopener" href="${osmLink(o.dest.lat,o.dest.lng)}">ouvrir</a>`:""}</div>`;return null})}
 function initMaps(){if(!ME||ME.role!=="livreur")return;const lv=livreurOf(ME);if(!lv)return;
  for(const id in(ui.mapOpen||{})){if(!ui.mapOpen[id])continue;const el=$("#map_"+id),l=byId(S.livraisons,id);if(!el||!l)continue;const a=cmd(l.commande_id).adr;if(a.gps)mapInto(el,{dest:a.gps,me:S.pos[lv.id]})}}
 
