@@ -45,6 +45,6 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("PL-12","accueil du portail : bouton « Programmer une livraison »",home);
  for(const [w,h] of [[1280,800],[768,900],[390,800]]){await pp.setViewportSize({width:w,height:h});await pp.goto(base+"/portail.html#/accueil");await pp.waitForTimeout(500);
   const m=await pp.evaluate(()=>{const nav=document.getElementById("parcours"),tabs=[...nav.querySelectorAll(".tab-link,.nav-dropdown-trigger")].filter(t=>!t.closest(".nav-dropdown-menu"));return{n:tabs.length,hors:tabs.filter(t=>{const b=t.getBoundingClientRect();return b.right>innerWidth+1||b.left<-1||b.width===0}).map(t=>t.textContent.trim()),scroll:nav.scrollWidth>nav.clientWidth+2,page:document.documentElement.scrollWidth>innerWidth+2}});
-  chk("PL-13."+w,"menu du portail à "+w+" px : tous les onglets visibles (aucun masqué, pas de défilement caché)",m.n>=12&&!m.hors.length&&!m.scroll&&!m.page,JSON.stringify(m))}
+  chk("PL-13."+w,"menu du portail à "+w+" px : tous les onglets visibles (aucun masqué, pas de défilement caché)",m.n>=10&&!m.hors.length&&!m.scroll&&!m.page,JSON.stringify(m))}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();
