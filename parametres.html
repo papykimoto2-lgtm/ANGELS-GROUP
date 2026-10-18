@@ -161,51 +161,62 @@ window.addEventListener("storage",()=>{if(!document.activeElement||!/INPUT|SELEC
 
 /* ---------- Portail unique : réglages (lus par portail.html) ---------- */
 const PKEY="angels_portail_v1";
-const PDEF={v:2,nom:"ANGEL'S GROUP",slogan:"Commandez en ligne, faites-vous livrer. Vendez avec nous.",apropos:"Distribution, transport, négoce de véhicules et agro : commandez dans notre boutique en ligne, ou devenez vendeur partenaire et faites livrer vos produits.",couleur:"#0e7490",contact:{tel:"",whatsapp:"",email:"",adresse:"",horaires:""},boutique:"",
- vendeurs:{actif:true,texte:"Vous vendez des produits et vous cherchez un partenaire de livraison fiable ? Postulez : nous étudions votre candidature et vous contactons."},
- services:[{icone:"🛵",titre:"Livraison à moto",texte:"Vos commandes livrées rapidement à votre adresse, avec suivi.",lien:"",actif:true},{icone:"🛒",titre:"Boutique en ligne",texte:"Produits et prestations, paiement à la livraison ou par Mobile Money.",lien:"#boutique",actif:true},{icone:"🚗",titre:"Véhicules",texte:"Achat, vente et import de véhicules : demandez-nous un devis.",lien:"#contact",actif:true},{icone:"🌱",titre:"Produits de l'agro",texte:"Des produits frais issus de notre élevage.",lien:"",actif:true}],
- faq:[{q:"Comment commander ?",r:"Choisissez vos produits dans la boutique, indiquez votre adresse et envoyez la commande par WhatsApp : nous la confirmons et vous livrons."},{q:"Comment devenir vendeur partenaire ?",r:"Remplissez le formulaire « Devenir vendeur partenaire » : votre candidature nous parvient sur WhatsApp et nous revenons vers vous."}],mentions:""};
-const pLire=()=>{const c=lire(PKEY);const B=JSON.parse(JSON.stringify(PDEF));if(!c||typeof c!=="object")return B;return{...B,...c,contact:{...B.contact,...(c.contact||{})},vendeurs:{...B.vendeurs,...(c.vendeurs||{})},services:Array.isArray(c.services)?c.services:B.services,faq:Array.isArray(c.faq)?c.faq:B.faq,boutique:String(c.boutique||"")}};
-/* Le portail est public : aucun lien vers les applications de gestion (distribution, transport, agro, hub, paramètres). */
-const pOkLien=u=>{u=String(u||"").trim();if(!u)return"";if(/^#[a-z]+$/i.test(u))return u;if(/^(https:\/\/|tel:|mailto:)/i.test(u)){if(/(distribution|transport|agro|parametres|compta-groupe|hub|index)\.html/i.test(u))throw new Error("Lien refusé : le portail ne doit pas ouvrir l'application de gestion.");return u}throw new Error("Lien invalide : « "+u+" » (adresse https://, tel:, mailto: ou ancre comme #boutique).")};
+const PDEF={v:3,nom:"ANGEL'S GROUP",slogan:"Commandez en ligne, faites-vous livrer. Vendez avec nous.",apropos:"",couleur:"#0e7490",
+ societe:"Le groupe réunit plusieurs activités complémentaires au service de ses clients et de ses partenaires : la livraison à moto et la vente en ligne, le transport de personnes, le négoce et l'import de véhicules, et l'élevage.",
+ bandeau:["🛒 Commandez en ligne, livraison rapide.","🤝 Devenez vendeur partenaire : postulez en quelques minutes.","📲 Paiement à la livraison ou par Mobile Money."],
+ hero:{titre:"Commandez en ligne. Faites-vous livrer.",texte:"Une boutique, des livreurs, des partenaires : tout le groupe, au même endroit.",video:""},stats:[],
+ atouts:[{icone:"🛵",titre:"Livraison rapide",texte:"À moto, jusqu'à votre porte"},{icone:"📲",titre:"Paiement simple",texte:"Espèces ou Mobile Money"},{icone:"🤝",titre:"Vendeurs partenaires",texte:"Vendez avec notre réseau"}],
+ contact:{tel:"",whatsapp:"",email:"",adresse:"",horaires:""},boutique:"",vendeurs:{actif:true,texte:"Vous vendez des produits et vous cherchez un partenaire de livraison fiable ? Postulez : nous étudions votre candidature et vous contactons."},
+ activites:[{icone:"🛵",nom:"Distributions",texte:"Livraison à moto et vente en ligne.",detail:"Nous livrons vos commandes rapidement à votre adresse, avec suivi. Commandez dans la boutique en ligne ou faites livrer vos propres produits."},{icone:"🚕",nom:"Transport",texte:"Transport de personnes et négoce de véhicules.",detail:"Une flotte suivie au quotidien, et des véhicules à vendre : demandez-nous un devis."},{icone:"🌱",nom:"Agro",texte:"Des produits frais issus de notre élevage.",detail:"Œufs, volaille et produits de l'élevage, directement du producteur."}],
+ avis:[],faq:[{q:"Comment commander ?",r:"Choisissez vos produits dans la boutique, indiquez votre adresse et envoyez la commande par WhatsApp : nous la confirmons et vous livrons."},{q:"Comment devenir vendeur partenaire ?",r:"Remplissez le formulaire « Devenir vendeur partenaire » : votre candidature nous parvient sur WhatsApp et nous revenons vers vous."}],mentions:""};
+const pLire=()=>{const c=lire(PKEY);const B=JSON.parse(JSON.stringify(PDEF));if(!c||typeof c!=="object")return B;const A=(k)=>Array.isArray(c[k])?c[k]:B[k];return{...B,...c,contact:{...B.contact,...(c.contact||{})},vendeurs:{...B.vendeurs,...(c.vendeurs||{})},hero:{...B.hero,...(c.hero||{})},bandeau:A("bandeau"),stats:A("stats"),atouts:A("atouts"),activites:A("activites"),avis:A("avis"),faq:A("faq"),boutique:String(c.boutique||"")}};
+const pVideo=u=>{u=String(u||"").trim();if(!u)return"";if(!/^https:\/\/[^\s"'<>]+\.(mp4|webm)(\?[^\s"'<>]*)?$/i.test(u))throw new Error("Vidéo : adresse https:// d'un fichier .mp4 ou .webm.");return u};
 const pTok=v=>{v=String(v||"").trim();if(!v)return"";const m=/#boutique=([A-Za-z0-9_-]+)/.exec(v);const t=m?m[1]:v;if(!/^[A-Za-z0-9_-]{20,}$/.test(t))throw new Error("Lien de boutique invalide : collez le lien copié dans Distributions → Vente en ligne.");try{const p=JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g,"+").replace(/_/g,"/")))));if(!p||!Array.isArray(p.p)||!Array.isArray(p.z))throw 0}catch(e){throw new Error("Lien de boutique illisible : générez-en un nouveau dans Distributions.")}return t};
 const pDebloque=()=>Object.values(AUTH).some(a=>a&&a.exp>Date.now());
 let PMSG=null,PCUR=null;
 function pEnc(c){return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g,"-").replace(/\//g,"_")}
 function pLien(c){return location.href.split("#")[0].split("?")[0].replace(/[^\/]*$/,"portail.html")+"#p="+pEnc(c)}
+const pLignes=(t,n)=>String(t||"").split("\n").map(l=>l.trim()).filter(Boolean).slice(0,n);
 function pView(){
  const el=$("ptl");if(!el)return;const C=PCUR||(PCUR=pLire()),ok=pDebloque(),dis=ok?"":"disabled";
  const e=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
  const TA='style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)"';
+ const H=t=>`<h3 style="margin:16px 0 4px;font-size:14px">${t}</h3>`;
  el.innerHTML=(PMSG?`<div class="umsg ${PMSG.er?"er":""}">${e(PMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le PIN d\'un administrateur pour modifier le portail.</div>')+
  `<form id="pform"><div class="uf"><label>Nom<input name="nom" value="${e(C.nom)}" maxlength="60"></label><label>Couleur<input type="color" name="couleur" value="${e(C.couleur)}"></label></div>
- <div class="uf"><label style="flex:1;min-width:240px">Slogan<input name="slogan" value="${e(C.slogan)}" maxlength="160" style="width:100%"></label></div>
- <div class="uf"><label style="flex:1;min-width:240px">Présentation<textarea name="apropos" rows="3" maxlength="500" ${TA}>${e(C.apropos)}</textarea></label></div>
- <h3 style="margin:14px 0 4px;font-size:14px">Contact (reçoit les commandes et les candidatures par WhatsApp)</h3><div class="uf"><label>Téléphone<input name="tel" value="${e(C.contact.tel)}"></label><label>WhatsApp<input name="whatsapp" value="${e(C.contact.whatsapp)}" placeholder="0707000000"></label><label>E-mail<input name="email" value="${e(C.contact.email)}"></label><label>Adresse<input name="adresse" value="${e(C.contact.adresse)}"></label><label>Horaires<input name="horaires" value="${e(C.contact.horaires)}"></label></div>
- <h3 style="margin:14px 0 4px;font-size:14px">🛒 Boutique en ligne</h3><p class="note">Le portail affiche votre catalogue de vente en ligne : dans Distributions → Vente en ligne, copiez le lien de la boutique et collez-le ici. Après une modification du catalogue (prix, stock), recopiez-le. Les commandes arrivent sur WhatsApp et s'importent dans Distributions.</p>
+ <div class="uf"><label style="flex:1;min-width:240px">Slogan (sous le nom)<input name="slogan" value="${e(C.slogan)}" maxlength="160" style="width:100%"></label></div>
+ ${H("📣 Bandeau défilant en haut du site")}<p class="note">Une annonce par ligne (10 maximum).</p><textarea name="bandeau" rows="3" ${TA}>${e(C.bandeau.join("\n"))}</textarea>
+ ${H("🏠 Page d'accueil")}<div class="uf"><label style="flex:1;min-width:240px">Titre<input name="htitre" value="${e(C.hero.titre)}" maxlength="120" style="width:100%"></label></div><div class="uf"><label style="flex:1;min-width:240px">Texte<input name="htexte" value="${e(C.hero.texte)}" maxlength="300" style="width:100%"></label></div>
+ <div class="uf"><label style="flex:1;min-width:240px">Vidéo de présentation (facultatif, adresse https:// d'un .mp4 ou .webm)<input name="hvideo" value="${e(C.hero.video)}" style="width:100%"></label></div>
+ <p class="note">Chiffres clés (facultatif, 3 maximum) — une ligne : valeur | libellé. Atouts sous le titre (3 maximum) — une ligne : icône | titre | texte.</p>
+ <textarea name="stats" rows="2" ${TA}>${e(C.stats.map(x=>x.v+" | "+x.l).join("\n"))}</textarea><textarea name="atouts" rows="3" style="margin-top:6px;width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)">${e(C.atouts.map(x=>x.icone+" | "+x.titre+" | "+x.texte).join("\n"))}</textarea>
+ ${H("🧭 Activités (menu « Activités » et pages dédiées)")}<p class="note">Une activité par ligne (8 maximum) : icône | nom | résumé | détail de la page.</p><textarea name="activites" rows="5" ${TA}>${e(C.activites.map(x=>x.icone+" | "+x.nom+" | "+x.texte+" | "+x.detail).join("\n"))}</textarea>
+ ${H("🏢 Société et avis")}<textarea name="societe" rows="3" ${TA}>${e(C.societe)}</textarea><p class="note">Avis clients (facultatif) — une ligne : nom | avis. La rubrique « Avis » n'apparaît que s'il y en a.</p><textarea name="avis" rows="3" ${TA}>${e(C.avis.map(x=>x.nom+" | "+x.texte).join("\n"))}</textarea>
+ ${H("📞 Contact (reçoit les commandes et les candidatures par WhatsApp)")}<div class="uf"><label>Téléphone<input name="tel" value="${e(C.contact.tel)}"></label><label>WhatsApp<input name="whatsapp" value="${e(C.contact.whatsapp)}" placeholder="0707000000"></label><label>E-mail<input name="email" value="${e(C.contact.email)}"></label><label>Adresse<input name="adresse" value="${e(C.contact.adresse)}"></label><label>Horaires<input name="horaires" value="${e(C.contact.horaires)}"></label></div>
+ ${H("🛒 Boutique en ligne")}<p class="note">Le portail affiche votre catalogue de vente en ligne : dans Distributions → Vente en ligne, copiez le lien de la boutique et collez-le ici. Après une modification du catalogue (prix, stock), recopiez-le. Les commandes arrivent sur WhatsApp et s'importent dans Distributions.</p>
  <div class="uf"><label style="flex:1;min-width:240px">Lien de la boutique<input name="boutique" value="${e(C.boutique?"…#boutique="+C.boutique.slice(0,12)+"… (enregistré)":"")}" style="width:100%" placeholder="https://…/distribution.html#boutique=…"></label></div>
- <h3 style="margin:14px 0 4px;font-size:14px">🤝 Devenir vendeur partenaire</h3><div class="uf"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="vact" ${C.vendeurs.actif?"checked":""}> Candidatures ouvertes</label></div>
+ ${H("🤝 Devenir vendeur partenaire")}<div class="uf"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="vact" ${C.vendeurs.actif?"checked":""}> Candidatures ouvertes</label></div>
  <div class="uf"><label style="flex:1;min-width:240px">Texte d'accueil<textarea name="vtexte" rows="2" maxlength="500" ${TA}>${e(C.vendeurs.texte)}</textarea></label></div>
  <p class="note">Les candidatures arrivent par WhatsApp : collez-les dans Distributions → Vendeurs partenaires → Candidatures. Vous approuvez ou refusez ; aucun compte n'est créé automatiquement.</p>
- <h3 style="margin:14px 0 4px;font-size:14px">Nos services (vitrine du site)</h3><p class="note">Lien facultatif : adresse https://, tel:, mailto: ou ancre de la page (#boutique, #vendeur, #contact). Les applications de gestion ne sont jamais accessibles depuis le portail.</p>
- <div style="overflow-x:auto"><table class="ut" style="min-width:680px"><tr><th>Actif</th><th>Icône</th><th>Titre</th><th>Description</th><th>Lien</th></tr>`+
- C.services.map((x,i)=>`<tr><td><input type="checkbox" name="act${i}" ${x.actif!==false?"checked":""}></td><td><input name="ic${i}" value="${e(x.icone)}" size="3" maxlength="4"></td><td><input name="ti${i}" value="${e(x.titre)}" maxlength="80"></td><td><input name="tx${i}" value="${e(x.texte)}" maxlength="300" style="min-width:240px"></td><td><input name="li${i}" value="${e(x.lien)}" style="min-width:140px"></td></tr>`).join("")+`</table></div>
- <h3 style="margin:14px 0 4px;font-size:14px">Questions fréquentes</h3><p class="note">Une question par ligne, au format : question | réponse</p>
- <textarea name="faq" rows="5" ${TA}>${e(C.faq.map(f=>f.q+" | "+f.r).join("\n"))}</textarea>
- <h3 style="margin:14px 0 4px;font-size:14px">Mentions légales</h3><textarea name="mentions" rows="4" ${TA}>${e(C.mentions)}</textarea>
+ ${H("❓ Questions fréquentes")}<p class="note">Une question par ligne : question | réponse</p><textarea name="faq" rows="5" ${TA}>${e(C.faq.map(f=>f.q+" | "+f.r).join("\n"))}</textarea>
+ ${H("Mentions légales")}<textarea name="mentions" rows="4" ${TA}>${e(C.mentions)}</textarea>
  <div class="uf"><button class="sb" ${dis}>Enregistrer le portail</button><button type="button" class="sb g" data-p="lien">Copier le lien du portail</button><button type="button" class="sb g" data-p="wa">Partager sur WhatsApp</button><button type="button" class="sb g" ${dis} data-p="def">Rétablir les réglages par défaut</button></div></form>`;
 }
 document.addEventListener("submit",ev=>{if(ev.target.id!=="pform")return;ev.preventDefault();
  try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");
   const d=new FormData(ev.target),C=pLire(),g=k=>String(d.get(k)||"").trim();
   if(!g("nom"))throw new Error("Le nom est obligatoire.");if(!/^#[0-9a-f]{6}$/i.test(g("couleur")))throw new Error("Couleur invalide.");
-  C.v=2;C.nom=g("nom");C.couleur=g("couleur");C.slogan=g("slogan");C.apropos=g("apropos");C.mentions=g("mentions");
+  C.v=3;C.nom=g("nom");C.couleur=g("couleur");C.slogan=g("slogan");C.societe=g("societe");C.mentions=g("mentions");
+  C.bandeau=pLignes(g("bandeau"),10);C.hero={titre:g("htitre"),texte:g("htexte"),video:pVideo(g("hvideo"))};
+  const cut=(l,n)=>l.split("|").map(x=>x.trim()).concat(Array(n).fill("")).slice(0,n);
+  C.stats=pLignes(g("stats"),3).map(l=>{const a=cut(l,2);return{v:a[0],l:a[1]}});
+  C.atouts=pLignes(g("atouts"),3).map(l=>{const a=cut(l,3);return{icone:a[0]||"•",titre:a[1],texte:a[2]}});
+  C.activites=pLignes(g("activites"),8).map(l=>{const a=l.split("|").map(x=>x.trim());if(!a[1])throw new Error("Activité : le nom est obligatoire (icône | nom | résumé | détail).");return{icone:a[0]||"•",nom:a[1],texte:a[2]||"",detail:a.slice(3).join(" | ")}});
+  C.avis=pLignes(g("avis"),12).map(l=>{const a=cut(l,2);return{nom:a[0],texte:a[1]}}).filter(x=>x.texte);
   C.contact={tel:g("tel"),whatsapp:g("whatsapp"),email:g("email"),adresse:g("adresse"),horaires:g("horaires")};
   if(C.contact.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(C.contact.email))throw new Error("Adresse e-mail invalide.");
   const b=g("boutique");if(b&&!/^…#boutique=/.test(b))C.boutique=pTok(b);else if(!b)C.boutique="";
-  C.vendeurs={actif:!!d.get("vact"),texte:g("vtexte")};
-  C.services=C.services.map((x,i)=>{const titre=g("ti"+i);if(d.get("act"+i)&&!titre)throw new Error("Un service actif doit avoir un titre.");return{...x,actif:!!d.get("act"+i),icone:g("ic"+i)||"•",titre,texte:g("tx"+i),lien:pOkLien(g("li"+i))}});
-  delete C.entrees;
+  C.vendeurs={actif:!!d.get("vact"),texte:g("vtexte")};delete C.services;delete C.entrees;
   C.faq=g("faq").split("\n").map(l=>l.split("|")).filter(a=>a[0].trim()).map(a=>({q:a[0].trim(),r:a.slice(1).join("|").trim()}));
   localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Portail enregistré. Copiez le lien du portail pour le publier."}}
  catch(e){PMSG={er:1,t:e.message}}pView()});
