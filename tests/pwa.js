@@ -70,6 +70,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="vendeur"),f=document.getElementById("lf");f.u.value=u.id;(f.pin||f.p).value="5555";f.requestSubmit()});await vp.waitForTimeout(400);
   const ok2=await vp.evaluate(()=>({role:ME&&ME.role,txt:document.body.innerText.includes("Mes commandes")}));
   t("PWA-V7","le vendeur se connecte et arrive sur ses commandes",ok2.role==="vendeur"&&ok2.txt?true:JSON.stringify(ok2));
+  const lien=await vp.evaluate(()=>document.body.innerText.includes("Accueil groupe"));
+  t("PWA-V8","espace vendeur : pas de lien vers l'accueil du groupe",lien===false?true:"lien présent");
   await vp.close()}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);
  await b.close();srv.close();process.exit(ko||errs.length?1:0);
