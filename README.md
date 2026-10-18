@@ -461,3 +461,12 @@ Le portail devient l'unique page publique des clients : plus besoin d'ouvrir l'a
 - Les anciens liens (`#suivi=`, `#commande=`) continuent de fonctionner ; en mode serveur (Supabase) le suivi en direct existant est conservé.
 
 Test : `node tests/portail-suivi.js` (21 contrôles).
+
+## Programmer une livraison depuis le portail (QR code)
+
+- **Page « Programmer une livraison »** (`/portail#/livraison`, menu et bouton de l'accueil) : le client indique où récupérer le colis (zone, quartier, repère, position GPS), le destinataire et l'adresse de livraison, la description du colis, la **date** (jusqu'à 60 jours) et le **créneau**, et qui paie (collecte ou livraison). La demande part sur le WhatsApp de l'entreprise avec le marqueur `[LIVRAISON:…]`.
+- **Scan d'un QR code** : bouton « Scanner avec la caméra » (lecture native `BarcodeDetector`, caméra arrière) et lecture d'une photo de QR code. Seules les pages du portail (livraison, commande, suivi, boutique, véhicules) s'ouvrent ; tout autre QR (lien externe, `javascript:`, Wi-Fi…) est refusé. Sur un navigateur sans lecture de QR (iPhone), le portail invite à utiliser l'appareil photo du téléphone.
+- **QR code à partager** : la page affiche son propre QR code (lien copiable) et une affiche à imprimer ; côté Distributions, Vente en ligne → « Programmation de livraison par QR code » affiche le même QR et imprime l'**affiche avec l'en-tête de la division** (moteur d'impression).
+- **Import dans Distributions** : Vente en ligne → « Importer les commandes reçues » (marqueurs `[BOUTIQUE:…]` et `[LIVRAISON:…]`) crée une commande « en attente de confirmation » : zone et frais de livraison recalculés, date et créneau affichés (« Programmée le … ») et notés dans les observations avec collecte, destinataire et colis. Zone inconnue, date passée, colis ou adresses manquants, doublon : refusés avec un motif.
+
+Test : `node tests/portail-livraison.js` (12 contrôles).
