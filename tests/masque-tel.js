@@ -10,6 +10,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label,o?"":info||"");o?ok++:ko++};
  const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/distribution.html");await p.waitForTimeout(600);
  const TEL="0707123456";
+ const defaut=await p.evaluate(()=>{const l=S.livraisons.find(x=>x.statut==="en_cours"),c=cmd(l.commande_id),cl=cli(c.client_id);cl.tel="0707123456";const u=S.users.find(u=>u.role==="livreur"&&S.livreurs.find(v=>v.user_id===u.id&&v.id===l.livreur_id));ME=u;render();const h=document.getElementById("app").innerHTML;return{opt:S.config.masque_tel,tel:/href="tel:0707123456"/.test(h),bureau:/Joindre le client \(via le bureau\)/.test(h),pont:S.config.appel_pont&&S.config.appel_pont.actif}});
+ chk("MQ-0","par défaut (ancien système conservé) : protection et pont désactivés, le livreur appelle le client directement comme avant",defaut.opt===false&&defaut.tel&&!defaut.bureau&&!defaut.pont,JSON.stringify(defaut));
+ await p.evaluate(()=>{S.config.masque_tel=true});
  const prep=await p.evaluate(TEL=>{const l=S.livraisons.find(x=>x.statut==="en_cours"),c=cmd(l.commande_id),cl=cli(c.client_id);cl.tel=TEL;c.adr.instructions="Appelez le client au 07 07 12 34 56 à l'arrivée";c.adr.repere="Près du kiosque, tél. +225 07 07 12 34 56";c.obs="Client joignable au 0707123456";
   window.__l=l.id;window.__c=c.id;ME=S.users.find(u=>u.id===livreurOf({id:null,nom:""})?.user_id)||S.users.find(u=>u.role==="livreur"&&S.livreurs.find(v=>v.user_id===u.id&&v.id===l.livreur_id));return{ok:!!ME,role:ME&&ME.role,num:c.numero}},TEL);
  await p.evaluate(()=>{render()});await p.waitForTimeout(300);
@@ -26,7 +29,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   return{blrep:/07 07 12 34 56|0707123456/.test(bl.replace(/.*Destination/s,"Destination").slice(0,300)),lab:/0707123456/.test(lab),bl:/0707123456/.test(bl),lab2:/0707123456/.test(lab2),bl2:/0707123456/.test(bl2),e:(lab+bl).startsWith("EXC")?(lab+bl).slice(0,120):""}});
  chk("MQ-4","étiquette colis et bon de livraison : sans téléphone du client quand la protection est active ; protection désactivable (paramètre)",!doc.lab&&!doc.bl&&!doc.blrep&&doc.lab2&&doc.bl2,JSON.stringify(doc));
  const off=await p.evaluate(async()=>{S.config.masque_tel=false;ME=S.users.find(u=>u.role==="livreur"&&S.livreurs.find(v=>v.user_id===u.id&&v.id===S.livraisons.find(x=>x.id===window.__l).livreur_id));render();await new Promise(r=>setTimeout(r,200));const h=document.getElementById("app").innerHTML;S.config.masque_tel=true;return/href="tel:0707123456"/.test(h)});
- chk("MQ-5","protection désactivée dans les paramètres : l'appel direct du livreur revient",off===true,off);
+ chk("MQ-5","option désactivée dans les paramètres : l'appel direct du livreur revient",off===true,off);
  const gl=await p.evaluate(()=>{ME=S.users.find(u=>u.role==="livreur"&&S.livreurs.find(v=>v.user_id===u.id&&v.id===S.livraisons.find(x=>x.id===window.__l).livreur_id));const c=cmd(window.__c);geoLinkModal(c.client_id,c.adr.id,c.numero);const h=document.getElementById("modal").innerHTML;return{wa:/wa\.me/.test(h),btn:/lAskBureau/.test(h),num:/0707123456/.test(h)}});
  chk("MQ-6","lien de partage de position : le livreur ne reçoit ni lien WhatsApp ni numéro, il demande au bureau",!gl.wa&&gl.btn&&!gl.num,JSON.stringify(gl));
  /* Étape 2 : pont téléphonique (serveur simulé) */

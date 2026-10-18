@@ -496,7 +496,7 @@ Tests : `node tests/rh-revue.js` (11) et `node tests/revue-qualite.js` (9).
 
 ## Protection des numéros des clients (étape 1)
 
-Les numéros des clients ne doivent pas être divulgués aux livreurs (loi ivoirienne n° 2013-450 sur les données personnelles). Dans Distributions, Paramètres → option « Protéger les numéros des clients » (active par défaut) :
+Les numéros des clients ne doivent pas être divulgués aux livreurs (loi ivoirienne n° 2013-450 sur les données personnelles). Dans Distributions, Paramètres → option « Protéger les numéros des clients » (**désactivée par défaut** : l'ancien fonctionnement, avec appel direct du livreur, est conservé tant que vous ne l'activez pas) :
 
 - **Livreur** : plus de bouton « Appeler » vers le client ; le numéro n'apparaît ni sur la fiche mission, ni dans les instructions, repères et observations (les suites de chiffres y sont masquées), ni dans le lien de partage de position (plus de lien WhatsApp direct).
 - **Joindre le client** : le livreur choisit le motif (arrivé et sans réponse, adresse introuvable, client absent, retard, autre) et envoie une demande au bureau ; il voit aussi les numéros du bureau pour les urgences.
@@ -508,6 +508,8 @@ Limites actuelles : fonctionne en mode local ; le mode serveur (Supabase) devra 
 Test : `node tests/masque-tel.js` (6 contrôles).
 
 ## Pont téléphonique (étape 2)
+
+**Option, désactivée par défaut** : tant que le pont n'est pas activé dans les Paramètres, rien ne change pour les livreurs.
 
 Le livreur touche « Joindre le client » puis « Appeler maintenant » : le serveur fait sonner son téléphone, puis le relie au client depuis le numéro de l'entreprise. Ni l'un ni l'autre ne voit le numéro de l'autre ; les appels sont limités (4 par mission, 20 secondes minimum entre deux), enregistrés au journal (heure, statut, durée, sans numéro ni audio) et fermés à la fin de la livraison. Si le pont n'est pas configuré ou échoue, la demande au bureau (étape 1) reste disponible.
 
