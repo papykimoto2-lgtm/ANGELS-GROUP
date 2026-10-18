@@ -489,3 +489,5 @@ Relecture complète du code récent (paie, impression et signature, portail, con
 À savoir (non traité) : les liens de commande client et vendeur restent non signés (le numéro destinataire est désormais affiché et signalé) ; les clés publiques retirées après « Régénérer » ne sont pas conservées (les anciens documents passent en « clé introuvable ») ; un jeton de suivi n'expire pas.
 
 Tests : `node tests/rh-revue.js` (11) et `node tests/revue-qualite.js` (9).
+
+**Carte permanente** : le portail affiche désormais une carte de la zone de livraison sur l'accueil et sur la page Suivi (même sans lien de suivi) ; la position du livreur et la destination s'y ajoutent avec le lien d'une commande en route. Centre réglable par `carte:{lat,lng,zoom,libelle}` dans la configuration (Abidjan par défaut). Le fond de carte OpenStreetMap exige une connexion Internet.

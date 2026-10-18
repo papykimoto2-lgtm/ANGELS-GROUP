@@ -68,5 +68,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("RQ-8","portail : une page inexistante (#/constructor) retombe sur l'accueil sans « [object Object] »",!/object Object/.test(rt.t)&&rt.t.length>0,JSON.stringify(rt));
  const cm=await pp.evaluate(async()=>{const d={o:"Org",v:"Vendeur",t:"0799999999",z:[]};const tok=btoa(JSON.stringify(d)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");T.contact.whatsapp="0101010101";return envoi("t","m","R1","cmd",d.t)});
  chk("RQ-9","commande par lien : le numéro destinataire est affiché et signalé s'il n'est pas celui de l'entreprise",/0799999999/.test(cm)&&/n'est pas celui publié/.test(cm),cm.slice(0,200));
+ const mp=await pp.evaluate(async()=>{location.hash="#/accueil";await new Promise(r=>setTimeout(r,600));const h=document.querySelectorAll("#svh_map .pin").length;location.hash="#/suivi";await new Promise(r=>setTimeout(r,600));return{home:h,suivi:document.querySelectorAll("#sv_zone .pin").length,imgs:document.querySelectorAll("#sv_zone img.t").length}});
+ chk("RQ-10","portail : une carte de la zone de livraison est visible sur l'accueil et sur la page Suivi même sans lien de suivi",mp.home===1&&mp.suivi===1&&mp.imgs>0,JSON.stringify(mp));
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.join(" | "):""));process.exit(ko||errs.length?1:0);
 })();
