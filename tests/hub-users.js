@@ -13,7 +13,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const unlock=async(h,mod,pin)=>{await h.click(`[data-um=${mod}]`);await h.fill("#ugate [name=pin]",pin);await h.click("#ugate button")};
  // initialisation des trois applications (premier lancement = données de démonstration)
  const pd=await page("distribution.html"),pt=await page("transport.html"),pa=await page("agro.html");
- const h=await page("index.html");
+ const h=await page("parametres.html");
  // 1. verrou administrateur
  await h.click("[data-um=trans]");
  t("USR-1","la gestion des comptes est verrouillée tant qu'un administrateur n'a pas saisi son PIN",(await h.$("#uadd"))===null&&(await h.$("#ugate"))!==null?true:"formulaire visible");
@@ -60,9 +60,11 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await h.click(`[data-up="${rid}"]`);await h.fill(`[data-upin="${rid}"] [name=pin]`,"8642");await h.click(`[data-upin="${rid}"] button.sb:not(.g)`);
  await pt.waitForTimeout(300);t("USR-20","PIN réinitialisé : l'ancien est refusé, le nouveau accepté",await pt.evaluate(id=>[login(id,"5678"),login(id,"8642")],rid).then(r=>r[0]==="PIN incorrect."&&r[1]===null?true:JSON.stringify(r)));
  // 6. application jamais ouverte
- await ctx.clearCookies();const h2=await ctx.newPage();await h2.goto(base+"/index.html");await h2.evaluate(()=>localStorage.removeItem("angels_agro_v1"));await h2.reload();await h2.click("[data-um=agro]");
+ await ctx.clearCookies();const h2=await ctx.newPage();await h2.goto(base+"/parametres.html");await h2.evaluate(()=>localStorage.removeItem("angels_agro_v1"));await h2.reload();await h2.click("[data-um=agro]");
  t("USR-21","application jamais ouverte : message clair, aucun formulaire",/pas encore utilisée/.test(await h2.$eval("#usr",e=>e.innerText))&&(await h2.$("#uadd"))===null?true:"formulaire visible");
  t("USR-22","aucune valeur « NaN » / « undefined » dans la section",!/NaN|undefined/.test(await h.$eval("#usr",e=>e.innerText))?true:"valeur invalide");
+ const home=await ctx.newPage();await home.goto(base+"/index.html");await home.waitForTimeout(300);
+ t("USR-23","le hub n'affiche plus la gestion des comptes : une carte « Paramètres » ouvre la page dédiée",(await home.$("#usr"))===null&&(await home.$('a[href="parametres.html"]'))!==null&&/Utilisateurs et rôles/.test(await home.$eval("#c-param",e=>e.innerText))?true:"section encore présente");
  await h.screenshot({path:process.env.SHOT||"/tmp/hub-utilisateurs.png"});
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();

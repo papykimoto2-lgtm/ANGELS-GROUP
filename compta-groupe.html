@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b3b4c">
+<link rel="manifest" href="manifest-hub.webmanifest">
+<link rel="icon" type="image/png" href="icons/hub-192.png">
+<link rel="apple-touch-icon" href="icons/hub-apple-180.png">
+<title>Comptabilité du groupe — ANGEL'S GROUP</title>
+<style>
+:root{--b:#0e7490;--b2:#0b3b4c;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#b42318;--bd:#d6e4ea}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a21;--card:#112832;--tx:#e6f0f3;--mu:#93a9b2;--bd:#1f3a46;--ok:#4ade80;--wa:#fbbf24;--er:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+header{background:linear-gradient(135deg,var(--b2),var(--b));color:#fff;padding:calc(18px + env(safe-area-inset-top)) 16px 28px}
+.w{max-width:1100px;margin:0 auto}
+header h1{margin:0;font-size:22px}header p{margin:4px 0 0;opacity:.8;font-size:13px}
+header a{color:#fff}
+main{padding:0 16px 40px;margin-top:-16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;text-align:center}
+.kpi b{display:block;font-size:20px}.kpi span{font-size:12px;color:var(--mu)}
+.kpi.ko b{color:var(--er)}.kpi.ok b{color:var(--ok)}.kpi.wa b{color:var(--wa)}
+h2{margin:18px 0 8px;font-size:16px}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.badge.ok{background:#e3f5ea;color:#118a4b}.badge.ko{background:#fde7e4;color:#b42318}.badge.wa{background:#fff1d6;color:#b86e00}.badge.mu{background:#e8edf0;color:#52606b}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}th{color:var(--mu);font-size:12px}td.n,th.n{text-align:right;white-space:nowrap}
+.mu{color:var(--mu);font-size:13px}.er{color:var(--er)}
+a.btn{display:inline-block;padding:9px 14px;border-radius:10px;background:var(--b);color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<header><div class="w"><a href="index.html">← Hub du groupe</a><h1>📒 Comptabilité du groupe</h1><p>Contrôle d'intégrité et consolidation des trois applications : chaque module comptabilise-t-il ses opérations, ses écritures sont-elles équilibrées, le plan est-il commun ?</p></div></header>
+<main><div class="w" id="app"></div></main>
+<script>
+const MODS=[
+ {k:"distribution",nom:"Distributions",ic:"🛵",url:"distribution.html",c:"#0e7490"},
+ {k:"transport",nom:"Transport & négoce",ic:"🚕",url:"transport.html",c:"#c2410c"},
+ {k:"agro",nom:"Agro",ic:"🌱",url:"agro.html",c:"#15803d"}];
+const ACT=[["transport","Transport de personnes"],["flotte","Exploitation et entretien de la flotte"],["import","Activité d'importation"],["stock","Stock commercial"],["ventes","Ventes de véhicules"],["transit","Frais de transit et douane"],["admin","Frais administratifs et généraux"]];
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" FCFA";
+function lire(k){try{const r=localStorage.getItem("angels_compta_"+k);return r?JSON.parse(r):null}catch(e){return null}}
+function statut(r){ // une application est « conforme » si ses écritures sont équilibrées, comptabilise toutes ses opérations et reste dans le plan
+ if(!r)return["mu","Pas de données","Ouvrez l'application une fois : elle publie sa synthèse comptable au Hub."];
+ const pb=[];if(r.desequilibres)pb.push(r.desequilibres+" écriture(s) déséquilibrée(s)");if(r.non_comptabilisees)pb.push(r.non_comptabilisees+" opération(s) non comptabilisée(s)");if(r.hors_plan)pb.push(r.hors_plan+" compte(s) hors plan");
+ const e=r.en_ligne;if(e){if(e.ventes_sans_ecriture)pb.push(e.ventes_sans_ecriture+" vente(s) en ligne sans écriture");if(e.paiements_sans_ecriture)pb.push(e.paiements_sans_ecriture+" paiement(s) Mobile Money vérifié(s) sans écriture")}
+ if(r.reglements_vendeurs_sans_ecriture)pb.push(r.reglements_vendeurs_sans_ecriture+" règlement(s) vendeur sans écriture");
+ if(r.debit!==r.credit)pb.push("total débit ≠ total crédit");
+ return pb.length?["ko","À corriger",pb.join(" · ")]:["ok","Conforme","Toutes les opérations sont comptabilisées et équilibrées."];
+}
+function render(){
+ const R=MODS.map(m=>({m,r:lire(m.k)})),V=R.filter(x=>x.r);
+ const tot=k=>V.reduce((t,x)=>t+(+x.r[k]||0),0),D=tot("debit"),C=tot("credit"),nonc=tot("non_comptabilisees"),dsq=tot("desequilibres"),bad=R.filter(x=>statut(x.r)[0]==="ko").length;
+ let h=`<div class="kpis"><div class="kpi ${V.length===3?"ok":"wa"}"><b>${V.length} / 3</b><span>Applications qui publient leur synthèse</span></div><div class="kpi"><b>${tot("nb_ecritures").toLocaleString("fr-FR")}</b><span>Écritures du groupe</span></div><div class="kpi ${D===C?"ok":"ko"}"><b>${D===C?"Équilibré":"Écart "+fcfa(D-C)}</b><span>Débit ${fcfa(D)} · Crédit ${fcfa(C)}</span></div><div class="kpi ${nonc||dsq?"ko":"ok"}"><b>${nonc+dsq}</b><span>Opérations non comptabilisées ou écritures déséquilibrées</span></div><div class="kpi ${bad?"ko":"ok"}"><b>${bad?bad+" à corriger":"Tout est conforme"}</b><span>État du contrôle d'intégrité</span></div></div>`;
+ h+=`<div class="grid">`+R.map(({m,r})=>{const s=statut(r);return `<div class="card" style="border-top:5px solid ${m.c}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${m.ic} ${esc(m.nom)}</b><span class="badge ${s[0]}">${s[1]}</span></div><p class="mu">${esc(s[2])}</p>${r?`<div class="mu">${r.nb_ecritures} écriture(s) · ${r.comptes||0} compte(s) au plan${r.brouillards?" · "+r.brouillards+" brouillard(s)":""}<br>Synthèse du ${esc(String(r.t||"").slice(0,16).replace("T"," à "))}</div>`:""}<p><a class="btn" href="${m.url}">Ouvrir ${esc(m.nom)}</a></p></div>`}).join("")+`</div>`;
+ h+=`<h2>Contrôle par application</h2><div class="card scroll"><table><tr><th>Application</th><th class="n">Écritures</th><th class="n">Débit</th><th class="n">Crédit</th><th class="n">Déséquilibres</th><th class="n">Non comptabilisées</th><th class="n">Hors plan</th><th>État</th></tr>`+R.map(({m,r})=>{const s=statut(r);return r?`<tr><td>${esc(m.nom)}</td><td class="n">${r.nb_ecritures}</td><td class="n">${fcfa(r.debit)}</td><td class="n">${fcfa(r.credit)}</td><td class="n ${r.desequilibres?"er":""}">${r.desequilibres||0}</td><td class="n ${r.non_comptabilisees?"er":""}">${r.non_comptabilisees||0}</td><td class="n ${r.hors_plan?"er":""}">${r.hors_plan||0}</td><td><span class="badge ${s[0]}">${s[1]}</span></td></tr>`:`<tr><td>${esc(m.nom)}</td><td colspan="6" class="mu">Aucune synthèse publiée</td><td><span class="badge mu">—</span></td></tr>`}).join("")+`<tr><td><b>Groupe</b></td><td class="n"><b>${tot("nb_ecritures")}</b></td><td class="n"><b>${fcfa(D)}</b></td><td class="n"><b>${fcfa(C)}</b></td><td class="n"><b>${dsq}</b></td><td class="n"><b>${nonc}</b></td><td class="n"><b>${tot("hors_plan")}</b></td><td>${D===C&&!dsq?'<span class="badge ok">Équilibré</span>':'<span class="badge ko">Déséquilibre</span>'}</td></tr></table></div>`;
+ const D1=lire("distribution");
+ if(D1&&D1.en_ligne){const e=D1.en_ligne;h+=`<h2>Ventes en ligne, prestations et règlements vendeurs (Distributions)</h2><div class="kpis"><div class="kpi"><b>${e.commandes}</b><span>Commandes en ligne (${e.livrees} livrée(s))</span></div><div class="kpi"><b>${fcfa(e.ca_ttc)}</b><span>CA TTC livré en ligne</span></div><div class="kpi ${e.mm_a_verifier?"wa":"ok"}"><b>${e.mm_verifies}</b><span>Paiements Mobile Money vérifiés (${e.mm_a_verifier} à vérifier)</span></div><div class="kpi"><b>${fcfa(D1.prestations_ht)}</b><span>Prestations vendues HT</span></div><div class="kpi ${e.ventes_sans_ecriture+e.paiements_sans_ecriture+D1.reglements_vendeurs_sans_ecriture?"ko":"ok"}"><b>${e.ventes_sans_ecriture+e.paiements_sans_ecriture+D1.reglements_vendeurs_sans_ecriture}</b><span>Opérations sans écriture</span></div></div>`}
+ const T=lire("transport");
+ if(T&&T.par_activite){h+=`<h2>Résultat par activité — Transport & négoce (exercice en cours)</h2><div class="card scroll"><table><tr><th>Activité</th><th class="n">Produits</th><th class="n">Charges</th><th class="n">Résultat</th></tr>`+ACT.map(([k,l])=>{const a=T.par_activite.find(x=>x.k===k)||{p:0,c:0,r:0};return `<tr><td>${esc(l)}</td><td class="n">${fcfa(a.p)}</td><td class="n">${fcfa(a.c)}</td><td class="n ${a.r<0?"er":""}"><b>${fcfa(a.r)}</b></td></tr>`}).join("")+`<tr><td><b>Total</b></td><td class="n"><b>${fcfa(T.par_activite.reduce((t,a)=>t+a.p,0))}</b></td><td class="n"><b>${fcfa(T.par_activite.reduce((t,a)=>t+a.c,0))}</b></td><td class="n"><b>${fcfa(T.resultat)}</b></td></tr></table></div>`;
+  h+=`<p class="mu">Opérations de négoce / import suivies : ${T.ops_comptabilisees} comptabilisée(s) sur ${T.ops_attendues} attendue(s).</p>`}
+ h+=`<h2>Plan comptable commun</h2><div class="card"><p class="mu">Les trois applications appliquent le plan SYSCOHADA révisé ; chaque application conserve ses comptes personnalisés. Un compte hors plan ou de regroupement mouvementé est signalé dans la colonne « Hors plan ». ${V.length?"Comptes au plan : "+V.map(x=>esc(x.m.nom)+" "+(x.r.comptes||0)).join(" · ")+".":""}</p></div>`;
+ document.getElementById("app").innerHTML=h;
+}
+addEventListener("storage",render);render();
+</script>
+</body>
+</html>

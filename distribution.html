@@ -241,7 +241,7 @@ function garde(roles,l,d){
  if(ME.role==="vendeur"&&d){const v=vend();if(!v||d.vendeur_id!==v.id){toast("Commande d'un autre vendeur","err");return false}}
  return true}
 const can=(...roles)=>ME&&roles.includes(ME.role);
-function save(){if(CL.on)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Stockage local plein ou indisponible","err")}}
+function save(){if(CL.on)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Stockage local plein ou indisponible","err")}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}}
 function audit(action,detail){S.audit.push({ts:now(),user:who(),role:ME?ME.role:"système",action,detail:detail||""});if(S.audit.length>5000)S.audit.splice(0,S.audit.length-5000)}
 function toast(m,t){const d=document.createElement("div");d.className="t "+(t||"");d.textContent=m;$("#toast").appendChild(d);setTimeout(()=>d.remove(),t==="err"?5500:3000)}
 
@@ -2896,7 +2896,7 @@ window.addEventListener("resize",()=>{if(window.innerWidth>1024&&document.body.c
 const CPT_DEFDIS={client:["Clients","4111"],vendeurs:["Vendeurs partenaires (à reverser)","4018"],fournisseur:["Fournisseurs","4011"],stock:["Marchandises (stock)","311"],achats:["Achats de marchandises (stock intermittent)","6011"],cout:["Coût des marchandises vendues / variations de stock","6031"],perso:["Personnel — avances et acomptes","4211"],commission:["Commissions des livreurs (charge)","6611"],
  caisse:["Caisse principale (compte par défaut)","571"],caisse_liv:["Caisses livreurs (espèces détenues)","574"],mobile:["Mobile Money","538"],banque:["Banque","5211"],apport:["Associés — apports","462"],attente:["Compte d'attente (à ventiler)","4711"],
  tva_coll:["TVA facturée (collectée)","4431"],tva_ded:["TVA récupérable","4452"],tva_due:["État — TVA due","4441"],tva_credit:["État — crédit de TVA à reporter","4449"],
- vente_art:["Ventes de marchandises","7011"],vente_serv:["Services vendus (frais de livraison, commissions)","7061"],c_transport:["Charge — carburant et transports","612"],c_entretien:["Charge — entretien des motos","6242"],c_loyer:["Charge — loyers et charges","6222"],c_fourn:["Charge — fournitures","6041"],c_div:["Charge — dépenses diverses","658"],
+ vente_art:["Ventes de marchandises","7011"],vente_serv:["Services vendus (frais de livraison, commissions)","7061"],vente_prest:["Prestations de services vendues (réparations, installations…)","7062"],c_transport:["Charge — carburant et transports","612"],c_entretien:["Charge — entretien des motos","6242"],c_loyer:["Charge — loyers et charges","6222"],c_fourn:["Charge — fournitures","6041"],c_div:["Charge — dépenses diverses","658"],
  ecart_manq:["Écart de caisse — manquant (charge)","658"],ecart_exc:["Écart de caisse — excédent (produit)","758"],immo:["Immobilisations — motos","2451"],amort_dot:["Amortissements — dotation (charge)","6813"],amort_cumul:["Amortissements — cumul motos","284"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481"],
  virement:["Virements de fonds (remises de caisse en transit)","585"],caisse_dir:["Caisse de la direction (remises reçues)","573"],res_ben:["Résultat de l'exercice — bénéfice","131"],res_perte:["Résultat de l'exercice — perte","139"],
  report:["Report à nouveau créditeur (résultats antérieurs)","121"],report_deb:["Report à nouveau débiteur (résultats antérieurs)","129"]};
@@ -3588,7 +3588,7 @@ function cptAuto(){
   const h=(c.hist||[]).filter(x=>x.a==="livree").pop(),date=h?h.ts:c.date,cl=tCl(c),v=c.vendeur_id?vendOf(c.vendeur_id):null,pv=c.paye_vendeur||0;
   if(v){const base=Math.max(0,(c.montant_produits||0)-(c.remise||0)-pv),net=Math.round(base*(1-(+v.commission_pct||0)/100)),serv=c.total-pv-net,h6=ht(serv);
    mk("commandes",c.id,date,"VT","Vente "+c.numero+" (pour "+v.nom+")",c.numero,[Dl(cdd("client"),c.total-pv,cl),Cl(cdd("vendeurs"),net,{k:"vendeur",id:v.id,nom:v.nom}),Cl(cdd("vente_serv"),h6),Cl(cdd("tva_coll"),serv-h6)])}
-  else{const sp=c.lignes.reduce((t,l)=>t+(l.prestation_id?l.qte*l.pu:0),0),gd=(c.montant_produits||0)-sp,rg=Math.min(c.remise||0,gd),rs=(c.remise||0)-rg,art=gd-rg,ha=ht(art),hf=ht(Math.max(0,sp-rs)+(c.frais||0));mk("commandes",c.id,date,"VT","Vente "+c.numero,c.numero,[Dl(cdd("client"),c.total,cl),Cl(cdd("vente_art"),ha),Cl(cdd("vente_serv"),hf),Cl(cdd("tva_coll"),c.total-ha-hf)])}});
+  else{const sp=c.lignes.reduce((t,l)=>t+(l.prestation_id?l.qte*l.pu:0),0),gd=(c.montant_produits||0)-sp,rg=Math.min(c.remise||0,gd),rs=(c.remise||0)-rg,art=gd-rg,ha=ht(art),hfl=ht(c.frais||0),hp=ht(Math.max(0,sp-rs)+(c.frais||0))-hfl,hf=hfl+hp;mk("commandes",c.id,date,"VT","Vente "+c.numero,c.numero,[Dl(cdd("client"),c.total,cl),Cl(cdd("vente_art"),ha),Cl(cdd("vente_prest"),hp),Cl(cdd("vente_serv"),hfl),Cl(cdd("tva_coll"),c.total-ha-hf)])}});
  S.fonds.forEach(f=>{const c=f.commande_id?cmd(f.commande_id):null,m=f.montant||0,tr=trs(f.mode);if(!(m>0)){if(["acompte","encaissement","reversement"].includes(f.type))sk("fonds",f.id,f.ts,(f.type==="acompte"?"Acompte ":f.type==="reversement"?"Reversement ":"Encaissement ")+(c?c.numero:""),"Montant nul : aucune écriture à passer");return}
   if(f.type==="acompte"){const a=tr||[cdd("caisse"),"CAI"];mk("fonds",f.id,f.ts,a[1],"Acompte "+(c?c.numero:""),f.ref,[Dl(a[0],m),Cl(cdd("client"),m,tCl(c))])}
   else if(f.type==="encaissement"){const a=tr&&f.direct?tr:[cdd("caisse_liv"),"CAI"];mk("fonds",f.id,f.ts,a[1],"Encaissement "+(c?c.numero:"")+" ("+(f.mode||"Espèces")+")",f.ref,[Dl(a[0],m,a[0]===cdd("caisse_liv")?tLv(f.livreur_id):null),Cl(cdd("client"),m,tCl(c))])}
@@ -3618,6 +3618,7 @@ function cptAuto(){
  (S.motos||[]).forEach(mo=>{if(!(+mo.valeur_acq>0)||!mo.date_service)return;const val=Math.round(mo.valeur_acq),du=+mo.duree_amort||C.amort_duree||5,men=Math.round(val/(du*12)),cur=new Date().toISOString().slice(0,7);
   mk("motos","immo:"+mo.id,mo.date_service,"OD","Acquisition immobilisation — moto "+mo.immat,"IMMO-"+mo.immat,[Dl(cdd("immo"),val),Cl(cdd("immo_contre"),val)]);
   let cum=0;for(let m=mo.date_service.slice(0,7);m<cur;m=cptMNext(m)){const dot=Math.min(men,val-cum);if(dot<=0)break;cum+=dot;mk("motos","amort:"+mo.id+":"+m,cptMEnd(m),"OD","Dotation aux amortissements "+m+" — moto "+mo.immat,"AMORT-"+mo.immat+"-"+m,[Dl(cdd("amort_dot"),dot),Cl(cdd("amort_cumul"),dot)])}});
+ E.forEach(e=>{const c=e.source_table==="commandes"?cmd(e.source_id):e.source_table==="fonds"?cmd((byId(S.fonds,e.source_id)||{}).commande_id):null;if(c&&c.canal)e.canal=c.canal});
  CPT_SK=SK;return E}
 /* Contrepartie d'un bon de caisse : ventilation manuelle > règle de mots-clés > catégorie > compte d'attente */
 function cptContre(m){const C=cpt(),v=C.ventil[m.id];if(v&&v.compte)return v.compte;return cptCatCompte(m.categorie)||cdd("attente")}
@@ -3941,6 +3942,19 @@ function cptRegStats(){const E=cptEcr(),T={};CPT_REGLES.forEach(r=>T[r[0]]={ok:0
  CPT_SK.forEach(s=>{T[s.rg][s.diff?"diff":"ko"]++;ops.push({d:s.date,rg:s.rg,lib:s.lib,m:s.montant||0,ok:false,diff:s.diff,why:s.why,id:s.id})});
  const ids=new Set(E.map(e=>e.id));S.commandes.filter(c=>c.statut==="livree"&&(c.remise||0)>0).forEach(c=>{T.remise[ids.has("commandes:"+c.id)?"ok":"ko"]++});
  ops.sort((a,b)=>String(b.d).localeCompare(String(a.d)));return{T,ops}}
+function etatCompta(){ // synthèse de la comptabilité automatique : lue par le Hub (consolidation) et par l'écran « Ventes en ligne »
+ const E=cptEcr(),L=a=>a.reduce((t,e)=>t+e.lignes.reduce((u,l)=>u+(l.sens==="D"?l.montant:0),0),0),Cr=a=>a.reduce((t,e)=>t+e.lignes.reduce((u,l)=>u+(l.sens==="C"?l.montant:0),0),0),ids=new Set(E.filter(e=>e.statut==="validee").map(e=>e.id));
+ const W=S.commandes.filter(c=>c.web||c.canal==="Vente en ligne"),liv=W.filter(c=>c.statut==="livree"),ok=W.filter(c=>c.web&&c.web.pay==="valide"),ko=W.filter(c=>c.web&&c.web.pay==="a_verifier");
+ const sansV=liv.filter(c=>!ids.has("commandes:"+c.id)),sansP=ok.filter(c=>!S.fonds.some(f=>f.commande_id===c.id&&f.type==="acompte"&&ids.has("fonds:"+f.id)));
+ const vt=E.filter(e=>e.source_table==="commandes"&&e.statut==="validee"),pr=vt.reduce((t,e)=>t+e.lignes.filter(l=>l.compte===cdd("vente_prest")&&l.sens==="C").reduce((u,l)=>u+l.montant,0),0);
+ const W2=E.filter(e=>e.canal==="Vente en ligne"&&e.statut==="validee");
+ const regl=S.reglements.filter(r=>!ids.has("reglements:"+r.id));
+ return{t:new Date().toISOString(),module:"distribution",nb_ecritures:E.length,debit:L(E),credit:Cr(E),desequilibres:E.filter(e=>L([e])!==Cr([e])).length,
+  non_comptabilisees:CPT_SK.filter(s=>!s.diff).length+E.filter(e=>e.statut==="bloquee").length,brouillards:E.filter(e=>e.statut==="brouillard").length,differees:CPT_SK.filter(s=>s.diff).length,
+  en_ligne:{commandes:W.length,livrees:liv.length,ca_ttc:liv.reduce((t,c)=>t+(c.total||0),0),mm_verifies:ok.length,mm_a_verifier:ko.length,ventes_sans_ecriture:sansV.length,paiements_sans_ecriture:sansP.length,ecritures:W2.length},
+  prestations_ht:pr,reglements_vendeurs_sans_ecriture:regl.length,comptes:cpt().comptes.length}}
+function cptWebHtml(){const S0=etatCompta(),w=S0.en_ligne,pb=w.ventes_sans_ecriture+w.paiements_sans_ecriture+S0.reglements_vendeurs_sans_ecriture;
+ return `<h2>Ventes en ligne, prestations et règlements vendeurs</h2><div class="grid"><div class="kpi"><div class="v">${w.commandes}</div><div class="l">Commandes en ligne (${w.livrees} livrée(s))</div></div><div class="kpi ${w.mm_a_verifier?"w":"o"}"><div class="v">${w.mm_verifies}</div><div class="l">Paiements Mobile Money vérifiés (${w.mm_a_verifier} à vérifier : pas encore comptabilisés)</div></div><div class="kpi"><div class="v">${fcfa(S0.prestations_ht)}</div><div class="l">Prestations vendues HT (compte ${esc(cdd("vente_prest"))})</div></div><div class="kpi ${pb?"e":"o"}"><div class="v">${pb}</div><div class="l">Opérations sans écriture (ventes en ligne, paiements vérifiés, règlements vendeurs)</div></div></div>`}
 /* Contrôles propres au plan et à la compta automatique (ajoutés au contrôle d'intégrité) */
 function cptCtlPlan(E){const R=[],ok=(t,bad)=>R.push({t,ok:!bad.length,det:bad.slice(0,6)}),I=cptIdx(),C=cpt();
  const H=cptHorsPlan();ok("Aucune écriture sur un compte hors plan ou de regroupement",H.abs.map(x=>x.c+" : absent du plan ("+x.n+" ligne(s))").concat(H.reg.map(x=>x.c+" "+x.o.l+" : regroupement ("+x.n+" ligne(s))")));
@@ -3997,6 +4011,7 @@ CPT_EXT.reg=()=>{const w=cptWOk(),St=cptRegStats(),T=St.T,lim=+ui.rgN||40,f=ui.r
  ${tbl(["Date","Type","Opération","Montant","État"],pg.map(o=>`<tr><td class="sm">${fdt(o.d).slice(0,5)}</td><td>${esc(nm[o.rg]||o.rg)}</td><td>${esc(o.lib)}</td><td style="text-align:right">${o.m?fcfa(o.m):""}</td><td>${o.ok?badge("✔ Comptabilisé","ok")+` <span class="sm mu">${esc(o.no||"")}</span>`:o.diff?badge("Différé","wa")+`<div class="sm mu">${esc(o.why)}</div>`:badge("✖ Non comptabilisé","er")+`<div class="sm mu">${esc(o.why)}</div>`}</td></tr>`),"Aucune opération")}
  ${ops.length>pg.length?`<div class="flex noprint"><button class="btn sm ghost" data-act="rgMore">Afficher plus (${pg.length} / ${ops.length})</button></div>`:`<div class="sm mu">${ops.length} opération(s).</div>`}`;
  return{h,ex:{name:"operations-comptabilisation",head:["Date","Type","Opération","Montant","État","Détail"],rows:St.ops.map(o=>[cptDte(o.d),nm[o.rg]||o.rg,o.lib,o.m,o.ok?"comptabilisé":o.diff?"différé":"non comptabilisé",o.no||o.why||""])}}};
+{const _rg=CPT_EXT.reg;CPT_EXT.reg=()=>{const r=_rg();try{r.h+=cptWebHtml()}catch(e){}return r}}
 function cptPlanForm(pref){if(!cptW())return;const p=pref&&cptGet(pref);
  modal("➕ Nouveau compte"+(p?" sous "+p.c:""),`<div class="g2"><label>Numéro * (3 à 8 chiffres)<input name="n" required pattern="[0-9]{3,8}" inputmode="numeric" value="${esc(pref||"")}" placeholder="ex. 41111"></label><label>Nature<select name="t">${opts(Object.entries(CPT_NATL).map(([v,t])=>({v,t})),p?p.n:"variable")}</select></label></div><label>Libellé *<input name="l" required maxlength="120"></label><div class="sm mu">Le numéro doit commencer par celui d'un compte existant : le parent est le numéro sans son dernier chiffre (ex. 41111 sous 4111). Le nouveau compte est imputable ; son parent devient un compte de regroupement (refusé si le parent est déjà mouvementé ou utilisé).</div>`,
  {label:"Créer le compte",onSubmit:d=>cptRun(()=>cptPlanAdd(d.n,d.l,d.t),"Compte "+String(d.n).trim()+" créé")!==null})}

@@ -46,10 +46,6 @@ h3{margin:26px 0 10px;font-size:15px}
 .bars{display:flex;align-items:flex-end;gap:8px;height:150px}.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mu)}.bar i{display:block;width:100%;min-height:2px;border-radius:5px 5px 0 0}.bar em{font-style:normal;margin-top:4px}.bar small{font-size:10px}
 .det{list-style:none;margin:0;padding:0}.det li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}.det li:last-child{border:0}
 .note{font-size:12px;color:var(--mu);margin:8px 0 0}
-.ut td,.ut th{text-align:left}.ut td{white-space:normal}.uf{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:10px 0}.uf label{display:block;font-size:12px;color:var(--mu);font-weight:600}
-.uf input,.uf select,.ut select{font:inherit;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-height:40px;display:block;margin-top:3px}
-button.sb{border:0;border-radius:8px;padding:8px 12px;background:var(--c,var(--b));color:#fff;font:inherit;font-weight:700;cursor:pointer;min-height:38px}button.sb.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}
-.umsg{margin:8px 0;padding:8px 12px;border-radius:8px;font-size:13px;background:#e3f5ea;color:var(--ok)}.umsg.er{background:#fde8e8;color:#c62828}.off{opacity:.55}
 footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </style>
 </head>
@@ -59,8 +55,6 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="tw"><table id="tcons"></table></div><p class="note" id="ncons"></p></section>
 <h2 style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
 <div class="tabs" id="tabs"></div><section id="tdb"></section>
-<h2 style="margin:22px 0 10px;font-size:16px">👥 Utilisateurs et rôles des applications</h2>
-<div class="tabs" id="utabs"></div><section id="usr"></section>
 <h3 style="margin-top:22px">Filiales</h3>
 <div class="cards">
  <a class="card" style="--c:var(--g1)" href="distribution.html" id="c-dist">
@@ -80,6 +74,17 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="a-v">—</b><span>Sujets vivants</span></div><div><b id="a-l">—</b><span>Lots en cours</span></div><div><b id="a-s">—</b><span>Stocks bas</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
+ </a>
+</div>
+<h3>Administration du groupe</h3>
+<div class="cards">
+ <a class="card" style="--c:#0b3b4c" href="compta-groupe.html" id="c-compta">
+  <div class="ic">📒</div><h2>Comptabilité du groupe</h2><p>Contrôle d'intégrité des trois applications : opérations comptabilisées, écritures équilibrées, résultat par activité, ventes en ligne.</p>
+  <span class="btn">Ouvrir la comptabilité du groupe</span>
+ </a>
+ <a class="card" style="--c:#475569" href="parametres.html" id="c-param">
+  <div class="ic">⚙️</div><h2>Paramètres</h2><p>Utilisateurs et rôles de chaque application (Distributions, Transport, Agro) : création des comptes, attribution des rôles, PIN, activation.</p>
+  <span class="btn">Ouvrir les paramètres</span>
  </a>
 </div>
 <h3>Socle commun du groupe (à mutualiser)</h3>
@@ -197,94 +202,6 @@ function tdb(X){
 }
 $("maj").onclick=consolide;window.addEventListener("storage",consolide);document.addEventListener("visibilitychange",()=>{if(!document.hidden)consolide()});consolide();
 
-/* ---------- Utilisateurs et rôles de chaque application (créés depuis le hub) ---------- */
-const E=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const hashPin=(id,p)=>{let x=5381;for(const c of id+":"+p)x=((x<<5)+x+c.charCodeAt(0))|0;return x};
-const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const stamp=()=>new Date().toISOString();
-const RL={ /* mêmes profils que dans chaque application ; « lie » = profils rattachés à une fiche, créés dans leur application */
- dist:{key:"angels_erp_v1",ph:"pin_h",lie:["livreur","vendeur"],roles:{admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"},
-  ok:G=>G&&G.v===1&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>[Math.max(4,+(G.config&&G.config.pin_len)||4),8],
-  aud:(G,a,d,u)=>G.audit.push({ts:stamp(),user:u.nom,role:u.role,action:a,detail:d})},
- trans:{key:"angels_transport_v3",ph:"h",lie:["chauffeur"],roles:{admin:"Administrateur général",directeur:"Directeur / propriétaire",flotte:"Gestionnaire de flotte",caissier:"Caissier",comptable:"Comptable",controleur:"Contrôleur",chauffeur:"Chauffeur",transitaire:"Transitaire externe"},
-  ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>{const n=+(G.settings&&G.settings.pin_len)||4;return[n,n]},
-  aud:(G,a,d,u)=>G.audit.unshift({t:stamp(),u:u.nom,r:u.role,a,d})},
- agro:{key:"angels_agro_v1",ph:"h",lie:[],roles:{admin:"Administrateur",direction:"Direction générale",chef:"Chef d'exploitation",soigneur:"Soigneur",magasinier:"Magasinier",commercial:"Commercial",caissier:"Caissier",comptable:"Comptable"},
-  ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>{const n=+(G.settings&&G.settings.pin_len)||4;return[n,n]},
-  aud:(G,a,d,u)=>G.audit.unshift({t:stamp(),u:u.nom,r:u.role,a,d})}};
-let UM=(()=>{try{return sessionStorage.getItem("hub_umod")||"dist"}catch(e){return"dist"}})(),UEDIT=null,UMSG=null;
-const AUTH={},TRY={},DUREE=10*60*1000;
-const uEtat=m=>{const G=lire(RL[m].key);return G&&RL[m].ok(G)?G:null};
-const uSess=m=>{const a=AUTH[m];if(a&&a.exp>Date.now())return a;delete AUTH[m];return null};
-const pinTxt=m=>{const[a,b]=RL[m].pin(uEtat(m));return a===b?a+" chiffres":a+" à "+b+" chiffres"};
-const pinOk=(m,G,p)=>{const[a,b]=RL[m].pin(G);return new RegExp("^\\d{"+a+","+b+"}$").test(p)};
-const admins=(G,m)=>G.users.filter(u=>u.role==="admin"&&u.actif!==false);
-function uView(){
- $("utabs").innerHTML=MODS.map(x=>`<button class="tab${x.id===UM?" on":""}" data-um="${x.id}" style="--c:${x.c}">${x.ic} ${x.nom}</button>`).join("");
- const m=UM,R=RL[m],G=uEtat(m),box=$("usr"),mod=MODS.find(x=>x.id===m),msg=UMSG?`<div class="umsg${UMSG.er?" er":""}" role="status">${E(UMSG.t)}</div>`:"";
- if(!G){box.innerHTML=`<p class="note">${mod.nom} : application pas encore utilisée sur cet appareil — ouvrez-la une première fois pour créer ses comptes. <a href="${mod.href}">Ouvrir l'ERP</a></p>`;return}
- const au=uSess(m);
- if(!au){
-  const ad=admins(G,m);
-  box.innerHTML=msg+(ad.length?`<form class="uf" id="ugate"><div class="note" style="flex-basis:100%;margin:0">La gestion des comptes de ${E(mod.nom)} exige l'accord d'un administrateur de cette application.</div>
-   <label>Administrateur<select name="u">${ad.map(u=>`<option value="${E(u.id)}">${E(u.nom)}</option>`).join("")}</select></label>
-   <label>Son PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" required></label><button class="sb" style="--c:${mod.c}">🔓 Déverrouiller</button></form>`
-   :`<p class="note">Aucun administrateur actif dans ${E(mod.nom)} : ouvrez l'application pour réactiver un compte administrateur.</p>`);return}
- const nAd=admins(G,m).length,[lo,hi]=R.pin(G),pat="[0-9]{"+lo+","+hi+"}";
- const rows=G.users.map(u=>{const lie=R.lie.includes(u.role),act=u.actif!==false,last=u.role==="admin"&&act&&nAd<=1;
-  const role=lie?`${E(R.roles[u.role]||u.role)} <span class="note">(fiche liée)</span>`:`<select data-ur="${E(u.id)}" aria-label="Rôle de ${E(u.nom)}">${Object.entries(R.roles).filter(([k])=>!R.lie.includes(k)).map(([k,v])=>`<option value="${k}"${k===u.role?" selected":""}>${E(v)}</option>`).join("")}${R.roles[u.role]?"":`<option value="${E(u.role)}" selected>${E(u.role)}</option>`}</select>`;
-  const ed=UEDIT===u.id?`<form class="uf" data-upin="${E(u.id)}" style="margin:6px 0 0"><label>Nouveau PIN (${pinTxt(m)})<input name="pin" type="password" inputmode="numeric" pattern="${pat}" autocomplete="off" required></label><button class="sb" style="--c:${mod.c}">Valider</button><button type="button" class="sb g" data-ux="1">Annuler</button></form>`:"";
-  return`<tr class="${act?"":"off"}"><td><b>${E(u.nom)}</b>${last?' <span class="note">(dernier administrateur)</span>':""}</td><td>${role}</td><td>${act?'<span class="ok">Actif</span>':'<span class="er">Désactivé</span>'}</td>
-   <td><button class="sb g" data-up="${E(u.id)}">🔑 PIN</button> <button class="sb g" data-ut="${E(u.id)}">${act?"Désactiver":"Réactiver"}</button>${ed}</td></tr>`}).join("");
- box.innerHTML=msg+`<p class="note" style="margin:0 0 8px">Autorisé par <b>${E(au.nom)}</b> (administrateur ${E(mod.nom)}) · <a href="#" data-ulock="1">Verrouiller</a></p>
-  <div class="tw"><table class="ut"><thead><tr><th>Utilisateur</th><th>Rôle</th><th>État</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <form class="uf" id="uadd"><label>Nom<input name="nom" required maxlength="60"></label>
-   <label>Rôle<select name="role">${Object.entries(R.roles).filter(([k])=>!R.lie.includes(k)).map(([k,v])=>`<option value="${k}">${E(v)}</option>`).join("")}</select></label>
-   <label>PIN (${pinTxt(m)})<input name="pin" type="password" inputmode="numeric" pattern="${pat}" autocomplete="off" required></label><button class="sb" style="--c:${mod.c}">➕ Créer le compte</button></form>
-  ${R.lie.length?`<p class="note">Les comptes « ${R.lie.map(k=>E(R.roles[k])).join(" » et « ")} » se créent dans ${E(mod.nom)}, avec leur fiche (téléphone, zone, moto…).</p>`:""}
-  <p class="note">Les changements s'appliquent aussitôt dans l'application, y compris si elle est ouverte. Les droits et les PIN sont stockés sur cet appareil (pas de serveur) : voir « Limites assumées ».</p>`;
-}
-/* écrit dans l'application : relit l'état, revérifie l'autorisation, applique, journalise, enregistre */
-function uAgir(m,fn){
- const au=uSess(m);if(!au){UMSG={er:1,t:"Autorisation expirée : déverrouillez à nouveau."};return uView()}
- const R=RL[m],G=uEtat(m);if(!G){UMSG={er:1,t:"Application introuvable."};return uView()}
- const me=G.users.find(u=>u.id===au.id);if(!me||me.role!=="admin"||me.actif===false){delete AUTH[m];UMSG={er:1,t:"Ce compte n'est plus administrateur actif."};return uView()}
- try{const t=fn(G,R,me);try{localStorage.setItem(R.key,JSON.stringify(G))}catch(e){throw new Error("Stockage plein : changement non enregistré.")}UMSG={t};UEDIT=null}catch(e){UMSG={er:1,t:e.message}}
- uView();consolide()
-}
-document.addEventListener("click",e=>{
- const t=e.target.closest("[data-um],[data-up],[data-ut],[data-ux],[data-ulock]");if(!t)return;
- if(t.dataset.um){UM=t.dataset.um;UEDIT=null;UMSG=null;try{sessionStorage.setItem("hub_umod",UM)}catch(x){}return uView()}
- e.preventDefault();
- if(t.dataset.ulock){delete AUTH[UM];UMSG=null;UEDIT=null;return uView()}
- if(t.dataset.ux){UEDIT=null;return uView()}
- if(t.dataset.up){UEDIT=t.dataset.up;UMSG=null;return uView()}
- if(t.dataset.ut){const id=t.dataset.ut;uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");
-  const act=u.actif!==false;if(act){if(u.id===me.id)throw new Error("Impossible de désactiver le compte qui vous autorise.");if(u.role==="admin"&&admins(G,UM).length<=1)throw new Error("Impossible : c'est le dernier administrateur actif.")}
-  u.actif=!act;R.aud(G,"Compte "+(u.actif?"réactivé":"désactivé")+" (via Hub)",u.nom,me);return u.nom+" : compte "+(u.actif?"réactivé":"désactivé")+"."})}
-});
-document.addEventListener("change",e=>{const s=e.target.closest("[data-ur]");if(!s)return;const id=s.dataset.ur,nv=s.value;
- uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");if(R.lie.includes(u.role)||R.lie.includes(nv)||!R.roles[nv])throw new Error("Ce profil se gère dans l'application.");
-  if(u.role==="admin"&&nv!=="admin"&&u.actif!==false&&admins(G,UM).length<=1)throw new Error("Impossible : c'est le dernier administrateur actif.");
-  const av=u.role;u.role=nv;R.aud(G,"Rôle modifié (via Hub)",u.nom+" : "+av+" → "+nv,me);return u.nom+" : rôle « "+R.roles[nv]+" »."})});
-document.addEventListener("submit",e=>{const f=e.target;if(f.id==="ugate"){e.preventDefault();const m=UM,G=uEtat(m);if(!G)return uView();
-  const tr=TRY[m]||(TRY[m]={n:0,until:0});if(tr.until>Date.now()){UMSG={er:1,t:"Trop d'essais : patientez "+Math.ceil((tr.until-Date.now())/1000)+" s."};return uView()}
-  const d=new FormData(f),u=G.users.find(x=>x.id===d.get("u")&&x.role==="admin"&&x.actif!==false);
-  if(u&&u[RL[m].ph]===hashPin(u.id,String(d.get("pin")))){TRY[m]={n:0,until:0};AUTH[m]={id:u.id,nom:u.nom,exp:Date.now()+DUREE};UMSG=null}
-  else{tr.n++;if(tr.n>=5){tr.n=0;tr.until=Date.now()+60000}UMSG={er:1,t:"PIN incorrect."}}
-  return uView()}
- if(f.id==="uadd"){e.preventDefault();const d=new FormData(f);
-  uAgir(UM,(G,R,me)=>{const nom=String(d.get("nom")||"").trim().replace(/\s+/g," "),role=String(d.get("role")),pin=String(d.get("pin"));
-   if(!nom)throw new Error("Nom obligatoire.");if(!R.roles[role]||R.lie.includes(role))throw new Error("Profil non autorisé depuis le hub.");
-   if(!pinOk(UM,G,pin))throw new Error("PIN : "+pinTxt(UM)+".");
-   if(G.users.some(u=>String(u.nom).toLowerCase()===nom.toLowerCase()))throw new Error("Un compte porte déjà ce nom.");
-   const u={id:uid("u"),nom,role,actif:true};u[R.ph]=hashPin(u.id,pin);G.users.push(u);R.aud(G,"Utilisateur créé (via Hub)",nom+" ("+role+")",me);return nom+" : compte créé ("+R.roles[role]+")."});return}
- if(f.dataset.upin){e.preventDefault();const id=f.dataset.upin,pin=String(new FormData(f).get("pin"));
-  uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");if(!pinOk(UM,G,pin))throw new Error("PIN : "+pinTxt(UM)+".");
-   u[R.ph]=hashPin(u.id,pin);if(G.tries&&typeof G.tries==="object")G.tries[u.id]={n:0,until:0};R.aud(G,"PIN réinitialisé (via Hub)",u.nom,me);return u.nom+" : PIN modifié."})}
-});
-window.addEventListener("storage",()=>{if(!document.activeElement||!/INPUT|SELECT/.test(document.activeElement.tagName))uView()});
-uView();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
