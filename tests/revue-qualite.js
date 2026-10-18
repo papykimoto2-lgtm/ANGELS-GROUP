@@ -72,6 +72,6 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("RQ-10","portail : une carte de la zone de livraison est visible sur l'accueil et sur la page Suivi même sans lien de suivi",mp.home===1&&mp.suivi===1&&mp.imgs>0,JSON.stringify(mp));
  const sx=await pp.evaluate(()=>document.querySelector("footer").innerText);
  const sd=await pt.evaluate(async()=>{await ANGELS_PRINT.ouvrir({titre:"Test",corps:"<p>x</p>",ref:"T2",date:today()});for(let i=0;i<60&&document.getElementById("ap-ov").hidden;i++)await new Promise(r=>setTimeout(r,50));await new Promise(r=>setTimeout(r,300));const h=document.getElementById("ap-f").srcdoc;document.getElementById("ap-x").click();return h});
- chk("RQ-11","signature du développeur (Sanix Africa Division Technologies) sur le portail et sur les documents imprimés",/Sanix Africa Division Technologies/.test(sx)&&/0779181075/.test(sx)&&/Sanix Africa Division Technologies/.test(sd)&&/0140017751/.test(sd),sx.slice(0,120));
+ chk("RQ-11","signature du développeur (Sanix Africa Division Technologies) sur le portail, mais jamais sur les documents imprimés du client",/Sanix Africa Division Technologies/.test(sx)&&/0779181075/.test(sx)&&!/Sanix/.test(sd)&&!/0140017751/.test(sd),sx.slice(0,120));
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.join(" | "):""));process.exit(ko||errs.length?1:0);
 })();
