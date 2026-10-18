@@ -434,3 +434,17 @@ Test : `node tests/export-produits.js` (19 contrôles).
 - **Signature** : date et scan du contrat signé ; **prolongation** ; **nouveau contrat** à partir d'un contrat résilié.
 
 Tests : `node tests/impression-contrats.js` (27 contrôles).
+
+## Ressources humaines et paie — Transport, Distributions et Agro, chacune connectée à SA comptabilité
+
+Un moteur commun (`rh-engine.js`, modèle du module RH de Menko) est branché dans les trois applications par un adaptateur : **les données (S.rh), les droits, le plan comptable et la trésorerie restent propres à chaque application**. Menu « Ressources humaines et paie » (Transport : module `rh` dans les droits ; Agro : administrateur, direction, comptable, validation réservée à l'administrateur et à la direction ; Distributions : administrateur et direction).
+
+- **Employés** : fiche complète (matricule par division TRA / DIS / AGR, contrat CDI, CDD, journalier, stage, consultant, rémunération, parts fiscales, CMU, n° CNPS, déclaré ou non, mode de paiement), historique de rémunération, sortie et réintégration, contrat de travail, attestation et certificat de travail imprimés avec le moteur d'impression (en-tête de la division, QR signé).
+- **Congés** : acquisition 2,2 jours par mois, demandes, chevauchements et soldes contrôlés, validation ; le congé sans solde réduit les jours payés.
+- **Paie mensuelle** : variables du mois (absences, heures supplémentaires, primes, retenues, avance), calcul **ITS par tranches avec RICF, CNPS (retraite plafonnée, prestations familiales, accident du travail), CMU, charges patronales, FDFP**, proratas d'embauche et de sortie, ancienneté automatique, bulletins et livre de paie imprimables. Barèmes et taux repris de Menko, modifiables dans « Paramètres de paie » : à valider avec votre expert-comptable.
+- **Connexion à la comptabilité de l'application** : validation de la paie → une écriture équilibrée (débit 6611 et 6641 ; crédit 422 net à payer, 4313 CNPS et CMU, 447 ITS et FDFP, 4211 avances récupérées, 428 retenues) ; paiement des salaires (422 / trésorerie : banque, Mobile Money, espèces) ; reversement CNPS, ITS et FDFP ; avances sur salaire (4211) récupérées automatiquement ; annulation avec motif par extourne tant que rien n'est payé. Transport : charges imputées à l'activité de l'employé (analytique) et contrôle automatique des écritures ; Agro : journal PAIE et mouvements de caisse ; Distributions : pièces validées de la comptabilité (en espèces, l'écriture utilise le compte caisse comptable sans mouvement de caisse physique : préférer banque ou Mobile Money). Comptes par défaut paramétrables dans chaque comptabilité.
+- **Alertes** : CNPS manquant ou non déclaré, CDD échu ou proche, salaire sous le SMIG, paie non validée, salaires à payer, cotisations à reverser (échéance le 15), congés à traiter ; exports CSV (employés, paie, bordereau CNPS, état ITS).
+- **Consolidé du groupe** : la page Comptabilité du groupe affiche l'effectif, la masse salariale, le coût employeur et les cotisations à reverser de chaque division.
+- Agro : l'ancienne page « Personnel » renvoie vers ce module ; les salariés existants sont repris comme employés à la première ouverture.
+
+Test : `node tests/rh.js` (26 contrôles sur les trois applications).

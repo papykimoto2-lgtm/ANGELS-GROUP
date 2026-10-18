@@ -94,6 +94,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <div id="app"></div>
 <script src="qrcode.js"></script>
 <script src="print-engine.js"></script>
+<script src="rh-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
@@ -122,7 +123,7 @@ const ACL={ // qui peut faire quoi (appliqué aussi dans les fonctions, pas seul
  stock:["admin","chef","magasinier"],cond:["admin","chef","magasinier"],relance:["admin","commercial","caissier","comptable"],nutri:["admin","chef"],ajust:["admin","magasinier","direction"],fab:["admin","chef","magasinier"],achat:["admin","magasinier"],
  vente:["admin","commercial","caissier"],annulvente:["admin","direction"],paiement:["admin","caissier","commercial"],
  charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],plan:["admin","comptable"],extourne:["admin","comptable","direction"],
- periode:["admin","comptable","direction"],visa:["admin","comptable","direction"],caisse_op:["admin","caissier"],caisse_val:["admin","direction"],caisse_cfg:["admin","direction"],perso:["admin","direction","chef"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
+ periode:["admin","comptable","direction"],visa:["admin","comptable","direction"],caisse_op:["admin","caissier"],caisse_val:["admin","direction"],caisse_cfg:["admin","direction"],perso:["admin","direction","chef"],rh:["admin","direction","comptable"],rh_val:["admin","direction"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
 const can=a=>!!ME&&(ME.role==="seed"||(ACL[a]||[]).includes(ME.role));
 const need=(a,msg)=>{if(!can(a))throw new Error(msg||"Droits insuffisants pour cette action.")};
 const NAV=[
@@ -136,7 +137,7 @@ const NAV=[
  {v:"ventes",l:"Ventes & clients",i:"🧾",g:"Ventes",r:["admin","direction","commercial","caissier","comptable"]},
  {v:"tresor",l:"Caisse & trésorerie",i:"🏦",g:"Argent",r:["admin","direction","caissier","comptable"]},{v:"charges",l:"Charges",i:"💸",g:"Argent",r:["admin","direction","chef","caissier","comptable"]},
  {v:"finance",l:"Rentabilité",i:"📈",g:"Argent",r:["admin","direction","chef","comptable"]},{v:"compta",l:"Comptabilité SYSCOHADA",i:"📒",g:"Argent",r:["admin","direction","comptable"]},
- {v:"perso",l:"Personnel",i:"👥",g:"Administration",r:["admin","direction","chef"]},{v:"users",l:"Utilisateurs & audit",i:"🛡️",g:"Administration",r:["admin"]},
+ {v:"rh",l:"Ressources humaines et paie",i:"🧑‍💼",g:"Administration",r:["admin","direction","comptable"]},{v:"perso",l:"Personnel",i:"👥",g:"Administration",r:["admin","direction","chef"]},{v:"users",l:"Utilisateurs & audit",i:"🛡️",g:"Administration",r:["admin"]},
  {v:"params",l:"Paramétrage",i:"⚙️",g:"Administration",r:["admin","direction"]}
 ];
 const LOTTYPE={chair:"Chair",ponte:"Ponte"};
@@ -144,6 +145,7 @@ const CATP={aliment:"Aliment",medicament:"Médicament / vaccin",poussin:"Poussin
 const CPT_ACHAT={poussin:"c_poussins",aliment:"c_aliment",medicament:"c_medic",emballage:"c_emball",autre:"c_divers",fini:"c_divers"};
 const DEF_CPT={client:["Clients","4111","Tiers"],fournisseur:["Fournisseurs","4011","Tiers"],caisse:["Caisse (compte par défaut)","571","Trésorerie"],banque:["Banque et mobile money","5211","Trésorerie"],produit:["Produit — ventes avicoles","7021","Produit"],produit_div:["Produits divers (subventions, excédents de caisse)","758","Produit"],capital:["Capital — apports et prélèvements","1013","Capitaux"],emprunt:["Emprunts","162","Capitaux"],
  c_poussins:["Achats poussins","6011","Charge"],c_aliment:["Achats aliment","6021","Charge"],c_medic:["Achats médicaments / vaccins","6041","Charge"],c_emball:["Achats emballages","608","Charge"],c_eau:["Charge — eau","6051","Charge"],c_energie:["Charge — énergie","6052","Charge"],c_assur:["Primes d'assurance","6251","Charge"],c_loyer:["Locations","6222","Charge"],c_transport:["Transport","618","Charge"],c_entretien:["Entretien, réparations","6241","Charge"],c_divers:["Charges diverses","658","Charge"],c_impot:["Impôts et taxes","641","Charge"],c_mo:["Charges de personnel — salaires","6611","Charge"],
+ paie_charge:["Rémunérations du personnel (charge)","6611","Charge"],paie_charge_pat:["Charges sociales patronales (charge)","6641","Charge"],paie_du:["Personnel — rémunérations dues","422","Tiers"],paie_cnps:["CNPS et CMU à reverser","4313","Tiers"],paie_its:["État — ITS à reverser","447","Tiers"],paie_fdfp:["FDFP à reverser","447","Tiers"],paie_avances:["Personnel — avances sur salaire","4211","Tiers"],paie_retenues:["Retenues diverses sur salaires","428","Tiers"],
  ecart_manq:["Écart de caisse — manquant (charge)","658","Charge"],ecart_exc:["Écart de caisse — excédent (produit)","758","Produit"],tva_coll:["TVA facturée (collectée)","4431","Tiers"],tva_ded:["TVA récupérable","4452","Tiers"],tva_due:["État — TVA due","4441","Tiers"],tva_credit:["État — crédit de TVA à reporter","4449","Tiers"],
  immo:["Immobilisations — bâtiments et installations","231","Immobilisation"],amort_dot:["Amortissements — dotation (charge)","6812","Charge"],amort_cumul:["Amortissements — cumul bâtiments","283","Immobilisation"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481","Tiers"],
  virement_interne:["Virements de fonds — remises de caisse en transit","585","Trésorerie"],caisse_dir:["Fonds remis à la direction (caisse direction)","5712","Trésorerie"],resultat_benef:["Résultat net de l'exercice — bénéfice","131","Capitaux"],resultat_perte:["Résultat net de l'exercice — perte","139","Capitaux"]};
@@ -1337,6 +1339,17 @@ function crud(key,title,cols,fields,perm,pre){
  V[key]=()=>head(title)+VB[key]();
  CR[key]={title,fields,perm,pre};CSVS[key]=()=>[cols.map(c=>c[0]),S[key].map(x=>cols.map(c=>String(c[1](x)).replace(/<[^>]*>/g,"")))];
 }
+
+/* ---------- Ressources humaines et paie (moteur rh-engine.js) : branché sur la comptabilité d'Agro ---------- */
+const RH_CPT=["paie_charge","paie_charge_pat","paie_du","paie_cnps","paie_its","paie_fdfp","paie_avances","paie_retenues"];
+const RH_HOST={division:"agro",matPrefixe:"AGR",state:()=>S,user:()=>ME?ME.nom:"système",can:a=>a==="v"||a==="c"||a==="e"||a==="p"?can("rh"):can("rh_val"),audit:(a,d)=>audit("RH — "+a,d),run:fn=>atomic(fn),render:()=>render(),util:{fcfa},identite:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),
+ migrer:r=>{if(r.employes.length||r.migre_staff)return;r.migre_staff=true;(S.staff||[]).filter(x=>x.actif).forEach(x=>{r.seq.mat=(r.seq.mat||0)+1;r.employes.push({id:uid("emp"),mat:"AGR-"+String(r.seq.mat).padStart(4,"0"),nom:x.nom,prenoms:"",sexe:"",naissance:"",cni:"",tel:x.tel||"",adresse:"",poste:x.poste||"",categorie:"",dept:"",act:"",embauche:today(),contrat:"CDI",fin_contrat:"",sal_base:Math.round(x.salaire||0),sursalaire:0,transport:0,logement:0,primes:0,parts:1,cmu_pers:1,cnps_no:"",declare:true,mode_paie:"especes"===x.mode?"caisse":"banque",compte_paie:"",anc_auto:true,anc_taux:0,ref_ext:x.id,historique:[{from:today(),sal_base:Math.round(x.salaire||0),sursalaire:0,motif:"Repris de la fiche personnel",par:"système",at:now()}],par:"système",t:now()})})},
+ compta:{comptes:()=>Object.fromEntries(RH_CPT.map(k=>[k,cdef(k)])),
+  poster:o=>postEntry({journal:o.journal,date:o.date,libelle:o.libelle,piece:o.piece,source:o.source,lignes:o.lines.map(l=>({compte:l.compte,debit:l.debit||0,credit:l.credit||0}))}).id,
+  extourner:(id,motif)=>{const e=by(S.entries,id);if(!e)throw new Error("Écriture de paie introuvable.");extournerSource(e.source.type,e.source.id,motif)},
+  treso:(mode,m,sens,motif,src)=>({compte:trCompteSrc(mode==="caisse"?"especes":"banque",sens,m,motif,src,"Personnel et paie"),journal:"TR"})}};
+ANGELS_RH.use(RH_HOST);
+V.rh=()=>head("Ressources humaines et paie")+ANGELS_RH.view(RH_HOST);
 const VB={};
 const CR={};
 A["cr.add"]=k=>{const c=CR[k];form("Ajouter — "+c.title,c.fields(),c.pre||{},o=>{need(c.perm);const x={id:uid(k[0]),actif:true,...o};S[k].push(x);if(k==="batiments")immoBat(x,{});audit("Ajout "+k,o.nom||"")})};
@@ -1345,7 +1358,7 @@ crud("batiments","Bâtiments",[["Nom",x=>esc(x.nom)],["Capacité",x=>x.capacite]
 crud("fournisseurs","Fournisseurs",[["Nom",x=>esc(x.nom)],["Téléphone",x=>esc(x.tel)],["Dette",x=>fcfa(-soldeCompte(cdef("fournisseur"),x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"tel",l:"Téléphone"}],"tiers");
 crud("clients","Clients",[["Nom",x=>esc(x.nom)],["Type",x=>esc(clientType(x.type))],["Téléphone",x=>esc(x.tel)],["Créance",x=>fcfa(soldeClient(x.id))]],()=>[{k:"nom",l:"Nom",req:1},{k:"type",l:"Type",t:"select",o:CLIENT_TYPES},{k:"contact",l:"Contact (personne)"},{k:"tel",l:"Téléphone"},{k:"email",l:"Email"},{k:"ville",l:"Ville / quartier"},{k:"paie",l:"Mode de paiement",t:"select",o:PAIE.map(p=>[p[0],p[1]])}],"tiers",{type:"restaurant",paie:"comptant"});
 crud("staff","Personnel",[["Nom",x=>esc(x.nom)],["Poste",x=>esc(x.poste)],["Téléphone",x=>esc(x.tel)],["Salaire mensuel",x=>fcfa(x.salaire)],["Actif",x=>x.actif?"Oui":"Non"]],()=>[{k:"nom",l:"Nom",req:1},{k:"poste",l:"Poste"},{k:"tel",l:"Téléphone"},{k:"salaire",l:"Salaire mensuel (F)",t:"number"}],"perso");
-V.perso=()=>{const mois=today().slice(0,7);return head("Personnel")+VB.staff()+`<div class="card flex"><b>Salaires ${mois}</b> ${S.paies.some(p=>p.mois===mois)?badge("Payés","ok"):(can("perso")?btn("pa.pay",mois,"Payer les salaires","ok"):badge("À payer","wa"))} <span class="mu sm">Total mensuel : ${fcfa(sum(S.staff.filter(s=>s.actif),s=>s.salaire))}</span></div>`};
+V.perso=()=>head("Personnel")+VB.staff()+`<div class="card flex"><b>Paie</b> <span class="mu sm">Bulletins, ITS, CNPS, congés et écritures de paie se gèrent dans Ressources humaines et paie.</span>${can("rh")?btn("nav","rh","Ouvrir Ressources humaines","ok"):""}</div>`;
 A["pa.pay"]=m=>form("Payer les salaires "+m,[{k:"mode",l:"Règlement",t:"select",o:[["especes","Espèces (caisse)"],["banque","Banque / mobile money"]]}],{},o=>payerSalaires(m,o.mode),"Payer");
 
 /* ---- Stock, fabrication, achats ---- */
