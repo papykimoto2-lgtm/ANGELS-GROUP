@@ -99,6 +99,7 @@ input[type=radio]{width:auto;min-height:0;margin:0 8px 0 0}label.rd{display:flex
 footer{margin-top:28px;padding:22px 0 30px;color:var(--mu);font-size:13px;border-top:1px solid var(--bd);text-align:center}footer button{background:none;border:0;color:var(--c);cursor:pointer;font:inherit;text-decoration:underline}
 dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);padding:18px}dialog::backdrop{background:rgba(0,0,0,.5)}
 @media(max-width:640px){.hero{padding:36px 0 64px}.header-flex{padding:10px 16px}}
+.parcours-toggle{display:none}@media(max-width:700px){.parcours-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;border:0;background:transparent;color:var(--tx);font:inherit;font-size:.9rem;padding:12px 16px;min-height:46px;cursor:pointer}.parcours:not(.ouvert) .parcours-in{display:none}.parcours.ouvert .parcours-in{max-height:62vh;overflow-y:auto;overscroll-behavior:contain;border-top:1px dashed var(--bd)}.parcours.ouvert .parcours-toggle>span:last-child{transform:rotate(180deg)}}
 </style>
 </head>
 <body>
@@ -109,7 +110,7 @@ dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border
   <ul class="header-actions"><li class="nav-dropdown"><button class="nav-dropdown-trigger" type="button" data-dd="espace-menu" aria-haspopup="true"><span class="p-num">4</span> MON ESPACE ▾</button>
    <div class="nav-dropdown-menu" id="espace-menu"><button class="tab-link" data-go="espace-client"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg> Espace client</button><button class="tab-link" data-go="espace-vendeur"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c3 .2 5 2.2 5 5.8"/></svg> Espace vendeur partenaire</button></div></li></ul>
  </div>
- <nav class="parcours" aria-label="Parcours du visiteur"><div class="container parcours-in" id="parcours"></div></nav>
+ <nav class="parcours" id="parcours-nav" aria-label="Parcours du visiteur"><button type="button" class="parcours-toggle" id="parcours-tg" aria-expanded="false" aria-controls="parcours"><span><b>☰ MENU</b> · <span id="parcours-cur">Accueil</span></span><span aria-hidden="true">▾</span></button><div class="container parcours-in" id="parcours"></div></nav>
 </header>
 <main id="page"></main>
 <footer><div class="container"><span id="copy"></span> · <button id="lm" type="button">Mentions légales</button><div style="margin-top:6px;font-size:12px;opacity:.85">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</div></div></footer>
@@ -475,7 +476,8 @@ function navRendre(){
  const cur=PAGE,act=T.activites;
  const aeGo=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.go:null;
  document.getElementById("parcours").innerHTML=`<ul class="p-liste">`+PARC().map(e=>`<li class="p-etape"><div class="p-hd"><b>${e.n}</b><span>${e.t}</span></div><ul class="p-liste">`+e.l.map(([k,l,ic])=>k==="@act"?(act.length?`<li class="nav-dropdown p-activites"><button type="button" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false" data-dd="act-menu">${ico(ic)}${l}</button><div class="nav-dropdown-menu" id="act-menu">${act.map(a=>`<button class="tab-link" data-go="${a.id}">${esc(a.nom)}</button>`).join("")}</div></li>`:""):`<li><button type="button" class="tab-link ${cur===k&&e.n!==3?"active":""}" ${cur===k&&e.n!==3?'aria-current="page"':""} data-go="${k}">${ico(ic)}${l}</button></li>`).join("")+`</ul></li>`).join("")+`</ul>`;
- if(aeGo){const b=document.querySelector('#parcours [data-go="'+aeGo.replace(/"/g,"")+'"]');if(b)try{b.focus({preventScroll:true})}catch(e){}}
+ {const nv=document.getElementById("parcours-nav"),tg=document.getElementById("parcours-tg"),ac=null,it=PARC().reduce((r,e)=>r.concat(e.l),[]).filter(x=>x[0]===PAGE)[0],ac2=T.activites.filter(x=>x.id===PAGE)[0];nv.classList.remove("ouvert");tg.setAttribute("aria-expanded","false");document.getElementById("parcours-cur").textContent=String(it?it[1]:ac2?ac2.nom:"Accueil").replace(/<[^>]*>/g,"").trim();
+  if(aeGo){const b=tg.offsetParent!==null?tg:document.querySelector('#parcours [data-go="'+aeGo.replace(/"/g,"")+'"]');if(b)try{b.focus({preventScroll:true})}catch(e){}}}
 }
 function vehRendre(){const el=document.getElementById("vl");el.innerHTML=vehListe();
  const maj=()=>{ST.vq=el.querySelector("#vq").value;ST.vcar=el.querySelector("#vcar").value;ST.vo=el.querySelector("#vo").value;const g=el.querySelector("#vgrid");g.innerHTML=vehListe().match(/<div class="grid" id="vgrid">([\s\S]*)<\/div>$/)[1]};
@@ -496,6 +498,8 @@ function rendre(){
  window.scrollTo(0,0);
 }
 document.addEventListener("click",e=>{
+ if(e.target.closest("#parcours-tg")){const nv=document.getElementById("parcours-nav"),o=nv.classList.toggle("ouvert");document.getElementById("parcours-tg").setAttribute("aria-expanded",o?"true":"false");return}
+ if(!e.target.closest("#parcours-nav")){const nv=document.getElementById("parcours-nav");if(nv&&nv.classList.contains("ouvert")){nv.classList.remove("ouvert");document.getElementById("parcours-tg").setAttribute("aria-expanded","false")}}
  const dd=e.target.closest("[data-dd]");document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>{if(!dd||m.id!==dd.dataset.dd)m.classList.remove("open")});
  if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");dd.setAttribute("aria-expanded",m.classList.contains("open")?"true":"false");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
  const g=e.target.closest("[data-go]");if(g){document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>m.classList.remove("open"));allerA(g.dataset.go);return}

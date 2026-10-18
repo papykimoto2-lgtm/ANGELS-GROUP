@@ -516,3 +516,5 @@ Le livreur touche « Joindre le client » puis « Appeler maintenant » : le ser
 Le code serveur (fonctions Supabase pour Africa's Talking) est dans `supabase/` — mise en service dans `supabase/README.md`. Le bureau pousse automatiquement le ticket d'une mission à l'affectation et le ferme à la fin ; réglages dans Distributions → Paramètres.
 
 Tests : `node tests/appel-pont.js` (9, logique serveur) et `node tests/masque-tel.js` (8).
+
+**Menu du portail sur mobile** : sous 700 px, le menu est replié derrière une barre « ☰ MENU · page en cours » ; le contenu de la page est visible dès l'ouverture, le menu s'ouvre au toucher (défilable) et se referme après le choix d'une page ou un toucher à l'extérieur. Sur ordinateur et tablette large, le menu reste affiché. Tests : `tests/revue-qualite.js` (RQ-12, RQ-13) et `tests/portail-livraison.js` (PL-13).

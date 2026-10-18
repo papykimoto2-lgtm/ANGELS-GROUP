@@ -73,5 +73,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const sx=await pp.evaluate(()=>document.querySelector("footer").innerText);
  const sd=await pt.evaluate(async()=>{await ANGELS_PRINT.ouvrir({titre:"Test",corps:"<p>x</p>",ref:"T2",date:today()});for(let i=0;i<60&&document.getElementById("ap-ov").hidden;i++)await new Promise(r=>setTimeout(r,50));await new Promise(r=>setTimeout(r,300));const h=document.getElementById("ap-f").srcdoc;document.getElementById("ap-x").click();return h});
  chk("RQ-11","signature du développeur (Sanix Africa Division Technologies) sur le portail, mais jamais sur les documents imprimés du client",/Sanix Africa Division Technologies/.test(sx)&&/0779181075/.test(sx)&&!/Sanix/.test(sd)&&!/0140017751/.test(sd),sx.slice(0,120));
+ const pm=await (await b.newContext({viewport:{width:390,height:800},isMobile:true,hasTouch:true})).newPage();pm.on("pageerror",e=>errs.push("mobile: "+e.message));await pm.goto(base+"/portail.html#/suivi");await pm.waitForTimeout(800);
+ const m1=await pm.evaluate(()=>{const v=el=>{const r=el&&el.getBoundingClientRect();return !!r&&r.width>0&&r.height>0};const card=[...document.querySelectorAll("#page .card")][0];return{tg:v(document.getElementById("parcours-tg")),menu:v(document.getElementById("parcours")),cardTop:card?Math.round(card.getBoundingClientRect().top):null,cur:document.getElementById("parcours-cur").textContent}});
+ await pm.click("#parcours-tg");await pm.waitForTimeout(200);
+ const m2=await pm.evaluate(()=>({menu:document.getElementById("parcours").getBoundingClientRect().height>100,exp:document.getElementById("parcours-tg").getAttribute("aria-expanded")}));
+ await pm.click('#parcours [data-go="livraison"]');await pm.waitForTimeout(500);
+ const m3=await pm.evaluate(()=>({h:location.hash,ferme:document.getElementById("parcours").getBoundingClientRect().height===0||getComputedStyle(document.getElementById("parcours")).display==="none",cur:document.getElementById("parcours-cur").textContent}));
+ chk("RQ-12","mobile : le menu du portail est replié (bouton « MENU »), le contenu est visible en haut de page ; il s'ouvre au toucher et se referme après le choix d'une page",m1.tg&&!m1.menu&&m1.cardTop<450&&m2.menu&&m2.exp==="true"&&m3.h==="#/livraison"&&m3.ferme&&/PROGRAMMER/i.test(m3.cur),JSON.stringify({m1,m2,m3}));
+ const dk=await ctx.newPage();await dk.setViewportSize({width:1200,height:800});await dk.goto(base+"/portail.html#/accueil");await dk.waitForTimeout(600);
+ const d1=await dk.evaluate(()=>({tg:getComputedStyle(document.getElementById("parcours-tg")).display,menu:document.getElementById("parcours").getBoundingClientRect().height>20}));
+ chk("RQ-13","ordinateur : le menu reste affiché en permanence, sans bouton « MENU »",d1.tg==="none"&&d1.menu,JSON.stringify(d1));
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.join(" | "):""));process.exit(ko||errs.length?1:0);
 })();
