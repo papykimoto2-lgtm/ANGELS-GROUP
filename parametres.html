@@ -50,6 +50,7 @@ h3{margin:26px 0 10px;font-size:15px}
 .uf input,.uf select,.ut select{font:inherit;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-height:40px;display:block;margin-top:3px}
 button.sb{border:0;border-radius:8px;padding:8px 12px;background:var(--c,var(--b));color:#fff;font:inherit;font-weight:700;cursor:pointer;min-height:38px}button.sb.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}
 .umsg{margin:8px 0;padding:8px 12px;border-radius:8px;font-size:13px;background:#e3f5ea;color:var(--ok)}.umsg.er{background:#fde8e8;color:#c62828}.off{opacity:.55}
+#ptabs .tab.on{background:var(--b2);color:#fff;border-color:var(--b2)}#ptabs .tab{min-height:42px}
 footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 
 .back{color:#fff;opacity:.9;text-decoration:none;font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,.4);border-radius:99px;padding:6px 12px}
@@ -57,17 +58,17 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </head>
 <body>
 <header><div class="w top"><div><h1>⚙️ Paramètres — ANGEL'S GROUP</h1><p>Utilisateurs et rôles de chaque application · <span id="date"></span></p></div><a class="back" href="index.html">← Hub</a></div></header>
-<main><div class="w">
-<h2 style="margin:22px 0 10px;font-size:16px">👥 Utilisateurs et rôles des applications</h2>
+<main><div class="w"><div class="tabs" id="ptabs" role="tablist" style="margin-top:18px"></div><div id="s-users">
+<h2 style="margin:6px 0 10px;font-size:16px">👥 Utilisateurs et rôles des applications</h2>
 <p class="note">Créez les comptes et attribuez les rôles de Distributions, Transport et Agro. Chaque application se déverrouille avec le PIN d'un de ses administrateurs ; les changements sont inscrits au journal d'audit de l'application (« via Hub ») et pris en compte aussitôt.</p>
 <div class="tabs" id="utabs"></div><section id="usr"></section>
-<h2 style="margin:30px 0 10px;font-size:16px">🌐 Portail unique du groupe</h2>
-<p class="note">Le portail est le site public du groupe et sa boutique en ligne (<a href="portail.html">portail.html</a>) : il ne donne jamais accès aux applications de gestion. Réglez ici l'identité, la boutique, les candidatures de vendeurs partenaires, les services, la FAQ et le contact. Les réglages sont enregistrés sur cet appareil ; pour les publier, copiez le <b>lien du portail</b> (il contient les réglages) et partagez-le. Modification réservée à un administrateur : déverrouillez d'abord une application avec son PIN (ci-dessus).</p>
+</div><div id="s-ptl" hidden><h2 style="margin:6px 0 10px;font-size:16px">🌐 Portail unique du groupe</h2>
+<p class="note">Le portail est le site public du groupe et sa boutique en ligne (<a href="portail.html">portail.html</a>) : il ne donne jamais accès aux applications de gestion. Réglez ici l'identité, la boutique, les candidatures de vendeurs partenaires, les services, la FAQ et le contact. Les réglages sont enregistrés sur cet appareil ; pour les publier, copiez le <b>lien du portail</b> (il contient les réglages) et partagez-le. Modification réservée à un administrateur : déverrouillez d'abord une application avec le PIN d'un administrateur (onglet « Utilisateurs et rôles »).</p>
 <section id="ptl"></section>
-<h2 style="margin:30px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
+</div><div id="s-med" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
 <p class="note">Ajoutez des photos, des vidéos (par lien YouTube / Vimeo / fichier https) et des documents PDF qui s'affichent sur le portail public : diaporama d'accueil, galerie, pages d'activité, page Société, documents à télécharger. Les photos sont compressées automatiquement ; documents PDF : 1,5 Mo maximum (au-delà, utilisez « Document par lien »).</p>
 <section id="pmed"></section>
-</div></main>
+</div></div></main>
 <footer>© ANGEL'S GROUP · Paramètres · <a href="index.html">Retour au hub</a></footer>
 <script>
 const $=s=>document.getElementById(s);
@@ -186,29 +187,32 @@ function pView(){
  const TA='style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)"';
  const H=t=>`<h3 style="margin:16px 0 4px;font-size:14px">${t}</h3>`;
  el.innerHTML=(PMSG?`<div class="umsg ${PMSG.er?"er":""}">${e(PMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le PIN d\'un administrateur pour modifier le portail.</div>')+
- `<form id="pform">${H("🎨 Identité du portail")}<p class="note">Chaque réglage est publié sur le portail : aucune donnée n'est codée en dur.</p>
+ `<form id="pform"><div class="pp" data-pp="identite">${H("🎨 Identité du portail")}<p class="note">Chaque réglage est publié sur le portail : aucune donnée n'est codée en dur.</p>
  <div class="uf"><label style="flex:1;min-width:240px">Nom affiché sur le portail<input name="nom" value="${e(C.nom)}" maxlength="60" style="width:100%"></label></div>
  <div class="uf"><label style="flex:1;min-width:240px">Slogan (sous le nom, dans l'en-tête)<input name="slogan" value="${e(C.slogan)}" maxlength="160" style="width:100%"></label></div>
  <div class="uf"><label style="flex:1;min-width:240px">Logo du portail (adresse https:// ou fichier)<input name="logo" value="${e(C.logo&&C.logo.startsWith("data:")?"(logo importé)":C.logo)}" placeholder="https://… (laisser vide pour afficher le nom en texte)" style="width:100%"></label>${C.logo?`<img src="${e(C.logo)}" alt="Logo" style="height:44px;border:1px solid var(--bd);border-radius:8px;background:#fff">`:""}<button type="button" class="sb g" ${dis} data-p="logo">📁 Importer</button>${C.logo?`<button type="button" class="sb g" ${dis} data-p="logox">Retirer</button>`:""}</div>
  <div class="uf"><label>Couleur primaire<input type="color" name="couleur" value="${e(C.couleur)}"></label><label>Couleur secondaire<input type="color" name="couleur2" value="${e(C.couleur2||"#0b4a5c")}"></label><label>Survol / foncé<input type="color" name="couleur3" value="${e(C.couleur3||"#0b5568")}"></label>
   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="c2auto" ${C.couleur2?"":"checked"}> secondaire automatique</label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="c3auto" ${C.couleur3?"":"checked"}> survol automatique</label></div>
- ${H("⚖️ Informations légales (affichées sur la page Société et dans les mentions)")}<div class="uf"><label>Raison sociale<input name="l_raison" value="${e(C.legal.raison)}"></label><label>Forme juridique<input name="l_forme" value="${e(C.legal.forme)}"></label><label>Capital<input name="l_capital" value="${e(C.legal.capital)}"></label><label>RCCM<input name="l_rccm" value="${e(C.legal.rccm)}"></label><label>Siège<input name="l_siege" value="${e(C.legal.siege)}"></label><label>Dirigeant<input name="l_dirigeant" value="${e(C.legal.dirigeant)}"></label></div>
- ${H("📣 Bandeau défilant en haut du site")}<p class="note">Une annonce par ligne (10 maximum).</p><textarea name="bandeau" rows="3" ${TA}>${e(C.bandeau.join("\n"))}</textarea>
- ${H("🏠 Page d'accueil")}<div class="uf"><label style="flex:1;min-width:240px">Titre<input name="htitre" value="${e(C.hero.titre)}" maxlength="120" style="width:100%"></label></div><div class="uf"><label style="flex:1;min-width:240px">Texte<input name="htexte" value="${e(C.hero.texte)}" maxlength="300" style="width:100%"></label></div>
+ </div><div class="pp" data-pp="contact">${H("⚖️ Informations légales (affichées sur la page Société et dans les mentions)")}<div class="uf"><label>Raison sociale<input name="l_raison" value="${e(C.legal.raison)}"></label><label>Forme juridique<input name="l_forme" value="${e(C.legal.forme)}"></label><label>Capital<input name="l_capital" value="${e(C.legal.capital)}"></label><label>RCCM<input name="l_rccm" value="${e(C.legal.rccm)}"></label><label>Siège<input name="l_siege" value="${e(C.legal.siege)}"></label><label>Dirigeant<input name="l_dirigeant" value="${e(C.legal.dirigeant)}"></label></div>
+ </div><div class="pp" data-pp="identite">${H("📣 Bandeau défilant en haut du site")}<p class="note">Une annonce par ligne (10 maximum).</p><textarea name="bandeau" rows="3" ${TA}>${e(C.bandeau.join("\n"))}</textarea>
+ </div><div class="pp" data-pp="accueil">${H("🏠 Page d'accueil")}<div class="uf"><label style="flex:1;min-width:240px">Titre<input name="htitre" value="${e(C.hero.titre)}" maxlength="120" style="width:100%"></label></div><div class="uf"><label style="flex:1;min-width:240px">Texte<input name="htexte" value="${e(C.hero.texte)}" maxlength="300" style="width:100%"></label></div>
  <div class="uf"><label style="flex:1;min-width:240px">Vidéo de présentation (facultatif, adresse https:// d'un .mp4 ou .webm)<input name="hvideo" value="${e(C.hero.video)}" style="width:100%"></label></div>
  <p class="note">Chiffres clés (facultatif, 3 maximum) — une ligne : valeur | libellé. Atouts sous le titre (3 maximum) — une ligne : icône | titre | texte.</p>
  <textarea name="stats" rows="2" ${TA}>${e(C.stats.map(x=>x.v+" | "+x.l).join("\n"))}</textarea><textarea name="atouts" rows="3" style="margin-top:6px;width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)">${e(C.atouts.map(x=>x.icone+" | "+x.titre+" | "+x.texte).join("\n"))}</textarea>
- ${H("🧭 Activités (menu « Activités » et pages dédiées)")}<p class="note">Une activité par ligne (8 maximum) : icône | nom | résumé | détail de la page.</p><textarea name="activites" rows="5" ${TA}>${e(C.activites.map(x=>x.icone+" | "+x.nom+" | "+x.texte+" | "+x.detail).join("\n"))}</textarea>
- ${H("🏢 Société et avis")}<textarea name="societe" rows="3" ${TA}>${e(C.societe)}</textarea><p class="note">Avis clients (facultatif) — une ligne : nom | avis. La rubrique « Avis » n'apparaît que s'il y en a.</p><textarea name="avis" rows="3" ${TA}>${e(C.avis.map(x=>x.nom+" | "+x.texte).join("\n"))}</textarea>
- ${H("📞 Contact (reçoit les commandes et les candidatures par WhatsApp)")}<div class="uf"><label>Téléphone<input name="tel" value="${e(C.contact.tel)}"></label><label>WhatsApp<input name="whatsapp" value="${e(C.contact.whatsapp)}" placeholder="0707000000"></label><label>E-mail<input name="email" value="${e(C.contact.email)}"></label><label>Adresse<input name="adresse" value="${e(C.contact.adresse)}"></label><label>Horaires<input name="horaires" value="${e(C.contact.horaires)}"></label></div>
- ${H("🛒 Boutique en ligne")}<p class="note">Le portail affiche votre catalogue de vente en ligne : dans Distributions → Vente en ligne, copiez le lien de la boutique et collez-le ici. Après une modification du catalogue (prix, stock), recopiez-le. Les commandes arrivent sur WhatsApp et s'importent dans Distributions.</p>
+ </div><div class="pp" data-pp="accueil">${H("🧭 Activités (menu « Activités » et pages dédiées)")}<p class="note">Une activité par ligne (8 maximum) : icône | nom | résumé | détail de la page.</p><textarea name="activites" rows="5" ${TA}>${e(C.activites.map(x=>x.icone+" | "+x.nom+" | "+x.texte+" | "+x.detail).join("\n"))}</textarea>
+ </div><div class="pp" data-pp="accueil">${H("🏢 Société et avis")}<textarea name="societe" rows="3" ${TA}>${e(C.societe)}</textarea><p class="note">Avis clients (facultatif) — une ligne : nom | avis. La rubrique « Avis » n'apparaît que s'il y en a.</p><textarea name="avis" rows="3" ${TA}>${e(C.avis.map(x=>x.nom+" | "+x.texte).join("\n"))}</textarea>
+ </div><div class="pp" data-pp="contact">${H("📞 Contact (reçoit les commandes et les candidatures par WhatsApp)")}<div class="uf"><label>Téléphone<input name="tel" value="${e(C.contact.tel)}"></label><label>WhatsApp<input name="whatsapp" value="${e(C.contact.whatsapp)}" placeholder="0707000000"></label><label>E-mail<input name="email" value="${e(C.contact.email)}"></label><label>Adresse<input name="adresse" value="${e(C.contact.adresse)}"></label><label>Horaires<input name="horaires" value="${e(C.contact.horaires)}"></label></div>
+ </div><div class="pp" data-pp="boutique">${H("🛒 Boutique en ligne")}<p class="note">Le portail affiche votre catalogue de vente en ligne : dans Distributions → Vente en ligne, copiez le lien de la boutique et collez-le ici. Après une modification du catalogue (prix, stock), recopiez-le. Les commandes arrivent sur WhatsApp et s'importent dans Distributions.</p>
  <div class="uf"><label style="flex:1;min-width:240px">Lien de la boutique<input name="boutique" value="${e(C.boutique?"…#boutique="+C.boutique.slice(0,12)+"… (enregistré)":"")}" style="width:100%" placeholder="https://…/distribution.html#boutique=…"></label></div>
- ${H("🤝 Devenir vendeur partenaire")}<div class="uf"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="vact" ${C.vendeurs.actif?"checked":""}> Candidatures ouvertes</label></div>
+ </div><div class="pp" data-pp="boutique">${H("🤝 Devenir vendeur partenaire")}<div class="uf"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="vact" ${C.vendeurs.actif?"checked":""}> Candidatures ouvertes</label></div>
  <div class="uf"><label style="flex:1;min-width:240px">Texte d'accueil<textarea name="vtexte" rows="2" maxlength="500" ${TA}>${e(C.vendeurs.texte)}</textarea></label></div>
  <p class="note">Les candidatures arrivent par WhatsApp : collez-les dans Distributions → Vendeurs partenaires → Candidatures. Vous approuvez ou refusez ; aucun compte n'est créé automatiquement.</p>
- ${H("❓ Questions fréquentes")}<p class="note">Une question par ligne : question | réponse</p><textarea name="faq" rows="5" ${TA}>${e(C.faq.map(f=>f.q+" | "+f.r).join("\n"))}</textarea>
- ${H("Mentions légales")}<textarea name="mentions" rows="4" ${TA}>${e(C.mentions)}</textarea>
- <div class="uf"><button class="sb" ${dis}>Enregistrer le portail</button><button type="button" class="sb g" data-p="lien">Copier le lien du portail</button><button type="button" class="sb g" data-p="data">⬇️ Télécharger portail-data.js</button><button type="button" class="sb g" data-p="auto">⬇️ Générer un portail autonome (.html)</button><button type="button" class="sb g" data-p="wa">Partager sur WhatsApp</button><button type="button" class="sb g" ${dis} data-p="def">Rétablir les réglages par défaut</button></div></form>`;
+ </div><div class="pp" data-pp="accueil">${H("❓ Questions fréquentes")}<p class="note">Une question par ligne : question | réponse</p><textarea name="faq" rows="5" ${TA}>${e(C.faq.map(f=>f.q+" | "+f.r).join("\n"))}</textarea>
+ </div><div class="pp" data-pp="contact">${H("Mentions légales")}<textarea name="mentions" rows="4" ${TA}>${e(C.mentions)}</textarea>
+ </div><div class="pp" data-pp="publication"><h3 style="margin:16px 0 4px;font-size:14px">🚀 Publier le portail</h3><p class="note">Sans serveur, le portail public se publie par un fichier : <b>portail-data.js</b> (réglages et médias, à déposer à côté de <code>portail.html</code>) ou un <b>portail autonome (.html)</b> (à remplacer sur le site). Enregistrez d'abord vos modifications. Le lien du portail porte les réglages mais pas les photos.</p>
+ <div class="uf"><button type="button" class="sb" data-p="data">⬇️ Télécharger portail-data.js</button><button type="button" class="sb" data-p="auto">⬇️ Générer un portail autonome (.html)</button><button type="button" class="sb g" data-p="lien">Copier le lien du portail</button><button type="button" class="sb g" data-p="wa">Partager sur WhatsApp</button></div>
+ <p class="note">Aperçu : <a href="portail.html" target="_blank" rel="noopener">ouvrir le portail</a> (il se met à jour en direct sur cet appareil).</p></div><div class="uf" style="position:sticky;bottom:0;background:var(--bg);padding:8px 0;border-top:1px solid var(--bd)"><button class="sb" ${dis}>Enregistrer le portail</button><button type="button" class="sb g" ${dis} data-p="def">Rétablir les réglages par défaut</button></div></form>`;
+ if(typeof pTab==="function"&&$("ptabs"))pTab(PTAB);
 }
 document.addEventListener("submit",ev=>{if(ev.target.id!=="pform")return;ev.preventDefault();
  try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");
@@ -296,7 +300,16 @@ async function pPublie(mode){
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(!b)return;if(b.dataset.p==="data")pPublie("data");if(b.dataset.p==="auto")pPublie("auto");
  if(b.dataset.p==="logo"){if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return pView()}$("m_logo").click()}
  if(b.dataset.p==="logox"&&pDebloque()){const C=pLire();C.logo="";localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Logo retiré."};pDiffuse();pView()}});
-pView();mView();
+
+/* ---------- Onglets de la page ---------- */
+const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["publication","🚀 Publication"]];
+let PTAB=(()=>{try{const t=sessionStorage.getItem("angels_param_tab");return PTABS.some(x=>x[0]===t)?t:"users"}catch(e){return"users"}})();
+function pTab(t){if(!PTABS.some(x=>x[0]===t))t="users";PTAB=t;try{sessionStorage.setItem("angels_param_tab",t)}catch(e){}
+ $("ptabs").innerHTML=PTABS.map(x=>`<button type="button" role="tab" aria-selected="${x[0]===t}" class="tab ${x[0]===t?"on":""}" data-pt="${x[0]}">${x[1]}</button>`).join("");
+ $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";const portail=!["users","medias"].includes(t);$("s-ptl").hidden=!portail;
+ document.querySelectorAll("#ptl .pp").forEach(p=>{p.hidden=p.dataset.pp!==t});const bar=document.querySelector("#pform>.uf");if(bar)bar.style.display=t==="publication"?"none":"flex"}
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-pt]");if(b)pTab(b.dataset.pt)});
+pView();mView();pTab(PTAB);
 {const _uv=uView;uView=function(){_uv();if(typeof pView==="function"){pView();mView()}}}
 uView();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});

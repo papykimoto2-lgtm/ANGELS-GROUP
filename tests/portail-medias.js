@@ -71,6 +71,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   document.querySelector('[data-go="societe"]').click();await new Promise(r=>setTimeout(r,200));o.legal=/RCCM : CI-ABJ-2024-B-0001/.test(document.getElementById("page").innerText);o.mentions=/ANGEL'S GROUP SARL/.test(document.getElementById("mentions").textContent)&&/Hébergeur : Vercel/.test(document.getElementById("mentions").textContent);return o});
  chk("MED-8","portail : logo dans l'en-tête, couleurs personnalisées, informations légales (page Société et mentions) — mise à jour en direct depuis les Paramètres",/exemple\.ci\/logo\.png/.test(per2.logo)&&per2.c2==="#112233"&&per2.c3==="#445566"&&per2.legal&&per2.mentions,JSON.stringify(per2));
  // publication
+ await ps.evaluate(()=>pTab("publication"));
  const [dl]=await Promise.all([ps.waitForEvent("download"),ps.click('[data-p="data"]')]);
  const dataJs=fs.readFileSync(await dl.path(),"utf8");
  const [dl2]=await Promise.all([ps.waitForEvent("download"),ps.click('[data-p="auto"]')]);

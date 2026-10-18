@@ -362,3 +362,6 @@ Chaque module lit désormais ses réglages dans son écran Paramètres (aucune v
 - **Publication** (sans serveur) : **⬇️ Télécharger portail-data.js** (réglages + médias, à déposer à côté de `portail.html`) ou **⬇️ Générer un portail autonome (.html)** (réglages et médias intégrés, à remplacer sur le site). Un visiteur sur un autre appareil voit alors le portail publié. Le lien partagé `#p=…` porte les réglages mais pas les médias.
 - Sécurité : seules les images `data:` PNG/JPEG/WEBP/GIF ou https, les PDF `data:` ou https et les vidéos YouTube / Vimeo / fichiers https sont acceptés (iframes en bac à sable) ; SVG, `javascript:` et hôtes inconnus sont ignorés.
 - Tests : `tests/portail-medias.js` (MED-1 à MED-12).
+
+### Paramètres du Hub — organisation en onglets
+La page `parametres.html` est rangée en **7 onglets** : 👥 Utilisateurs et rôles · 🎨 Identité (nom, slogan, logo, couleurs, bandeau) · 🏠 Accueil et contenu (accueil, activités, société, avis, FAQ) · 🛒 Boutique et vendeurs · 📞 Contact et légal (contact, informations légales, mentions) · 🖼️ Médias · 🚀 Publication (portail-data.js, portail autonome, lien, WhatsApp). La barre « Enregistrer le portail » reste visible dans les onglets de réglages et un seul enregistrement couvre tous les onglets ; l'onglet courant est mémorisé pour la visite. Tests : `tests/parametres-onglets.js` (ONG-1 à ONG-8).
