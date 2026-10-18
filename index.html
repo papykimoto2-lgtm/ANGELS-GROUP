@@ -206,7 +206,7 @@ const RL={ /* mêmes profils que dans chaque application ; « lie » = profils r
  dist:{key:"angels_erp_v1",ph:"pin_h",lie:["livreur","vendeur"],roles:{admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"},
   ok:G=>G&&G.v===1&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>[Math.max(4,+(G.config&&G.config.pin_len)||4),8],
   aud:(G,a,d,u)=>G.audit.push({ts:stamp(),user:u.nom,role:u.role,action:a,detail:d})},
- trans:{key:"angels_transport_v3",ph:"h",lie:["chauffeur"],roles:{admin:"Administrateur général",directeur:"Directeur / propriétaire",flotte:"Gestionnaire de flotte",caissier:"Caissier",comptable:"Comptable",controleur:"Contrôleur",chauffeur:"Chauffeur",transitaire:"Transitaire externe"},
+ trans:{key:"angels_transport_v3",ph:"h",lie:["chauffeur"],roles:{admin:"Administrateur général",directeur:"Directeur / propriétaire",flotte:"Gestionnaire de flotte",caissier:"Caissier",comptable:"Comptable",controleur:"Contrôleur",chauffeur:"Chauffeur",transitaire:"Transitaire externe",importateur:"Responsable importation",stock_auto:"Gestionnaire de stock automobile",commercial_auto:"Commercial automobile"},
   ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>{const n=+(G.settings&&G.settings.pin_len)||4;return[n,n]},
   aud:(G,a,d,u)=>G.audit.unshift({t:stamp(),u:u.nom,r:u.role,a,d})},
  agro:{key:"angels_agro_v1",ph:"h",lie:[],roles:{admin:"Administrateur",direction:"Direction générale",chef:"Chef d'exploitation",soigneur:"Soigneur",magasinier:"Magasinier",commercial:"Commercial",caissier:"Caissier",comptable:"Comptable"},
