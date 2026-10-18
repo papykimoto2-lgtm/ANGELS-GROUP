@@ -1,0 +1,61 @@
+/* Portail : divisions publiées (page, bannière, points forts) et Mot du DG.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/portail-divisions.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1200,height:1000}}),errs=[];let ok=0,ko=0;
+ const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/transport.html");await p.waitForTimeout(500);
+ await p.evaluate(()=>{window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};
+  window.__try=fn=>{const snap=JSON.stringify(S),me=ME&&ME.id;try{fn();return null}catch(e){S=JSON.parse(snap);ME=me?by(S.users,me):null;return e.message}};
+  window.__sc=(c,f)=>sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte===c&&(!f||f(l,e)))),l=>(l.debit||0)-(l.credit||0));
+  window.__ach=o=>acheterVehicule(Object.assign({date:today(),fournisseur:"Auto Import SARL",marque:"Toyota",modele:"Corolla",annee:2020,vin:"VIN-"+Math.random().toString(36).slice(2,8).toUpperCase(),prix:1180000,paye:1180000,mode:"banque",km:30000},o));
+  window.__vente=(vid,o)=>vendreVehicule(Object.assign({vn_id:vid,date:today(),client:"Kouassi Yao",prix:1534000,mode:"banque"},o));
+  __as("admin");S.settings.tva_taux=18;S.attachments.push({id:"at_test",nom:"p.pdf",type:"application/pdf",taille:5,t:now(),par:"t",data:"data:application/pdf;base64,AAAA"})});
+ const t=async(id,label,fn,arg)=>{let r;try{r=await p.evaluate(fn,arg)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",typeof r==="string"?r:JSON.stringify(r))}};
+
+ const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label,o?"":info||"");o?ok++:ko++};
+ const PNG=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEklEQVR4nGP4z8CAFTEMLQkAm4UP8cHGGxoAAAAASUVORK5CYII=","base64");
+ const ps=await ctx.newPage();ps.on("pageerror",e=>errs.push("parametres: "+e.message));ps.on("dialog",d=>d.accept());
+ await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
+ await ps.evaluate(()=>{AUTH.dist={id:"x",nom:"t",exp:Date.now()+600000};uView();pTab("accueil")});await ps.waitForTimeout(150);
+ const ed=await ps.evaluate(()=>({cards:document.querySelectorAll("#ptl .pan").length,txt:[...document.querySelectorAll('#ptl .pp[data-pp="accueil"]')].map(p=>p.textContent).join(' ')}));
+ chk("DIV-1","Paramètres : « Divisions et activités publiées » (une fiche par activité : publiée, slogan, présentation, à propos, points forts, bannière) et « Mot du DG — portail public »",ed.cards>=3&&/Divisions et activités publiées/.test(ed.txt)&&/Contenu et photo de bannière/.test(ed.txt)&&/Mot du DG — portail public/.test(ed.txt)&&/Points forts/.test(ed.txt),JSON.stringify(ed).slice(0,300));
+ const gest=await ps.evaluate(()=>{const o={};const F=()=>document.getElementById("pform");const noms=()=>[...F().querySelectorAll('[name^="nm"]')].map(i=>i.value);
+  F().nm1.value="Transport modifié";document.querySelector('[data-p="aadd"]').click();o.add=noms();o.keep=document.getElementById("pform").nm1.value==="Transport modifié";
+  const n=noms().length-1;document.getElementById("pform")["nm"+n].value="Négoce auto";document.querySelector('[data-p="aup"][data-i="'+n+'"]').click();o.up=noms();
+  document.querySelector('[data-p="adown"][data-i="'+(n-1)+'"]').click();o.down=noms();document.querySelector('[data-p="adel"][data-i="'+n+'"]').click();o.del=noms();return o});
+ chk("DIV-2","ajouter, monter, descendre, retirer une activité sans perdre les textes saisis dans le formulaire",gest.add.length===4&&gest.keep&&gest.up[2]==="Négoce auto"&&gest.down[3]==="Négoce auto"&&gest.del.length===3&&!gest.del.includes("Négoce auto"),JSON.stringify(gest));
+ await ps.setInputFiles("#m_img",[]).catch(()=>{});
+ await ps.evaluate(()=>{PIMG={k:"abn",i:0}});await ps.setInputFiles("#m_img",[{name:"b.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(600);
+ await ps.evaluate(()=>{PIMG={k:"dgp",i:0}});await ps.setInputFiles("#m_img",[{name:"dg.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(600);
+ const sv=await ps.evaluate(()=>{const f=document.getElementById("pform");
+  f.nm0.value="Distributions";f.sl0.value="Livrés chez vous";f.tx0.value="Livraison à moto.";f.dt0.value="Texte détaillé de la division.";f.pt0.value="Rapide\nSuivi de commande\n\nPaiement mobile";f.act2.checked=false;
+  f.dg_titre.value="Mot du Directeur";f.dg_nom.value="Awa Koné";f.dg_fonction.value="Directrice Générale";f.dg_accroche.value="Servir, toujours.";f.dg_texte.value="Premier paragraphe.\n\nSecond paragraphe <b>gras</b>.";
+  f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));const c=JSON.parse(localStorage.getItem(PKEY));
+  return{ban:c.activites[0].banniere.slice(0,22),pts:c.activites[0].points,pub:c.activites.map(a=>a.actif).join(),dg:c.motdg.photo.slice(0,22),nom:c.motdg.nom,msg:document.getElementById("ptl").innerText.includes("enregistré")}});
+ chk("DIV-3","enregistrement : bannière et photo du DG importées (JPEG compressé), points forts (lignes vides ignorées), activité dépubliée, Mot du DG",sv.ban==="data:image/jpeg;base64"&&sv.pts.join()==="Rapide,Suivi de commande,Paiement mobile"&&sv.pub==="true,true,false"&&sv.dg==="data:image/jpeg;base64"&&sv.nom==="Awa Koné"&&sv.msg,JSON.stringify(sv));
+ const bad=await ps.evaluate(()=>{const o=[];const F=()=>document.getElementById("pform");F().bn0.value="http://exemple.ci/x.png";F().dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));o.push(/bannière en https/.test(document.getElementById("ptl").innerText));
+  F().bn0.value="(photo importée)";F().nm0.value="";F().dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));o.push(/le nom est obligatoire pour la publier/.test(document.getElementById("ptl").innerText));F().nm0.value="Distributions";
+  F().dg_photo.value="javascript:alert(1)";F().dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));o.push(/Photo du dirigeant/.test(document.getElementById("ptl").innerText));return o});
+ chk("DIV-4","contrôles : bannière http refusée, activité publiée sans nom refusée, photo du DG non https refusée",bad.every(Boolean),JSON.stringify(bad));
+ const pp=await ctx.newPage();pp.on("pageerror",e=>errs.push("portail: "+e.message));await pp.goto(base+"/portail.html");await pp.waitForTimeout(500);
+ const acc=await pp.evaluate(()=>{const m=document.querySelector(".motdg");return{motdg:!!m,titre:m&&m.querySelector("h3").innerText,ph:!!(m&&m.querySelector("img")),par:m?m.querySelectorAll(".corps p").length:0,gras:m?!!m.querySelector(".corps b"):false,sign:m&&m.querySelector(".sign").innerText,acc:m&&m.querySelector(".acc").innerText,cartes:document.querySelectorAll("#page .grid .card").length,ban:document.querySelectorAll("#page .card .ban img").length,menu:document.getElementById("act-menu").innerText}});
+ chk("DIV-5","portail : Mot du DG (titre, accroche, deux paragraphes, photo, signature, HTML échappé) et seules les activités publiées au menu et sur l'accueil, avec bannière",acc.motdg&&acc.titre==="Mot du Directeur"&&acc.ph&&acc.par===2&&!acc.gras&&/Awa Koné/.test(acc.sign)&&/Directrice Générale/.test(acc.sign)&&/Servir, toujours/.test(acc.acc)&&acc.ban===1&&!/Agro/.test(acc.menu)&&/Transport/.test(acc.menu),JSON.stringify(acc));
+ const pg=await pp.evaluate(async()=>{document.querySelector('[data-go="act1"]').click();await new Promise(r=>setTimeout(r,200));const e=document.getElementById("page");return{ban:!!e.querySelector(".abn img"),sl:/Livrés chez vous/.test(e.innerText),tx:/Livraison à moto\./.test(e.innerText),dt:/Texte détaillé/.test(e.innerText),pts:[...e.querySelectorAll(".pts li")].map(l=>l.innerText).join("|")}});
+ chk("DIV-6","page d'une division : bannière, slogan, présentation, à propos, points forts",pg.ban&&pg.sl&&pg.tx&&pg.dt&&pg.pts==="Rapide|Suivi de commande|Paiement mobile",JSON.stringify(pg));
+ // DG vide => section masquée ; activité dépubliée => page inconnue renvoie l'accueil
+ const vide=await ps.evaluate(()=>{const f=document.getElementById("pform");f.dg_texte.value="";f.dg_photo.value="";f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));return JSON.parse(localStorage.getItem(PKEY)).motdg.photo==="" });
+ await pp.waitForTimeout(400);const cache=await pp.evaluate(()=>!document.querySelector(".motdg"));
+ chk("DIV-7","texte et photo du DG vides : la section n'est pas affichée du tout",vide&&cache,JSON.stringify({vide,cache}));
+ const lien=await ps.evaluate(()=>{const u=pLien(pLire());const c=JSON.parse(decodeURIComponent(escape(atob(u.split("#p=")[1].replace(/-/g,"+").replace(/_/g,"/")))));return{ban:c.activites[0].banniere,ph:c.motdg.photo,pts:c.activites[0].points.length}});
+ chk("DIV-8","lien partagé : les photos importées ne sont pas incluses (lien léger), les textes oui",lien.ban===""&&lien.ph===""&&lien.pts===3,JSON.stringify(lien));
+ const evil={nom:"X",motdg:{titre:"<img src=x onerror=alert(1)>",texte:"<script>1</script>",photo:"javascript:alert(1)"},activites:[{nom:"<b>x</b>",texte:"t",banniere:"javascript:alert(1)",points:["<img src=x onerror=1>"],actif:true}]};
+ const h="#p="+Buffer.from(encodeURIComponent(JSON.stringify(evil)).replace(/%([0-9A-F]{2})/g,(m,x)=>String.fromCharCode(parseInt(x,16))),"binary").toString("base64");
+ const p3=await (await b.newContext()).newPage();p3.on("pageerror",e=>errs.push("p3: "+e.message));await p3.goto(base+"/portail.html"+h);await p3.waitForTimeout(500);
+ const sec=await p3.evaluate(async()=>{const o={img:document.querySelectorAll("#page img").length,inj:document.querySelectorAll("#page [onerror]").length,scr:document.querySelectorAll("#page script").length,dg:!!document.querySelector(".motdg")};document.querySelector('[data-go="act1"]').click();await new Promise(r=>setTimeout(r,200));o.img2=document.querySelectorAll("#page img").length;o.inj2=document.querySelectorAll("#page [onerror]").length;return o});
+ chk("DIV-9","sécurité : Mot du DG et division hostiles (HTML, javascript:) neutralisés",sec.img===0&&sec.inj===0&&sec.scr===0&&sec.img2===0&&sec.inj2===0,JSON.stringify(sec));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();

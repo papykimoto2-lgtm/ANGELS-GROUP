@@ -171,15 +171,16 @@ const PDEF={v:4,logo:"",couleur2:"",couleur3:"",legal:{raison:"",forme:"",rccm:"
  hero:{titre:"Commandez en ligne. Faites-vous livrer.",texte:"Une boutique, des livreurs, des partenaires : tout le groupe, au même endroit.",video:""},stats:[],
  atouts:[{icone:"🛵",titre:"Livraison rapide",texte:"À moto, jusqu'à votre porte"},{icone:"📲",titre:"Paiement simple",texte:"Espèces ou Mobile Money"},{icone:"🤝",titre:"Vendeurs partenaires",texte:"Vendez avec notre réseau"}],
  contact:{tel:"",whatsapp:"",email:"",adresse:"",horaires:""},boutique:"",vendeurs:{actif:true,texte:"Vous vendez des produits et vous cherchez un partenaire de livraison fiable ? Postulez : nous étudions votre candidature et vous contactons."},
- activites:[{icone:"🛵",nom:"Distributions",texte:"Livraison à moto et vente en ligne.",detail:"Nous livrons vos commandes rapidement à votre adresse, avec suivi. Commandez dans la boutique en ligne ou faites livrer vos propres produits."},{icone:"🚕",nom:"Transport",texte:"Transport de personnes et négoce de véhicules.",detail:"Une flotte suivie au quotidien, et des véhicules à vendre : demandez-nous un devis."},{icone:"🌱",nom:"Agro",texte:"Des produits frais issus de notre élevage.",detail:"Œufs, volaille et produits de l'élevage, directement du producteur."}],
+ motdg:{titre:"",nom:"",fonction:"",accroche:"",texte:"",photo:""},
+ activites:[{icone:"🛵",nom:"Distributions",slogan:"Livrés chez vous, partout.",texte:"Livraison à moto et vente en ligne.",detail:"Nous livrons vos commandes rapidement à votre adresse, avec suivi. Commandez dans la boutique en ligne ou faites livrer vos propres produits.",points:["Livraison à moto","Paiement à la livraison ou Mobile Money","Suivi de commande"],banniere:"",actif:true},{icone:"🚕",nom:"Transport",slogan:"",texte:"Transport de personnes et négoce de véhicules.",detail:"Une flotte suivie au quotidien, et des véhicules à vendre : demandez-nous un devis.",points:[],banniere:"",actif:true},{icone:"🌱",nom:"Agro",slogan:"",texte:"Des produits frais issus de notre élevage.",detail:"Œufs, volaille et produits de l'élevage, directement du producteur.",points:[],banniere:"",actif:true}],
  avis:[],faq:[{q:"Comment commander ?",r:"Choisissez vos produits dans la boutique, indiquez votre adresse et envoyez la commande par WhatsApp : nous la confirmons et vous livrons."},{q:"Comment devenir vendeur partenaire ?",r:"Remplissez le formulaire « Devenir vendeur partenaire » : votre candidature nous parvient sur WhatsApp et nous revenons vers vous."}],mentions:""};
-const pLire=()=>{const c=lire(PKEY);const B=JSON.parse(JSON.stringify(PDEF));if(!c||typeof c!=="object")return B;const A=(k)=>Array.isArray(c[k])?c[k]:B[k];return{...B,...c,legal:{...B.legal,...(c.legal||{})},contact:{...B.contact,...(c.contact||{})},vendeurs:{...B.vendeurs,...(c.vendeurs||{})},hero:{...B.hero,...(c.hero||{})},bandeau:A("bandeau"),stats:A("stats"),atouts:A("atouts"),activites:A("activites"),avis:A("avis"),faq:A("faq"),boutique:String(c.boutique||"")}};
+const pLire=()=>{const c=lire(PKEY);const B=JSON.parse(JSON.stringify(PDEF));if(!c||typeof c!=="object")return B;const A=(k)=>Array.isArray(c[k])?c[k]:B[k];return{...B,...c,motdg:{...B.motdg,...(c.motdg||{})},legal:{...B.legal,...(c.legal||{})},contact:{...B.contact,...(c.contact||{})},vendeurs:{...B.vendeurs,...(c.vendeurs||{})},hero:{...B.hero,...(c.hero||{})},bandeau:A("bandeau"),stats:A("stats"),atouts:A("atouts"),activites:A("activites").map(a=>({slogan:"",points:[],banniere:"",actif:true,...a,points:Array.isArray(a.points)?a.points:[]})),avis:A("avis"),faq:A("faq"),boutique:String(c.boutique||"")}};
 const pVideo=u=>{u=String(u||"").trim();if(!u)return"";if(!/^https:\/\/[^\s"'<>]+\.(mp4|webm)(\?[^\s"'<>]*)?$/i.test(u))throw new Error("Vidéo : adresse https:// d'un fichier .mp4 ou .webm.");return u};
 const pTok=v=>{v=String(v||"").trim();if(!v)return"";const m=/#boutique=([A-Za-z0-9_-]+)/.exec(v);const t=m?m[1]:v;if(!/^[A-Za-z0-9_-]{20,}$/.test(t))throw new Error("Lien de boutique invalide : collez le lien copié dans Distributions → Vente en ligne.");try{const p=JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g,"+").replace(/_/g,"/")))));if(!p||!Array.isArray(p.p)||!Array.isArray(p.z))throw 0}catch(e){throw new Error("Lien de boutique illisible : générez-en un nouveau dans Distributions.")}return t};
 const pDebloque=()=>Object.values(AUTH).some(a=>a&&a.exp>Date.now());
 let PMSG=null,PCUR=null;
 function pEnc(c){return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g,"-").replace(/\//g,"_")}
-function pLien(c){c={...c};if(c.logo&&c.logo.startsWith("data:"))c.logo="";return location.href.split("#")[0].split("?")[0].replace(/[^\/]*$/,"portail.html")+"#p="+pEnc(c)}
+function pLien(c){c={...c};if(c.logo&&c.logo.startsWith("data:"))c.logo="";c.activites=(c.activites||[]).map(a=>({...a,banniere:a.banniere&&a.banniere.startsWith("data:")?"":a.banniere}));if(c.motdg&&c.motdg.photo&&c.motdg.photo.startsWith("data:"))c.motdg={...c.motdg,photo:""};return location.href.split("#")[0].split("?")[0].replace(/[^\/]*$/,"portail.html")+"#p="+pEnc(c)}
 const pLignes=(t,n)=>String(t||"").split("\n").map(l=>l.trim()).filter(Boolean).slice(0,n);
 function pView(){
  const el=$("ptl");if(!el)return;const C=PCUR||(PCUR=pLire()),ok=pDebloque(),dis=ok?"":"disabled";
@@ -199,7 +200,22 @@ function pView(){
  <div class="uf"><label style="flex:1;min-width:240px">Vidéo de présentation (facultatif, adresse https:// d'un .mp4 ou .webm)<input name="hvideo" value="${e(C.hero.video)}" style="width:100%"></label></div>
  <p class="note">Chiffres clés (facultatif, 3 maximum) — une ligne : valeur | libellé. Atouts sous le titre (3 maximum) — une ligne : icône | titre | texte.</p>
  <textarea name="stats" rows="2" ${TA}>${e(C.stats.map(x=>x.v+" | "+x.l).join("\n"))}</textarea><textarea name="atouts" rows="3" style="margin-top:6px;width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)">${e(C.atouts.map(x=>x.icone+" | "+x.titre+" | "+x.texte).join("\n"))}</textarea>
- </div><div class="pp" data-pp="accueil">${H("🧭 Activités (menu « Activités » et pages dédiées)")}<p class="note">Une activité par ligne (8 maximum) : icône | nom | résumé | détail de la page.</p><textarea name="activites" rows="5" ${TA}>${e(C.activites.map(x=>x.icone+" | "+x.nom+" | "+x.texte+" | "+x.detail).join("\n"))}</textarea>
+ </div><div class="pp" data-pp="accueil">${H("🧭 Divisions et activités publiées sur le portail")}<p class="note">Chaque activité cochée « Publiée » apparaît dans le menu « Activités » du portail avec sa propre page : bannière, slogan, présentation, à propos et points forts (8 maximum).</p>
+ ${C.activites.map((x,i)=>`<div class="pan" style="margin-bottom:10px"><div class="uf" style="align-items:center;margin:0 0 6px"><label style="display:flex;gap:8px;align-items:center;font-weight:800;color:var(--tx)"><input type="checkbox" name="act${i}" ${x.actif!==false?"checked":""}> ${e(x.icone)} ${e((x.nom||"Nouvelle activité").toUpperCase())}</label><span style="flex:1"></span>
+  <button type="button" class="sb g" ${dis} data-p="aup" data-i="${i}" ${i?"":"disabled"} title="Monter">↑</button><button type="button" class="sb g" ${dis} data-p="adown" data-i="${i}" ${i<C.activites.length-1?"":"disabled"} title="Descendre">↓</button><button type="button" class="sb g" ${dis} data-p="adel" data-i="${i}" title="Retirer">🗑</button></div>
+  <details ${i===0||!x.nom?"open":""}><summary style="cursor:pointer;color:var(--b);font-size:13px">✏️ Contenu et photo de bannière de cette activité</summary>
+  <div class="uf"><label>Icône<input name="ic${i}" value="${e(x.icone)}" size="3" maxlength="4"></label><label style="flex:1;min-width:200px">Nom<input name="nm${i}" value="${e(x.nom)}" maxlength="60" style="width:100%"></label></div>
+  <div class="uf"><label style="flex:1;min-width:240px">Slogan<input name="sl${i}" value="${e(x.slogan)}" maxlength="120" style="width:100%"></label></div>
+  <label style="display:block">Présentation courte (sous le titre)<textarea name="tx${i}" rows="2" maxlength="200" ${TA}>${e(x.texte)}</textarea></label>
+  <label style="display:block;margin-top:6px">À propos (texte détaillé)<textarea name="dt${i}" rows="4" maxlength="1500" ${TA}>${e(x.detail)}</textarea></label>
+  <label style="display:block;margin-top:6px">Points forts (un par ligne)<textarea name="pt${i}" rows="3" ${TA}>${e((x.points||[]).join("\n"))}</textarea></label>
+  <div class="uf"><label style="flex:1;min-width:240px">Photo de bannière (adresse https:// ou fichier)<input name="bn${i}" value="${e(x.banniere&&x.banniere.startsWith("data:")?"(photo importée)":x.banniere)}" placeholder="https://…" style="width:100%"></label>${x.banniere?`<img src="${e(x.banniere)}" alt="" style="height:44px;border-radius:8px;border:1px solid var(--bd)">`:""}<button type="button" class="sb g" ${dis} data-p="abn" data-i="${i}">📁 Importer</button>${x.banniere?`<button type="button" class="sb g" ${dis} data-p="abx" data-i="${i}">Retirer</button>`:""}</div></details></div>`).join("")}
+ <div class="uf"><button type="button" class="sb g" ${dis||C.activites.length>=8?"disabled":""} data-p="aadd">➕ Ajouter une activité</button></div>
+ </div><div class="pp" data-pp="accueil">${H("🗣️ Mot du DG — portail public")}<p class="note">Laissez le texte ET la photo vides pour ne pas afficher la section du tout.</p>
+ <div class="uf"><label>Titre de la section<input name="dg_titre" value="${e(C.motdg.titre)}" maxlength="80" placeholder="Vide = « Mot du DG »"></label><label>Nom du dirigeant<input name="dg_nom" value="${e(C.motdg.nom)}" maxlength="80"></label><label>Fonction<input name="dg_fonction" value="${e(C.motdg.fonction)}" maxlength="80" placeholder="Ex : Directeur Général"></label></div>
+ <div class="uf"><label style="flex:1;min-width:240px">Phrase d'accroche (en italique)<input name="dg_accroche" value="${e(C.motdg.accroche)}" maxlength="200" style="width:100%"></label></div>
+ <label style="display:block">Texte du mot (une ligne vide sépare deux paragraphes)<textarea name="dg_texte" rows="6" maxlength="3000" ${TA}>${e(C.motdg.texte)}</textarea></label>
+ <div class="uf"><label style="flex:1;min-width:240px">Photo du dirigeant (adresse https:// ou fichier)<input name="dg_photo" value="${e(C.motdg.photo&&C.motdg.photo.startsWith("data:")?"(photo importée)":C.motdg.photo)}" style="width:100%"></label>${C.motdg.photo?`<img src="${e(C.motdg.photo)}" alt="" style="height:56px;border-radius:8px;border:1px solid var(--bd)">`:""}<button type="button" class="sb g" ${dis} data-p="dgp">📁 Importer</button>${C.motdg.photo?`<button type="button" class="sb g" ${dis} data-p="dgx">Retirer</button>`:""}</div>
  </div><div class="pp" data-pp="accueil">${H("🏢 Société et avis")}<textarea name="societe" rows="3" ${TA}>${e(C.societe)}</textarea><p class="note">Avis clients (facultatif) — une ligne : nom | avis. La rubrique « Avis » n'apparaît que s'il y en a.</p><textarea name="avis" rows="3" ${TA}>${e(C.avis.map(x=>x.nom+" | "+x.texte).join("\n"))}</textarea>
  </div><div class="pp" data-pp="contact">${H("📞 Contact (reçoit les commandes et les candidatures par WhatsApp)")}<div class="uf"><label>Téléphone<input name="tel" value="${e(C.contact.tel)}"></label><label>WhatsApp<input name="whatsapp" value="${e(C.contact.whatsapp)}" placeholder="0707000000"></label><label>E-mail<input name="email" value="${e(C.contact.email)}"></label><label>Adresse<input name="adresse" value="${e(C.contact.adresse)}"></label><label>Horaires<input name="horaires" value="${e(C.contact.horaires)}"></label></div>
  </div><div class="pp" data-pp="boutique">${H("🛒 Boutique en ligne")}<p class="note">Le portail affiche votre catalogue de vente en ligne : dans Distributions → Vente en ligne, copiez le lien de la boutique et collez-le ici. Après une modification du catalogue (prix, stock), recopiez-le. Les commandes arrivent sur WhatsApp et s'importent dans Distributions.</p>
@@ -214,27 +230,48 @@ function pView(){
  <p class="note">Aperçu : <a href="portail.html" target="_blank" rel="noopener">ouvrir le portail</a> (il se met à jour en direct sur cet appareil).</p></div><div class="uf" style="position:sticky;bottom:0;background:var(--bg);padding:8px 0;border-top:1px solid var(--bd)"><button class="sb" ${dis}>Enregistrer le portail</button><button type="button" class="sb g" ${dis} data-p="def">Rétablir les réglages par défaut</button></div></form>`;
  if(typeof pTab==="function"&&$("ptabs"))pTab(PTAB);
 }
+/* Lecture du formulaire : strict (enregistrement, erreurs bloquantes) ou tolérant (synchronisation avant ajout / retrait / import d'image) */
+function pFromForm(form,C,strict){
+ const d=new FormData(form),g=k=>String(d.get(k)||"").trim(),bad=m=>{if(strict)throw new Error(m)};
+ if(!g("nom"))bad("Le nom est obligatoire.");if(!/^#[0-9a-f]{6}$/i.test(g("couleur")))bad("Couleur invalide.");
+ C.v=5;C.nom=g("nom")||C.nom;if(/^#[0-9a-f]{6}$/i.test(g("couleur")))C.couleur=g("couleur");C.couleur2=d.get("c2auto")?"":g("couleur2");C.couleur3=d.get("c3auto")?"":g("couleur3");
+ {const lg=g("logo");if(lg==="(logo importé)"){}else if(!lg)C.logo="";else if(/^https:\/\/[^\s"'<>]+$/i.test(lg))C.logo=lg;else{bad("Logo : adresse https:// d'une image, ou importez un fichier.")}}
+ C.legal={raison:g("l_raison"),forme:g("l_forme"),capital:g("l_capital"),rccm:g("l_rccm"),siege:g("l_siege"),dirigeant:g("l_dirigeant")};C.slogan=g("slogan");C.societe=g("societe");C.mentions=g("mentions");
+ C.bandeau=pLignes(g("bandeau"),10);let hv=g("hvideo");try{hv=pVideo(hv)}catch(e){bad(e.message);hv=C.hero.video}C.hero={titre:g("htitre"),texte:g("htexte"),video:hv};
+ const cut=(l,n)=>l.split("|").map(x=>x.trim()).concat(Array(n).fill("")).slice(0,n);
+ C.stats=pLignes(g("stats"),3).map(l=>{const a=cut(l,2);return{v:a[0],l:a[1]}});
+ C.atouts=pLignes(g("atouts"),3).map(l=>{const a=cut(l,3);return{icone:a[0]||"•",titre:a[1],texte:a[2]}});
+ C.activites=C.activites.map((x,i)=>{const nom=g("nm"+i),pub=!!d.get("act"+i);if(pub&&!nom)bad("Activité n° "+(i+1)+" : le nom est obligatoire pour la publier.");
+  let bn=g("bn"+i);if(bn==="(photo importée)")bn=x.banniere;else if(bn&&!/^https:\/\/[^\s"'<>]+$/i.test(bn)){bad("Activité « "+nom+" » : bannière en https:// ou fichier importé.");bn=x.banniere}
+  return{icone:g("ic"+i)||"•",nom,slogan:g("sl"+i),texte:g("tx"+i),detail:g("dt"+i),points:pLignes(g("pt"+i),10),banniere:bn,actif:pub}});
+ C.motdg={titre:g("dg_titre"),nom:g("dg_nom"),fonction:g("dg_fonction"),accroche:g("dg_accroche"),texte:g("dg_texte"),photo:(()=>{const v=g("dg_photo");if(v==="(photo importée)")return C.motdg.photo;if(!v)return"";if(/^https:\/\/[^\s"'<>]+$/i.test(v))return v;bad("Photo du dirigeant : adresse https:// ou fichier importé.");return C.motdg.photo})()};
+ C.avis=pLignes(g("avis"),12).map(l=>{const a=cut(l,2);return{nom:a[0],texte:a[1]}}).filter(x=>x.texte);
+ C.contact={tel:g("tel"),whatsapp:g("whatsapp"),email:g("email"),adresse:g("adresse"),horaires:g("horaires")};
+ if(C.contact.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(C.contact.email))bad("Adresse e-mail invalide.");
+ const b=g("boutique");if(b&&!/^…#boutique=/.test(b)){try{C.boutique=pTok(b)}catch(e){bad(e.message)}}else if(!b)C.boutique="";
+ C.vendeurs={actif:!!d.get("vact"),texte:g("vtexte")};delete C.services;delete C.entrees;
+ C.faq=g("faq").split("\n").map(l=>l.split("|")).filter(a=>a[0].trim()).map(a=>({q:a[0].trim(),r:a.slice(1).join("|").trim()}));
+ return C}
+const pSync=()=>{const f=$("pform");if(!f)return PCUR||pLire();PCUR=pFromForm(f,PCUR||pLire(),false);return PCUR};
 document.addEventListener("submit",ev=>{if(ev.target.id!=="pform")return;ev.preventDefault();
  try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");
-  const d=new FormData(ev.target),C=pLire(),g=k=>String(d.get(k)||"").trim();
-  if(!g("nom"))throw new Error("Le nom est obligatoire.");if(!/^#[0-9a-f]{6}$/i.test(g("couleur")))throw new Error("Couleur invalide.");
-  C.v=4;C.nom=g("nom");C.couleur=g("couleur");C.couleur2=d.get("c2auto")?"":g("couleur2");C.couleur3=d.get("c3auto")?"":g("couleur3");
-  {const lg=g("logo");if(lg==="(logo importé)"){}else if(!lg)C.logo="";else if(/^https:\/\/[^\s"'<>]+$/i.test(lg))C.logo=lg;else throw new Error("Logo : adresse https:// d'une image, ou importez un fichier.")}
-  C.legal={raison:g("l_raison"),forme:g("l_forme"),capital:g("l_capital"),rccm:g("l_rccm"),siege:g("l_siege"),dirigeant:g("l_dirigeant")};C.slogan=g("slogan");C.societe=g("societe");C.mentions=g("mentions");
-  C.bandeau=pLignes(g("bandeau"),10);C.hero={titre:g("htitre"),texte:g("htexte"),video:pVideo(g("hvideo"))};
-  const cut=(l,n)=>l.split("|").map(x=>x.trim()).concat(Array(n).fill("")).slice(0,n);
-  C.stats=pLignes(g("stats"),3).map(l=>{const a=cut(l,2);return{v:a[0],l:a[1]}});
-  C.atouts=pLignes(g("atouts"),3).map(l=>{const a=cut(l,3);return{icone:a[0]||"•",titre:a[1],texte:a[2]}});
-  C.activites=pLignes(g("activites"),8).map(l=>{const a=l.split("|").map(x=>x.trim());if(!a[1])throw new Error("Activité : le nom est obligatoire (icône | nom | résumé | détail).");return{icone:a[0]||"•",nom:a[1],texte:a[2]||"",detail:a.slice(3).join(" | ")}});
-  C.avis=pLignes(g("avis"),12).map(l=>{const a=cut(l,2);return{nom:a[0],texte:a[1]}}).filter(x=>x.texte);
-  C.contact={tel:g("tel"),whatsapp:g("whatsapp"),email:g("email"),adresse:g("adresse"),horaires:g("horaires")};
-  if(C.contact.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(C.contact.email))throw new Error("Adresse e-mail invalide.");
-  const b=g("boutique");if(b&&!/^…#boutique=/.test(b))C.boutique=pTok(b);else if(!b)C.boutique="";
-  C.vendeurs={actif:!!d.get("vact"),texte:g("vtexte")};delete C.services;delete C.entrees;
-  C.faq=g("faq").split("\n").map(l=>l.split("|")).filter(a=>a[0].trim()).map(a=>({q:a[0].trim(),r:a.slice(1).join("|").trim()}));
-  try{localStorage.setItem(PKEY,JSON.stringify(C))}catch(x){throw new Error("Stockage plein : retirez des médias ou un logo volumineux.")}PCUR=null;pDiffuse();PMSG={t:"Portail enregistré sur cet appareil. Pour le publier : téléchargez portail-data.js (à déposer à côté de portail.html) ou générez un portail autonome."}}
+  const C=pFromForm(ev.target,PCUR||pLire(),true);
+  try{localStorage.setItem(PKEY,JSON.stringify(C))}catch(x){throw new Error("Stockage plein : retirez des médias ou une photo volumineuse.")}PCUR=null;pDiffuse();PMSG={t:"Portail enregistré sur cet appareil. Pour le publier : téléchargez portail-data.js (à déposer à côté de portail.html) ou générez un portail autonome."}}
  catch(e){PMSG={er:1,t:e.message}}pView()});
-document.addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(!b)return;const C=pLire();
+let PIMG=null;
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(!b)return;const k=b.dataset.p,i=+b.dataset.i;
+ if(["aadd","aup","adown","adel","abn","abx","dgp","dgx"].includes(k)){
+  if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return pView()}
+  const C=pSync(),A=C.activites;
+  if(k==="aadd"){if(A.length<8)A.push({icone:"✨",nom:"",slogan:"",texte:"",detail:"",points:[],banniere:"",actif:false})}
+  else if(k==="aup"&&i>0)[A[i-1],A[i]]=[A[i],A[i-1]];
+  else if(k==="adown"&&i<A.length-1)[A[i+1],A[i]]=[A[i],A[i+1]];
+  else if(k==="adel"){if(confirm("Retirer l'activité « "+(A[i].nom||"sans nom")+" » du portail ? Les médias qui lui sont rattachés passeront au groupe."))A.splice(i,1);else return}
+  else if(k==="abx")A[i].banniere="";
+  else if(k==="dgx")C.motdg.photo="";
+  else if(k==="abn"||k==="dgp"){PIMG={k,i};return $("m_img").click()}
+  return pView()}
+ const C=pLire();
  if(b.dataset.p==="lien"){const u=pLien(C);(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>{PMSG={t:"Lien du portail copié."};pView()}).catch(()=>{PMSG={t:"Copiez ce lien : "+u};pView()})}
  if(b.dataset.p==="wa")window.open("https://wa.me/?text="+encodeURIComponent("🌐 "+C.nom+" — notre site et notre boutique en ligne : "+pLien(C)),"_blank","noopener");
  if(b.dataset.p==="def"&&confirm("Rétablir les réglages par défaut du portail ?")){localStorage.removeItem(PKEY);PCUR=null;PMSG={t:"Réglages par défaut rétablis."};pView()}});
@@ -261,7 +298,7 @@ async function mView(){
   <label>Rattacher à<select name="act">${mAct(C).map(a=>`<option value="${a[0]}" ${MCUR.act===a[0]?"selected":""}>${e(a[1])}</option>`).join("")}</select></label></div>
   <label style="display:block">Commentaire / description (affiché sous le média sur le portail)<textarea name="comment" rows="2" maxlength="400" style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)">${e(MCUR.comment)}</textarea></label>
   <div class="uf"><button type="button" class="sb" ${dis} data-m="photos">📷 Ajouter des photos</button><button type="button" class="sb" ${dis} data-m="video">🎬 Vidéo par lien (YouTube / Vimeo / .mp4)</button><button type="button" class="sb g" ${dis} data-m="pdf">📄 Téléverser un document (PDF)</button><button type="button" class="sb g" ${dis} data-m="doclien">🔗 Document par lien</button></div>
-  <input type="file" id="m_photos" accept="image/*" multiple hidden><input type="file" id="m_pdf" accept="application/pdf" hidden><input type="file" id="m_logo" accept="image/*" hidden></form></div>
+  <input type="file" id="m_photos" accept="image/*" multiple hidden><input type="file" id="m_pdf" accept="application/pdf" hidden><input type="file" id="m_logo" accept="image/*" hidden><input type="file" id="m_img" accept="image/*" hidden></form></div>
  <p class="note">${L.length} média(s) · environ ${ko.toLocaleString("fr-FR")} Ko sur cet appareil.</p>
  <div style="overflow-x:auto"><table class="ut" style="min-width:640px"><tr><th>Aperçu</th><th>Type</th><th>Catégorie</th><th>Titre</th><th>Rattaché à</th><th></th></tr>`+
  (L.map(m=>`<tr><td>${m.type==="photo"?`<img src="${e(m.src)}" alt="" style="height:40px;border-radius:6px">`:m.type==="video"?"🎬":"📄"}</td><td>${m.type==="photo"?"Photo":m.type==="video"?"Vidéo":"Document"}</td><td>${e((PMCAT.find(c=>c[0]===m.cat)||[0,"Document"])[1])}</td><td>${e(m.titre)}<div class="note">${e(m.comment)}</div></td><td>${e((mAct(C).find(a=>a[0]===m.act)||[0,"Général"])[1])}</td><td><button class="sb g" ${dis} data-m="del" data-id="${e(m.id)}">🗑</button></td></tr>`).join("")||'<tr><td colspan="6" class="note">Aucun média pour le moment.</td></tr>')+`</table></div>`;
@@ -284,6 +321,8 @@ document.addEventListener("click",ev=>{const b=ev.target.closest("[data-m]");if(
  if(k==="photos")$("m_photos").click();else if(k==="pdf")$("m_pdf").click();else if(k==="video"||k==="doclien")mAjout(k,[]);
  else if(k==="del"){if(!pDebloque()){PMM={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return mView()}if(confirm("Retirer ce média du portail ?"))mDel(b.dataset.id).then(()=>{PMM={t:"Média retiré."};pDiffuse();mView()})}});
 document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="m_photos"){const f=[...t.files];t.value="";mAjout("photos",f)}else if(t.id==="m_pdf"){const f=[...t.files];t.value="";mAjout("pdf",f)}
+ else if(t.id==="m_img"){const f=t.files[0];t.value="";if(!f||!PIMG)return;const q=PIMG;PIMG=null;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Choisissez une image (PNG, JPG, WEBP).");
+  const C=pSync(),src=await imgCompress(f,q.k==="dgp"?640:1280,0.75,"image/jpeg");if(q.k==="dgp")C.motdg.photo=src;else C.activites[q.i].banniere=src;PMSG={t:"Photo importée : pensez à enregistrer le portail."}}catch(e){PMSG={er:1,t:e.message}}pView()})()}
  else if(t.id==="m_logo"){const f=t.files[0];t.value="";if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Le logo doit être une image (PNG, JPG, SVG, WEBP).");if(f.size>2*1024*1024)throw new Error("Logo : 2 Mo maximum.");
   const C=pLire();C.logo=await imgCompress(f,360,0.9,"image/png");localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Logo importé."};pDiffuse()}catch(e){PMSG={er:1,t:e.message}}pView()})()}});
 /* ---------- Publication : portail-data.js ou portail autonome ---------- */
