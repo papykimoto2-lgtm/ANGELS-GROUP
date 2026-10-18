@@ -4267,18 +4267,39 @@ function webCreer(d){
  c.web={ref,at:now(),pm,op:pm==="mm"?op:"",rf:pm==="mm"?rf:"",pay:pm==="mm"?"a_verifier":null,tt:d.tt!=null?Math.round(+d.tt):null};
  audit("Commande boutique en ligne importée",c.numero+" — "+fcfa(c.total)+" — "+(pm==="mm"?"Mobile Money":"espèces"));
  return{numero:c.numero,nom,total:c.total,notes}}
+/* Programmation de livraison (portail : page « Programmer une livraison », QR code) : un colis à récupérer puis à livrer à une date et un créneau */
+const CRENEAU_L={tot:"dès que possible",matin:"matin (8 h – 12 h)",apres:"après-midi (12 h – 17 h)",soir:"soir (17 h – 20 h)"};
+function progCreer(d){
+ const ref=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,12);if(!ref)throw new Error("référence absente");
+ if(S.commandes.some(c=>c.web&&c.web.ref===ref))throw new Error("déjà importée");
+ const nom=String(d.n||"").trim().replace(/\s+/g," ").slice(0,80),tel=String(d.t||"").replace(/[^0-9+]/g,"").slice(0,20);if(!nom||digits(tel).length<8)throw new Error("nom ou téléphone invalide");
+ const z=zone(String(d.z||""));if(!z)throw new Error("zone de livraison inconnue « "+String(d.z||"").slice(0,40)+" »");
+ const gp=(a,o)=>isFinite(+a)&&isFinite(+o)&&a!=null&&o!=null&&Math.abs(+a)<=90&&Math.abs(+o)<=180?{lat:+a,lng:+o}:null;
+ const q=String(d.q||"").trim().slice(0,120),r=String(d.r||"").trim().slice(0,200);if(!q&&!r)throw new Error("adresse de livraison absente");
+ const cz=String(d.cz||"").trim().slice(0,60),cq=String(d.cq||"").trim().slice(0,120),cr=String(d.cr||"").trim().slice(0,200),cg=gp(d.ca,d.co);if(!cz||(!cq&&!cr&&!cg))throw new Error("adresse de collecte absente");
+ const dn=String(d.dn||"").trim().slice(0,80),dt=String(d.dt||"").replace(/[^0-9+]/g,"").slice(0,20);if(!dn&&digits(dt).length<8)throw new Error("destinataire absent");
+ const desc=String(d.desc||"").trim().slice(0,300);if(!desc)throw new Error("description du colis absente");
+ const dat=String(d.dat||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(dat))throw new Error("date invalide");if(dat<new Date(Date.now()-864e5).toISOString().slice(0,10))throw new Error("date déjà passée ("+dat+")");
+ const cren=CRENEAU_L[d.cren]?d.cren:"tot",pc=d.p==="l"?"l":"c";
+ let cl=S.clients.find(c=>!c.vendeur_id&&digits(c.tel)===digits(tel));if(!cl){cl={id:uid("cl"),nom,tel,tel2:"",adresses:[],note:""};S.clients.push(cl)}
+ const ad={id:uid("a"),libelle:"Livraison "+(dn||"destinataire"),zone:z.nom,quartier:q,repere:r,gps:null,instructions:"Destinataire : "+(dn||"—")+(dt?" "+dt:""),defaut:!cl.adresses.length};cl.adresses.push(ad);
+ const jour=dat.split("-").reverse().join("/"),obs=["Livraison programmée "+ref,"le "+jour+" — "+CRENEAU_L[cren],"Collecte : "+[cz,cq,cr].filter(Boolean).join(" · ")+(cg?" (GPS "+cg.lat+", "+cg.lng+")":""),"Destinataire : "+(dn||"—")+(dt?" "+dt:""),"Colis : "+desc,"Paiement : "+(pc==="l"?"à la livraison":"à la collecte"),String(d.m||"").trim().slice(0,300)].filter(Boolean).join(" · ");
+ const c=creerCmd({client_id:cl.id,adr:Object.assign({},ad),lignes:[{produit_id:null,desig:"Livraison de colis — "+desc.slice(0,80),qte:1,pu:0}],frais:z.frais||0,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Programmation de livraison (portail)",obs,confirmer:false});
+ setStatut(c,"attente","Programmation de livraison reçue du portail");
+ c.web={ref,at:now(),pm:"esp",pay:null,tt:null};c.prog={date:dat,creneau:cren,collecte:{zone:cz,quartier:cq,repere:cr,gps:cg},dest:{nom:dn,tel:dt},desc,paye:pc};
+ audit("Programmation de livraison importée",c.numero+" — "+jour+" "+CRENEAU_L[cren]);return{numero:c.numero,nom,total:c.total,notes:[]}}
 function webImporter(text){
- const mk=[...String(text).matchAll(/\[BOUTIQUE:([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
- if(!mk.length)throw new Error("Aucune commande de la boutique dans ce texte (le marqueur [BOUTIQUE:…] est absent)");
- mk.forEach(m=>{let d;try{d=unb64(m[1])}catch(e){res.ko.push("message illisible");return}
-  try{res.ok.push(webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
+ const mk=[...String(text).matchAll(/\[(BOUTIQUE|LIVRAISON):([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
+ if(!mk.length)throw new Error("Aucune commande dans ce texte (le marqueur [BOUTIQUE:…] ou [LIVRAISON:…] est absent)");
+ mk.forEach(m=>{let d;try{d=unb64(m[2])}catch(e){res.ko.push("message illisible");return}
+  try{res.ok.push(m[1]==="LIVRAISON"?progCreer(d):webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
  return res}
 VIEWS.vente_ligne=()=>{
  if(CL.on)return`<h1>🛒 Vente en ligne</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
  const cat=boutCatalogue(),pre=boutPrest(),dispo=cat.filter(p=>p.stock>0),mm=boutMM(),imp=can("admin","commercial","superviseur"),val=can("admin","caissier");
  const rows=webCmds().map(c=>{const w=c.web,cl=cli(c.client_id)||{nom:"?"};
   const pay=w.pm==="mm"?`Mobile Money ${esc(w.op||"")}<br><span class="sm mu">réf. ${esc(w.rf)}</span> ${w.pay==="valide"?badge("Reçu","ok"):w.pay==="rejete"?badge("Non reçu","er"):badge("À vérifier","wa")}`:"Espèces à la livraison";
-  return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${fdt(c.date)}</span></td><td>${esc(cl.nom)}<br><span class="sm mu">${esc(c.adr.zone)}</span></td><td>${fcfa(c.total)}</td><td>${pay}</td><td>${sb(c)}</td>
+  return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${fdt(c.date)}</span>${c.prog?`<br>${badge("Programmée le "+c.prog.date.split("-").reverse().join("/")+" · "+CRENEAU_L[c.prog.creneau],"wa")}`:""}</td><td>${esc(cl.nom)}<br><span class="sm mu">${esc(c.adr.zone)}</span></td><td>${fcfa(c.total)}</td><td>${pay}</td><td>${sb(c)}</td>
    <td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button>${val&&w.pay==="a_verifier"?` <button class="btn sm ok" data-act="webPayOk" data-id="${c.id}">✔ Paiement reçu</button> <button class="btn sm er ghost" data-act="webPayKo" data-id="${c.id}">✖ Non reçu</button>`:""}</td></tr>`});
  return`<div class="between"><h1>🛒 Vente en ligne</h1></div>
  <div class="card"><h2>Connexion au portail</h2>${(()=>{const e=portailEtat(),n=boutNb();return e.src==="auto"?`<p>${n?`<b>Synchronisée automatiquement</b> : la boutique du portail affiche ces <b>${cat.length}</b> produit(s) et <b>${pre.length}</b> prestation(s) (prix, stock, zones et comptes Mobile Money à jour à chaque enregistrement).`:`Aucun article publié : la boutique du portail affiche « ouvre bientôt ». Cochez « Vendu en ligne » sur vos produits ou prestations.`}</p>${e.sync?`<p class="sm mu">Dernière synchronisation : ${fdt(e.sync)}</p>`:""}`:`<div class="al warn sm">Le portail utilise un <b>lien collé à la main</b> (Paramètres → Boutique et vendeurs). Il ne suit plus ce catalogue.</div>`})()}
@@ -4290,12 +4311,15 @@ VIEWS.vente_ligne=()=>{
   ${mm.length?"":'<div class="al warn sm">Aucun compte Mobile Money réel dans Paramètres : la boutique n\'acceptera que le paiement à la livraison.</div>'}
   <div class="flex" style="margin-top:8px"><button class="btn" data-act="boutCopy" ${cat.length+pre.length?"":"disabled"}>📋 Copier le lien</button><button class="btn ok" data-act="boutWa" ${cat.length+pre.length?"":"disabled"}>💬 Partager sur WhatsApp</button><button class="btn ghost" data-act="boutOpen" ${cat.length+pre.length?"":"disabled"}>👁️ Prévisualiser</button></div>
   <p class="sm mu" style="margin-top:8px">Le lien contient le catalogue tel qu'il est maintenant (prix, stock, zones). Repartagez-le après une modification. Les prix et frais sont de toute façon recalculés à l'import.</p></div>
+ <div class="card"><h2>Programmation de livraison par QR code</h2><p class="sm mu">Vos clients scannent ce QR code (affiche, boutique, carte de visite, WhatsApp) : la page « Programmer une livraison » du portail s'ouvre, ils indiquent collecte, livraison, date et créneau. La demande arrive sur WhatsApp et s'importe ci-dessous : une commande « en attente de confirmation » est créée avec la date et le créneau.</p>
+  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:130px;height:130px;background:#fff;padding:6px;border-radius:8px">${qrSvg(portailLien("#/livraison"))}</div><div style="flex:1;min-width:220px"><label>Lien<input readonly value="${esc(portailLien("#/livraison"))}" onfocus="this.select()"></label><div class="flex" style="margin-top:8px"><button class="btn" data-act="cpTxt" data-id="${esc(portailLien("#/livraison"))}">📋 Copier le lien</button><button class="btn ok" data-act="progAffiche">🖨 Imprimer l'affiche</button></div></div></div></div>
  ${imp?`<div class="card"><h2>Importer les commandes reçues</h2><p class="sm mu">Collez le message WhatsApp du client (ou plusieurs). La commande est créée « en attente de confirmation » avec les prix actuels.</p>
-  <textarea id="wb_txt" rows="4" placeholder="🛒 Commande en ligne … [BOUTIQUE:…]" style="width:100%"></textarea><div class="flex" style="margin-top:8px"><button class="btn" data-act="webImport">📥 Importer</button></div></div>`:""}
+  <textarea id="wb_txt" rows="4" placeholder="Commande en ligne … [BOUTIQUE:…] ou Programmation de livraison … [LIVRAISON:…]" style="width:100%"></textarea><div class="flex" style="margin-top:8px"><button class="btn" data-act="webImport">📥 Importer</button></div></div>`:""}
  <h2>Commandes en ligne</h2>${tbl(["Commande","Client","Total","Paiement","Statut",""],rows,"Aucune commande en ligne pour le moment.")}`};
 Object.assign(ACT,{
  portSync:()=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err");try{majPortail(true)}catch(e){return toast("Synchronisation impossible : "+e.message,"err")}toast(boutNb()?"Catalogue synchronisé avec le portail ("+boutNb()+" article(s))":"Synchronisé : aucun article publié pour l'instant","ok");render()},
  boutCopy:()=>ACT.cpTxt(boutLink()),
+ progAffiche:()=>{const l=portailLien("#/livraison");ANGELS_PRINT.ouvrir({division:"distribution",titre:"Programmez votre livraison",ref:"AFF-LIVRAISON",date:new Date().toISOString().slice(0,10),emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps:`<div style="text-align:center;margin-top:30px"><p style="font-size:26pt;font-weight:700;margin:0">Programmez votre livraison</p><p style="font-size:15pt">Scannez le QR code avec votre téléphone</p><div style="width:360px;height:360px;margin:20px auto">${qrSvg(l)}</div><p style="font-size:11pt">${esc(l)}</p><p style="font-size:12pt">Indiquez où récupérer le colis, où le livrer, la date et le créneau : nous vous confirmons le prix sur WhatsApp.</p></div>`}).catch(e=>toast("Impression impossible : "+e.message,"err"))},
  boutWa:()=>window.open("https://wa.me/?text="+encodeURIComponent("🛒 Commandez en ligne chez "+ORGRAW()+" : "+boutLink()),"_blank","noopener"),
  boutOpen:()=>window.open(boutLink(),"_blank","noopener"),
  webImport:()=>{if(!can("admin","commercial","superviseur"))return toast("Droits insuffisants pour importer une commande","err");
