@@ -92,6 +92,9 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 </head>
 <body>
 <div id="app"></div>
+<script src="qrcode.js"></script>
+<script src="print-engine.js"></script>
+<script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
 const KEY="angels_agro_v1";

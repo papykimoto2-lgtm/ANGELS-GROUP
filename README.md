@@ -418,3 +418,19 @@ Exportation de **produits** (agricoles, élevage, agroalimentaires, manufacturé
 - Alertes : devis expirés, factures échues, expéditions en retard, documents à préparer, stock bas ; export CSV.
 
 Test : `node tests/export-produits.js` (19 contrôles).
+
+## Moteur d'impression commun et contrats d'exploitation
+
+**Moteur d'impression** (`print-engine.js` + `qrcode.js`, modèle du moteur Menko Immo) partagé par Distributions, Transport et Agro :
+- **En-tête par division** : logo, raison sociale, forme, capital, RCCM, NCC, siège, téléphone, e-mail et couleur de la division qui émet le document (repli sur le groupe, puis sur l'application ; monogramme si aucun logo).
+- **Pied de page** sur chaque page : pied commun ou propre à la division, mentions légales, référence du document.
+- **QR code de sécurité signé** : signature numérique ECDSA P-256 (WebCrypto) de la référence, de la date, du montant et de l'empreinte du contenu. La clé privée reste sur l'appareil émetteur ; la clé publique est publiée avec le portail (`portail-data.js`). La page **`/verifier`** (verifier.html) confirme « authentique » ou « non authentique » sans serveur ; document modifié ou clé inconnue : non confirmé. Sans WebCrypto (page non sécurisée) : repli signalé sur un contrôle simple. Registre local des documents émis.
+- **Aperçu A4** (portrait / paysage, zoom), Imprimer / PDF, téléchargement HTML. `window.print()` est branché sur le moteur : tous les imprimés existants (reçus, états, bordereaux) en profitent ; Distributions passe par `printDoc` (les étiquettes de colis restent hors moteur).
+- **Réglages** : Hub → Paramètres → onglet **Impression** (logos par division, identité légale, pied, QR, adresse publique du site, clé : créer, régénérer, exporter / importer pour émettre depuis plusieurs appareils, document d'essai). Publication : la clé publique et les noms de division sont ajoutés à `portail-data.js`.
+
+**Contrats d'exploitation** (Transport) :
+- Indicateurs (actifs, revenu théorique par jour, impayés, dépôts à percevoir, fins proches, à signer), recherche, filtre par mode, export CSV, menu d'actions compact.
+- Documents imprimés : **contrat** (9 articles, clauses modifiables via « Modèle du contrat »), **avenant** de tarif, **échéancier**, **décompte de fin** (solde dû, retenue sur dépôt, reste à payer ou dépôt à restituer).
+- **Signature** : date et scan du contrat signé ; **prolongation** ; **nouveau contrat** à partir d'un contrat résilié.
+
+Tests : `node tests/impression-contrats.js` (27 contrôles).
