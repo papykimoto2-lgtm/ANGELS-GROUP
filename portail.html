@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Portail">
 <title>ANGEL'S GROUP</title>
 <style>
-:root{--c:#0e7490;--c2:color-mix(in srgb,var(--c) 55%,#000);--or:#f5a524;--sable:#faf5ec;--bg:var(--sable);--card:#fff;--tx:#1d2433;--mu:#6b6559;--bd:#eadfce;--serif:Georgia,"Times New Roman",serif}
+:root{--c:#0e7490;--c2:color-mix(in srgb,var(--c) 55%,#000);--c3:color-mix(in srgb,var(--c) 80%,#000);--or:#f5a524;--sable:#faf5ec;--bg:var(--sable);--card:#fff;--tx:#1d2433;--mu:#6b6559;--bd:#eadfce;--serif:Georgia,"Times New Roman",serif}
 @media(prefers-color-scheme:dark){:root{--sable:#101a20;--card:#162830;--tx:#ecf2f4;--mu:#a3b4ba;--bd:#25414d}}
 *{box-sizing:border-box}
 body{margin:0;font:16px/1.5 "Avenir Next","Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx)}
@@ -38,7 +38,7 @@ a{color:inherit}
 .p-hd b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--c2);color:#fff;font-size:.75rem}
 .p-liste{list-style:none;margin:0;padding:0;display:flex;gap:2px}
 .tab-link{display:inline-flex;align-items:center;gap:6px;padding:9px 11px;font:inherit;font-size:.76rem;font-weight:700;letter-spacing:.2px;color:var(--tx);background:transparent;border:0;border-radius:99px;cursor:pointer;white-space:nowrap;min-height:40px;text-decoration:none}
-.tab-link:hover{background:color-mix(in srgb,var(--c) 12%,transparent)}.tab-link.active{background:var(--c);color:#fff}
+.tab-link:hover{background:color-mix(in srgb,var(--c3) 14%,transparent)}.go:hover,.hero-btn:hover{filter:brightness(.92)}.go{background:var(--c3)}.tab-link.active{background:var(--c);color:#fff}
 .nav-dropdown-menu .tab-link{border-radius:10px;width:100%;justify-content:flex-start}
 .p-activites>.nav-dropdown-trigger{background:transparent;color:var(--tx);padding:9px 11px;font-size:.76rem;border:1px solid var(--bd)}
 /* héros */
@@ -72,6 +72,15 @@ input[type=radio]{width:auto;min-height:0;margin:0 8px 0 0}label.rd{display:flex
 .err{background:#fde8e8;color:#b42318;border-radius:10px;padding:10px 12px;font-size:14px}h3{margin:10px 0 4px;font-size:16px}
 .mu{color:var(--mu)}.empty{padding:16px;border:1px dashed var(--bd);border-radius:12px;color:var(--mu)}
 .avis{font-style:italic}.avis b{font-style:normal;display:block;margin-top:6px;color:var(--c)}
+.logo-area img{height:40px;max-width:180px;object-fit:contain;display:block}
+.gal{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.gal figure{margin:0;background:var(--card);border:1px solid var(--bd);border-radius:16px;overflow:hidden}
+.gal img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;cursor:zoom-in}.gal figcaption{padding:10px 12px;font-size:13px;color:var(--mu)}.gal figcaption b{display:block;color:var(--tx);font-size:14px}
+.vid{position:relative;padding-top:56.25%;border-radius:16px;overflow:hidden;background:#000;margin-bottom:10px}.vid iframe,.vid video{position:absolute;inset:0;width:100%;height:100%;border:0}
+.docs a{display:flex;gap:10px;align-items:center;padding:12px 14px;background:var(--card);border:1px solid var(--bd);border-radius:14px;text-decoration:none;margin-bottom:8px}.docs small{color:var(--mu);display:block}
+.slides{position:relative;aspect-ratio:4/3;border-radius:22px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.35);background:#000;flex:1 1 340px;max-height:380px}.slides img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s}.slides img.on{opacity:1}
+.slides .cap{position:absolute;left:0;right:0;bottom:0;padding:10px 16px;color:#fff;background:linear-gradient(to top,rgba(0,0,0,.6),transparent);font-size:.85rem}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:16px}#lb.on{display:flex}#lb img{max-width:100%;max-height:80vh;border-radius:10px}#lb p{color:#fff;margin:0;text-align:center}#lb button{position:absolute;top:14px;right:14px}
+.legal{font-size:12px;color:var(--mu);margin-top:6px}
 footer{margin-top:28px;padding:22px 0 30px;color:var(--mu);font-size:13px;border-top:1px solid var(--bd);text-align:center}footer button{background:none;border:0;color:var(--c);cursor:pointer;font:inherit;text-decoration:underline}
 dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);padding:18px}dialog::backdrop{background:rgba(0,0,0,.5)}
 @media(max-width:640px){.hero{padding:36px 0 64px}.header-flex{padding:10px 16px}}
@@ -81,7 +90,7 @@ dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border
 <div class="bandeau" id="bandeau-w" hidden><div class="bandeau-contenu" id="bandeau"></div></div>
 <header class="site-header">
  <div class="container header-flex">
-  <div class="logo-area" data-go="accueil"><b id="brand"></b><small id="brandsub"></small></div>
+  <div class="logo-area" data-go="accueil"><span id="logo"></span><b id="brand"></b><small id="brandsub"></small></div>
   <ul class="header-actions"><li class="nav-dropdown"><button class="nav-dropdown-trigger" type="button" data-dd="espace-menu" aria-haspopup="true"><span class="p-num">4</span> MON ESPACE ▾</button>
    <div class="nav-dropdown-menu" id="espace-menu"><button class="tab-link" data-go="espace-client">🛍️ Espace client</button><button class="tab-link" data-go="espace-vendeur">🤝 Espace vendeur partenaire</button></div></li></ul>
  </div>
@@ -89,10 +98,12 @@ dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border
 </header>
 <main id="page"></main>
 <footer><div class="container"><span id="copy"></span> · <button id="lm" type="button">Mentions légales</button></div></footer>
+<div id="lb" role="dialog" aria-label="Photo"><button class="chip" type="button" id="lbx">✕ Fermer</button><img alt="" id="lbi"><p id="lbc"></p></div>
 <dialog id="dlg"><h3 style="margin-top:0">Mentions légales</h3><div id="mentions" style="white-space:pre-wrap"></div><p style="text-align:right"><button class="go" onclick="this.closest('dialog').close()">Fermer</button></p></dialog>
+<script src="portail-data.js"></script>
 <script>
 const KEY="angels_portail_v1",SKEY="angels_portail_cfg";
-const DEF={v:3,nom:"ANGEL'S GROUP",slogan:"Commandez en ligne, faites-vous livrer. Vendez avec nous.",apropos:"Distribution, transport, négoce de véhicules et agro : commandez dans notre boutique en ligne, ou devenez vendeur partenaire et faites livrer vos produits.",couleur:"#0e7490",
+const DEF={v:4,logo:"",couleur2:"",couleur3:"",legal:{raison:"",forme:"",rccm:"",siege:"",capital:"",dirigeant:""},nom:"ANGEL'S GROUP",slogan:"Commandez en ligne, faites-vous livrer. Vendez avec nous.",apropos:"Distribution, transport, négoce de véhicules et agro : commandez dans notre boutique en ligne, ou devenez vendeur partenaire et faites livrer vos produits.",couleur:"#0e7490",
  societe:"Le groupe réunit plusieurs activités complémentaires au service de ses clients et de ses partenaires : la livraison à moto et la vente en ligne, le transport de personnes, le négoce et l'import de véhicules, et l'élevage.",
  bandeau:["🛒 Commandez en ligne, livraison rapide.","🤝 Devenez vendeur partenaire : postulez en quelques minutes.","📲 Paiement à la livraison ou par Mobile Money."],
  hero:{titre:"Commandez en ligne. Faites-vous livrer.",texte:"Une boutique, des livreurs, des partenaires : tout le groupe, au même endroit.",video:""},
@@ -109,6 +120,12 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 /* Aucun lien vers l'application de gestion : seules les adresses externes (https, tel, mailto) et les pages du portail sont admises. */
 const okLien=u=>{u=String(u||"").trim();if(/^#\/?[a-z\-]+$/i.test(u))return u;if(/^(https:\/\/|tel:|mailto:)/i.test(u)&&!/(distribution|transport|agro|parametres|compta-groupe|hub|index)\.html/i.test(u))return u;return""};
 const okCol=c=>/^#[0-9a-f]{6}$/i.test(String(c||""))?c:DEF.couleur;
+const okImg=u=>/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(String(u||""))||/^https:\/\/[^\s"'<>]+$/i.test(String(u||""))?String(u):"";
+const okDoc=u=>/^data:application\/pdf;base64,[A-Za-z0-9+\/=]+$/.test(String(u||""))||/^https:\/\/[^\s"'<>]+$/i.test(String(u||""))?String(u):"";
+function videoEmbed(u){u=String(u||"").trim();let m;
+ if(m=/^https:\/\/(?:www\.)?youtube\.com\/watch\?(?:[^#]*&)?v=([A-Za-z0-9_-]{6,15})/i.exec(u)||/^https:\/\/youtu\.be\/([A-Za-z0-9_-]{6,15})/i.exec(u)||/^https:\/\/(?:www\.)?youtube\.com\/embed\/([A-Za-z0-9_-]{6,15})/i.exec(u))return{k:"iframe",src:"https://www.youtube-nocookie.com/embed/"+m[1]};
+ if(m=/^https:\/\/(?:www\.)?vimeo\.com\/(\d{5,12})/i.exec(u)||/^https:\/\/player\.vimeo\.com\/video\/(\d{5,12})/i.exec(u))return{k:"iframe",src:"https://player.vimeo.com/video/"+m[1]};
+ if(/^https:\/\/[^\s"'<>]+\.(mp4|webm|ogg)(\?[^\s"'<>]*)?$/i.test(u))return{k:"video",src:u};return null}
 const okVideo=u=>{u=String(u||"").trim();return /^https:\/\/[^\s"'<>]+\.(mp4|webm)(\?[^\s"'<>]*)?$/i.test(u)?u:""};
 const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const unb64=t=>JSON.parse(decodeURIComponent(escape(atob(String(t).replace(/-/g,"+").replace(/_/g,"/")))));
@@ -127,6 +144,7 @@ function charger(){ // priorité : lien partagé (#p=…, mémorisé pour la vis
  if(m){c=dec(m[1]);if(c){try{sessionStorage.setItem(SKEY,m[1])}catch(e){}}}
  if(!c){try{const k=sessionStorage.getItem(SKEY);if(k)c=dec(k)}catch(e){}}
  if(!c){try{c=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){c=null}}
+ if(!c&&window.__PORTAIL_DATA&&typeof window.__PORTAIL_DATA.cfg==="object")c=window.__PORTAIL_DATA.cfg;
  c=c&&typeof c==="object"?c:{};
  const T={...DEF,...c,contact:{...DEF.contact,...(c.contact||{})},vendeurs:{...DEF.vendeurs,...(c.vendeurs||{})},hero:{...DEF.hero,...(c.hero||{})}};
  const tx=(v,n)=>String(v==null?"":v).slice(0,n);
@@ -138,7 +156,7 @@ function charger(){ // priorité : lien partagé (#p=…, mémorisé pour la vis
  T.activites=S2(Array.isArray(c.activites)?c.activites:DEF.activites,8).map((x,i)=>({id:"act"+(i+1),icone:tx(x.icone||"•",4),nom:tx(x.nom,60),texte:tx(x.texte,200),detail:tx(x.detail,1500)})).filter(x=>x.nom);
  T.avis=S2(c.avis,12).map(x=>({nom:tx(x.nom,60),texte:tx(x.texte,400)})).filter(x=>x.texte);
  T.faq=(Array.isArray(c.faq)?c.faq:DEF.faq).filter(f=>f&&f.q).slice(0,30).map(f=>({q:tx(f.q,200),r:tx(f.r,800)}));
- T.couleur=okCol(T.couleur);T.vendeurs={actif:T.vendeurs.actif!==false,texte:tx(T.vendeurs.texte,500)};
+ T.couleur=okCol(T.couleur);T.couleur2=/^#[0-9a-f]{6}$/i.test(T.couleur2||"")?T.couleur2:"";T.couleur3=/^#[0-9a-f]{6}$/i.test(T.couleur3||"")?T.couleur3:"";T.logo=okImg(T.logo);T.legal=Object.fromEntries(["raison","forme","rccm","siege","capital","dirigeant"].map(k=>[k,tx((T.legal||{})[k],160)]));T.vendeurs={actif:T.vendeurs.actif!==false,texte:tx(T.vendeurs.texte,500)};
  T.shop=tokBoutique(T.boutique);for(const k of Object.keys(T.contact))T.contact[k]=tx(T.contact[k],120);return T;
 }
 let T=charger(),ST={q:{},gps:null,vs:"form",vc:"form"};
@@ -194,15 +212,30 @@ function rendreVend(){
   const ref=ref6(),pl={f:ref,n:val("c_nom"),t:val("c_tel"),v:val("c_ville"),a:val("c_act"),p:val("c_prod"),m:val("c_msg")};
   ST.cmsg=`🤝 Candidature vendeur partenaire — ${T.nom} (réf. ${ref})\nNom : ${pl.n}\nTél : ${pl.t}\nVille : ${pl.v||"—"}\nActivité : ${pl.a||"—"}\nProduits : ${pl.p||"—"}${pl.m?"\nMessage : "+pl.m:""}\n[VENDEUR:${b64(pl)}]`;ST.cref=ref;ST.vc="cand";rendreVend()}}
 
+/* ---------- Médias publiables (photos, vidéos par lien, documents) : IndexedDB de cet appareil, sinon portail-data.js publié ---------- */
+let MED=[];const cut=(v,n)=>String(v==null?"":v).slice(0,n);
+function idbOpen(){return new Promise((ok,ko)=>{if(!window.indexedDB)return ko();const r=indexedDB.open("angels_portail",1);r.onupgradeneeded=()=>r.result.createObjectStore("media",{keyPath:"id"});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)})}
+async function lireMedias(){let L=[];
+ try{const db=await idbOpen();L=await new Promise((ok,ko)=>{const q=db.transaction("media").objectStore("media").getAll();q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)})}catch(e){}
+ if(!L.length&&window.__PORTAIL_DATA&&Array.isArray(window.__PORTAIL_DATA.media))L=window.__PORTAIL_DATA.media;
+ return L.filter(m=>m&&typeof m==="object").slice(0,200).map(m=>({id:cut(m.id,40),type:["photo","video","doc"].includes(m.type)?m.type:"",cat:["accueil","galerie","activite","societe","document"].includes(m.cat)?m.cat:"galerie",titre:cut(m.titre,100),comment:cut(m.comment,400),act:cut(m.act,8),
+  src:m.type==="photo"?okImg(m.src):m.type==="doc"?okDoc(m.src):(videoEmbed(m.src)?cut(m.src,500):""),t:+m.t||0})).filter(m=>m.type&&m.src).sort((a,b)=>a.t-b.t)}
+const mPhotos=f=>MED.filter(m=>m.type==="photo"&&f(m)),mVideos=f=>MED.filter(m=>m.type==="video"&&f(m));
+const galHtml=L=>L.length?`<div class="gal">${L.map(m=>`<figure><img src="${esc(m.src)}" alt="${esc(m.titre)}" loading="lazy" data-lb="${esc(m.id)}"><figcaption>${m.titre?`<b>${esc(m.titre)}</b>`:""}${esc(m.comment)}</figcaption></figure>`).join("")}</div>`:"";
+const vidHtml=L=>L.map(m=>{const v=videoEmbed(m.src);if(!v)return"";return `<div>${v.k==="iframe"?`<div class="vid"><iframe src="${esc(v.src)}" title="${esc(m.titre||"Vidéo")}" loading="lazy" allowfullscreen referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-presentation"></iframe></div>`:`<div class="vid"><video controls preload="none" src="${esc(v.src)}"></video></div>`}${m.titre||m.comment?`<p class="mu"><b style="color:var(--tx)">${esc(m.titre)}</b> ${esc(m.comment)}</p>`:""}</div>`}).join("");
+const docHtml=L=>L.length?`<div class="docs">${L.map(m=>`<a href="${esc(m.src)}" target="_blank" rel="noopener" ${m.src.startsWith("data:")?`download="${esc((m.titre||"document").replace(/[^\w\-. ]/g,"_"))}.pdf"`:""}><span style="font-size:26px">📄</span><span><b>${esc(m.titre||"Document")}</b><small>${esc(m.comment)}</small></span></a>`).join("")}</div>`:"";
+let SL=0,SLT=null;
+function slides(L){if(!L.length)return"";return `<div class="slides" id="slides">${L.map((m,i)=>`<img src="${esc(m.src)}" alt="${esc(m.titre)}" class="${i?"":"on"}" data-cap="${esc(m.titre)}">`).join("")}<div class="cap" id="slcap">${esc(L[0].titre)}</div></div>`}
+function slideLance(){clearInterval(SLT);const el=document.getElementById("slides");if(!el)return;const im=[...el.querySelectorAll("img")];if(im.length<2)return;SL=0;SLT=setInterval(()=>{im[SL].classList.remove("on");SL=(SL+1)%im.length;im[SL].classList.add("on");document.getElementById("slcap").textContent=im[SL].dataset.cap||""},4500)}
 /* ---------- Pages (parcours : 1 Découvrir · 2 Comprendre · 3 Passer à l'action · 4 Mon espace) ---------- */
 const shopOk=()=>!!(T.shop&&T.shop.items.length);
 const PARC=()=>[
- {n:1,t:"Découvrir",l:[["accueil","🏠 ACCUEIL"],["boutique","🛒 BOUTIQUE"],["@act","ACTIVITÉS ▾"]]},
- {n:2,t:"Comprendre",l:[["societe","🏢 SOCIÉTÉ"],...(T.avis.length?[["avis","⭐ AVIS"]]:[]),["faq","❓ FAQ"]]},
+ {n:1,t:"Découvrir",l:[["accueil","🏠 ACCUEIL"],["boutique","🛒 BOUTIQUE"],...(mPhotos(m=>m.cat!=="document"&&m.cat!=="accueil").length||mVideos(m=>m.cat!=="accueil").length?[["photos","📷 PHOTOS"]]:[]),["@act","ACTIVITÉS ▾"]]},
+ {n:2,t:"Comprendre",l:[["societe","🏢 SOCIÉTÉ"],...(T.avis.length?[["avis","⭐ AVIS"]]:[]),...(MED.some(m=>m.type==="doc")?[["documents","📄 DOCUMENTS"]]:[]),["faq","❓ FAQ"]]},
  {n:3,t:"Passer à l'action",l:[["boutique","🛍️ COMMANDER"],...(T.vendeurs.actif?[["vendeur","🤝 VENDEUR PARTENAIRE"]]:[]),["contact","✉️ CONTACT"]]}];
 const titreSec=(t,s)=>`<h2>${t}</h2>${s?`<p class="sub">${esc(s)}</p>`:""}`;
 const PAGES={
- accueil:()=>{const hv=T.hero.video?`<div class="hero-video"><video controls preload="none"><source src="${esc(T.hero.video)}"></video></div>`:"";
+ accueil:()=>{const vh=mVideos(m=>m.cat==="accueil")[0],sh=mPhotos(m=>m.cat==="accueil"),hv=vh?`<div class="hero-video">${vidHtml([vh])}</div>`:T.hero.video?`<div class="hero-video"><video controls preload="none"><source src="${esc(T.hero.video)}"></video></div>`:sh.length?slides(sh):"";
   return `<section class="hero"><div class="container hero-flex"><div class="hero-text"><h2>${esc(T.hero.titre)}</h2><p>${esc(T.hero.texte)}</p>
    <div class="hero-cta"><button type="button" class="hero-btn principal" data-go="boutique">🛒 Commander en ligne</button>${T.vendeurs.actif?'<button type="button" class="hero-btn" data-go="vendeur">🤝 Devenir vendeur partenaire</button>':""}<button type="button" class="hero-btn" data-go="contact">Parler à un conseiller</button></div>
    ${T.stats.length?`<div class="hero-stats">${T.stats.map(s=>`<div class="hero-stat"><b>${esc(s.v)}</b><span>${esc(s.l)}</span></div>`).join("")}</div>`:""}</div>${hv}</div></section>
@@ -211,7 +244,9 @@ const PAGES={
    ${T.vendeurs.actif?`<div class="band"><div><h3>Vendez avec nous</h3><p>${esc(T.vendeurs.texte)}</p></div><button type="button" class="hero-btn" data-go="vendeur">Devenir vendeur partenaire</button></div>`:""}</div></section>`},
  boutique:()=>`<section class="pg"><div class="container">${titreSec("🛒 Boutique en ligne","Choisissez vos produits, indiquez votre adresse : la commande part par WhatsApp.")}<div id="shop"></div></div></section>`,
  vendeur:()=>`<section class="pg"><div class="container">${titreSec("🤝 Devenir vendeur partenaire","")}<div id="vend"></div></div></section>`,
- societe:()=>`<section class="pg"><div class="container">${titreSec("Notre société","")}<div class="card"><p style="color:var(--tx);font-size:16px;white-space:pre-wrap">${esc(T.societe)}</p></div><div class="grid" style="margin-top:14px">${T.activites.map(a=>`<div class="card"><div class="ic">${esc(a.icone)}</div><h3>${esc(a.nom)}</h3><p>${esc(a.texte)}</p></div>`).join("")}</div></div></section>`,
+ societe:()=>`<section class="pg"><div class="container">${titreSec("Notre société","")}<div class="card"><p style="color:var(--tx);font-size:16px;white-space:pre-wrap">${esc(T.societe)}</p></div>${galHtml(mPhotos(m=>m.cat==="societe"))?`<div style="margin-top:14px">${galHtml(mPhotos(m=>m.cat==="societe"))}</div>`:""}<div class="grid" style="margin-top:14px">${T.activites.map(a=>`<div class="card"><div class="ic">${esc(a.icone)}</div><h3>${esc(a.nom)}</h3><p>${esc(a.texte)}</p></div>`).join("")}</div>${(T.legal.raison||T.legal.rccm||T.legal.siege)?`<p class="legal">${[T.legal.raison&&esc(T.legal.raison),T.legal.forme&&esc(T.legal.forme),T.legal.capital&&"Capital : "+esc(T.legal.capital),T.legal.rccm&&"RCCM : "+esc(T.legal.rccm),T.legal.siege&&"Siège : "+esc(T.legal.siege),T.legal.dirigeant&&"Dirigeant : "+esc(T.legal.dirigeant)].filter(Boolean).join(" · ")}</p>`:""}</div></section>`,
+ photos:()=>`<section class="pg"><div class="container">${titreSec("📷 Photos et vidéos","")}${vidHtml(mVideos(m=>m.cat!=="accueil"))}${galHtml(mPhotos(m=>m.cat!=="document"&&m.cat!=="accueil"))||'<div class="empty">Les photos seront publiées prochainement.</div>'}</div></section>`,
+ documents:()=>`<section class="pg"><div class="container">${titreSec("📄 Documents","Brochures et documents à télécharger.")}${docHtml(MED.filter(m=>m.type==="doc"))||'<div class="empty">Aucun document publié.</div>'}</div></section>`,
  avis:()=>`<section class="pg"><div class="container">${titreSec("Avis de nos clients","")}<div class="grid">${T.avis.map(a=>`<div class="card avis"><p style="color:var(--tx)">« ${esc(a.texte)} »</p><b>${esc(a.nom)}</b></div>`).join("")}</div></div></section>`,
  faq:()=>`<section class="pg"><div class="container">${titreSec("Questions fréquentes","")}${T.faq.map(f=>`<details><summary>${esc(f.q)}</summary><p>${esc(f.r)}</p></details>`).join("")||'<div class="empty">Aucune question publiée.</div>'}</div></section>`,
  contact:()=>{const c=T.contact,ct=[];if(c.tel)ct.push(`<a class="card" href="tel:${esc(c.tel.replace(/[^\d+]/g,""))}"><div class="ic">📞</div><h3>Téléphone</h3><p>${esc(c.tel)}</p></a>`);
@@ -224,7 +259,7 @@ const PAGES={
  "espace-vendeur":()=>`<section class="pg"><div class="container">${titreSec("🤝 Espace vendeur partenaire","")}<div class="grid"><div class="card"><div class="ic">📝</div><h3>Je souhaite devenir partenaire</h3><p>${esc(T.vendeurs.texte)}</p>${T.vendeurs.actif?'<button type="button" class="go" data-go="vendeur">Déposer ma candidature →</button>':'<p class="mu">Les candidatures sont fermées pour le moment.</p>'}</div>
   <div class="card"><div class="ic">💬</div><h3>Je suis déjà partenaire</h3><p>Vos commandes et vos règlements sont gérés avec votre responsable : contactez-le sur WhatsApp. Vos accès de travail vous sont communiqués par l'entreprise.</p>${waNum()?`<a class="go" href="https://wa.me/${waNum()}">Contacter sur WhatsApp</a>`:""}</div></div></div></section>`
 };
-const actPage=id=>{const a=T.activites.find(x=>x.id===id);return a?`<section class="pg"><div class="container">${titreSec(esc(a.icone)+" "+esc(a.nom),a.texte)}<div class="card"><p style="color:var(--tx);font-size:16px;white-space:pre-wrap">${esc(a.detail||a.texte)}</p>${shopOk()?'<button type="button" class="go" data-go="boutique">Commander en ligne →</button>':""}<button type="button" class="go" data-go="contact">Nous contacter →</button></div></div></section>`:""};
+const actPage=id=>{const a=T.activites.find(x=>x.id===id);return a?`<section class="pg"><div class="container">${titreSec(esc(a.icone)+" "+esc(a.nom),a.texte)}${vidHtml(mVideos(m=>m.act===a.id))}${galHtml(mPhotos(m=>m.act===a.id))}<div class="card" style="margin-top:12px"><p style="color:var(--tx);font-size:16px;white-space:pre-wrap">${esc(a.detail||a.texte)}</p>${shopOk()?'<button type="button" class="go" data-go="boutique">Commander en ligne →</button>':""}<button type="button" class="go" data-go="contact">Nous contacter →</button></div></div></section>`:""};
 let PAGE="accueil";
 function pageDe(){const h=location.hash;const m=/^#\/([a-z0-9\-]+)/i.exec(h);return m?m[1]:"accueil"}
 function allerA(p){const cur=location.hash.replace(/^#\/?[a-z0-9\-]*/i,"");location.hash="#/"+p;}
@@ -234,15 +269,17 @@ function navRendre(){
 }
 function rendre(){
  PAGE=pageDe();document.documentElement.style.setProperty("--c",T.couleur);document.querySelector('meta[name=theme-color]').content=T.couleur;document.title=T.nom;
+ {const r=document.documentElement.style;if(T.couleur2)r.setProperty("--c2",T.couleur2);else r.removeProperty("--c2");if(T.couleur3)r.setProperty("--c3",T.couleur3);else r.removeProperty("--c3")}
+ document.getElementById("logo").innerHTML=T.logo?`<img src="${esc(T.logo)}" alt="${esc(T.nom)}">`:"";document.getElementById("brand").style.display=T.logo?"none":"";
  document.getElementById("brand").textContent=T.nom;document.getElementById("brandsub").textContent=T.slogan;
  const bw=document.getElementById("bandeau-w");bw.hidden=!T.bandeau.length;document.getElementById("bandeau").innerHTML=T.bandeau.map(x=>`<span>${esc(x)}</span>`).join("");
  navRendre();
  const html=PAGES[PAGE]?PAGES[PAGE]():actPage(PAGE)||PAGES.accueil();
  document.getElementById("page").innerHTML=html;
- if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
+ slideLance();if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
  const sg=document.getElementById("suivi_ref");if(sg){const go=document.getElementById("suivi_go"),maj=()=>{const r=sg.value.trim().toUpperCase(),n=waNum();go.href=n?"https://wa.me/"+n+"?text="+encodeURIComponent("Bonjour, je souhaite le suivi de ma commande"+(r?" (réf. "+r+")":"")+"."):"#/espace-client"};sg.oninput=maj;maj()}
  document.getElementById("copy").textContent="© "+new Date().getFullYear()+" "+T.nom;
- document.getElementById("mentions").textContent=T.mentions||"Les mentions légales seront publiées prochainement. "+T.nom+".";
+ {const L=T.legal,l=[L.raison,L.forme,L.capital&&"Capital : "+L.capital,L.rccm&&"RCCM : "+L.rccm,L.siege&&"Siège : "+L.siege,L.dirigeant&&"Dirigeant : "+L.dirigeant].filter(Boolean).join("\n");document.getElementById("mentions").textContent=[l,T.mentions].filter(Boolean).join("\n\n")||"Les mentions légales seront publiées prochainement. "+T.nom+"."}
  window.scrollTo(0,0);
 }
 document.addEventListener("click",e=>{
@@ -250,12 +287,14 @@ document.addEventListener("click",e=>{
  if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
  const g=e.target.closest("[data-go]");if(g){document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>m.classList.remove("open"));allerA(g.dataset.go);return}
  if(e.target.id==="lm")document.getElementById("dlg").showModal();
+ if(e.target.dataset&&e.target.dataset.lb){document.getElementById("lbi").src=e.target.src;document.getElementById("lbi").alt=e.target.alt;document.getElementById("lbc").textContent=e.target.closest("figure").innerText;document.getElementById("lb").classList.add("on")}
+ if(e.target.id==="lbx"||e.target.id==="lb")document.getElementById("lb").classList.remove("on");
  const v=e.target.closest("[data-vue]");if(v){if(v.dataset.vue==="shop"){ST.vs="form";ST.q={};ST.gps=null;rendreShop()}else{ST.vc="form";rendreVend()}}
  if(e.target.dataset.cp){const t=e.target.parentElement.querySelector("textarea");(navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).catch(()=>t.select())}});
-addEventListener("storage",ev=>{if(ev.key===KEY){T=charger();rendre()}});
+addEventListener("storage",ev=>{if(ev.key===KEY){T=charger();rendre()}});try{new BroadcastChannel("angels_portail").onmessage=()=>{T=charger();lireMedias().then(m=>{MED=m;rendre()})}}catch(e){}
 addEventListener("hashchange",()=>{if(/[#&]p=/.test(location.hash)){T=charger();location.hash="#/accueil"}else rendre()});
 if(/[#&]p=/.test(location.hash)){T=charger();history.replaceState(null,"",location.pathname+"#/accueil")}
-rendre();
+rendre();lireMedias().then(m=>{MED=m;rendre()}).catch(()=>{});
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
