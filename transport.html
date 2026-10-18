@@ -969,7 +969,7 @@ function creerContrat(f){
  const v=by(S.vehicles,f.vehicle_id),d=by(S.drivers,f.driver_id);
  if(!v||!d)throw new Error("Véhicule et chauffeur requis.");
  if(v.statut==="sorti")throw new Error("Véhicule sorti du parc.");
- if(!(f.montant>0))throw new Error("Montant invalide.");
+ if(!(f.montant>0))throw new Error("Montant invalide.");if((+f.depot||0)<0)throw new Error("Dépôt de garantie invalide.");
  if(f.fin&&f.fin<f.debut)throw new Error("Date de fin antérieure au début.");
  if(chevauche(v.id,f.debut,f.fin||null))throw new Error("Un contrat couvre déjà ce véhicule sur la période : double obligation interdite.");
  creerAffectation(v.id,d.id,f.debut);
@@ -1005,7 +1005,7 @@ function modifierContrat(cid,f){
  const obs=S.obligations.filter(o=>o.contract_id===cid),am=allocMap(),fin=f.fin||null,repos=f.repos||c.repos,depot=+f.depot||0;
  if(depot<(c.depot_verse||0))throw new Error("Dépôt inférieur au dépôt déjà versé ("+fcfa(c.depot_verse)+").");
  if(!obs.length){ // aucune échéance : modification complète
-  const v=by(S.vehicles,f.vehicle_id||c.vehicle_id),d=by(S.drivers,f.driver_id||c.driver_id),debut=f.debut||c.debut,mode=f.mode||c.mode,montant=+f.montant;
+  const v=by(S.vehicles,f.vehicle_id||c.vehicle_id),d=by(S.drivers,f.driver_id||c.driver_id),debut=f.debut||c.debut,mode=f.mode||c.mode,montant=(f.montant==null||f.montant==="")?c.montant:+f.montant;
   if(!v||!d)throw new Error("Véhicule et chauffeur requis.");if(v.statut==="sorti")throw new Error("Véhicule sorti du parc.");if(!(montant>0))throw new Error("Montant invalide.");
   if(fin&&fin<debut)throw new Error("Date de fin antérieure au début.");if(chevauche(v.id,debut,fin,cid))throw new Error("Un contrat couvre déjà ce véhicule sur la période : double obligation interdite.");
   const i=S.assignments.findIndex(a=>a.vehicle_id===c.vehicle_id&&a.driver_id===c.driver_id&&!a.fin&&a.debut===c.debut);
@@ -1014,7 +1014,7 @@ function modifierContrat(cid,f){
   c.versions=[{from:debut,montant,motif:"Modification (avant toute échéance)",par:ME.nom,at:now()}];
  }else{ // échéances existantes : fin, repos et dépôt seulement (tarif : avenant ; mode : changement de mode)
   if(fin){if(fin<c.debut)throw new Error("Date de fin antérieure au début.");const dp=obs.filter(o=>am[o.id]).map(o=>o.date_ech).sort().pop();
-   if(dp&&fin<dp)throw new Error("Fin antérieure à une échéance déjà encaissée ("+fd(dp)+").");if(fin<today())need("contrats","a","Fin rétroactive : validation requise.");
+   if(dp&&fin<dp)throw new Error("Fin antérieure à une échéance déjà encaissée ("+fd(dp)+").");if(chevauche(c.vehicle_id,c.debut,fin,cid))throw new Error("Un contrat couvre déjà ce véhicule sur la période : double obligation interdite.");if(fin<today())need("contrats","a","Fin rétroactive : validation requise.");
    obs.filter(o=>o.date_ech>fin&&!o.exo).forEach(o=>exonerer(o,"Modification de la fin du contrat "+c.numero,true))}
   Object.assign(c,{fin,repos,depot});
  }
@@ -1065,6 +1065,7 @@ function exonerer(o,motif,auto){
 function generer(upTo,sys){
  if(!sys)need("planning","c");
  const out={n:0,skip:0},byDate={};
+ S.contracts.forEach(c=>{if(c.versions&&c.versions.length&&ctOuvert(c)){const m=montantA(c,today());if(m!==c.montant)c.montant=m}});
  S.contracts.forEach(c=>{
   if(c.statut==="supprime")return;
   const end=contractEnd(c),stop=end<upTo?end:upTo;if(stop<c.debut)return;
@@ -2078,7 +2079,7 @@ const CT_MOD_DEF={representant:"",qualite:"Gérant",lieu:"Abidjan",juridiction:"
  oblig_societe:"La Société remet le véhicule en bon état de marche, avec ses documents (carte grise, assurance, visite technique, carte de transport) en cours de validité, assure l'entretien programmé et les réparations importantes non imputables au Chauffeur.",
  retard:"Tout versement non effectué à l'échéance est exigible immédiatement. Après relance restée sans effet, la Société peut suspendre ou résilier le contrat et reprendre le véhicule.",
  resiliation:"Chaque partie peut résilier le contrat par écrit avec un préavis de 7 jours. La Société peut résilier sans préavis en cas de faute grave (accident par négligence, défaut répété de versement, usage non autorisé du véhicule). À la fin du contrat, le dépôt de garantie est restitué après déduction des sommes dues et des dégradations constatées."};
-const ctModele=()=>Object.assign({},CT_MOD_DEF,(S.settings||{}).ctr_modele||{});
+const ctModele=()=>{const m=Object.assign({},CT_MOD_DEF),u=(S.settings||{}).ctr_modele||{};Object.keys(u).forEach(k=>{if(String(u[k]||"").trim()||!CT_MOD_DEF[k])m[k]=u[k]});return m};
 const ctJour=c=>c.mode==="recette"?c.montant:c.periodicite==="semaine"?c.montant/7:c.periodicite==="mois"?c.montant/30:c.montant;
 const ctImpayes=c=>{const am=allocMap();return sum(S.obligations.filter(o=>o.contract_id===c.id&&o.date_ech<=today()),o=>soldeM(o,am))};
 const ctSigne=c=>!!(c.signature&&c.signature.date);
@@ -2114,7 +2115,7 @@ function ctCorps(c){
  <h2>Article 1 — Objet</h2><p>La Société met à la disposition du Chauffeur, pour l'exploitation en taxi, le véhicule suivant :</p>
  ${tbl(["Immatriculation","Marque et modèle","Année","Places","Kilométrage"],[tr([`<b>${esc(v.immat||"—")}</b>`,esc([v.marque,v.modele].filter(Boolean).join(" ")||"—"),esc(v.annee||"—"),esc(v.places||"—"),v.km?nb(v.km)+" km":"—"])])}
  <h2>Article 2 — Mode d'exploitation et redevance</h2><p>Mode <b>${c.mode==="recette"?"A — recette journalière":"B — location périodique"}</b>. ${red}</p>
- <h2>Article 3 — Durée</h2><p>Le contrat prend effet le <b>${fd(c.debut)}</b>${c.fin?` et prend fin le <b>${fd(c.fin)}</b>, sauf prolongation par écrit`:" pour une durée indéterminée"}.</p>
+ <h2>Article 3 — Durée</h2><p>Le contrat prend effet le <b>${fd(c.debut)}</b>${c.fin?` et prend fin le <b>${fd(c.fin)}</b>, sauf prolongation par écrit`:" pour une durée indéterminée"}.${c.statut==="resilie"&&c.effet?` Il a été <b>résilié avec effet au ${fd(c.effet)}</b>.`:""}</p>
  <h2>Article 4 — Dépôt de garantie</h2><p>${c.depot>0?`Le Chauffeur verse un dépôt de garantie de <b>${fcfa(c.depot)}</b> (versé à ce jour : ${fcfa(c.depot_verse||0)}). Il est restitué à la fin du contrat dans les conditions de l'article 8.`:"Aucun dépôt de garantie n'est exigé."}</p>
  <h2>Article 5 — Obligations du Chauffeur</h2><p>${esc(m.oblig_chauffeur)}</p>
  <h2>Article 6 — Obligations de la Société</h2><p>${esc(m.oblig_societe)}</p>
@@ -2131,15 +2132,15 @@ A["ct.ech"]=id=>{const c=by(S.contracts,id);if(!c)return;const am=allocMap(),O=S
  const et=o=>o.exo?"Exonérée":soldeM(o,am)<=0?"Soldée":o.date_ech<today()?"En retard":"À venir";
  prtDoc({titre:"Échéancier du contrat",ref:c.numero+"-ECH",date:today(),corps:`<p>Contrat <b>${esc(c.numero)}</b> — véhicule <b>${esc(vehImmat(c.vehicle_id))}</b> — chauffeur <b>${esc(chauffeurNom(c.driver_id))}</b> · mode ${esc(c.mode)} · redevance ${fcfa(c.montant)}.</p>
  <div class="grid">${kp(fcfa(sum(O.filter(o=>!o.exo),o=>o.montant)),"Total des échéances")}${kp(fcfa(sum(O,o=>am[o.id]||0)),"Encaissé")}${kp(fcfa(sum(O.filter(o=>o.date_ech<=today()),o=>soldeM(o,am))),"Impayé à ce jour")}</div>
- ${tbl(["Échéance","Date","Montant","Encaissé","Solde","État"],O.map(o=>tr(["ECH-"+String(o.num).padStart(5,"0"),fd(o.date_ech),o.exo?"—":fcfa(o.montant),fcfa(am[o.id]||0),fcfa(soldeM(o,am)),et(o)])),{max:800})}`})};
-A["ct.dec"]=id=>{const c=by(S.contracts,id);if(!c||c.statut!=="resilie")return;const am=allocMap(),O=S.obligations.filter(o=>o.contract_id===id&&!o.exo&&o.date_ech<=c.effet),du=sum(O,o=>soldeM(o,am)),enc=sum(O,o=>am[o.id]||0),dep=c.depot_verse||0,ret=Math.min(dep,du),rest=dep-ret,aPayer=du-ret;
+ ${tbl(["Échéance","Date","Montant","Encaissé","Solde","État"],O.map(o=>tr(["ECH-"+String(o.num).padStart(5,"0"),fd(o.date_ech),o.exo?"—":fcfa(o.montant),fcfa(am[o.id]||0),fcfa(soldeM(o,am)),et(o)])),{max:100000})}`})};
+A["ct.dec"]=id=>{const c=by(S.contracts,id);if(!c||c.statut!=="resilie")return;const am=allocMap(),O=S.obligations.filter(o=>o.contract_id===id&&!o.exo&&o.date_ech<=c.effet),du=sum(O,o=>soldeM(o,am)),enc=sum(O,o=>am[o.id]||0),dep=c.depot_verse||0,ret=Math.min(dep,du),trop=sum(S.obligations.filter(o=>o.contract_id===id&&o.date_ech>c.effet),o=>am[o.id]||0),net=du-dep-trop,aPayer=Math.max(0,net),rest=Math.max(0,-net);
  prtDoc({titre:"Décompte de fin de contrat",ref:c.numero+"-FIN",date:c.effet,montant:Math.abs(aPayer||rest),corps:`<p>Contrat <b>${esc(c.numero)}</b> — véhicule <b>${esc(vehImmat(c.vehicle_id))}</b> — chauffeur <b>${esc(chauffeurNom(c.driver_id))}</b>.<br>Début : ${fd(c.debut)} · résiliation effective le <b>${fd(c.effet)}</b> · motif : ${esc(c.motif_resil||"—")}.</p>
- ${tbl(["Poste","Montant"],[tr(["Redevances échues jusqu'à la résiliation",fcfa(sum(O,o=>o.montant))]),tr(["Encaissé",fcfa(enc)]),tr(["<b>Solde dû par le chauffeur</b>",`<b>${fcfa(du)}</b>`]),tr(["Dépôt de garantie versé",fcfa(dep)]),tr(["Retenue sur le dépôt",fcfa(ret)]),tr([aPayer>0?"<b>Reste à payer par le chauffeur</b>":"<b>Dépôt à restituer au chauffeur</b>",`<b>${fcfa(aPayer>0?aPayer:rest)}</b>`])])}
+ ${tbl(["Poste","Montant"],[tr(["Redevances échues jusqu'à la résiliation",fcfa(sum(O,o=>o.montant))]),tr(["Encaissé",fcfa(enc)]),tr(["<b>Solde dû par le chauffeur</b>",`<b>${fcfa(du)}</b>`]),tr(["Dépôt de garantie versé",fcfa(dep)]),tr(["Retenue sur le dépôt",fcfa(ret)]),...(trop>0?[tr(["Trop-perçu sur échéances postérieures à la résiliation (à restituer)",fcfa(trop)])]:[]),tr([aPayer>0?"<b>Reste à payer par le chauffeur</b>":"<b>Dépôt à restituer au chauffeur</b>",`<b>${fcfa(aPayer>0?aPayer:rest)}</b>`])])}
  <p class="sm mu">Sous réserve de l'état du véhicule à la restitution : les dégradations constatées peuvent être déduites du dépôt à restituer.</p>`,signatures:[["Le Chauffeur","Lu et approuvé — accusé de réception"],["Pour la Société","Nom, qualité, signature et cachet"]]})};
 A["ct.sign"]=id=>form("Contrat signé",[{k:"date",l:"Date de signature",t:"date",req:1},{k:"pj",t:"file",l:"Scan du contrat signé (facultatif)"}],{date:today()},o=>{needAny("contrats",["e","a"]);const c=by(S.contracts,id);if(!ctOuvert(c))throw new Error("Contrat inactif.");if(o.date>today())throw new Error("Date de signature dans le futur.");if(o.date<c.debut)throw new Error("Signature antérieure au début du contrat.");pjVerif(o.pj);c.signature={date:o.date,pj:o.pj||null,par:ME.nom,at:now()};audit("Contrat signé",c.numero+" le "+o.date)},"Enregistrer");
 A["ct.prol"]=id=>{const c=by(S.contracts,id);form("Prolonger le contrat "+c.numero,[{k:"fin",l:"Nouvelle date de fin (après le "+fd(c.fin)+")",t:"date",req:1}],{fin:addDays(c.fin,365)},o=>{if(!(o.fin>c.fin))throw new Error("La nouvelle fin doit être postérieure à la fin actuelle ("+fd(c.fin)+").");modifierContrat(id,{fin:o.fin,repos:c.repos,depot:c.depot});c.prolongations=(c.prolongations||[]).concat({de:c.fin,a:o.fin,par:ME.nom,at:now()});audit("Contrat prolongé",c.numero+" jusqu'au "+o.fin)},"Prolonger")};
 A["ct.copy"]=id=>{const c=by(S.contracts,id);if(!c)return;ctFormNouveau({vehicle_id:c.vehicle_id,driver_id:c.driver_id,mode:c.mode,montant:c.montant,periodicite:c.periodicite,debut:today(),repos:c.repos,depot:c.depot})};
-A["ct.modele"]=()=>{const m=ctModele();form("Modèle du contrat d'exploitation",[{k:"representant",l:"Représentant de la Société (nom)"},{k:"qualite",l:"Qualité du représentant"},{k:"lieu",l:"Lieu de signature"},{k:"juridiction",l:"Juridiction compétente"},{k:"oblig_chauffeur",l:"Article 5 — Obligations du Chauffeur",t:"area",full:1},{k:"oblig_societe",l:"Article 6 — Obligations de la Société",t:"area",full:1},{k:"retard",l:"Article 7 — Retard de paiement",t:"area",full:1},{k:"resiliation",l:"Article 8 — Suspension et résiliation",t:"area",full:1}],m,o=>{need("contrats","a");const r={};Object.keys(CT_MOD_DEF).forEach(k=>{r[k]=String(o[k]||"").trim().slice(0,1200)});S.settings.ctr_modele=r;audit("Modèle de contrat modifié")},"Enregistrer")};
+A["ct.modele"]=()=>{const m=ctModele();form("Modèle du contrat d'exploitation",[{k:"representant",l:"Représentant de la Société (nom)"},{k:"qualite",l:"Qualité du représentant"},{k:"lieu",l:"Lieu de signature"},{k:"juridiction",l:"Juridiction compétente"},{k:"oblig_chauffeur",l:"Article 5 — Obligations du Chauffeur",t:"area",full:1},{k:"oblig_societe",l:"Article 6 — Obligations de la Société",t:"area",full:1},{k:"retard",l:"Article 7 — Retard de paiement",t:"area",full:1},{k:"resiliation",l:"Article 8 — Suspension et résiliation",t:"area",full:1}],m,o=>{need("contrats","a");const r={};Object.keys(CT_MOD_DEF).forEach(k=>{r[k]=String(o[k]||"").trim().slice(0,4000)});S.settings.ctr_modele=r;audit("Modèle de contrat modifié")},"Enregistrer")};
 const ctFormNouveau=init=>form("Nouveau contrat",[{k:"vehicle_id",l:"Véhicule",t:"select",o:vehOpts},{k:"driver_id",l:"Chauffeur",t:"select",o:drvOpts},{k:"mode",l:"Mode d'exploitation",t:"select",o:[["recette","A — Recette journalière"],["location","B — Location périodique"]]},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"periodicite",l:"Périodicité (location)",t:"select",o:[["jour","Jour"],["semaine","Semaine"],["mois","Mois"]]},{k:"debut",l:"Début",t:"date",req:1},{k:"fin",l:"Fin (facultatif)",t:"date"},{k:"repos",l:"Jour de repos (recette)",t:"select",o:[["dimanche","Dimanche"],["aucun","Aucun"]]},{k:"depot",l:"Dépôt de garantie (F)",t:"number"}],Object.assign({debut:today(),mode:"recette"},init||{}),o=>{creerContrat(o)});
 A["ct.add"]=()=>ctFormNouveau();
 A["ct.edit"]=id=>{const c=by(S.contracts,id),libre=!S.obligations.some(o=>o.contract_id===id);
@@ -3538,29 +3539,32 @@ const XP_FRAIS=[["emballage","Emballage"],["assurance","Assurance"],["expedition
 const XP_DOCS=[["facture","Facture commerciale",1],["colisage","Liste de colisage",1],["origine","Certificat d'origine",0],["transport","Document de transport (connaissement, LTA, CMR)",0],["export","Déclaration d'exportation",0],["phyto","Certificat phytosanitaire / sanitaire",0],["assurance","Attestation d'assurance",0]];
 const XP_ST={devis:["Devis","wa"],confirmee:["Contrat confirmé","wa"],facturee:["Facturée","wa"],expediee:["Expédiée","wa"],livree:["Livrée","ok"],cloturee:["Clôturée","ok"],annulee:["Annulée","er"]};
 /* Exclusion formelle (cahier §13) : aucun véhicule dans ce module, ni en catalogue, ni en commande, ni en classement douanier */
-const XP_VEH=/(v[ée]hicules?|voitures?|automobiles?|autos?\b|camions?|camionnettes?|motos?\b|motocyclettes?|scooters?|tricycles?|taxis?|4x4|\bsuv\b|pick-?up|ch[âa]ssis|\bvin\b|bus\b|minibus|autocars?|remorques?|tracteurs? routiers?|toyota|nissan|hyundai|kia\s|peugeot|renault)/i;
-function xpGardeVehicule(...champs){const t=champs.map(x=>String(x||"")).join(" | ");if(XP_VEH.test(t))throw new Error("Exportation de véhicules interdite : ce module ne gère pas les véhicules (exclusion formelle du cahier des charges). Les véhicules se vendent à l'export depuis « Ventes de véhicules ».")}
+const xpNorm=x=>String(x||"").normalize("NFKD").replace(/[\u0300-\u036f\u200b-\u200d\u2060\ufeff]/g,"").toLowerCase();
+const XP_VEH=/(\bvehicules?\b|\bvehicles?\b|\bvoitures?\b|\bautomobiles?\b|\bautos?\b|\bcars?\b|\bcamions?\b|camionnettes?|\bmotos?\b|motocyclettes?|scooters?|tricycles?|\btaxis?\b|4x4|\bsuv\b|pick-?up|\bchassis\b|\bbus\b|minibus|autocars?|remorques?|tracteurs? routiers?|fourgons?|poids[- ]?lourds?|berlines?|\bquads?\b|ambulances?|\btrucks?\b|\blorry\b|\blorries\b|toyota|nissan|hyundai|\bkia\b|peugeot|renault|land ?cruiser|hilux|mercedes|\bford\b|\bhonda\b|isuzu|suzuki|\bbmw\b|mitsubishi|volkswagen|\baudi\b|mazda|lexus|\bjeep\b|yamaha|\b(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-hj-npr-z0-9]{17}\b)/;
+const XP_VEH_COMPACT=/(vehicule|vehicle|voiture|automobile|camion|motocyclette|scooter|tricycle|autocar|remorque|truck|lorry|chassis|ambulance|poidslourd|landcruiser|hilux)/;
+function xpGardeVehicule(...champs){const t=xpNorm(champs.map(x=>String(x||"")).join(" | "));if(XP_VEH.test(t)||XP_VEH_COMPACT.test(t.replace(/[^a-z0-9]+/g,"")))throw new Error("Exportation de véhicules interdite : ce module ne gère pas les véhicules (exclusion formelle du cahier des charges). Les véhicules se vendent à l'export depuis « Ventes de véhicules ».")}
 const xpDev=n=>Math.round((+n||0)*100)/100,xpF=(n,d)=>d==="XOF"||!d?fcfa(n):nb(n,2)+" "+d;
 const xpProd=id=>by(S.xp_produits,id)||{},xpCli=id=>by(S.xp_clients,id)||{nom:"—"},xpPr=id=>by(S.xp_prestataires,id)||{nom:"—"};
 const xpTotalLignes=c=>xpDev(sum(c.lignes,l=>l.qte*l.pu)),xpRefact=c=>xpDev((+c.fret||0)+(+c.assurance_cl||0)+(+c.emballage_cl||0)),xpTotal=c=>xpDev(xpTotalLignes(c)+xpRefact(c));
 const xpFactXof=c=>Math.round(xpTotal(c)*(+c.taux||1)),xpEncDev=c=>xpDev(sum(c.reglements,r=>r.md)),xpResteDev=c=>xpDev(xpTotal(c)-xpEncDev(c)),xpEncCompta=c=>sum(c.reglements,r=>r.compta);
 const xpCoutLignes=c=>sum(c.lignes,l=>sum(l.alloc||[],a=>a.cout)),xpFraisReels=c=>sum(c.frais_reels,f=>f.montant),xpChange=c=>sum(c.reglements,r=>r.ecart);
 const xpMarge=c=>c.facture_no?xpFactXof(c)-xpCoutLignes(c)-xpFraisReels(c)+xpChange(c):0;
-const xpStockLot=l=>l.qte_restante*l.cout_unit;
+const xpSorti=l=>l.cout_sorti!=null?l.cout_sorti:Math.round((l.qte-l.qte_restante)*l.cout_unit);
+const xpStockLot=l=>l.cout_sorti!=null?Math.round(l.qte*l.cout_unit)-l.cout_sorti:l.qte_restante*l.cout_unit;
 const xpDispo=pid=>sum(S.xp_lots.filter(l=>l.produit_id===pid),l=>l.qte_restante);
 function xpProduit(f){
  need("export_v2",f.id?"e":"c");const nom=String(f.nom||"").trim(),code=String(f.code||"").trim().toUpperCase().replace(/\s+/g,"-");
  if(!nom||!code)throw new Error("Code et désignation obligatoires.");if(!XP_CATS.includes(f.categorie))throw new Error("Catégorie invalide (les véhicules ne sont pas une catégorie exportable).");if(!XP_UNITES.includes(f.unite))throw new Error("Unité invalide.");
- const sh=String(f.hs||"").replace(/[^\d.]/g,"");if(/^87/.test(sh.replace(/\./g,"")))throw new Error("Code SH du chapitre 87 (véhicules et leurs parties) refusé : exportation de véhicules interdite dans ce module.");
+ const sh=xpNorm(f.hs).replace(/[^\d.]/g,"");if(/^87/.test(sh.replace(/\./g,"")))throw new Error("Code SH du chapitre 87 (véhicules et leurs parties) refusé : exportation de véhicules interdite dans ce module.");
  xpGardeVehicule(nom,code,f.description,f.categorie,f.hs_libelle);
  if(S.xp_produits.some(p=>p.code===code&&p.id!==f.id))throw new Error("Ce code produit existe déjà.");
  const pu=Math.round(+f.prix_ref||0),poids=+f.poids||0;if(pu<0)throw new Error("Prix de référence invalide.");
- if(f.id){const p=by(S.xp_produits,f.id);Object.assign(p,{code,nom,categorie:f.categorie,unite:f.unite,prix_ref:pu,poids,hs:sh,origine:String(f.origine||"").trim(),description:String(f.description||"").trim(),seuil:Math.max(0,+f.seuil||0)});audit("Produit export modifié",code);return p}
+ if(f.id){const p=by(S.xp_produits,f.id);if(p.unite!==f.unite&&xpDispo(p.id)>0)throw new Error("Unité non modifiable : du stock existe pour ce produit ("+nb(xpDispo(p.id),2)+" "+p.unite+").");Object.assign(p,{code,nom,categorie:f.categorie,unite:f.unite,prix_ref:pu,poids,hs:sh,origine:String(f.origine||"").trim(),description:String(f.description||"").trim(),seuil:Math.max(0,+f.seuil||0)});audit("Produit export modifié",code);return p}
  const p={id:uid("xpp"),code,nom,categorie:f.categorie,unite:f.unite,prix_ref:pu,poids,hs:sh,origine:String(f.origine||"").trim(),description:String(f.description||"").trim(),seuil:Math.max(0,+f.seuil||0),actif:true,par:ME.nom,t:now()};S.xp_produits.push(p);audit("Produit export créé",code+" "+nom);return p}
 function xpProduitActif(id){need("export_v2","e");const p=by(S.xp_produits,id);if(!p)throw new Error("Produit introuvable.");p.actif=!p.actif;audit("Produit export "+(p.actif?"réactivé":"désactivé"),p.code)}
 function xpClient(f){
  need("export_v2",f.id?"e":"c");const nom=String(f.nom||"").trim().replace(/\s+/g," "),pays=String(f.pays||"").trim();
- if(!nom)throw new Error("Nom du client obligatoire.");if(!pays)throw new Error("Pays obligatoire.");if(/^c[ôo]te d.?ivoire$/i.test(pays))throw new Error("Un client étranger est requis : le pays ne peut pas être la Côte d'Ivoire.");
+ if(!nom)throw new Error("Nom du client obligatoire.");if(!pays)throw new Error("Pays obligatoire.");if(/^(c[ôo]te d.?ivoire|ivory coast|ci|abidjan|civ|ivoirien(ne)?)$/i.test(xpNorm(pays).trim()))throw new Error("Un client étranger est requis : le pays ne peut pas être la Côte d'Ivoire.");
  if(f.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email))throw new Error("Adresse e-mail invalide.");if(!XP_DEVISES.includes(f.devise))throw new Error("Devise invalide.");
  if(S.xp_clients.some(c=>c.nom.toLowerCase()===nom.toLowerCase()&&c.pays.toLowerCase()===pays.toLowerCase()&&c.id!==f.id))throw new Error("Ce client existe déjà pour ce pays.");
  const o={nom,pays,ville:String(f.ville||"").trim(),contact:String(f.contact||"").trim(),tel:String(f.tel||"").trim(),email:String(f.email||"").trim(),adresse:String(f.adresse||"").trim(),devise:f.devise,incoterm:XP_INCOTERMS.includes(f.incoterm)?f.incoterm:"FOB",nif:String(f.nif||"").trim()};
@@ -3589,12 +3593,12 @@ function xpLotRegler(id,f){
  vnCaisse(t,"sortie",m,"Règlement lot export "+l.ref,{type:"xp_lot",id:l.id});l.reglements.push({id:uid("rg"),date,montant:m,mode:f.mode,entry_id:e.id});audit("Règlement lot export",l.ref+" "+fcfa(m))}
 /* Commande, contrat, devis et facture d'exportation */
 function xpLignes(L){
- const out=[];(L||[]).forEach(x=>{const p=by(S.xp_produits,x.produit_id);if(!p||!p.actif)throw new Error("Produit introuvable ou désactivé.");xpGardeVehicule(p.nom,p.categorie,p.description);const q=+x.qte,pu=xpDev(x.pu);if(!(q>0))throw new Error("Quantité invalide pour "+p.nom+".");if(!(pu>=0))throw new Error("Prix invalide pour "+p.nom+".");out.push({id:uid("xpl"),produit_id:p.id,qte:q,pu,alloc:[]})});
+ const out=[];(L||[]).forEach(x=>{const p=by(S.xp_produits,x.produit_id);if(!p||!p.actif)throw new Error("Produit introuvable ou désactivé.");xpGardeVehicule(p.nom,p.categorie,p.description);const q=+x.qte,pu=xpDev(x.pu);if(!(q>0))throw new Error("Quantité invalide pour "+p.nom+".");if(!(Number.isFinite(+x.pu)&&+x.pu>=0&&pu>=0))throw new Error("Prix invalide pour "+p.nom+".");out.push({id:uid("xpl"),produit_id:p.id,qte:q,pu,alloc:[]})});
  if(!out.length)throw new Error("Ajoutez au moins une ligne de produit.");if(new Set(out.map(l=>l.produit_id)).size!==out.length)throw new Error("Un produit ne peut figurer qu'une fois par commande.");return out}
 function xpCreerCmd(f){
  need("export_v2","c");if(f.vn_id||f.vehicule_id)throw new Error("Exportation de véhicules interdite dans ce module.");
  const cl=by(S.xp_clients,f.client_id);if(!cl)throw new Error("Client étranger requis.");const dev=f.devise||cl.devise,date=vnDate(f.date);if(!XP_DEVISES.includes(dev))throw new Error("Devise invalide.");
- const taux=dev==="XOF"?1:+f.taux;if(!(taux>0))throw new Error("Taux de conversion (FCFA pour 1 "+dev+") obligatoire.");
+ const taux=dev==="XOF"?1:+f.taux;if(!(taux>0&&taux<=1e6))throw new Error("Taux de conversion (FCFA pour 1 "+dev+") obligatoire (entre 0 et 1 000 000).");if(["fret","assurance_cl","emballage_cl"].some(k=>f[k]!==""&&f[k]!=null&&!(+f[k]>=0)))throw new Error("Fret, assurance et emballage : montants positifs ou nuls.");
  xpGardeVehicule(f.notes,f.designation_libre);const lignes=xpLignes(f.lignes),inc=XP_INCOTERMS.includes(f.incoterm)?f.incoterm:cl.incoterm;
  const c={id:uid("xpo"),ref:seq("xpd","DEV-EXP"),client_id:cl.id,date,devise:dev,taux,incoterm:inc,lieu:String(f.lieu||"").trim(),lignes,fret:xpDev(f.fret),assurance_cl:xpDev(f.assurance_cl),emballage_cl:xpDev(f.emballage_cl),validite:String(f.validite||addDays(date,30)),notes:String(f.notes||"").trim(),
   statut:"devis",echeance:String(f.echeance||""),docs:Object.fromEntries(XP_DOCS.map(d=>[d[0],{ok:false,pj:null}])),reglements:[],frais_reels:[],frais_est:{emballage:Math.round(+f.est_emballage||0),assurance:Math.round(+f.est_assurance||0),expedition:Math.round(+f.est_expedition||0)},
@@ -3637,7 +3641,7 @@ function xpExpedier(id,f){
  // sortie de stock : lots les plus anciens d'abord (FIFO), coût réel de chaque lot
  const manque=[];c.lignes.forEach(l=>{if(xpDispo(l.produit_id)<l.qte)manque.push(xpProd(l.produit_id).nom+" (disponible "+nb(xpDispo(l.produit_id),2)+", demandé "+nb(l.qte,2)+")")});
  if(manque.length)throw new Error("Stock insuffisant : "+manque.join(" ; ")+".");
- let cout=0;c.lignes.forEach(l=>{let r=l.qte;l.alloc=[];S.xp_lots.filter(x=>x.produit_id===l.produit_id&&x.qte_restante>0).sort((a,b)=>a.date.localeCompare(b.date)||a.t.localeCompare(b.t)).forEach(lot=>{if(r<=0)return;const q=Math.min(r,lot.qte_restante),m=Math.round(q*lot.cout_unit);lot.qte_restante=Math.round((lot.qte_restante-q)*1e6)/1e6;r=Math.round((r-q)*1e6)/1e6;l.alloc.push({lot_id:lot.id,ref:lot.ref,qte:q,cout:m});cout+=m})});
+ let cout=0;c.lignes.forEach(l=>{let r=l.qte;l.alloc=[];S.xp_lots.filter(x=>x.produit_id===l.produit_id&&x.qte_restante>0).sort((a,b)=>a.date.localeCompare(b.date)||a.t.localeCompare(b.t)).forEach(lot=>{if(r<=0)return;const q=Math.min(r,lot.qte_restante),vide=Math.round((lot.qte_restante-q)*1e6)/1e6<=0,so=xpSorti(lot),m=vide?Math.max(0,Math.round(lot.qte*lot.cout_unit)-so):Math.round(q*lot.cout_unit);lot.cout_sorti=so+m;lot.qte_restante=Math.round((lot.qte_restante-q)*1e6)/1e6;r=Math.round((r-q)*1e6)/1e6;l.alloc.push({lot_id:lot.id,ref:lot.ref,qte:q,cout:m});cout+=m})});
  if(cout>0){const e=postEntry({journal:"OD",date:depart,libelle:"Sortie de stock export "+c.ref+" ("+xpCli(c.client_id).nom+")",piece:c.ref,source:{type:"xp_cout",id:c.id},lines:[{compte:cdef("cout_exp"),debit:cout,act:"export"},{compte:cdef("stock_exp"),credit:cout}]});c.cout_entry=e.id}
  c.expedition={transporteur_id:pr.id,mode:f.mode,doc_no:doc,depart,eta,livraison:"",suivi:[{t:now(),par:ME.nom,note:"Expédié ("+(XP_MODES.find(m=>m[0]===f.mode)||[0,""])[1]+") — "+doc}]};
  xpHist(c,"expediee","Expédition "+doc+" par "+pr.nom);audit("Expédition export",c.ref+" "+doc);return c}

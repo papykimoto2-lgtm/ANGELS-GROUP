@@ -169,6 +169,7 @@ function charger(){ // priorité : lien partagé (#p=…, mémorisé pour la vis
  if(!c){try{c=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){c=null}}
  if(!c&&window.__PORTAIL_DATA&&typeof window.__PORTAIL_DATA.cfg==="object")c=window.__PORTAIL_DATA.cfg;
  c=c&&typeof c==="object"?c:{};
+ {const pub=window.__PORTAIL_DATA&&window.__PORTAIL_DATA.cfg&&window.__PORTAIL_DATA.cfg.contact;if(pub&&pub.whatsapp&&c.contact&&typeof c.contact==="object"&&c.contact.whatsapp!==pub.whatsapp)c.contact=Object.assign({},c.contact,{whatsapp:pub.whatsapp})} /* un lien #p= ne peut pas détourner le numéro publié */
  const T={...DEF,...c,contact:{...DEF.contact,...(c.contact||{})},vendeurs:{...DEF.vendeurs,...(c.vendeurs||{})},hero:{...DEF.hero,...(c.hero||{})}};
  const tx=(v,n)=>String(v==null?"":v).slice(0,n);
  T.nom=tx(T.nom||DEF.nom,60);T.slogan=tx(T.slogan,160);T.apropos=tx(T.apropos,500);T.societe=tx(T.societe,1500);T.mentions=tx(T.mentions,4000);
@@ -190,6 +191,7 @@ const waNum=()=>telWA(T.contact.whatsapp||(T.shop&&T.shop.w)||"");
 function lienWA(msg){const n=waNum();return n?"https://wa.me/"+n+"?text="+encodeURIComponent(msg):""}
 function envoi(titre,msg,ref,back,num){ // dernière étape : WhatsApp, ou copie du message si aucun numéro n'est publié
  const u=num?"https://wa.me/"+telWA(num)+"?text="+encodeURIComponent(msg):lienWA(msg);return `<div class="card" style="align-items:center;text-align:center"><div class="ic" style="color:var(--c)"><svg class="i" viewBox="0 0 24 24" style="width:44px;height:44px" aria-hidden="true">${ICO.send}</svg></div><h3>Dernière étape</h3><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(ref)}</b></p><p class="mu">${titre}</p>
+ ${num?`<p class="mu" style="font-size:13px">Le message sera envoyé au <b>${esc(num)}</b>${digits(num)!==digits(waNum())?" — ce numéro n'est pas celui publié par l'entreprise : vérifiez-le avant d'envoyer.":"."}</p>`:""}
  ${u?`<a class="go" href="${esc(u)}" target="_blank" rel="noopener">${ico("chat")}Envoyer sur WhatsApp</a>`:'<div class="empty">Numéro WhatsApp non publié : copiez le message ci-dessous et envoyez-le.</div>'}
  <button type="button" class="chip" data-cp="1">${ico("copy")}Copier le message</button><textarea class="msg" readonly rows="6" style="width:100%;font-size:12px">${esc(msg)}</textarea><button type="button" class="chip" data-vue="${back}">← Nouvelle demande</button></div>`}
 function rendreShop(){
@@ -306,15 +308,17 @@ const coord=(a,ts)=>{if(!Array.isArray(a))return null;const la=+a[0],lo=+a[1];if
 function suiviNet(d){return{org:cutS(d.o,80),w:digits(d.w).slice(0,20),n:cutS(d.n,30),s:SUIVI_TIT[d.s]?d.s:"attente",l:cutS(d.l,100),lv:cutS(d.v,30),e:/^\d{4}-\d{2}-\d{2}T/.test(d.e||"")?String(d.e).slice(0,24):"",g:/^\d{4}-\d{2}-\d{2}T/.test(d.g||"")?String(d.g).slice(0,24):"",ap:Math.max(0,Math.round(+d.ap||0)),dst:coord(d.x),pos:coord(d.y,true),
  h:(Array.isArray(d.h)?d.h:[]).slice(0,40).filter(x=>Array.isArray(x)).map(x=>[cutS(x[0],20),/^\d{4}-/.test(x[1]||"")?String(x[1]).slice(0,24):""])}}
 const PIN=c=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="${c}" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="10" r="2.6" fill="#fff"/></svg>`;
-function carteSuivi(el,dst,pos){ // tuiles OpenStreetMap sans bibliothèque : repère de destination et position du livreur
+function carteSuivi(el,dst,pos,opt){ // tuiles OpenStreetMap sans bibliothèque : repère de destination et position du livreur
  const pts=[dst,pos].filter(Boolean);if(!pts.length)return;const W=el.clientWidth||600,H=el.clientHeight||300;
  const px=(p,z)=>{const n=256*Math.pow(2,z),s=Math.sin(p.lat*Math.PI/180);return{x:(p.lng+180)/360*n,y:(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n}};
- let z=16;if(pts.length>1){for(z=17;z>3;z--){const a=pts.map(p=>px(p,z)),dx=Math.max(...a.map(q=>q.x))-Math.min(...a.map(q=>q.x)),dy=Math.max(...a.map(q=>q.y))-Math.min(...a.map(q=>q.y));if(dx<W-110&&dy<H-110)break}}
+ let z=(opt&&opt.zoom)||16;if(!(opt&&opt.zoom)&&pts.length>1){for(z=17;z>3;z--){const a=pts.map(p=>px(p,z)),dx=Math.max(...a.map(q=>q.x))-Math.min(...a.map(q=>q.x)),dy=Math.max(...a.map(q=>q.y))-Math.min(...a.map(q=>q.y));if(dx<W-110&&dy<H-110)break}}
  const a=pts.map(p=>px(p,z)),cx=(Math.max(...a.map(q=>q.x))+Math.min(...a.map(q=>q.x)))/2,cy=(Math.max(...a.map(q=>q.y))+Math.min(...a.map(q=>q.y)))/2,ox=cx-W/2,oy=cy-H/2,n=Math.pow(2,z);
  let h="";for(let ty=Math.floor(oy/256);ty<=Math.floor((oy+H)/256);ty++)for(let tx=Math.floor(ox/256);tx<=Math.floor((ox+W)/256);tx++){if(ty<0||ty>=n)continue;const X=((tx%n)+n)%n;h+=`<img class="t" alt="" loading="lazy" referrerpolicy="no-referrer" src="https://tile.openstreetmap.org/${z}/${X}/${ty}.png" style="left:${Math.round(tx*256-ox)}px;top:${Math.round(ty*256-oy)}px">`}
  const put=(p,c,l)=>{const q=px(p,z);return `<div class="pin" style="left:${Math.round(q.x-ox)}px;top:${Math.round(q.y-oy)}px">${PIN(c)}${l}</div>`};
- el.innerHTML=h+(dst?put(dst,"#d9480f","Livraison"):"")+(pos?put(pos,"#1971c2","Livreur"+(pos.ts?" · "+hm(pos.ts):"")):"")+`<span class="att">© OpenStreetMap</span>`;
+ el.innerHTML=h+(dst?put(dst,"#d9480f",(opt&&opt.label)||"Livraison"):"")+(pos?put(pos,"#1971c2","Livreur"+(pos.ts?" · "+hm(pos.ts):"")):"")+`<span class="att">© OpenStreetMap</span>`;
  const imgs=[...el.querySelectorAll("img.t")];let ko=0;imgs.forEach(i=>i.onerror=()=>{i.style.visibility="hidden";if(++ko===imgs.length&&!el.querySelector(".hors"))el.insertAdjacentHTML("beforeend",'<div class="hors">Fond de carte indisponible (pas de connexion) : ouvrez la position dans votre application de cartes.</div>')})}
+function carteZone(el){ // carte permanente de la zone de livraison (sans lien de suivi) : centre configurable (T.carte), Abidjan par défaut
+ const c=T.carte&&isFinite(+T.carte.lat)&&isFinite(+T.carte.lng)?{lat:+T.carte.lat,lng:+T.carte.lng}:{lat:5.3484,lng:-4.0305};carteSuivi(el,c,null,{zoom:(T.carte&&+T.carte.zoom)||11,label:(T.carte&&T.carte.libelle)||"Zone de livraison"})}
 async function suiviVerifier(tok){ // etat : ok (signature valide) · ko (signature fausse) · inconnu (clé non publiée) · simple (non signé) · illisible
  const p=String(tok).split(".");if(p.length!==3||!/^[A-Za-z0-9_-]{8,}$/.test(p[0]))return{etat:"illisible"};
  let d;try{d=unb64(p[0])}catch(e){return{etat:"illisible"}}if(!d||typeof d!=="object")return{etat:"illisible"};
@@ -328,7 +332,7 @@ function suiviCarte(d,etat){
  const fin=["livree","annulee","echouee","retour_cours","retour_recu"].includes(d.s),rg=SUIVI_RANG[d.s],ko=["echouee","retour_cours","retour_recu","annulee"].includes(d.s);
  const when=sts=>{const h=d.h.filter(x=>sts.includes(x[0]))[0];return h&&h[1]?hm(h[1]):""};
  const vieux=d.g&&!fin&&Date.now()-new Date(d.g).getTime()>2*3600*1000;
- const msg=`Bonjour, où en est ma commande n° ${d.n} ?`,wn=d.w||waNum(),u=wn?"https://wa.me/"+telWA(wn)+"?text="+encodeURIComponent(msg):"";
+ const msg=`Bonjour, où en est ma commande n° ${d.n} ?`,wn=(etat==="ok"&&d.w)||waNum(),u=wn?"https://wa.me/"+telWA(wn)+"?text="+encodeURIComponent(msg):"";
  return `<div class="card"><div class="mu">${esc(d.org)}</div><h3 style="margin:2px 0 8px">Commande n° ${esc(d.n)}</h3><span class="cert ${CERT[etat][0]}">${esc(CERT[etat][1])}</span>
  <p style="font-size:18px;color:var(--tx);font-weight:700;margin:14px 0 4px">${esc(SUIVI_TIT[d.s])}</p>
  ${ko?`<p class="mu">Contactez-nous pour connaître la suite.</p>`:`<ol class="tl">${SUIVI_ET.map(([l,sts],i)=>`<li class="${i<=rg?"done":""} ${i===rg?"cur":""}">${esc(l)}${when(sts)?`<small>à ${esc(when(sts))}</small>`:""}${i===4&&d.s==="en_cours"&&d.lv?`<small>Livreur : ${esc(d.lv)}${d.e?" · arrivée estimée vers "+esc(hm(d.e)):""}</small>`:""}</li>`).join("")}</ol>`}
@@ -339,13 +343,15 @@ function suiviCarte(d,etat){
 async function suiviRendre(){
  const el=document.getElementById("sv"),tok=jetonDe();if(!el)return;
  if(!tok){el.innerHTML=`<div class="card"><h3>J'ai un lien ou un code de suivi</h3><p class="mu">Collez ici le lien reçu par WhatsApp lors de la confirmation ou du départ de votre commande.</p><label>Lien de suivi<input id="sv_in" autocomplete="off" placeholder="https://…/portail#/suivi/…"></label><div id="sv_er" class="err" style="display:none"></div><button type="button" class="go" id="sv_go">Voir ma commande</button></div>
-  <div class="card"><h3>Je n'ai pas de lien</h3><p class="mu">Indiquez la référence reçue à l'envoi de votre commande : nous vous répondons sur WhatsApp.</p><label>Référence<input id="suivi_ref" maxlength="12" autocapitalize="characters"></label><a class="go" id="suivi_go" href="#/suivi">Demander le suivi sur WhatsApp</a></div>`;
+  <div class="card"><h3>Je n'ai pas de lien</h3><p class="mu">Indiquez la référence reçue à l'envoi de votre commande : nous vous répondons sur WhatsApp.</p><label>Référence<input id="suivi_ref" maxlength="12" autocapitalize="characters"></label><a class="go" id="suivi_go" href="#/suivi">Demander le suivi sur WhatsApp</a></div>
+  <div class="card"><h3>Carte de livraison</h3><p class="mu">Notre zone de livraison. La position de votre livreur s'affiche sur cette carte dès que vous ouvrez le lien de suivi d'une commande en route.</p><div class="svmap" id="sv_zone" role="img" aria-label="Carte de la zone de livraison"></div></div>`;
+  {const z=document.getElementById("sv_zone");if(z)carteZone(z)}
   const go=document.getElementById("sv_go");go.onclick=()=>{const v=document.getElementById("sv_in").value.trim(),m=/#\/suivi\/([A-Za-z0-9_.\-]+)/.exec(v)||/^([A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(v),e=document.getElementById("sv_er");
    if(!m){e.textContent="Lien non reconnu : collez le lien complet reçu par WhatsApp.";e.style.display="block";return}location.hash="#/suivi/"+m[1]};return}
  el.innerHTML='<div class="empty">Vérification du lien…</div>';const r=await suiviVerifier(tok);
  if(r.etat==="illisible")el.innerHTML='<div class="card"><h3>Lien illisible</h3><p class="mu">Ce lien de suivi est incomplet ou abîmé : demandez-en un nouveau sur WhatsApp.</p></div>';
  else if(r.etat==="ko")el.innerHTML='<div class="card"><span class="cert ko">Lien non authentique</span><h3 style="margin-top:10px">Ne tenez pas compte de ce lien</h3><p class="mu">La signature de ce lien ne correspond pas : il a été modifié ou n\'a pas été émis par l\'entreprise. Contactez-nous directement.</p></div>';
- else{el.innerHTML=suiviCarte(r.d,r.etat);const m=document.getElementById("sv_map");if(m)carteSuivi(m,r.d.dst,r.d.pos)}}
+ else{el.innerHTML=suiviCarte(r.d,r.etat);const m=document.getElementById("sv_map");if(m)carteSuivi(m,r.d.dst,r.d.pos);else{el.insertAdjacentHTML("beforeend",'<div class="card" style="margin-top:14px"><h3>Carte</h3><p class="mu">'+(["livree","annulee","echouee","retour_cours","retour_recu"].includes(r.d.s)?"Livraison terminée : la carte ne s\'affiche que pendant le trajet.":"La position du livreur s\'affichera ici dès que votre commande sera en route (nouveau lien reçu par WhatsApp).")+'</p><div class="svmap" id="sv_zone" role="img" aria-label="Carte de la zone de livraison"></div></div>');const z=document.getElementById("sv_zone");if(z)carteZone(z)}}}
 /* Commande par lien : « commande libre » chez un vendeur partenaire, ou boutique préremplie pour un client */
 function commanderTok(){let o=null;try{o=unb64(jetonDe())}catch(e){}if(!o||typeof o!=="object")return null;
  return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
@@ -384,10 +390,11 @@ function qrSvgP(txt){try{const q=qrcode(0,"M");q.addData(String(txt));q.make();r
 const lienLivraison=()=>location.origin&&/^https?:/.test(location.protocol)?location.origin+location.pathname.replace(/\/portail\.html$/,"/portail")+"#/livraison":new URL("portail.html",location.href).href.split("#")[0]+"#/livraison";
 /* Traite le texte d'un QR code scanné : seules les pages du portail (livraison, commande, suivi, boutique) sont admises. */
 function qrTraiter(txt){
- const t=String(txt||"").trim().slice(0,4000),m=/#\/(livraison|commander|suivi|boutique|vehicules)(\/[A-Za-z0-9_.\-]+)?$/.exec(t);
+ const t=String(txt||"").trim().slice(0,4000);if(/^https?:\/\//i.test(t)){let o=null;try{o=new URL(t)}catch(e){}const ok=[location.origin];try{const w=((window.__PORTAIL_DATA||{}).print||{}).site;if(w)ok.push(new URL(w).origin)}catch(e){}if(!o||!ok.includes(o.origin))return{ok:false,msg:"Ce QR code mène vers un autre site que ce portail : il n'a pas été ouvert."}}
+ const m=/#\/(livraison|commander|suivi|boutique|vehicules)(\/[A-Za-z0-9_.\-]+)?$/.exec(t);
  if(!m||(/^https?:\/\//i.test(t)&&!/\/portail(\.html)?#/.test(t)&&!/^https?:\/\/[^\/]+\/?#/.test(t)))return{ok:false,msg:"Ce QR code n'est pas un code du portail ANGEL'S : il n'a pas été ouvert."};
  location.hash="#/"+m[1]+(m[2]||"");return{ok:true}}
-let SCAN=null;
+let SCAN=null;addEventListener("pagehide",()=>{try{scanStop()}catch(e){}});document.addEventListener("visibilitychange",()=>{if(document.hidden)try{scanStop()}catch(e){}});
 function scanStop(){if(SCAN){SCAN.on=false;try{SCAN.stream&&SCAN.stream.getTracks().forEach(x=>x.stop())}catch(e){}SCAN=null}const z=document.getElementById("lv_scan");if(z)z.innerHTML=""}
 async function scanStart(){
  const z=document.getElementById("lv_scan"),msg=document.getElementById("lv_scanmsg");if(!z)return;scanStop();
@@ -401,7 +408,7 @@ async function scanImage(f){const msg=document.getElementById("lv_scanmsg");
  if(!f)return;if(!("BarcodeDetector" in window)){msg.textContent="Lecture d'image impossible sur ce navigateur : utilisez l'appareil photo du téléphone.";return}
  try{const bmp=await createImageBitmap(f),r=await new BarcodeDetector({formats:["qr_code"]}).detect(bmp);if(!r.length){msg.textContent="Aucun QR code trouvé sur cette image.";return}const q=qrTraiter(r[0].rawValue);if(!q.ok)msg.textContent=q.msg}catch(e){msg.textContent="Image illisible."}}
 function livraisonRendre(){
- const el=document.getElementById("lv");if(!el)return;
+ const el=document.getElementById("lv");if(!el)return;scanStop();
  if(ST.ls==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre demande à <b>"+esc(T.nom)+"</b>. Nous confirmons le prix et le créneau, puis nous passons récupérer votre colis.",ST.lmsg,ST.lref,"lvr");return}
  const zs=T.shop?T.shop.zones:[],ZS=zs.length?`<select id="l_dz"><option value="">— choisir —</option>${zs.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)} (livraison ${F(z.frais)})</option>`).join("")}</select>`:'<input id="l_dz" maxlength="60" placeholder="Commune / zone">',ZC=zs.length?`<select id="l_cz"><option value="">— choisir —</option>${zs.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)}</option>`).join("")}</select>`:'<input id="l_cz" maxlength="60" placeholder="Commune / zone">';
  const lien=lienLivraison(),svg=qrSvgP(lien);
@@ -437,7 +444,7 @@ const PAGES={
    <div class="hero-cta"><button type="button" class="hero-btn principal" data-go="boutique">${ico("cart")}Commander en ligne</button><button type="button" class="hero-btn" data-go="livraison">${ico("send")}Programmer une livraison</button>${T.vendeurs.actif?`<button type="button" class="hero-btn" data-go="vendeur">${ico("users")}Devenir vendeur partenaire</button>`:""}<button type="button" class="hero-btn" data-go="contact">Parler à un conseiller</button></div>
    ${T.stats.length?`<div class="hero-stats">${T.stats.map(s=>`<div class="hero-stat"><b>${esc(s.v)}</b><span>${esc(s.l)}</span></div>`).join("")}</div>`:""}</div>${hv}</div></section>
   ${T.atouts.length?`<div class="container"><div class="atouts">${T.atouts.map(a=>`<div class="atout"><div class="ic ${a.photo?"ph":""}">${a.photo?`<img src="${esc(a.photo)}" alt="" loading="lazy">`:ico("check")}</div><div><b>${esc(a.titre)}</b><span>${esc(a.texte)}</span></div></div>`).join("")}</div></div>`:""}
-  <section class="pg"><div class="container"><div class="card" id="sv_home" style="margin-bottom:22px"><div class="ic">${ico("pin")}</div><h3>Suivre ma livraison</h3><p>Collez le lien de suivi reçu par WhatsApp : état de la commande, livreur et carte.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="svh_in" autocomplete="off" placeholder="Lien de suivi" style="flex:1;min-width:200px" aria-label="Lien de suivi"><button type="button" class="go" id="svh_go">Suivre</button></div><div id="svh_er" class="err" style="display:none"></div></div>${motDG()}${vehOk()?`<div style="margin-bottom:22px">${titreSec("Véhicules à vendre","")}<div class="grid">${VEH.slice(0,3).map(vehCarte).join("")}</div><p><button type="button" class="go" data-go="vehicules">Voir tous les véhicules →</button></p></div>`:""}${titreSec("Nos activités","Choisissez une activité pour en savoir plus.")}<div class="grid">${T.activites.map(a=>`<div class="card">${a.banniere?`<div class="ban"><img src="${esc(a.banniere)}" alt="${esc(a.nom)}" loading="lazy"></div>`:`<div class="ban vide">${ico("building")}</div>`}<h3>${esc(a.nom)}</h3><p>${esc(a.texte)}</p><button type="button" class="go" data-go="${a.id}">En savoir plus →</button></div>`).join("")||'<div class="empty">Nos activités seront publiées prochainement.</div>'}</div>
+  <section class="pg"><div class="container"><div class="card" id="sv_home" style="margin-bottom:22px"><div class="ic">${ico("pin")}</div><h3>Suivre ma livraison</h3><p>Collez le lien de suivi reçu par WhatsApp : état de la commande, livreur et carte.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="svh_in" autocomplete="off" placeholder="Lien de suivi" style="flex:1;min-width:200px" aria-label="Lien de suivi"><button type="button" class="go" id="svh_go">Suivre</button></div><div id="svh_er" class="err" style="display:none"></div><div class="svmap" id="svh_map" role="img" aria-label="Carte de la zone de livraison" style="margin-top:12px"></div></div>${motDG()}${vehOk()?`<div style="margin-bottom:22px">${titreSec("Véhicules à vendre","")}<div class="grid">${VEH.slice(0,3).map(vehCarte).join("")}</div><p><button type="button" class="go" data-go="vehicules">Voir tous les véhicules →</button></p></div>`:""}${titreSec("Nos activités","Choisissez une activité pour en savoir plus.")}<div class="grid">${T.activites.map(a=>`<div class="card">${a.banniere?`<div class="ban"><img src="${esc(a.banniere)}" alt="${esc(a.nom)}" loading="lazy"></div>`:`<div class="ban vide">${ico("building")}</div>`}<h3>${esc(a.nom)}</h3><p>${esc(a.texte)}</p><button type="button" class="go" data-go="${a.id}">En savoir plus →</button></div>`).join("")||'<div class="empty">Nos activités seront publiées prochainement.</div>'}</div>
    ${T.vendeurs.actif?`<div class="band"><div><h3>Vendez avec nous</h3><p>${esc(T.vendeurs.texte)}</p></div><button type="button" class="hero-btn" data-go="vendeur">Devenir vendeur partenaire</button></div>`:""}</div></section>`},
  vehicules:()=>`<section class="pg"><div class="container">${titreSec("Véhicules à vendre","Véhicules disponibles et arrivages prochains. Demandez un devis par WhatsApp.")}${vehOk()?'<div id="vl"></div>':'<div class="empty">Le catalogue de véhicules sera publié prochainement.</div>'}</div></section>`,
  boutique:()=>`<section class="pg"><div class="container">${titreSec("Boutique en ligne","Choisissez vos produits, indiquez votre adresse : la commande part par WhatsApp.")}<div id="shop"></div></div></section>`,
@@ -466,7 +473,9 @@ function pageDe(){const h=location.hash;const m=/^#\/([a-z0-9\-]+)/i.exec(h);ret
 function allerA(p){const cur=location.hash.replace(/^#\/?[a-z0-9\-]*/i,"");location.hash="#/"+p;}
 function navRendre(){
  const cur=PAGE,act=T.activites;
- document.getElementById("parcours").innerHTML=`<ul class="p-liste">`+PARC().map(e=>`<li class="p-etape"><div class="p-hd"><b>${e.n}</b><span>${e.t}</span></div><ul class="p-liste">`+e.l.map(([k,l,ic])=>k==="@act"?(act.length?`<li class="nav-dropdown p-activites"><button type="button" class="nav-dropdown-trigger" data-dd="act-menu">${ico(ic)}${l}</button><div class="nav-dropdown-menu" id="act-menu">${act.map(a=>`<button class="tab-link" data-go="${a.id}">${esc(a.nom)}</button>`).join("")}</div></li>`:""):`<li><button type="button" class="tab-link ${cur===k&&e.n!==3?"active":""}" data-go="${k}">${ico(ic)}${l}</button></li>`).join("")+`</ul></li>`).join("")+`</ul>`;
+ const aeGo=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.go:null;
+ document.getElementById("parcours").innerHTML=`<ul class="p-liste">`+PARC().map(e=>`<li class="p-etape"><div class="p-hd"><b>${e.n}</b><span>${e.t}</span></div><ul class="p-liste">`+e.l.map(([k,l,ic])=>k==="@act"?(act.length?`<li class="nav-dropdown p-activites"><button type="button" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false" data-dd="act-menu">${ico(ic)}${l}</button><div class="nav-dropdown-menu" id="act-menu">${act.map(a=>`<button class="tab-link" data-go="${a.id}">${esc(a.nom)}</button>`).join("")}</div></li>`:""):`<li><button type="button" class="tab-link ${cur===k&&e.n!==3?"active":""}" ${cur===k&&e.n!==3?'aria-current="page"':""} data-go="${k}">${ico(ic)}${l}</button></li>`).join("")+`</ul></li>`).join("")+`</ul>`;
+ if(aeGo){const b=document.querySelector('#parcours [data-go="'+aeGo.replace(/"/g,"")+'"]');if(b)try{b.focus({preventScroll:true})}catch(e){}}
 }
 function vehRendre(){const el=document.getElementById("vl");el.innerHTML=vehListe();
  const maj=()=>{ST.vq=el.querySelector("#vq").value;ST.vcar=el.querySelector("#vcar").value;ST.vo=el.querySelector("#vo").value;const g=el.querySelector("#vgrid");g.innerHTML=vehListe().match(/<div class="grid" id="vgrid">([\s\S]*)<\/div>$/)[1]};
@@ -478,9 +487,9 @@ function rendre(){
  document.getElementById("brand").textContent=T.nom;document.getElementById("brandsub").textContent=T.slogan;
  const bw=document.getElementById("bandeau-w");bw.hidden=!T.bandeau.length;document.getElementById("bandeau").innerHTML=T.bandeau.map(x=>`<span>${esc(x)}</span>`).join("");
  navRendre();
- const html=PAGES[PAGE]?PAGES[PAGE]():actPage(PAGE)||PAGES.accueil();
+ const html=Object.hasOwn(PAGES,PAGE)?PAGES[PAGE]():actPage(PAGE)||PAGES.accueil();
  document.getElementById("page").innerHTML=html;
- slideLance();if(document.getElementById("vl")){vehRendre()}if(document.getElementById("lv"))livraisonRendre();else scanStop();if(document.getElementById("sv"))suiviRendre();if(document.getElementById("cm"))commanderRendre();if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
+ slideLance();if(document.getElementById("vl")){vehRendre()}if(document.getElementById("lv"))livraisonRendre();else scanStop();if(document.getElementById("sv"))suiviRendre();{const zm=document.getElementById("svh_map");if(zm)carteZone(zm)}if(document.getElementById("cm"))commanderRendre();if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
  const sg=document.getElementById("suivi_ref");if(sg){const go=document.getElementById("suivi_go"),maj=()=>{const r=sg.value.trim().toUpperCase(),n=waNum();go.href=n?"https://wa.me/"+n+"?text="+encodeURIComponent("Bonjour, je souhaite le suivi de ma commande"+(r?" (réf. "+r+")":"")+"."):"#/espace-client"};sg.oninput=maj;maj()}
  document.getElementById("copy").textContent="© "+new Date().getFullYear()+" "+T.nom;
  {const L=T.legal,l=[L.raison,L.forme,L.capital&&"Capital : "+L.capital,L.rccm&&"RCCM : "+L.rccm,L.siege&&"Siège : "+L.siege,L.dirigeant&&"Dirigeant : "+L.dirigeant].filter(Boolean).join("\n");document.getElementById("mentions").textContent=[l,T.mentions].filter(Boolean).join("\n\n")||"Les mentions légales seront publiées prochainement. "+T.nom+"."}
@@ -488,7 +497,7 @@ function rendre(){
 }
 document.addEventListener("click",e=>{
  const dd=e.target.closest("[data-dd]");document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>{if(!dd||m.id!==dd.dataset.dd)m.classList.remove("open")});
- if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
+ if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");dd.setAttribute("aria-expanded",m.classList.contains("open")?"true":"false");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
  const g=e.target.closest("[data-go]");if(g){document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>m.classList.remove("open"));allerA(g.dataset.go);return}
  if(e.target.id==="lm")document.getElementById("dlg").showModal();
  if(e.target.dataset&&e.target.dataset.lb){document.getElementById("lbi").src=e.target.src;document.getElementById("lbi").alt=e.target.alt;document.getElementById("lbc").textContent=e.target.closest("figure").innerText;document.getElementById("lb").classList.add("on")}

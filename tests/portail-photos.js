@@ -53,7 +53,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const evil={nom:"X",atouts:[{titre:"t",texte:"x",photo:"javascript:alert(1)"}],photosProduits:{"P-X":"javascript:alert(1)","P-Y":"data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="},activites:[{nom:"A",banniere:"javascript:alert(1)",actif:true}]};
  const h="#p="+Buffer.from(encodeURIComponent(JSON.stringify(evil)).replace(/%([0-9A-F]{2})/g,(m,x)=>String.fromCharCode(parseInt(x,16))),"binary").toString("base64");
  const p3=await (await b.newContext()).newPage();p3.on("pageerror",e=>errs.push("p3: "+e.message));await p3.goto(base+"/portail.html"+h);await p3.waitForTimeout(500);
- const sec=await p3.evaluate(()=>({img:document.querySelectorAll("#page img").length,src:[...document.querySelectorAll("#page [src]")].map(x=>x.getAttribute("src")).filter(x=>/javascript|svg/i.test(x)).length}));
+ const sec=await p3.evaluate(()=>({img:document.querySelectorAll("#page img:not(.t)").length,src:[...document.querySelectorAll("#page [src]")].map(x=>x.getAttribute("src")).filter(x=>/javascript|svg/i.test(x)).length}));
  chk("PHO-11","sécurité : photos hostiles (javascript:, SVG) ignorées",sec.img===0&&sec.src===0,JSON.stringify(sec));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();

@@ -52,12 +52,15 @@
   }
   var ALGO = { name: "ECDSA", namedCurve: "P-256" }, SIGN = { name: "ECDSA", hash: "SHA-256" };
   async function kidDe(pub) { return sha(pub.x + "." + pub.y, 8); }
-  async function cleAssurer() {
+  var PEND = null;
+  function cleAssurer() { return PEND || (PEND = cleAssurer1().then(function (r) { PEND = null; return r; }, function (e) { PEND = null; throw e; })); }
+  async function cleAssurer1() {
     var k = lire(KEYS); if (k && k.priv && k.pub && k.kid) return k;
     var s = subtle(); if (!s) return null;
     var p = await s.generateKey(ALGO, true, ["sign", "verify"]), priv = await s.exportKey("jwk", p.privateKey), pub = await s.exportKey("jwk", p.publicKey);
     pub = { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y }; k = { priv: priv, pub: pub, kid: await kidDe(pub), t: new Date().toISOString() };
-    ecrire(KEYS, k); return k;
+    if (!ecrire(KEYS, k)) return null;   /* stockage plein ou bloqué : pas de signature plutôt qu'une clé jamais conservée */
+    return k;
   }
   function cleInfo() { var k = lire(KEYS); return k && k.kid ? { existe: true, kid: k.kid, t: k.t } : { existe: false, kid: "", t: "" }; }
   function cleExporter() { var k = lire(KEYS); return k ? JSON.stringify({ angels_cle: 1, priv: k.priv, pub: k.pub, kid: k.kid, t: k.t }) : ""; }
@@ -65,7 +68,10 @@
     var o; try { o = JSON.parse(txt); } catch (e) { throw new Error("Fichier de clé illisible."); }
     if (!o || o.angels_cle !== 1 || !o.priv || !o.pub) throw new Error("Ce n'est pas une clé de signature ANGEL'S GROUP.");
     var s = subtle(); if (!s) throw new Error("Cet appareil ne permet pas la signature (ouvrez l'application en https).");
-    try { await s.importKey("jwk", o.priv, ALGO, false, ["sign"]); await s.importKey("jwk", o.pub, ALGO, false, ["verify"]); } catch (e) { throw new Error("Clé invalide."); }
+    try {
+      var ks = await s.importKey("jwk", o.priv, ALGO, false, ["sign"]), kv = await s.importKey("jwk", o.pub, ALGO, false, ["verify"]), essai = new TextEncoder().encode("essai"), sg = await s.sign(SIGN, ks, essai);
+      if (!(await s.verify(SIGN, kv, sg, essai))) throw 0;
+    } catch (e) { throw new Error("Clé invalide : la clé privée et la clé publique ne correspondent pas."); }
     var pub = { kty: o.pub.kty, crv: o.pub.crv, x: o.pub.x, y: o.pub.y }; ecrire(KEYS, { priv: o.priv, pub: pub, kid: await kidDe(pub), t: o.t || new Date().toISOString() }); return cleInfo();
   }
   async function cleRegenerer() { try { localStorage.removeItem(KEYS); } catch (e) {} await cleAssurer(); return cleInfo(); }
@@ -146,18 +152,22 @@
     var e = document.getElementById("ap-ov"); if (e) return e;
     var st = document.createElement("style"); st.textContent = UICSS; document.head.appendChild(st);
     e = document.createElement("div"); e.id = "ap-ov"; e.hidden = true;
-    e.innerHTML = '<div class="bx" role="dialog" aria-label="Aperçu avant impression"><div class="bar"><b id="ap-t">Aperçu</b><select id="ap-o" aria-label="Orientation"><option value="p">Portrait</option><option value="l">Paysage</option></select><select id="ap-z" aria-label="Zoom"><option value=".7">70 %</option><option value=".85" selected>85 %</option><option value="1">100 %</option></select>' +
-      '<button class="p" id="ap-p" type="button">Imprimer / PDF</button><button id="ap-d" type="button">Télécharger HTML</button><button id="ap-x" type="button">Fermer</button></div><div class="zn"><div class="sh" id="ap-s"><iframe id="ap-f" title="Document"></iframe></div></div><div class="ft2" id="ap-i"></div></div>';
+    e.innerHTML = '<div class="bx" role="dialog" aria-modal="true" aria-label="Aperçu avant impression"><div class="bar"><b id="ap-t">Aperçu</b><select id="ap-o" aria-label="Orientation"><option value="p">Portrait</option><option value="l">Paysage</option></select><select id="ap-z" aria-label="Zoom"><option value=".7">70 %</option><option value=".85" selected>85 %</option><option value="1">100 %</option></select>' +
+      '<button class="p" id="ap-p" type="button">Imprimer / PDF</button><button id="ap-d" type="button">Télécharger HTML</button><button id="ap-x" type="button">Fermer</button></div><div class="zn"><div class="sh" id="ap-s"><iframe id="ap-f" title="Document" sandbox="allow-same-origin allow-modals"></iframe></div></div><div class="ft2" id="ap-i"></div></div>';
     document.body.appendChild(e);
     e.onclick = function (ev) { if (ev.target === e) fermer(); };
     document.getElementById("ap-x").onclick = fermer;
     document.getElementById("ap-o").onchange = charger; document.getElementById("ap-z").onchange = zoomer;
     document.getElementById("ap-p").onclick = function () { var f = document.getElementById("ap-f"); try { f.contentWindow.focus(); f.contentWindow.print(); } catch (x) { (G.__printNatif || G.print).call(G); } };
     document.getElementById("ap-d").onclick = function () { var f = document.getElementById("ap-f"), b = new Blob(["﻿" + f.srcdoc], { type: "text/html" }), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = String((ST.ctl && ST.ctl.ref) || "document").replace(/[^A-Za-z0-9_-]/g, "_") + ".html"; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000); };
-    document.addEventListener("keydown", function (k) { if (k.key === "Escape" && !e.hidden) fermer(); });
+    document.addEventListener("keydown", function (k) {
+      if (e.hidden) return; if (k.key === "Escape") return fermer();
+      if (k.key === "Tab") { var L = Array.prototype.filter.call(e.querySelectorAll("button,select"), function (x) { return !x.disabled; }); if (!L.length) return; var a = document.activeElement, i = L.indexOf(a);
+        if (k.shiftKey && i <= 0) { k.preventDefault(); L[L.length - 1].focus(); } else if (!k.shiftKey && (i === L.length - 1 || i < 0)) { k.preventDefault(); L[0].focus(); } }
+    });
     return e;
   }
-  function fermer() { var e = document.getElementById("ap-ov"); if (e) { e.hidden = true; document.body.style.overflow = ""; document.getElementById("ap-f").srcdoc = ""; } }
+  function fermer() { var e = document.getElementById("ap-ov"); if (e) { e.hidden = true; document.body.style.overflow = ""; document.getElementById("ap-f").srcdoc = ""; try { if (ST.opener && ST.opener.focus) ST.opener.focus(); } catch (x) { } ST.opener = null; } }
   function zoomer() { var z = +document.getElementById("ap-z").value || 1, s = document.getElementById("ap-s"); s.style.transform = "scale(" + z + ")"; s.style.marginBottom = "-" + Math.round((1 - z) * (document.getElementById("ap-f").offsetHeight || 1000)) + "px"; }
   function charger() {
     var f = document.getElementById("ap-f"), pay = document.getElementById("ap-o").value === "l";
@@ -181,7 +191,7 @@
       registrer({ r: ref, d: o.division, t: o.titre, x: o.date, m: Math.round(+o.montant || 0), h: h, k: kid, p: o.emetteur || "", u: new Date().toISOString(), s: simple ? "simple" : "signe" });
     } else ctl = { ref: ref, kid: "", h: h };
     ST = { o: Object.assign({}, o, { ref: ref }), id: id, ctl: ctl.canon ? ctl : null };
-    var e = ov(); e.hidden = false; document.body.style.overflow = "hidden"; document.getElementById("ap-t").textContent = o.titre + " — " + ref;
+    var e = ov(); ST.opener = e.hidden ? document.activeElement : ST.opener; e.hidden = false; document.body.style.overflow = "hidden"; try { document.getElementById("ap-p").focus(); } catch (x) { } document.getElementById("ap-t").textContent = o.titre + " — " + ref;
     document.getElementById("ap-o").value = o.paysage ? "l" : "p"; charger();
     return { ref: ref, h: h, signe: !!(ctl.canon && !ctl.simple) };
   }
