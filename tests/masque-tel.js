@@ -29,5 +29,18 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("MQ-5","protection désactivée dans les paramètres : l'appel direct du livreur revient",off===true,off);
  const gl=await p.evaluate(()=>{ME=S.users.find(u=>u.role==="livreur"&&S.livreurs.find(v=>v.user_id===u.id&&v.id===S.livraisons.find(x=>x.id===window.__l).livreur_id));const c=cmd(window.__c);geoLinkModal(c.client_id,c.adr.id,c.numero);const h=document.getElementById("modal").innerHTML;return{wa:/wa\.me/.test(h),btn:/lAskBureau/.test(h),num:/0707123456/.test(h)}});
  chk("MQ-6","lien de partage de position : le livreur ne reçoit ni lien WhatsApp ni numéro, il demande au bureau",!gl.wa&&gl.btn&&!gl.num,JSON.stringify(gl));
+ /* Étape 2 : pont téléphonique (serveur simulé) */
+ const pont=await p.evaluate(async TEL=>{const calls=[];window.fetch=async(u,o)=>{calls.push({u:String(u),h:o&&o.headers||{},b:o&&o.body?JSON.parse(o.body):null});return{ok:true,status:200,json:async()=>({ok:true,message:"Votre téléphone va sonner"})}};
+  S.config.appel_pont={actif:true,url:"https://fn.example/functions/v1/",cle_admin:"ADM-KEY"};const l=S.livraisons.find(x=>x.id===window.__l),c=cmd(l.commande_id),lv=liv(l.livreur_id);delete l.pont_ts;
+  ME=S.users.find(u=>u.role==="admin");_pontLast=0;await pontSync();const tk=calls.filter(x=>/appel-ticket$/.test(x.u)&&x.b&&x.b.commande===c.numero)[0];
+  const sync={url:tk&&tk.u,adm:tk&&tk.h["x-admin-key"],ct:tk&&tk.b.client_tel,lt:tk&&tk.b.livreur_tel,cle:tk&&tk.b.cle&&tk.b.cle.length,pushed:!!l.pont_ts};
+  calls.length=0;ME=S.users.find(u=>u.id===lv.user_id);render();ACT.lAppel(l.id);await new Promise(r=>setTimeout(r,200));const btn=!!document.querySelector('#modal [data-act="pontAppeler"]');
+  await ACT.pontAppeler(l.id);const ap=calls[calls.length-1];
+  const call={btn,u:ap&&ap.u,body:ap&&JSON.stringify(ap.b),adm:ap&&ap.h["x-admin-key"]};
+  calls.length=0;ME=S.users.find(u=>u.role==="admin");l.statut="livree";_pontLast=0;await pontSync();const cl=calls.filter(x=>x.b&&x.b.action==="clore"&&x.b.commande===c.numero)[0];
+  const clos={ok:!!cl,flag:!!l.pont_clos};
+  S.config.appel_pont={actif:false,url:"",cle_admin:""};calls.length=0;_pontLast=0;await pontSync();return{sync,call,clos,off:calls.length}},TEL);
+ chk("MQ-7","pont : le bureau enregistre le ticket (clé d'administration, numéro du client) ; le livreur n'envoie jamais le numéro ni la clé d'administration",pont.sync.url==="https://fn.example/functions/v1/appel-ticket"&&pont.sync.adm==="ADM-KEY"&&pont.sync.ct===TEL&&pont.sync.cle===32&&pont.sync.pushed&&pont.call.btn&&pont.call.u==="https://fn.example/functions/v1/appel-pont"&&!pont.call.body.includes("0707")&&!pont.call.adm&&/"cle":/.test(pont.call.body),JSON.stringify(pont));
+ chk("MQ-8","pont : l'autorisation est fermée dès que la livraison est terminée ; pont désactivé = aucun appel réseau",pont.clos.ok&&pont.clos.flag&&pont.off===0,JSON.stringify(pont));
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.join(" | "):""));process.exit(ko||errs.length?1:0);
 })();

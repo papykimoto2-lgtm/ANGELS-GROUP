@@ -506,3 +506,11 @@ Les numéros des clients ne doivent pas être divulgués aux livreurs (loi ivoir
 Limites actuelles : fonctionne en mode local ; le mode serveur (Supabase) devra appliquer la même règle côté base (accès par rôle) ; un client qui appelle lui-même le livreur laisse son numéro dans le téléphone de celui-ci. Étapes suivantes : appel par pont téléphonique et appel interne depuis le lien du portail.
 
 Test : `node tests/masque-tel.js` (6 contrôles).
+
+## Pont téléphonique (étape 2)
+
+Le livreur touche « Joindre le client » puis « Appeler maintenant » : le serveur fait sonner son téléphone, puis le relie au client depuis le numéro de l'entreprise. Ni l'un ni l'autre ne voit le numéro de l'autre ; les appels sont limités (4 par mission, 20 secondes minimum entre deux), enregistrés au journal (heure, statut, durée, sans numéro ni audio) et fermés à la fin de la livraison. Si le pont n'est pas configuré ou échoue, la demande au bureau (étape 1) reste disponible.
+
+Le code serveur (fonctions Supabase pour Africa's Talking) est dans `supabase/` — mise en service dans `supabase/README.md`. Le bureau pousse automatiquement le ticket d'une mission à l'affectation et le ferme à la fin ; réglages dans Distributions → Paramètres.
+
+Tests : `node tests/appel-pont.js` (9, logique serveur) et `node tests/masque-tel.js` (8).

@@ -29,3 +29,23 @@
 ## Limites actuelles
 - L'interface `transport.html` fonctionne encore sur le stockage local du navigateur (mêmes règles métier, mêmes tests). Son raccordement à ce backend (Supabase Auth + appels `rpc`) est l'étape suivante.
 - Le plan comptable est indicatif : à faire valider par le comptable (SYSCOHADA révisé, fiscalité ivoirienne). Facturation normalisée / FNE, déclarations fiscales, immobilisations et amortissements : hors périmètre tant qu'ils ne sont pas spécifiés.
+
+## Pont téléphonique (appel du client sans révéler son numéro)
+
+| Fichier | Rôle |
+|---|---|
+| `migrations/004_appel_pont.sql` | Tables `appel_tickets` (numéros côté serveur uniquement, clé du livreur hachée) et `appel_journal` ; RLS sans politique ; purge des numéros 7 jours après expiration |
+| `functions/appel-ticket/` | Le bureau enregistre ou ferme l'autorisation d'appel d'une mission (en-tête `x-admin-key`) |
+| `functions/appel-pont/` | Le livreur demande l'appel (commande + clé d'appel) : l'opérateur sonne chez le livreur |
+| `functions/appel-voix/` | Rappel vocal d'Africa's Talking : quand le livreur décroche, compose le client depuis le numéro de l'entreprise (sans enregistrement) |
+| `functions/_shared/pont.js` | Logique pure, testée par `node tests/appel-pont.js` (9 contrôles) |
+
+Mise en service :
+1. Compte Africa's Talking (Voice) avec un numéro sortant ; noter `AT_USERNAME`, `AT_API_KEY`, le numéro (`AT_NUMERO`, format +225…).
+2. Appliquer `004_appel_pont.sql` ; optionnel : `select cron.schedule('appel-purge','17 3 * * *','select public.appel_purger()');`.
+3. Secrets : `supabase secrets set ADMIN_KEY=<32+ caractères aléatoires> VOIX_SECRET=<32+ caractères aléatoires> AT_USERNAME=… AT_API_KEY=… AT_NUMERO=+225…`.
+4. Déployer : `supabase functions deploy appel-ticket appel-pont appel-voix --no-verify-jwt` (l'accès est protégé par `ADMIN_KEY`, la clé d'appel hachée du livreur et `VOIX_SECRET`).
+5. Dans le tableau de bord Africa's Talking → Voice → *Callback URL* : `https://<projet>.supabase.co/functions/v1/appel-voix?secret=<VOIX_SECRET>` (vérifier en bac à sable que `clientRequestId` est bien renvoyé dans le rappel).
+6. Distributions → Paramètres → « Appel du client par la plateforme » : adresse `https://<projet>.supabase.co/functions/v1`, clé d'administration = `ADMIN_KEY`, cocher « Activer ».
+
+Limites à connaître : l'application Distributions fonctionne encore sur le stockage local ; la clé d'administration réside dans les réglages de l'appareil du bureau (à remplacer par une session Supabase Auth lors du passage en mode serveur) ; tant que les données des clients sont présentes sur l'appareil du livreur, le masquage de l'écran n'est pas une barrière technique — il faudra ne plus envoyer les numéros aux appareils livreurs (règles d'accès par rôle côté base).
