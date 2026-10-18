@@ -114,15 +114,15 @@ const UI={tab:{},f:{}};
 
 /* ---------- Rôles & droits (v=consulter c=créer e=modifier a=valider x=annuler p=exporter) ---------- */
 const ROLES={admin:"Administrateur général",directeur:"Directeur / propriétaire",flotte:"Gestionnaire de flotte",caissier:"Caissier",comptable:"Comptable",controleur:"Contrôleur",chauffeur:"Chauffeur"};
-const MODS={vehicules:"Véhicules",chauffeurs:"Chauffeurs",contrats:"Contrats",planning:"Planning",echeances:"Échéances",encaissements:"Encaissements",recus:"Reçus",caisse:"Caisse",depenses:"Dépenses",compta:"Comptabilité",plan:"Plan comptable",tiers:"Comptes tiers",etats:"États comptables",gps:"GPS",maintenance:"Maintenance",entretien:"Entretien préventif",pieces:"Pièces détachées",agenda:"Agenda atelier",sinistres:"Sinistres",documents:"Documents & alertes",rapports:"Rapports",users:"Utilisateurs & droits",audit:"Audit & paramètres",portail:"Portail chauffeur"};
+const MODS={vehicules:"Véhicules",chauffeurs:"Chauffeurs",contrats:"Contrats",planning:"Planning",echeances:"Échéances",encaissements:"Encaissements",recus:"Reçus",caisse:"Caisse",depenses:"Dépenses",compta:"Comptabilité",plan:"Plan comptable",tiers:"Comptes tiers",etats:"États comptables",gps:"GPS",maintenance:"Maintenance",entretien:"Entretien préventif",pieces:"Pièces détachées",agenda:"Agenda atelier",sinistres:"Sinistres",documents:"Documents & alertes",rapports:"Rapports",users:"Utilisateurs & droits",audit:"Audit & paramètres",portail:"Portail chauffeur",achats_veh:"Achats de véhicules",ventes_veh:"Ventes de véhicules",impexp:"Import-export"};
 const ACT={v:"Consulter",c:"Créer",e:"Modifier",a:"Valider",x:"Annuler",p:"Exporter"};
 function defPerms(){
  const R={},set=(r,o)=>{R[r]={};Object.keys(MODS).forEach(m=>R[r][m]=(o[m]||"").split(""))};
- set("admin",{vehicules:"vcep",chauffeurs:"vcep",contrats:"vp",planning:"vp",echeances:"vp",encaissements:"v",recus:"vp",caisse:"v",depenses:"vp",compta:"vp",plan:"vcexp",tiers:"vp",etats:"vp",gps:"vcexp",maintenance:"vp",entretien:"vp",pieces:"vp",agenda:"vp",sinistres:"vp",documents:"vcep",rapports:"vp",users:"vcexp",audit:"vpe"});
- set("directeur",{vehicules:"vap",chauffeurs:"vp",contrats:"vap",planning:"vap",echeances:"vp",encaissements:"vp",recus:"vpx",caisse:"vapx",depenses:"vap",compta:"vapx",plan:"vp",tiers:"vp",etats:"vp",gps:"vp",maintenance:"vap",entretien:"vap",pieces:"vp",agenda:"vp",sinistres:"vp",documents:"vp",rapports:"vp",users:"v",audit:"vp"});
- set("flotte",{vehicules:"vcep",chauffeurs:"vcep",contrats:"vcep",planning:"vce",echeances:"v",recus:"v",depenses:"vc",gps:"vcep",maintenance:"vcepa",entretien:"vcexp",pieces:"vcep",agenda:"vp",sinistres:"vcep",documents:"vcep",rapports:"vp"});
- set("caissier",{vehicules:"v",chauffeurs:"v",contrats:"v",echeances:"vp",encaissements:"vcea",recus:"vp",caisse:"vce",depenses:"vc",tiers:"v"});
- set("comptable",{vehicules:"v",chauffeurs:"v",contrats:"v",echeances:"vp",encaissements:"v",recus:"vp",caisse:"vp",depenses:"vceap",compta:"vceap",plan:"vcexp",tiers:"vp",etats:"vp",maintenance:"v",entretien:"v",pieces:"vp",agenda:"v",documents:"v",rapports:"vp"});
+ set("admin",{vehicules:"vcep",chauffeurs:"vcep",contrats:"vp",planning:"vp",echeances:"vp",encaissements:"v",recus:"vp",caisse:"v",depenses:"vp",compta:"vp",plan:"vcexp",tiers:"vp",etats:"vp",gps:"vcexp",maintenance:"vp",entretien:"vp",pieces:"vp",agenda:"vp",sinistres:"vp",documents:"vcep",rapports:"vp",users:"vcexp",audit:"vpe",achats_veh:"vcep",ventes_veh:"vcep",impexp:"vcep"});
+ set("directeur",{vehicules:"vap",chauffeurs:"vp",contrats:"vap",planning:"vap",echeances:"vp",encaissements:"vp",recus:"vpx",caisse:"vapx",depenses:"vap",compta:"vapx",plan:"vp",tiers:"vp",etats:"vp",gps:"vp",maintenance:"vap",entretien:"vap",pieces:"vp",agenda:"vp",sinistres:"vp",documents:"vp",rapports:"vp",users:"v",audit:"vp",achats_veh:"vcep",ventes_veh:"vcep",impexp:"vcep"});
+ set("flotte",{vehicules:"vcep",chauffeurs:"vcep",contrats:"vcep",planning:"vce",echeances:"v",recus:"v",depenses:"vc",gps:"vcep",maintenance:"vcepa",entretien:"vcexp",pieces:"vcep",agenda:"vp",sinistres:"vcep",documents:"vcep",rapports:"vp",achats_veh:"v",ventes_veh:"v",impexp:"vcep"});
+ set("caissier",{vehicules:"v",chauffeurs:"v",contrats:"v",echeances:"vp",encaissements:"vcea",recus:"vp",caisse:"vce",depenses:"vc",tiers:"v",ventes_veh:"ve"});
+ set("comptable",{vehicules:"v",chauffeurs:"v",contrats:"v",echeances:"vp",encaissements:"v",recus:"vp",caisse:"vp",depenses:"vceap",compta:"vceap",plan:"vcexp",tiers:"vp",etats:"vp",maintenance:"v",entretien:"v",pieces:"vp",agenda:"v",documents:"v",rapports:"vp",achats_veh:"vp",ventes_veh:"vp",impexp:"vp"});
  set("controleur",Object.fromEntries(Object.keys(MODS).filter(m=>m!=="portail").map(m=>[m,"vp"])));
  set("chauffeur",{portail:"v"});
  return R;
@@ -852,8 +852,9 @@ const DEF_CPT={
  c_carburant:["Charge — carburant","6041","Charge"],c_entretien:["Charge — entretien et réparations","6242","Charge"],c_amende:["Charge — amendes et pénalités","657","Charge"],c_frais:["Charge — frais divers","638","Charge"],
  ecart_manquant:["Écart de caisse — manquant (charge)","658","Charge"],ecart_excedent:["Écart de caisse — excédent (produit)","758","Produit"],
  res_benef:["Résultat de l'exercice — bénéfice","131","Passif"],res_perte:["Résultat de l'exercice — perte","139","Passif"],
- immo:["Immobilisations — véhicules","2451","Actif"],amort_dot:["Amortissements — dotation (charge)","6813","Charge"],amort_cumul:["Amortissements — cumul véhicules","2845","Actif"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481","Tiers"]};
-const CPT_FIGES=["client","depot","treso_banque","treso_mobile","treso_caisse","fournisseur","apport","tva_coll","tva_ded","tva_due","tva_credit","immo","amort_cumul","immo_contre","res_benef","res_perte"];
+ immo:["Immobilisations — véhicules","2451","Actif"],amort_dot:["Amortissements — dotation (charge)","6813","Charge"],amort_cumul:["Amortissements — cumul véhicules","2845","Actif"],immo_contre:["Contrepartie d'acquisition (fournisseurs d'investissements)","481","Tiers"],
+ stock_veh:["Stock — véhicules destinés à la vente","3111","Actif"],vente_veh:["Ventes de véhicules — zone OHADA","7011","Produit"],vente_veh_exp:["Ventes de véhicules — hors zone OHADA (export)","7013","Produit"],cout_veh:["Coût des véhicules vendus (variation de stocks)","6031","Charge"],client_veh:["Clients — acheteurs de véhicules","4112","Tiers"]};
+const CPT_FIGES=["client","depot","treso_banque","treso_mobile","treso_caisse","fournisseur","apport","tva_coll","tva_ded","tva_due","tva_credit","immo","amort_cumul","immo_contre","res_benef","res_perte","stock_veh","client_veh"];
 const defComptes=()=>Object.fromEntries(Object.entries(DEF_CPT).map(([k,v])=>[k,v[1]]));
 function cdef(k){const v=((S.settings||{}).comptes||{})[k];if(!v)throw new Error("Compte non paramétré : « "+DEF_CPT[k][0]+" ». Renseignez-le dans Comptabilité → Comptes par défaut avant de comptabiliser cette opération.");return v}
 const DEF_SET={org_nom:"ANGEL'S & CO",org_activite:"Transport",org_ville:"Yopougon",org_adresse:"Yopougon, Abidjan",org_tel:"",tel_indicatif:"225",tel_len:10,pin_len:4,tentatives_max:5,blocage_min:1,marge_km:500,pj_src_max_mo:12,pj_compress_ko:150,defaut_places:5,cx_ecart_tol:0,cx_delai_tardif_h:24,cx_doublon_h:24,bq_tol_jours:3};
@@ -1816,7 +1817,7 @@ function migrerCompta(){ // données antérieures : nouveaux comptes par défaut
  migrerPlan();
  Object.values(c).forEach(n=>{try{planAssurer(n)}catch(e){}});
 }
-function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerAtelier();migrerCompta()}}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}if(!S||!S.users)seed();else{migrerAtelier();migrerCompta()}if(S)migrerNegoce()}
 
 /* ---------- Composants UI ---------- */
 const badge=(t,c)=>`<span class="badge ${c||""}">${esc(t)}</span>`;
@@ -2663,10 +2664,151 @@ A["p.dem"]=()=>form("Nouvelle demande",[{k:"type",l:"Type",t:"select",o:[["justi
 A["p.prof"]=()=>{const d=meDriver();form("Modifier mes coordonnées",[{k:"tel",l:"Téléphone"},{k:"adresse",l:"Adresse"}],d,o=>creerDemande({type:"profil",texte:"Changement de coordonnées",payload:{tel:o.tel,adresse:o.adresse}}),"Envoyer pour validation")};
 A["p.pin"]=()=>form("Changer mon PIN",[{k:"o",l:"PIN actuel",t:"password",req:1},{k:"n",l:"Nouveau PIN ("+pinTxt()+")",t:"password",req:1}],{},o=>changerPin(o.o,o.n));
 
+/* ---------- Négoce de véhicules : achats, ventes, import-export ----------
+   Stock de véhicules destinés à la vente (compte 3111), coût de revient = prix HT + frais d'approche (transport, douane, transitaire…).
+   Achat : stock / TVA récupérable au débit, fournisseur au crédit (règlement immédiat ou différé). Vente : client / ventes de véhicules (7011, ou 7013 hors zone OHADA : export, sans TVA) / TVA collectée,
+   puis sortie de stock au coût de revient (6031) : la marge = prix HT − coût de revient. Import-export : dossier par véhicule, étapes, documents exigés avant les étapes sensibles.
+   Comptes et TVA à faire valider par un expert-comptable. */
+const VN_MODES=[["banque","Banque / virement"],["mobile","Mobile Money"],["caisse","Espèces (caisse)"]];
+const VN_FRAIS=["Transport maritime","Transport routier","Droits et taxes de douane","Transitaire / manutention","Assurance transport","Frais portuaires","Carte grise / formalités","Remise en état","Autre"];
+const IE_ETAPES={import:[["commande","Commande passée"],["expedie","Expédié"],["en_transit","En transit"],["arrive","Arrivé au port"],["douane","En dédouanement"],["livre","Livré au dépôt"]],
+ export:[["prepare","Préparation"],["douane","Dédouanement export"],["embarque","Embarqué"],["en_transit","En transit"],["arrive","Arrivé à destination"],["livre","Livré à l'acheteur"]]};
+const IE_DOCS={import:["Facture commerciale du fournisseur","Connaissement / lettre de transport","Certificat d'origine","Déclaration en douane","Quittance de droits et taxes","Certificat de non-gage / radiation","Assurance transport"],
+ export:["Facture commerciale","Déclaration d'exportation","Certificat d'origine","Connaissement / lettre de transport","Certificat de non-gage","Assurance transport"]};
+const IE_REQ={import:{douane:[1],livre:[1,3,4]},export:{douane:[0],embarque:[0,1,3],livre:[0,1,3]}}; // documents (indices) exigés avant d'atteindre l'étape
+const nomEtape=(sens,e)=>(IE_ETAPES[sens].find(x=>x[0]===e)||[0,e])[1];
+function migrerNegoce(){["vn","ventes_veh","dossiers_ie","tiers_vn"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+ [["3111","Véhicules destinés à la vente","actif"],["7013","Ventes de véhicules — hors zone OHADA (export)","produit"],["4112","Clients — acheteurs de véhicules","actif"]].forEach(([num,nom,nat])=>{try{if(!planIndex().m.has(num))planCreer({num,nom,nat},true)}catch(e){}});
+ const D=defPerms();Object.keys(D).forEach(r=>{S.perms[r]=S.perms[r]||{};["achats_veh","ventes_veh","impexp"].forEach(m=>{if(!S.perms[r][m])S.perms[r][m]=D[r][m]})})}
+const vnById=id=>by(S.vn,id)||{},vvDe=v=>v.vente_id?by(S.ventes_veh,v.vente_id):null,tvn=id=>by(S.tiers_vn,id)||{nom:"—"};
+const vnCout=v=>v.achat.ht+sum(v.frais,f=>f.montant),vnPaye=v=>sum(v.reglements,r=>r.montant),vnDu=v=>v.achat.prix-vnPaye(v);
+const vvEnc=x=>sum(x.encaissements,e=>e.montant),vvReste=x=>x.prix-vvEnc(x),vvMarge=x=>x.ht-x.cout;
+const dossierDe=v=>v.dossier_id?by(S.dossiers_ie,v.dossier_id):null;
+const dossierRetard=d=>d.statut==="ouvert"&&d.eta&&d.eta<today();
+const vnLib=v=>v.marque+" "+v.modele+(v.annee?" "+v.annee:"");
+function tiersVN(type,nom,tel){nom=String(nom||"").trim().replace(/\s+/g," ");if(!nom)throw new Error(type==="fournisseur_veh"?"Fournisseur requis.":"Client requis.");
+ let t=S.tiers_vn.find(x=>x.type===type&&x.nom.toLowerCase()===nom.toLowerCase());
+ if(!t){t={id:uid("tv"),type,nom,tel:String(tel||"").trim()};S.tiers_vn.push(t)}else if(tel&&!t.tel)t.tel=String(tel).trim();return t}
+function vnTreso(mode,montant,sens){ // espèces : caisse ouverte exigée (et solde suffisant en sortie)
+ if(mode==="caisse"){const cs=openSession();if(!cs)throw new Error("Aucune caisse ouverte.");if(sens==="sortie"&&montant>soldeTheo(cs))throw new Error("Solde de caisse insuffisant.");return{compte:cptCaisse(cs),journal:"CAI",cs}}
+ if(mode==="banque")return{compte:cdef("treso_banque"),journal:"BQ"};if(mode==="mobile")return{compte:cdef("treso_mobile"),journal:"BQ"};throw new Error("Mode de règlement invalide.")}
+const vnCaisse=(t,sens,montant,motif,src)=>{if(t.cs)S.cash_mv.push({id:uid("cm"),session_id:t.cs.id,date:now(),sens,montant,categorie:"Négoce véhicules",motif,statut:"validee",source:src,par:ME.nom})};
+function vnDate(d,min){d=String(d||"").slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(d))throw new Error("Date invalide.");if(d>today())throw new Error("Date dans le futur.");if(min&&d<min)throw new Error("Date antérieure à l'opération d'origine ("+fd(min)+").");return d}
+function vnReglement(v,f){ // règlement fournisseur (sans contrôle de droit : appelé aussi à l'achat)
+ const m=Math.round(+f.montant),date=vnDate(f.date,v.achat.date);if(!(m>0))throw new Error("Montant invalide.");if(m>vnDu(v))throw new Error("Montant supérieur au reste dû au fournisseur ("+fcfa(vnDu(v))+").");
+ const t=vnTreso(f.mode,m,"sortie"),e=postEntry({journal:t.journal,date,libelle:"Règlement fournisseur — "+v.ref,piece:v.ref,source:{type:"vn_reglement",id:v.id},lines:[{compte:cdef("fournisseur"),tiers:v.achat.fournisseur_id,debit:m},{compte:t.compte,credit:m}]});
+ vnCaisse(t,"sortie",m,"Règlement fournisseur "+v.ref,{type:"vn",id:v.id});v.reglements.push({id:uid("rg"),date,montant:m,mode:f.mode,entry_id:e.id});audit("Règlement fournisseur véhicule",v.ref+" "+fcfa(m)+" ("+f.mode+")")}
+function acheterVehicule(f){
+ need("achats_veh","c");const prix=Math.round(+f.prix),paye=Math.round(+f.paye||0),date=vnDate(f.date);
+ if(!String(f.marque||"").trim()||!String(f.modele||"").trim())throw new Error("Marque et modèle requis.");if(!(prix>0))throw new Error("Prix d'achat invalide.");if(paye<0||paye>prix)throw new Error("Montant payé : entre 0 et le prix d'achat.");
+ const vin=String(f.vin||"").trim().toUpperCase();if(vin&&S.vn.some(x=>x.vin===vin))throw new Error("Ce numéro de châssis existe déjà dans le stock.");
+ const imp=f.origine==="import",tva=imp?0:tvaIn(prix),four=tiersVN("fournisseur_veh",f.fournisseur,f.tel);
+ const v={id:uid("vn"),ref:seq("vn","VN"),marque:String(f.marque).trim(),modele:String(f.modele).trim(),annee:+f.annee||null,vin,immat:String(f.immat||"").trim().toUpperCase(),couleur:String(f.couleur||"").trim(),km:Math.max(0,+f.km||0),carburant:f.carburant||"",
+  origine:imp?"import":"local",pays:imp?String(f.pays||"").trim():"",statut:"stock",achat:{date,fournisseur_id:four.id,prix,tva,ht:prix-tva},reglements:[],frais:[],dossier_id:null,vente_id:null,par:ME.nom,t:now()};
+ S.vn.push(v);
+ const e=postEntry({journal:"AC",date,libelle:"Achat véhicule "+v.ref+" — "+vnLib(v),piece:v.ref,source:{type:"vn_achat",id:v.id},lines:[{compte:cdef("stock_veh"),debit:prix-tva},...(tva?[{compte:cdef("tva_ded"),debit:tva}]:[]),{compte:cdef("fournisseur"),tiers:four.id,credit:prix}]});
+ v.achat.entry_id=e.id;if(paye>0)vnReglement(v,{montant:paye,mode:f.mode,date});audit("Achat véhicule",v.ref+" "+vnLib(v)+" "+fcfa(prix));return v}
+function reglerAchat(id,f){need("achats_veh","e");const v=by(S.vn,id);if(!v)throw new Error("Véhicule introuvable.");vnReglement(v,f)}
+function fraisVehicule(id,f){
+ need("achats_veh","c");const v=by(S.vn,id),m=Math.round(+f.montant);if(!v)throw new Error("Véhicule introuvable.");if(v.statut!=="stock")throw new Error("Véhicule déjà vendu : les frais ne se rattachent plus au coût de revient.");
+ if(!(m>0))throw new Error("Montant invalide.");if(!VN_FRAIS.includes(f.type))throw new Error("Nature de frais invalide.");const date=vnDate(f.date,v.achat.date),t=vnTreso(f.mode,m,"sortie");
+ const e=postEntry({journal:t.journal,date,libelle:f.type+" — "+v.ref+(f.libelle?" ("+f.libelle+")":""),piece:v.ref,source:{type:"vn_frais",id:v.id},lines:[{compte:cdef("stock_veh"),debit:m},{compte:t.compte,credit:m}]});
+ vnCaisse(t,"sortie",m,f.type+" "+v.ref,{type:"vn",id:v.id});v.frais.push({id:uid("fr"),date,type:f.type,libelle:String(f.libelle||"").trim(),montant:m,mode:f.mode,entry_id:e.id});audit("Frais d'approche véhicule",v.ref+" "+f.type+" "+fcfa(m))}
+function vnEncaisser(x,f){
+ const m=Math.round(+f.montant),date=vnDate(f.date,x.date);if(!(m>0))throw new Error("Montant invalide.");if(m>vvReste(x))throw new Error("Montant supérieur au reste à payer ("+fcfa(vvReste(x))+").");
+ const t=vnTreso(f.mode,m,"entree"),e=postEntry({journal:t.journal,date,libelle:"Encaissement vente véhicule "+x.ref,piece:x.ref,source:{type:"vv_enc",id:x.id},lines:[{compte:t.compte,debit:m},{compte:cdef("client_veh"),tiers:x.client_id,credit:m}]});
+ vnCaisse(t,"entree",m,"Vente véhicule "+x.ref,{type:"vv",id:x.id});x.encaissements.push({id:uid("en"),date,montant:m,mode:f.mode,entry_id:e.id});audit("Encaissement vente véhicule",x.ref+" "+fcfa(m)+" ("+f.mode+")")}
+function encaisserVente(id,f){need("ventes_veh","e");const x=by(S.ventes_veh,id);if(!x)throw new Error("Vente introuvable.");vnEncaisser(x,f)}
+function vendreVehicule(f){
+ need("ventes_veh","c");const v=by(S.vn,f.vn_id),prix=Math.round(+f.prix),enc=Math.round(+f.encaisse||0),date=vnDate(f.date,v&&v.achat.date);
+ if(!v)throw new Error("Choisir un véhicule en stock.");if(v.statut!=="stock")throw new Error("Ce véhicule n'est plus en stock.");if(!(prix>0))throw new Error("Prix de vente invalide.");if(enc<0||enc>prix)throw new Error("Montant encaissé : entre 0 et le prix de vente.");
+ const exp=f.export==="oui";if(exp&&!String(f.pays||"").trim())throw new Error("Pays de destination requis pour une vente à l'export.");
+ const cl=tiersVN("client_veh",f.client,f.tel),tva=exp?0:tvaIn(prix),ht=prix-tva,cout=vnCout(v);
+ const x={id:uid("vv"),ref:seq("vv","VV"),vn_id:v.id,client_id:cl.id,date,prix,tva,ht,export:exp,pays:exp?String(f.pays).trim():"",cout,encaissements:[],par:ME.nom,t:now()};
+ S.ventes_veh.push(x);v.statut="vendu";v.vente_id=x.id;
+ const e1=postEntry({journal:"VT",date,libelle:"Vente véhicule "+x.ref+" — "+vnLib(v),piece:x.ref,source:{type:"vv_vente",id:x.id},lines:[{compte:cdef("client_veh"),tiers:cl.id,debit:prix},{compte:cdef(exp?"vente_veh_exp":"vente_veh"),credit:ht},...(tva?[{compte:cdef("tva_coll"),credit:tva}]:[])]});
+ x.entry_id=e1.id;
+ if(cout>0)postEntry({journal:"OD",date,libelle:"Sortie de stock véhicule "+v.ref+" (vente "+x.ref+")",piece:x.ref,source:{type:"vv_cout",id:x.id},lines:[{compte:cdef("cout_veh"),debit:cout},{compte:cdef("stock_veh"),credit:cout}]});
+ if(enc>0)vnEncaisser(x,{montant:enc,mode:f.mode,date});audit("Vente véhicule",x.ref+" "+vnLib(v)+" "+fcfa(prix)+(exp?" (export "+x.pays+")":""));return x}
+function creerDossierIE(f){
+ need("impexp","c");const v=by(S.vn,f.vn_id),sens=f.sens;if(!["import","export"].includes(sens))throw new Error("Sens du dossier invalide.");if(!v)throw new Error("Choisir un véhicule.");
+ if(v.dossier_id&&(dossierDe(v)||{}).statut==="ouvert")throw new Error("Ce véhicule a déjà un dossier ouvert.");
+ if(sens==="import"&&v.origine!=="import")throw new Error("Seul un véhicule acheté « import » peut faire l'objet d'un dossier d'importation.");
+ if(sens==="export"){const x=vvDe(v);if(!x||!x.export)throw new Error("Un dossier d'exportation concerne un véhicule vendu à l'export.")}
+ if(!String(f.pays||"").trim())throw new Error("Pays requis.");if(f.etd&&f.eta&&f.eta<f.etd)throw new Error("L'arrivée prévue précède le départ.");
+ const e0=IE_ETAPES[sens][0][0],d={id:uid("ie"),ref:seq("ie","IE"),sens,vn_id:v.id,pays:String(f.pays).trim(),transitaire:String(f.transitaire||"").trim(),transport:f.transport||"",ref_transport:String(f.ref_transport||"").trim(),etd:f.etd||"",eta:f.eta||"",
+  etape:e0,statut:"ouvert",docs:IE_DOCS[sens].map(()=>false),hist:[{t:now(),etape:e0,note:"Dossier ouvert",par:ME.nom}],par:ME.nom};
+ S.dossiers_ie.push(d);v.dossier_id=d.id;audit("Dossier "+sens,d.ref+" — "+v.ref);return d}
+function docIE(id,i){need("impexp","e");const d=by(S.dossiers_ie,id);if(!d||d.statut!=="ouvert")throw new Error("Dossier clos ou introuvable.");if(!(i in d.docs))throw new Error("Document inconnu.");d.docs[i]=!d.docs[i];audit("Document dossier "+d.ref,IE_DOCS[d.sens][i]+" : "+(d.docs[i]?"reçu":"retiré"))}
+function etapeIE(id,etape,note){
+ need("impexp","e");const d=by(S.dossiers_ie,id);if(!d||d.statut!=="ouvert")throw new Error("Dossier clos ou introuvable.");const L=IE_ETAPES[d.sens].map(x=>x[0]),i=L.indexOf(etape),c=L.indexOf(d.etape);
+ if(i<0)throw new Error("Étape invalide.");if(i<=c)throw new Error("Le dossier ne peut qu'avancer.");
+ for(let k=c+1;k<=i;k++){const req=(IE_REQ[d.sens][L[k]]||[]).filter(j=>!d.docs[j]);if(req.length)throw new Error("Documents manquants avant « "+nomEtape(d.sens,L[k])+" » : "+req.map(j=>IE_DOCS[d.sens][j]).join(", ")+".")}
+ d.etape=etape;d.hist.push({t:now(),etape,note:String(note||"").trim(),par:ME.nom});if(i===L.length-1){d.statut="clos";d.clos_le=now()}audit("Dossier "+d.ref,nomEtape(d.sens,etape))}
+/* --- écrans --- */
+const vnBadge=v=>{const d=dossierDe(v);return v.statut==="vendu"?badge("Vendu","mu"):d&&d.statut==="ouvert"&&d.sens==="import"?badge("En transit","wa"):badge("En stock","ok")};
+V.achats_veh=()=>{
+ const st=S.vn.filter(v=>v.statut==="stock"),val=sum(st,vnCout),du=sum(S.vn,vnDu),imp=S.vn.filter(v=>v.origine==="import").length;
+ return head("Achats de véhicules",`${can("achats_veh","c")?'<button class="btn" data-a="vn.add">+ Acheter un véhicule</button>':""}${csvBtn("achats_veh","achats_veh")}`)+
+ `<div class="grid">${kp(nb(st.length),"Véhicules en stock")}${kp(fcfa(val),"Valeur du stock (coût de revient)","o")}${kp(fcfa(du),"Dû aux fournisseurs",du?"w":"o")}${kp(nb(imp),"Achats importés")}</div>`+
+ tbl(["Réf.","Véhicule","Châssis","Fournisseur","Origine","Prix d'achat","Frais","Coût de revient","Reste dû","Statut",""],S.vn.slice().reverse().map(v=>tr([esc(v.ref),esc(vnLib(v)),esc(v.vin||"—"),esc(tvn(v.achat.fournisseur_id).nom),v.origine==="import"?badge("Import · "+(v.pays||"?"),"wa"):badge("Local","mu"),fcfa(v.achat.prix),fcfa(sum(v.frais,f=>f.montant)),fcfa(vnCout(v)),vnDu(v)?`<b class="er">${fcfa(vnDu(v))}</b>`:fcfa(0),vnBadge(v),btn("vn.det",v.id,"Détail","ghost")])),{empty:"Aucun véhicule acheté pour le moment."})};
+CSVS.achats_veh=()=>[["Réf.","Date","Marque","Modèle","Année","Châssis","Fournisseur","Origine","Prix d'achat","Frais","Coût de revient","Reste dû","Statut"],S.vn.map(v=>[v.ref,v.achat.date,v.marque,v.modele,v.annee||"",v.vin,tvn(v.achat.fournisseur_id).nom,v.origine,v.achat.prix,sum(v.frais,f=>f.montant),vnCout(v),vnDu(v),v.statut])];
+A["vn.add"]=()=>form("Acheter un véhicule",[{k:"date",l:"Date d'achat",t:"date",req:1},{k:"fournisseur",l:"Fournisseur",req:1},{k:"tel",l:"Téléphone fournisseur"},{k:"marque",l:"Marque",req:1},{k:"modele",l:"Modèle",req:1},{k:"annee",l:"Année",t:"number"},{k:"vin",l:"N° de châssis (VIN)"},{k:"immat",l:"Immatriculation"},{k:"couleur",l:"Couleur"},{k:"km",l:"Kilométrage",t:"number"},
+ {k:"carburant",l:"Carburant",t:"select",o:[["Essence","Essence"],["Diesel","Diesel"],["Hybride","Hybride"],["Électrique","Électrique"]]},{k:"origine",l:"Origine",t:"select",o:[["local","Achat local"],["import","Importation"]]},{k:"pays",l:"Pays d'origine (si import)"},
+ {k:"prix",l:"Prix d'achat TTC (F)",t:"number",req:1},{k:"paye",l:"Payé à l'achat (F)",t:"number",h:"Le reste est dû au fournisseur"},{k:"mode",l:"Mode de règlement",t:"select",o:VN_MODES}],{date:today(),origine:"local",carburant:"Essence",mode:"banque"},o=>{acheterVehicule(o)},"Enregistrer l'achat");
+A["vn.det"]=id=>{const v=by(S.vn,id),d=dossierDe(v);if(!v)return;const four=tvn(v.achat.fournisseur_id);
+ modal(`<div class="between"><h2 style="margin:0">${esc(v.ref)} — ${esc(vnLib(v))}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <p>${vnBadge(v)} ${v.origine==="import"?badge("Import · "+(v.pays||"?"),"wa"):""}<br>Châssis : <b>${esc(v.vin||"—")}</b> · Immat. : ${esc(v.immat||"—")} · ${esc(v.couleur||"—")} · ${nb(v.km)} km · ${esc(v.carburant||"—")}<br>Fournisseur : <b>${esc(four.nom)}</b> ${esc(four.tel||"")} · acheté le ${fd(v.achat.date)} : ${fcfa(v.achat.prix)}${v.achat.tva?" (dont TVA récupérable "+fcfa(v.achat.tva)+")":""}</p>
+ <div class="grid">${kp(fcfa(vnCout(v)),"Coût de revient","o")}${kp(fcfa(vnPaye(v)),"Déjà payé")}${kp(fcfa(vnDu(v)),"Reste dû",vnDu(v)?"w":"o")}</div>
+ <div class="flex" style="margin:8px 0">${can("achats_veh","c")&&v.statut==="stock"?btn("vn.frais",v.id,"+ Frais d'approche"):""}${can("achats_veh","e")&&vnDu(v)>0?btn("vn.reg",v.id,"Régler le fournisseur","ok"):""}${d?btn("ie.det",d.id,"Dossier "+d.ref,"ghost"):""}</div>
+ <h3>Frais d'approche</h3>${tbl(["Date","Nature","Détail","Montant","Mode"],v.frais.map(f=>tr([fd(f.date),esc(f.type),esc(f.libelle),fcfa(f.montant),esc((VN_MODES.find(m=>m[0]===f.mode)||[0,f.mode])[1])])),{empty:"Aucun frais enregistré."})}
+ <h3>Règlements au fournisseur</h3>${tbl(["Date","Montant","Mode"],v.reglements.map(r=>tr([fd(r.date),fcfa(r.montant),esc((VN_MODES.find(m=>m[0]===r.mode)||[0,r.mode])[1])])),{empty:"Aucun règlement."})}`)};
+A["vn.frais"]=id=>form("Frais d'approche",[{k:"date",l:"Date",t:"date",req:1},{k:"type",l:"Nature",t:"select",o:VN_FRAIS.map(x=>[x,x])},{k:"libelle",l:"Détail (facultatif)"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Payé par",t:"select",o:VN_MODES}],{date:today(),mode:"banque"},o=>fraisVehicule(id,o));
+A["vn.reg"]=id=>{const v=by(S.vn,id);form("Régler le fournisseur — reste dû "+fcfa(vnDu(v)),[{k:"date",l:"Date",t:"date",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:VN_MODES}],{date:today(),montant:vnDu(v),mode:"banque"},o=>reglerAchat(id,o))};
+V.ventes_veh=()=>{
+ const L=S.ventes_veh,ca=sum(L,x=>x.ht),mg=sum(L,vvMarge),cre=sum(L,vvReste),stock=S.vn.filter(v=>v.statut==="stock").length;
+ return head("Ventes de véhicules",`${can("ventes_veh","c")?`<button class="btn" data-a="vv.add" ${stock?"":"disabled"}>+ Vendre un véhicule</button>`:""}${csvBtn("ventes_veh","ventes_veh")}`)+
+ `<div class="grid">${kp(nb(stock),"Véhicules à vendre")}${kp(fcfa(ca),"Chiffre d'affaires HT","o")}${kp(fcfa(mg),"Marge",mg<0?"e":"o")}${kp(fcfa(cre),"Reste à encaisser",cre?"w":"o")}</div>`+
+ tbl(["Réf.","Date","Véhicule","Client","Prix de vente","Encaissé","Reste","Marge","Type",""],L.slice().reverse().map(x=>{const v=vnById(x.vn_id);return tr([esc(x.ref),fd(x.date),esc(vnLib(v)),esc(tvn(x.client_id).nom),fcfa(x.prix),fcfa(vvEnc(x)),vvReste(x)?`<b class="er">${fcfa(vvReste(x))}</b>`:badge("Soldée","ok"),`<b class="${vvMarge(x)<0?"er":"ok"}">${fcfa(vvMarge(x))}</b>`,x.export?badge("Export · "+x.pays,"wa"):badge("Local","mu"),btn("vv.det",x.id,"Détail","ghost")])}),{empty:"Aucune vente de véhicule pour le moment."})};
+CSVS.ventes_veh=()=>[["Réf.","Date","Véhicule","Client","Prix TTC","TVA","Prix HT","Coût de revient","Marge","Encaissé","Reste","Export"],S.ventes_veh.map(x=>[x.ref,x.date,vnLib(vnById(x.vn_id)),tvn(x.client_id).nom,x.prix,x.tva,x.ht,x.cout,vvMarge(x),vvEnc(x),vvReste(x),x.export?x.pays:""])];
+A["vv.add"]=()=>form("Vendre un véhicule",[{k:"vn_id",l:"Véhicule en stock",t:"select",o:()=>S.vn.filter(v=>v.statut==="stock").map(v=>[v.id,v.ref+" · "+vnLib(v)+" — coût "+fcfa(vnCout(v))])},{k:"date",l:"Date de vente",t:"date",req:1},{k:"client",l:"Client",req:1},{k:"tel",l:"Téléphone client"},
+ {k:"prix",l:"Prix de vente TTC (F)",t:"number",req:1},{k:"export",l:"Vente à l'export",t:"select",o:[["non","Non (local)"],["oui","Oui (hors zone, sans TVA)"]]},{k:"pays",l:"Pays de destination (export)"},{k:"encaisse",l:"Encaissé à la vente (F)",t:"number"},{k:"mode",l:"Mode d'encaissement",t:"select",o:VN_MODES}],{date:today(),export:"non",mode:"banque"},o=>{vendreVehicule(o)},"Enregistrer la vente");
+A["vv.det"]=id=>{const x=by(S.ventes_veh,id),v=vnById(x.vn_id),d=dossierDe(v),c=tvn(x.client_id);
+ modal(`<div class="between"><h2 style="margin:0">${esc(x.ref)} — ${esc(vnLib(v))}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <p>Client : <b>${esc(c.nom)}</b> ${esc(c.tel||"")} · vendu le ${fd(x.date)} ${x.export?badge("Export · "+x.pays,"wa"):""}<br>Châssis : ${esc(v.vin||"—")} · Coût de revient : ${fcfa(x.cout)}</p>
+ <div class="grid">${kp(fcfa(x.prix),"Prix TTC")}${kp(fcfa(vvEnc(x)),"Encaissé")}${kp(fcfa(vvReste(x)),"Reste à payer",vvReste(x)?"w":"o")}${kp(fcfa(vvMarge(x)),"Marge (HT − coût)",vvMarge(x)<0?"e":"o")}</div>
+ <div class="flex" style="margin:8px 0">${can("ventes_veh","e")&&vvReste(x)>0?btn("vv.enc",x.id,"Encaisser","ok"):""}${btn("vv.fac",x.id,"Facture","ghost")}${x.export&&!d&&can("impexp","c")?btn("ie.add",v.id,"Ouvrir le dossier d'exportation","ghost"):""}${d?btn("ie.det",d.id,"Dossier "+d.ref,"ghost"):""}</div>
+ <h3>Encaissements</h3>${tbl(["Date","Montant","Mode"],x.encaissements.map(e=>tr([fd(e.date),fcfa(e.montant),esc((VN_MODES.find(m=>m[0]===e.mode)||[0,e.mode])[1])])),{empty:"Aucun encaissement."})}`)};
+A["vv.enc"]=id=>{const x=by(S.ventes_veh,id);form("Encaisser — reste "+fcfa(vvReste(x)),[{k:"date",l:"Date",t:"date",req:1},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"mode",l:"Mode",t:"select",o:VN_MODES}],{date:today(),montant:vvReste(x),mode:"banque"},o=>encaisserVente(id,o))};
+A["vv.fac"]=id=>{const x=by(S.ventes_veh,id),v=vnById(x.vn_id),c=tvn(x.client_id);
+ modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <h1>FACTURE ${esc(x.ref)}</h1><p><b>${ORG()+" "+ORGACT().toUpperCase()+"</b> — "+ADR()}</p><p>Date : ${fd(x.date)}<br>Client : <b>${esc(c.nom)}</b> ${esc(c.tel||"")}</p>
+ ${tbl(["Désignation","Châssis","Immatriculation","Prix HT","TVA","Prix TTC"],[tr([esc(vnLib(v)+(v.couleur?" — "+v.couleur:"")+" — "+nb(v.km)+" km"),esc(v.vin||"—"),esc(v.immat||"—"),fcfa(x.ht),fcfa(x.tva),fcfa(x.prix)])])}
+ <p>${x.export?"Vente à l'exportation ("+esc(x.pays)+") : exonérée de TVA.":""}<br>Encaissé : ${fcfa(vvEnc(x))} · Reste à payer : <b>${fcfa(vvReste(x))}</b></p>`)};
+V.impexp=()=>{
+ const o=S.dossiers_ie.filter(d=>d.statut==="ouvert"),r=o.filter(dossierRetard);
+ return head("Import-export",`${can("impexp","c")?'<button class="btn" data-a="ie.add">+ Nouveau dossier</button>':""}${csvBtn("impexp","impexp")}`)+
+ `<div class="grid">${kp(nb(o.length),"Dossiers ouverts")}${kp(nb(r.length),"En retard (arrivée dépassée)",r.length?"e":"o")}${kp(nb(S.dossiers_ie.filter(d=>d.sens==="import").length),"Importations")}${kp(nb(S.dossiers_ie.filter(d=>d.sens==="export").length),"Exportations")}</div>`+
+ tbl(["Dossier","Sens","Véhicule","Pays","Transport","Départ","Arrivée prévue","Étape","Documents",""],S.dossiers_ie.slice().reverse().map(d=>{const v=vnById(d.vn_id);return tr([esc(d.ref),d.sens==="import"?badge("Import","wa"):badge("Export","ok"),esc(v.ref+" · "+vnLib(v)),esc(d.pays),esc((d.transport||"—")+(d.ref_transport?" · "+d.ref_transport:"")),fd(d.etd),d.eta?(dossierRetard(d)?`<b class="er">${fd(d.eta)}</b>`:fd(d.eta)):"—",badge(nomEtape(d.sens,d.etape),d.statut==="clos"?"ok":dossierRetard(d)?"er":"wa"),d.docs.filter(Boolean).length+"/"+d.docs.length,btn("ie.det",d.id,"Détail","ghost")])}),{empty:"Aucun dossier d'import-export."})};
+CSVS.impexp=()=>[["Dossier","Sens","Véhicule","Pays","Transitaire","Transport","Départ","Arrivée prévue","Étape","Statut"],S.dossiers_ie.map(d=>[d.ref,d.sens,vnById(d.vn_id).ref,d.pays,d.transitaire,d.transport,d.etd,d.eta,nomEtape(d.sens,d.etape),d.statut])];
+A["ie.add"]=vid=>{const v=vid&&by(S.vn,vid);form("Nouveau dossier d'import-export",[{k:"sens",l:"Sens",t:"select",o:[["import","Importation"],["export","Exportation"]]},{k:"vn_id",l:"Véhicule",t:"select",o:()=>S.vn.map(x=>[x.id,x.ref+" · "+vnLib(x)+" ("+x.statut+(x.origine==="import"?", import":"")+")"])},{k:"pays",l:"Pays d'origine / de destination",req:1},{k:"transitaire",l:"Transitaire"},
+  {k:"transport",l:"Mode de transport",t:"select",o:[["Maritime","Maritime"],["Routier","Routier"],["Aérien","Aérien"]]},{k:"ref_transport",l:"Navire / n° de connaissement"},{k:"etd",l:"Départ prévu",t:"date"},{k:"eta",l:"Arrivée prévue",t:"date"}],
+  {sens:v&&v.statut==="vendu"?"export":"import",vn_id:v?v.id:"",pays:v?(v.statut==="vendu"?(vvDe(v)||{}).pays:v.pays)||"":"",transport:"Maritime"},o=>{creerDossierIE(o)},"Ouvrir le dossier")};
+A["ie.det"]=id=>{const d=by(S.dossiers_ie,id);if(!d)return;const v=vnById(d.vn_id),L=IE_ETAPES[d.sens],ci=L.findIndex(x=>x[0]===d.etape),ed=can("impexp","e")&&d.statut==="ouvert";
+ modal(`<div class="between"><h2 style="margin:0">${esc(d.ref)} — ${d.sens==="import"?"Importation":"Exportation"}</h2><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div>
+ <p>Véhicule : <b>${esc(v.ref+" · "+vnLib(v))}</b> · Pays : ${esc(d.pays)}<br>Transitaire : ${esc(d.transitaire||"—")} · ${esc(d.transport||"—")} ${esc(d.ref_transport)} · départ ${fd(d.etd)} · arrivée prévue ${d.eta?(dossierRetard(d)?`<b class="er">${fd(d.eta)} (dépassée)</b>`:fd(d.eta)):"—"}</p>
+ <div class="flex" style="margin:6px 0">${L.map((x,i)=>badge((i<=ci?"✔ ":"")+x[1],i<ci?"ok":i===ci?(d.statut==="clos"?"ok":"wa"):"mu")).join(" ")}</div>
+ <div class="flex" style="margin:8px 0">${ed&&ci<L.length-1?btn("ie.step",d.id,"Faire avancer le dossier","ok"):""}${d.sens==="import"&&v.statut==="stock"&&can("achats_veh","c")?btn("vn.frais",v.id,"+ Frais d'approche","ghost"):""}${btn("vn.det",v.id,"Fiche véhicule","ghost")}</div>
+ <h3>Documents</h3>${tbl(["Document","Reçu"],IE_DOCS[d.sens].map((n,i)=>tr([esc(n)+((IE_REQ[d.sens]?Object.entries(IE_REQ[d.sens]).filter(([,a])=>a.includes(i)).map(([e])=>" <span class='mu sm'>(exigé avant « "+nomEtape(d.sens,e)+" »)</span>").join(""):"")),`<input type="checkbox" data-a="ie.doc" data-id="${d.id}:${i}" ${d.docs[i]?"checked":""} ${ed?"":"disabled"}>`])))}
+ <h3>Historique</h3>${tbl(["Date","Étape","Note","Par"],d.hist.slice().reverse().map(h=>tr([fdt(h.t),esc(nomEtape(d.sens,h.etape)),esc(h.note),esc(h.par)])))}`)};
+A["ie.doc"]=(id,el)=>{const[d,i]=id.split(":");if(atomic(()=>docIE(d,+i))===false&&el)el.checked=!el.checked;else{const m=document.querySelector(".md");if(m)m.remove();A["ie.det"](d);render()}};
+A["ie.step"]=id=>{const d=by(S.dossiers_ie,id),L=IE_ETAPES[d.sens],ci=L.findIndex(x=>x[0]===d.etape);form("Faire avancer le dossier",[{k:"etape",l:"Nouvelle étape",t:"select",o:L.slice(ci+1).map(x=>[x[0],x[1]])},{k:"note",l:"Note (facultatif)",t:"area",full:1}],{},o=>etapeIE(id,o.etape,o.note),"Valider")};
+
 /* ---------- Navigation, rendu, événements ---------- */
 const NAV=[
  {v:"dashboard",l:"Tableau de bord",i:"📊",g:"Pilotage",e:"E02",m:"*"},{v:"rapports",l:"Rapports",i:"📈",g:"Pilotage",e:"E21",m:"rapports"},
  {v:"vehicules",l:"Véhicules",i:"🚕",g:"Flotte",e:"E03",m:"vehicules"},{v:"chauffeurs",l:"Chauffeurs",i:"🧑‍✈️",g:"Flotte",e:"E04",m:"chauffeurs"},{v:"affectations",l:"Affectations",i:"🔗",g:"Flotte",e:"E05",m:"vehicules"},{v:"contrats",l:"Contrats",i:"📑",g:"Flotte",e:"E06",m:"contrats"},{v:"planning",l:"Planning journalier",i:"🗓️",g:"Flotte",e:"E07",m:"planning"},
+ {v:"achats_veh",l:"Achats de véhicules",i:"🛒",g:"Négoce de véhicules",e:"E28",m:"achats_veh"},{v:"ventes_veh",l:"Ventes de véhicules",i:"🏷️",g:"Négoce de véhicules",e:"E29",m:"ventes_veh"},{v:"impexp",l:"Import-export",i:"🚢",g:"Négoce de véhicules",e:"E30",m:"impexp"},
  {v:"echeances",l:"Échéances et impayés",i:"⏳",g:"Recouvrement",e:"E08",m:"echeances"},{v:"encaissements",l:"Encaissements",i:"💵",g:"Recouvrement",e:"E09",m:"encaissements"},{v:"recus",l:"Reçus",i:"🧾",g:"Recouvrement",e:"E10",m:"recus"},
  {v:"caisse",l:"Caisse",i:"🏦",g:"Trésorerie",e:"E11",m:"caisse"},{v:"depenses",l:"Dépenses",i:"💸",g:"Trésorerie",e:"E12",m:"depenses"},
  {v:"compta",l:"Comptabilité",i:"📒",g:"Comptabilité",e:"E13",m:"compta"},{v:"tiers",l:"Comptes tiers",i:"👥",g:"Comptabilité",e:"E14",m:"tiers"},{v:"etats",l:"États comptables",i:"📚",g:"Comptabilité",e:"E15",m:"etats"},
