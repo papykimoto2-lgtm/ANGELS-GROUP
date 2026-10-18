@@ -404,3 +404,17 @@ Le catalogue « Au parking » (et les arrivages avec prix affiché) de Transport
 - Limite : sans serveur, les visiteurs voient le catalogue à la dernière publication ; le direct pour tous demande le backend Supabase.
 
 Test : `node tests/portail-vehicules.js` (10 contrôles).
+
+## Module 13 — Export de produits (V2), Transport
+
+Exportation de **produits** (agricoles, élevage, agroalimentaires, manufacturés, matières premières) vers des clients étrangers. **Les véhicules sont exclus** : désignation, catégorie, code SH du chapitre 87, note ou lien vers un véhicule sont refusés ; ils se vendent depuis « Ventes de véhicules ».
+
+- **Catalogue** produits (code, catégorie, unité, code SH, origine, seuil de stock), **clients étrangers** (Côte d'Ivoire refusée, devise, incoterm), **prestataires** logistiques (transporteur, transitaire, emballage).
+- **Stock et lots** : achat de lots (comptant ou à crédit, TVA déductible) → compte 3112 ; règlements fournisseurs ; sortie FIFO au coût réel à l'expédition.
+- **Circuit** : devis → contrat confirmé → facture (hors taxe, devise + taux du devis) → expédition (documents obligatoires, stock vérifié, transporteur, N° de transport) → suivi → livraison → clôture. Annulation avec motif (extourne de la facture) tant qu'aucun encaissement.
+- **Encaissements en devise** avec taux du jour : écart de change comptabilisé à chaque règlement (676 / 776), solde exact de la facture.
+- **Frais logistiques** (emballage, assurance, fret, douane) avec facture du prestataire obligatoire ; **marge par commande** = facturé − coût des lots − frais ± change.
+- **Comptabilité** : 4113 / 7013 (facture), 6032 / 3112 (sortie de stock), 6245 (frais) ; nouvelle activité analytique « Exportation de produits » (8 activités) ; contrôle automatique des écritures étendu ; droits du module « Export de produits » (consultation caissier, saisie comptable, validation/annulation direction).
+- Alertes : devis expirés, factures échues, expéditions en retard, documents à préparer, stock bas ; export CSV.
+
+Test : `node tests/export-produits.js` (19 contrôles).

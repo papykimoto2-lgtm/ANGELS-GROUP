@@ -25,7 +25,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const from=today().slice(0,4)+"-01-01",to=today(),R=resultatActivites(from,to),tot=resultat(from,to,""),by_=k=>R.find(r=>r.k===k);
   const somme=R.reduce((t,r)=>t+r.r,0);
   const ht=sum(S.ventes_veh,x=>x.ht),achats=sum(S.vn,v=>v.achat.ht);
-  return somme===tot.r&&by_("transit").c===400000&&by_("transit").p===0&&by_("ventes").p===ht&&by_("ventes").c===achats&&by_("ventes").r+by_("transit").r===sum(S.ventes_veh,vvMarge)&&R.length===7||JSON.stringify({somme,tot:tot.r,R})});
+  return somme===tot.r&&by_("transit").c===400000&&by_("transit").p===0&&by_("ventes").p===ht&&by_("ventes").c===achats&&by_("ventes").r+by_("transit").r===sum(S.ventes_veh,vvMarge)&&R.length===8||JSON.stringify({somme,tot:tot.r,R})});
 
  // 2. contrôle des écritures automatiques
  await t("CPA-2","contrôle : opérations de négoce / import toutes rapprochées de leurs écritures ; rien à signaler sur des données saines",()=>{
@@ -47,7 +47,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  // 3. synthèse publiée pour le Hub
  await t("CPA-5","synthèse publiée au Hub à chaque enregistrement : écritures, équilibre, opérations attendues / comptabilisées, résultat par activité",()=>{
   save();const r=JSON.parse(localStorage.getItem("angels_compta_transport"));
-  return r.module==="transport"&&r.nb_ecritures===S.entries.length&&r.debit===r.credit&&r.desequilibres===0&&r.non_comptabilisees===0&&r.ops_attendues>=8&&r.ops_comptabilisees===r.ops_attendues&&r.par_activite.length===7&&r.par_activite.reduce((t,a)=>t+a.r,0)===r.resultat||JSON.stringify(r)});
+  return r.module==="transport"&&r.nb_ecritures===S.entries.length&&r.debit===r.credit&&r.desequilibres===0&&r.non_comptabilisees===0&&r.ops_attendues>=8&&r.ops_comptabilisees===r.ops_attendues&&r.par_activite.length===8&&r.par_activite.reduce((t,a)=>t+a.r,0)===r.resultat||JSON.stringify(r)});
  await t("CPA-6","comptabilité générale : toutes les écritures équilibrées, balance générale équilibrée",()=>{
   const bad=S.entries.filter(e=>sum(e.lines,l=>l.debit)!==sum(e.lines,l=>l.credit)).length;return bad===0&&sum(S.entries,e=>sum(e.lines,l=>l.debit))===sum(S.entries,e=>sum(e.lines,l=>l.credit))||"déséquilibre"});
  // 4. Distributions et Agro puis page du Hub (même origine : stockage partagé)

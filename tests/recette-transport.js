@@ -773,7 +773,7 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
  await t("PLA-15","intégrité : écriture sur compte hors plan / regroupement, classe manquante, compte par défaut absent ou non imputable",()=>__iso(()=>{const E=[];
   __as("comptable");const base=integrite().filter(m=>/hors plan|regroupement|Plan comptable incomplet|Compte par défaut/.test(m));if(base.length)E.push("anomalies initiales : "+base.join("|"));
   const push=l=>S.entries.push({id:uid("je"),numero:"OD-T"+Math.random(),journal:"OD",date:today(),libelle:"t",piece:"",source:{type:"manual"},statut:"validee",lines:l,created:now(),par:"t"});
-  push([{compte:"4113",debit:1},{compte:cdef("produit"),credit:1}]);let ig=integrite();if(!ig.some(m=>/hors plan : 4113/.test(m)))E.push("hors plan");
+  push([{compte:"4999",debit:1},{compte:cdef("produit"),credit:1}]);let ig=integrite();if(!ig.some(m=>/hors plan : 4999/.test(m)))E.push("hors plan");
   push([{compte:"411",debit:1},{compte:cdef("produit"),credit:1}]);ig=integrite();if(!ig.some(m=>/regroupement.*411/.test(m)))E.push("regroupement");
   S.accounts=S.accounts.filter(a=>a.num[0]!=="8");S.plan_v++;ig=integrite();if(!ig.some(m=>/classe 8/.test(m)))E.push("classe 8 absente");
   S.settings.comptes.immo="24599";ig=integrite();if(!ig.some(m=>/inexistant au plan : 24599/.test(m)))E.push("défaut absent");
