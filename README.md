@@ -383,3 +383,8 @@ La page `parametres.html` est rangée en **7 onglets** : 👥 Utilisateurs et r�
 - Les photos importées ne voyagent pas dans le lien du portail (lien léger) ; elles sont incluses dans `portail-data.js` et le portail autonome. Seules les images `data:` PNG/JPEG/WEBP/GIF ou https sont acceptées.
 - Les textes saisis par l'administrateur (bandeau, FAQ…) sont affichés tels quels : ils peuvent contenir des emojis si vous en écrivez.
 - Tests : `tests/portail-photos.js` (PHO-1 à PHO-11).
+
+### Écrans de gestion sans emoji
+- Les emojis sont retirés de **tout le groupe** : Hub, Paramètres, Comptabilité du groupe, Distributions, Transport, Agro (en plus du portail public). Les menus, titres, boutons et libellés sont en texte ; les boutons qui n'avaient qu'un pictogramme portent un mot (« Supprimer », « Modifier », « Imprimer », « Voir », « Ajouter »…). Les cartes du Hub ont des **icônes SVG sobres** (Distributions, Transport, Agro, Portail, Comptabilité, Paramètres).
+- Les symboles typographiques simples (coche, croix, étoile, menu) sont conservés ; les marqueurs « ⚠ » qui servaient aussi à la logique (comptes à corriger dans les règles de comptabilisation de Transport) deviennent « À corriger : … ».
+- Garde-fou : `tests/sans-emoji.js` (EMO-*) vérifie qu'aucun emoji n'est réintroduit dans les 8 fichiers HTML et qu'aucun test sur chaîne vide ne subsiste.

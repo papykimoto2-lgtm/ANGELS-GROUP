@@ -34,13 +34,13 @@ a.btn{display:inline-block;padding:9px 14px;border-radius:10px;background:var(--
 </style>
 </head>
 <body>
-<header><div class="w"><a href="index.html">← Hub du groupe</a><h1>📒 Comptabilité du groupe</h1><p>Contrôle d'intégrité et consolidation des trois applications : chaque module comptabilise-t-il ses opérations, ses écritures sont-elles équilibrées, le plan est-il commun ?</p></div></header>
+<header><div class="w"><a href="index.html">← Hub du groupe</a><h1>Comptabilité du groupe</h1><p>Contrôle d'intégrité et consolidation des trois applications : chaque module comptabilise-t-il ses opérations, ses écritures sont-elles équilibrées, le plan est-il commun ?</p></div></header>
 <main><div class="w" id="app"></div></main>
 <script>
 const MODS=[
- {k:"distribution",nom:"Distributions",ic:"🛵",url:"distribution.html",c:"#0e7490"},
- {k:"transport",nom:"Transport & négoce",ic:"🚕",url:"transport.html",c:"#c2410c"},
- {k:"agro",nom:"Agro",ic:"🌱",url:"agro.html",c:"#15803d"}];
+ {k:"distribution",nom:"Distributions",ic:"",url:"distribution.html",c:"#0e7490"},
+ {k:"transport",nom:"Transport & négoce",ic:"",url:"transport.html",c:"#c2410c"},
+ {k:"agro",nom:"Agro",ic:"",url:"agro.html",c:"#15803d"}];
 const ACT=[["transport","Transport de personnes"],["flotte","Exploitation et entretien de la flotte"],["import","Activité d'importation"],["stock","Stock commercial"],["ventes","Ventes de véhicules"],["transit","Frais de transit et douane"],["admin","Frais administratifs et généraux"]];
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" FCFA";

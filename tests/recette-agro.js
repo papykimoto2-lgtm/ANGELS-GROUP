@@ -281,7 +281,7 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
   S.soins.push({id:"zz",lot_id:lc.id,age_j:3,prevue:today(),action:"<img src=x onerror=window.__q=1>",produit_requis:"<b>p</b>",unite:"dose",produit_id:null,qte:0,realise_le:null});h=V.lots();S.soins.pop();if(/<img src=x/.test(h)||/<b>p<\/b>/.test(h))E.push("xss");return E.length===0||E.join("|")});
  await t("AGR-38","stock : état des stocks, journal et inventaires s'affichent ; indicateurs et soldes avant/après cohérents avec les mouvements",()=>{__as("magasinier");const E=[];view="stock";
   for(const k of ["etat","mv","inv","prod"]){UI.tab.stock=k;const h=V.stock();if(/NaN|undefined|\[object/.test(h))E.push("tab "+k)}
-  UI.tab.stock="etat";const h=V.stock(),crit=S.produits.filter(p=>p.seuil>0&&qteStock(p.id)<=p.seuil).length;if(!h.includes(`<div class="v">${crit}</div><div class="l">⚠️ Articles critiques`))E.push("critiques "+crit);
+  UI.tab.stock="etat";const h=V.stock(),crit=S.produits.filter(p=>p.seuil>0&&qteStock(p.id)<=p.seuil).length;if(!h.includes(`<div class="v">${crit}</div><div class="l">Articles critiques`))E.push("critiques "+crit);
   const tot=sum(S.produits,valP);if(!h.includes(fcfa(tot)))E.push("valeur "+tot);
   const sd=mvSoldes();S.produits.forEach(p=>{const L=S.mvts.filter(m=>m.produit_id===p.id);if(L.length&&Math.abs(sd[L[L.length-1].id].ap-qteStock(p.id))>1e-6)E.push("solde "+p.code);let c=0;L.forEach(m=>{if(Math.abs(sd[m.id].av-c)>1e-6)c=NaN;else c=sd[m.id].ap})});
   UI.f.mv=null;mvF();const pr=S.produits.find(p=>S.mvts.some(m=>m.produit_id===p.id));UI.f.mv.prod=pr.id;if(!mvFiltres().every(m=>m.produit_id===pr.id))E.push("filtre produit");
