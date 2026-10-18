@@ -391,3 +391,16 @@ La page `parametres.html` est rangée en **7 onglets** : 👥 Utilisateurs et r�
 - **Visiteurs** : sans serveur, ils voient le catalogue de la **dernière publication** du portail (Hub → Paramètres → Publication : `portail-data.js` ou portail autonome, qui embarquent le catalogue le plus récent). Un catalogue réellement en direct pour les visiteurs suppose le serveur (Supabase).
 - La boucle complète fonctionne : commande sur le portail → message WhatsApp → import dans *Vente en ligne* (Mobile Money à vérifier, prix recalculés).
 - Tests : `tests/portail-vente-ligne.js` (VL-1 à VL-10).
+
+## Catalogue véhicules (Transport) → portail public
+
+Le catalogue « Au parking » (et les arrivages avec prix affiché) de Transport alimente automatiquement la page **Véhicules** du portail unique.
+
+- **Publié à chaque enregistrement** dans Transport : fiche (marque, modèle, année, km, carburant, boîte, places, couleur, équipements, description), prix affiché, situation (disponible / réservé / arrivage) et jusqu'à 4 photos réduites (800 px, JPEG). Coût, fournisseur, châssis, emplacement et marge ne sont **jamais** publiés.
+- **Masquer une fiche** : champ « Publié sur le portail : Non » dans la fiche catalogue. Carte « Connexion au portail public » avec bouton *Synchroniser maintenant*.
+- **Portail** : entrée VÉHICULES dans « Passer à l'action », bandeau sur l'accueil, recherche / filtre carburant / tri par prix, fiche détaillée avec galerie et bouton « Demander un devis sur WhatsApp ».
+- **Demandes de devis** : le message WhatsApp contient un marqueur `[VEHICULE:…]` ; Transport → Catalogue → « Importer une demande » crée le client (sans doublon) et la liste « Demandes de devis du portail ».
+- **Paramètres → Boutique et vendeurs** : interrupteur « Afficher le catalogue véhicules » ; la publication (portail-data.js / html autonome) embarque le catalogue.
+- Limite : sans serveur, les visiteurs voient le catalogue à la dernière publication ; le direct pour tous demande le backend Supabase.
+
+Test : `node tests/portail-vehicules.js` (10 contrôles).
