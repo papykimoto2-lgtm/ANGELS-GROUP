@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e7490">
+<meta name="description" content="Portail unique du groupe : boutique, véhicules, espaces chauffeur, vendeur et équipe, contact.">
+<link rel="manifest" href="manifest-portail.webmanifest">
+<link rel="icon" type="image/png" href="icons/hub-192.png">
+<link rel="apple-touch-icon" href="icons/hub-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Portail">
+<title>Portail — ANGEL'S GROUP</title>
+<style>
+:root{--c:#0e7490;--bg:#f5f8fa;--card:#fff;--tx:#1b2240;--mu:#667085;--bd:#dbe5ea}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1a21;--card:#12293a;--tx:#e8f1f4;--mu:#9bb0b9;--bd:#21404f}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+a{color:inherit}
+.w{max-width:1000px;margin:0 auto;padding:0 16px}
+header.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--c) 70%,#000),var(--c));color:#fff;padding:calc(26px + env(safe-area-inset-top)) 0 44px}
+.hero h1{margin:0;font-size:clamp(26px,5vw,40px);line-height:1.15}.hero p{margin:10px 0 0;max-width:640px;opacity:.92;font-size:17px}
+.hero .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:12px;background:#fff;color:var(--c);font-weight:700;text-decoration:none;min-height:46px;border:0;font:inherit;font-weight:700;cursor:pointer}
+.btn.pl{background:var(--c);color:#fff}.btn.gh{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6)}
+nav.sec{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--bd)}
+nav.sec .w{display:flex;gap:4px;overflow-x:auto;padding:6px 16px}
+nav.sec a{white-space:nowrap;text-decoration:none;padding:8px 12px;border-radius:99px;font-weight:600;font-size:14px;color:var(--mu)}nav.sec a:hover{background:var(--bg);color:var(--tx)}
+section{padding:26px 0}section h2{margin:0 0 6px;font-size:22px}section .sub{margin:0 0 16px;color:var(--mu)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.chip{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:9px 15px;font:inherit;font-weight:600;cursor:pointer;min-height:42px}.chip.on{background:var(--c);border-color:var(--c);color:#fff}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px;text-decoration:none}
+.card .ic{font-size:30px}.card h3{margin:0;font-size:17px}.card p{margin:0;color:var(--mu);font-size:14px;flex:1}
+.tag{align-self:flex-start;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c)}
+.go{align-self:flex-start;margin-top:6px;padding:10px 14px;border-radius:10px;background:var(--c);color:#fff;font-weight:700;text-decoration:none;font-size:14px;min-height:42px;display:inline-flex;align-items:center}
+details{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;margin-bottom:8px}summary{cursor:pointer;font-weight:600}details p{margin:8px 0 0;color:var(--mu)}
+.ct{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.ct .card{gap:4px}
+footer{padding:22px 0 30px;color:var(--mu);font-size:13px;border-top:1px solid var(--bd);text-align:center}footer button{background:none;border:0;color:var(--c);cursor:pointer;font:inherit;text-decoration:underline}
+dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);padding:18px}dialog::backdrop{background:rgba(0,0,0,.5)}
+.mu{color:var(--mu)}.empty{padding:16px;border:1px dashed var(--bd);border-radius:12px;color:var(--mu)}
+</style>
+</head>
+<body>
+<header class="hero"><div class="w"><div id="brand" style="font-size:13px;letter-spacing:2px;opacity:.85"></div><h1 id="slogan"></h1><p id="apropos"></p><div class="cta" id="cta"></div></div></header>
+<nav class="sec"><div class="w" id="nav"></div></nav>
+<main class="w">
+<section id="activites"><h2>Nos activités et services</h2><p class="sub">Choisissez votre profil pour trouver rapidement le bon accès.</p><div class="chips" id="chips"></div><div class="grid" id="cards"></div></section>
+<section id="faq"><h2>Questions fréquentes</h2><div id="faqs"></div></section>
+<section id="contact"><h2>Nous contacter</h2><div class="ct" id="ct"></div></section>
+</main>
+<footer><div class="w"><span id="copy"></span> · <button id="lm" type="button">Mentions légales</button> · <a href="index.html" class="mu">Accès équipe</a></div></footer>
+<dialog id="dlg"><h3 style="margin-top:0">Mentions légales</h3><div id="mentions" style="white-space:pre-wrap"></div><p style="text-align:right"><button class="btn pl" onclick="this.closest('dialog').close()">Fermer</button></p></dialog>
+<script>
+const KEY="angels_portail_v1";
+const AUD=[["tous","Tous"],["clients","Clients"],["chauffeurs","Chauffeurs"],["vendeurs","Vendeurs partenaires"],["equipe","Équipe"]];
+const DEF={v:1,nom:"ANGEL'S GROUP",slogan:"Un seul portail pour tout le groupe.",apropos:"Distribution, transport, négoce de véhicules et agro : retrouvez tous nos services et accédez à votre espace en quelques secondes.",couleur:"#0e7490",
+ contact:{tel:"",whatsapp:"",email:"",adresse:"",horaires:""},
+ entrees:[{id:"boutique",aud:"clients",icone:"🛒",titre:"Boutique en ligne",texte:"Commandez vos produits et prestations, payez par Mobile Money et suivez votre livraison.",lien:"distribution.html",connecte:false,actif:true},
+  {id:"vehicules",aud:"clients",icone:"🚗",titre:"Véhicules à vendre",texte:"Découvrez les véhicules disponibles, réservez ou demandez un devis.",lien:"transport.html",connecte:false,actif:true},
+  {id:"chauffeur",aud:"chauffeurs",icone:"🧑‍✈️",titre:"Espace chauffeur",texte:"Votre véhicule, vos échéances, vos reçus, la déclaration de recette et vos signalements.",lien:"transport.html",connecte:true,actif:true},
+  {id:"vendeur",aud:"vendeurs",icone:"📦",titre:"Espace vendeur partenaire",texte:"Saisissez vos commandes, suivez les livraisons et vos règlements.",lien:"vendeur",connecte:true,actif:true},
+  {id:"equipe",aud:"equipe",icone:"🏢",titre:"Hub du groupe",texte:"Pilotage des filiales, comptabilité du groupe et paramètres.",lien:"index.html",connecte:true,actif:true},
+  {id:"agro",aud:"equipe",icone:"🐔",titre:"Agro",texte:"Suivi de l'élevage, des lots, des stocks et de la comptabilité agro.",lien:"agro.html",connecte:true,actif:true}],
+ faq:[{q:"Comment accéder à mon espace ?",r:"Choisissez votre profil puis ouvrez votre espace : la connexion se fait avec votre identifiant et votre code PIN remis par l'entreprise."},{q:"J'ai oublié mon PIN.",r:"Contactez le bureau : un administrateur peut réinitialiser votre PIN."}],
+ mentions:""};
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const okLien=u=>{u=String(u||"").trim();if(!u)return"";if(/^(https?:\/\/|tel:|mailto:|https:\/\/wa\.me\/)/i.test(u))return u;if(/^[a-z0-9_\-\/\.]+(\?[\w=&\-]*)?(#[\w=\-%+\/\.]*)?$/i.test(u)&&!/^(javascript|data|vbscript):/i.test(u))return u;return""};
+const okCol=c=>/^#[0-9a-f]{6}$/i.test(String(c||""))?c:DEF.couleur;
+function dec(h){try{return JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,"+").replace(/_/g,"/")))))}catch(e){return null}}
+function charger(){ // priorité : lien partagé (#p=…) → réglages du Hub (même appareil) → valeurs par défaut
+ let c=null;const m=/[#&]p=([^&]+)/.exec(location.hash);if(m)c=dec(m[1]);
+ if(!c){try{c=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){c=null}}
+ c=c&&typeof c==="object"?c:{};
+ const T={...DEF,...c,contact:{...DEF.contact,...(c.contact||{})}};
+ T.entrees=(Array.isArray(c.entrees)?c.entrees:DEF.entrees).filter(e=>e&&typeof e==="object").slice(0,24).map(e=>({id:String(e.id||""),aud:AUD.some(a=>a[0]===e.aud)?e.aud:"clients",icone:String(e.icone||"•").slice(0,4),titre:String(e.titre||"").slice(0,80),texte:String(e.texte||"").slice(0,300),lien:okLien(e.lien),connecte:!!e.connecte,actif:e.actif!==false}));
+ T.faq=(Array.isArray(c.faq)?c.faq:DEF.faq).filter(f=>f&&f.q).slice(0,30).map(f=>({q:String(f.q).slice(0,200),r:String(f.r||"").slice(0,800)}));
+ T.couleur=okCol(T.couleur);return T;
+}
+let T=charger(),filtre="tous";
+function wa(n){return String(n||"").replace(/[^\d]/g,"")}
+function rendre(){
+ document.documentElement.style.setProperty("--c",T.couleur);document.querySelector('meta[name=theme-color]').content=T.couleur;
+ document.title="Portail — "+T.nom;
+ document.getElementById("brand").textContent=T.nom.toUpperCase();document.getElementById("slogan").textContent=T.slogan;document.getElementById("apropos").textContent=T.apropos;
+ const c=T.contact,cta=[];
+ if(c.whatsapp)cta.push(`<a class="btn" href="https://wa.me/${wa(c.whatsapp)}">💬 WhatsApp</a>`);if(c.tel)cta.push(`<a class="btn gh" href="tel:${esc(c.tel.replace(/[^\d+]/g,""))}">📞 Appeler</a>`);
+ cta.push(`<a class="btn gh" href="#activites">Voir les services</a>`);document.getElementById("cta").innerHTML=cta.join("");
+ const E=T.entrees.filter(e=>e.actif&&e.titre);
+ const auds=AUD.filter(a=>a[0]==="tous"||E.some(e=>e.aud===a[0]));
+ document.getElementById("chips").innerHTML=auds.map(a=>`<button type="button" class="chip ${filtre===a[0]?"on":""}" data-f="${a[0]}">${esc(a[1])}</button>`).join("");
+ const L=E.filter(e=>filtre==="tous"||e.aud===filtre);
+ document.getElementById("cards").innerHTML=L.map(e=>`<div class="card"><div class="ic">${esc(e.icone)}</div><h3>${esc(e.titre)}</h3>${e.connecte?'<span class="tag">Espace sécurisé · PIN</span>':'<span class="tag">Accès libre</span>'}<p>${esc(e.texte)}</p>${e.lien?`<a class="go" href="${esc(e.lien)}">${e.connecte?"Ouvrir mon espace":"Découvrir"} →</a>`:'<span class="mu">Bientôt disponible</span>'}</div>`).join("")||'<div class="empty">Aucun service pour ce profil pour le moment.</div>';
+ document.getElementById("faqs").innerHTML=T.faq.map(f=>`<details><summary>${esc(f.q)}</summary><p>${esc(f.r)}</p></details>`).join("")||'<div class="empty">Aucune question publiée.</div>';
+ const ct=[];if(c.tel)ct.push(`<a class="card" href="tel:${esc(c.tel.replace(/[^\d+]/g,""))}"><div class="ic">📞</div><h3>Téléphone</h3><p>${esc(c.tel)}</p></a>`);
+ if(c.whatsapp)ct.push(`<a class="card" href="https://wa.me/${wa(c.whatsapp)}"><div class="ic">💬</div><h3>WhatsApp</h3><p>${esc(c.whatsapp)}</p></a>`);
+ if(c.email)ct.push(`<a class="card" href="mailto:${esc(c.email)}"><div class="ic">✉️</div><h3>E-mail</h3><p>${esc(c.email)}</p></a>`);
+ if(c.adresse||c.horaires)ct.push(`<div class="card"><div class="ic">📍</div><h3>Adresse</h3><p>${esc(c.adresse)}${c.adresse&&c.horaires?"<br>":""}${esc(c.horaires)}</p></div>`);
+ document.getElementById("ct").innerHTML=ct.join("")||'<div class="empty">Les coordonnées seront publiées prochainement.</div>';
+ document.getElementById("nav").innerHTML=[["activites","Services"],["faq","Questions"],["contact","Contact"]].map(x=>`<a href="#${x[0]}">${x[1]}</a>`).join("");
+ document.getElementById("copy").textContent="© "+new Date().getFullYear()+" "+T.nom;
+ document.getElementById("mentions").textContent=T.mentions||"Les mentions légales seront publiées prochainement. "+T.nom+".";
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(b){filtre=b.dataset.f;rendre()}if(e.target.id==="lm")document.getElementById("dlg").showModal()});
+addEventListener("storage",ev=>{if(ev.key===KEY){T=charger();rendre()}});addEventListener("hashchange",()=>{T=charger();rendre()});
+rendre();
+if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
