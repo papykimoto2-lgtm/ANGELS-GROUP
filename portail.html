@@ -169,6 +169,7 @@ function charger(){ // priorité : lien partagé (#p=…, mémorisé pour la vis
  if(!c){try{c=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){c=null}}
  if(!c&&window.__PORTAIL_DATA&&typeof window.__PORTAIL_DATA.cfg==="object")c=window.__PORTAIL_DATA.cfg;
  c=c&&typeof c==="object"?c:{};
+ {const pub=window.__PORTAIL_DATA&&window.__PORTAIL_DATA.cfg&&window.__PORTAIL_DATA.cfg.contact;if(pub&&pub.whatsapp&&c.contact&&typeof c.contact==="object"&&c.contact.whatsapp!==pub.whatsapp)c.contact=Object.assign({},c.contact,{whatsapp:pub.whatsapp})} /* un lien #p= ne peut pas détourner le numéro publié */
  const T={...DEF,...c,contact:{...DEF.contact,...(c.contact||{})},vendeurs:{...DEF.vendeurs,...(c.vendeurs||{})},hero:{...DEF.hero,...(c.hero||{})}};
  const tx=(v,n)=>String(v==null?"":v).slice(0,n);
  T.nom=tx(T.nom||DEF.nom,60);T.slogan=tx(T.slogan,160);T.apropos=tx(T.apropos,500);T.societe=tx(T.societe,1500);T.mentions=tx(T.mentions,4000);
@@ -190,6 +191,7 @@ const waNum=()=>telWA(T.contact.whatsapp||(T.shop&&T.shop.w)||"");
 function lienWA(msg){const n=waNum();return n?"https://wa.me/"+n+"?text="+encodeURIComponent(msg):""}
 function envoi(titre,msg,ref,back,num){ // dernière étape : WhatsApp, ou copie du message si aucun numéro n'est publié
  const u=num?"https://wa.me/"+telWA(num)+"?text="+encodeURIComponent(msg):lienWA(msg);return `<div class="card" style="align-items:center;text-align:center"><div class="ic" style="color:var(--c)"><svg class="i" viewBox="0 0 24 24" style="width:44px;height:44px" aria-hidden="true">${ICO.send}</svg></div><h3>Dernière étape</h3><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(ref)}</b></p><p class="mu">${titre}</p>
+ ${num?`<p class="mu" style="font-size:13px">Le message sera envoyé au <b>${esc(num)}</b>${digits(num)!==digits(waNum())?" — ce numéro n'est pas celui publié par l'entreprise : vérifiez-le avant d'envoyer.":"."}</p>`:""}
  ${u?`<a class="go" href="${esc(u)}" target="_blank" rel="noopener">${ico("chat")}Envoyer sur WhatsApp</a>`:'<div class="empty">Numéro WhatsApp non publié : copiez le message ci-dessous et envoyez-le.</div>'}
  <button type="button" class="chip" data-cp="1">${ico("copy")}Copier le message</button><textarea class="msg" readonly rows="6" style="width:100%;font-size:12px">${esc(msg)}</textarea><button type="button" class="chip" data-vue="${back}">← Nouvelle demande</button></div>`}
 function rendreShop(){
@@ -328,7 +330,7 @@ function suiviCarte(d,etat){
  const fin=["livree","annulee","echouee","retour_cours","retour_recu"].includes(d.s),rg=SUIVI_RANG[d.s],ko=["echouee","retour_cours","retour_recu","annulee"].includes(d.s);
  const when=sts=>{const h=d.h.filter(x=>sts.includes(x[0]))[0];return h&&h[1]?hm(h[1]):""};
  const vieux=d.g&&!fin&&Date.now()-new Date(d.g).getTime()>2*3600*1000;
- const msg=`Bonjour, où en est ma commande n° ${d.n} ?`,wn=d.w||waNum(),u=wn?"https://wa.me/"+telWA(wn)+"?text="+encodeURIComponent(msg):"";
+ const msg=`Bonjour, où en est ma commande n° ${d.n} ?`,wn=(etat==="ok"&&d.w)||waNum(),u=wn?"https://wa.me/"+telWA(wn)+"?text="+encodeURIComponent(msg):"";
  return `<div class="card"><div class="mu">${esc(d.org)}</div><h3 style="margin:2px 0 8px">Commande n° ${esc(d.n)}</h3><span class="cert ${CERT[etat][0]}">${esc(CERT[etat][1])}</span>
  <p style="font-size:18px;color:var(--tx);font-weight:700;margin:14px 0 4px">${esc(SUIVI_TIT[d.s])}</p>
  ${ko?`<p class="mu">Contactez-nous pour connaître la suite.</p>`:`<ol class="tl">${SUIVI_ET.map(([l,sts],i)=>`<li class="${i<=rg?"done":""} ${i===rg?"cur":""}">${esc(l)}${when(sts)?`<small>à ${esc(when(sts))}</small>`:""}${i===4&&d.s==="en_cours"&&d.lv?`<small>Livreur : ${esc(d.lv)}${d.e?" · arrivée estimée vers "+esc(hm(d.e)):""}</small>`:""}</li>`).join("")}</ol>`}
@@ -384,10 +386,11 @@ function qrSvgP(txt){try{const q=qrcode(0,"M");q.addData(String(txt));q.make();r
 const lienLivraison=()=>location.origin&&/^https?:/.test(location.protocol)?location.origin+location.pathname.replace(/\/portail\.html$/,"/portail")+"#/livraison":new URL("portail.html",location.href).href.split("#")[0]+"#/livraison";
 /* Traite le texte d'un QR code scanné : seules les pages du portail (livraison, commande, suivi, boutique) sont admises. */
 function qrTraiter(txt){
- const t=String(txt||"").trim().slice(0,4000),m=/#\/(livraison|commander|suivi|boutique|vehicules)(\/[A-Za-z0-9_.\-]+)?$/.exec(t);
+ const t=String(txt||"").trim().slice(0,4000);if(/^https?:\/\//i.test(t)){let o=null;try{o=new URL(t)}catch(e){}const ok=[location.origin];try{const w=((window.__PORTAIL_DATA||{}).print||{}).site;if(w)ok.push(new URL(w).origin)}catch(e){}if(!o||!ok.includes(o.origin))return{ok:false,msg:"Ce QR code mène vers un autre site que ce portail : il n'a pas été ouvert."}}
+ const m=/#\/(livraison|commander|suivi|boutique|vehicules)(\/[A-Za-z0-9_.\-]+)?$/.exec(t);
  if(!m||(/^https?:\/\//i.test(t)&&!/\/portail(\.html)?#/.test(t)&&!/^https?:\/\/[^\/]+\/?#/.test(t)))return{ok:false,msg:"Ce QR code n'est pas un code du portail ANGEL'S : il n'a pas été ouvert."};
  location.hash="#/"+m[1]+(m[2]||"");return{ok:true}}
-let SCAN=null;
+let SCAN=null;addEventListener("pagehide",()=>{try{scanStop()}catch(e){}});document.addEventListener("visibilitychange",()=>{if(document.hidden)try{scanStop()}catch(e){}});
 function scanStop(){if(SCAN){SCAN.on=false;try{SCAN.stream&&SCAN.stream.getTracks().forEach(x=>x.stop())}catch(e){}SCAN=null}const z=document.getElementById("lv_scan");if(z)z.innerHTML=""}
 async function scanStart(){
  const z=document.getElementById("lv_scan"),msg=document.getElementById("lv_scanmsg");if(!z)return;scanStop();
@@ -401,7 +404,7 @@ async function scanImage(f){const msg=document.getElementById("lv_scanmsg");
  if(!f)return;if(!("BarcodeDetector" in window)){msg.textContent="Lecture d'image impossible sur ce navigateur : utilisez l'appareil photo du téléphone.";return}
  try{const bmp=await createImageBitmap(f),r=await new BarcodeDetector({formats:["qr_code"]}).detect(bmp);if(!r.length){msg.textContent="Aucun QR code trouvé sur cette image.";return}const q=qrTraiter(r[0].rawValue);if(!q.ok)msg.textContent=q.msg}catch(e){msg.textContent="Image illisible."}}
 function livraisonRendre(){
- const el=document.getElementById("lv");if(!el)return;
+ const el=document.getElementById("lv");if(!el)return;scanStop();
  if(ST.ls==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre demande à <b>"+esc(T.nom)+"</b>. Nous confirmons le prix et le créneau, puis nous passons récupérer votre colis.",ST.lmsg,ST.lref,"lvr");return}
  const zs=T.shop?T.shop.zones:[],ZS=zs.length?`<select id="l_dz"><option value="">— choisir —</option>${zs.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)} (livraison ${F(z.frais)})</option>`).join("")}</select>`:'<input id="l_dz" maxlength="60" placeholder="Commune / zone">',ZC=zs.length?`<select id="l_cz"><option value="">— choisir —</option>${zs.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)}</option>`).join("")}</select>`:'<input id="l_cz" maxlength="60" placeholder="Commune / zone">';
  const lien=lienLivraison(),svg=qrSvgP(lien);
@@ -466,7 +469,9 @@ function pageDe(){const h=location.hash;const m=/^#\/([a-z0-9\-]+)/i.exec(h);ret
 function allerA(p){const cur=location.hash.replace(/^#\/?[a-z0-9\-]*/i,"");location.hash="#/"+p;}
 function navRendre(){
  const cur=PAGE,act=T.activites;
- document.getElementById("parcours").innerHTML=`<ul class="p-liste">`+PARC().map(e=>`<li class="p-etape"><div class="p-hd"><b>${e.n}</b><span>${e.t}</span></div><ul class="p-liste">`+e.l.map(([k,l,ic])=>k==="@act"?(act.length?`<li class="nav-dropdown p-activites"><button type="button" class="nav-dropdown-trigger" data-dd="act-menu">${ico(ic)}${l}</button><div class="nav-dropdown-menu" id="act-menu">${act.map(a=>`<button class="tab-link" data-go="${a.id}">${esc(a.nom)}</button>`).join("")}</div></li>`:""):`<li><button type="button" class="tab-link ${cur===k&&e.n!==3?"active":""}" data-go="${k}">${ico(ic)}${l}</button></li>`).join("")+`</ul></li>`).join("")+`</ul>`;
+ const aeGo=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.go:null;
+ document.getElementById("parcours").innerHTML=`<ul class="p-liste">`+PARC().map(e=>`<li class="p-etape"><div class="p-hd"><b>${e.n}</b><span>${e.t}</span></div><ul class="p-liste">`+e.l.map(([k,l,ic])=>k==="@act"?(act.length?`<li class="nav-dropdown p-activites"><button type="button" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false" data-dd="act-menu">${ico(ic)}${l}</button><div class="nav-dropdown-menu" id="act-menu">${act.map(a=>`<button class="tab-link" data-go="${a.id}">${esc(a.nom)}</button>`).join("")}</div></li>`:""):`<li><button type="button" class="tab-link ${cur===k&&e.n!==3?"active":""}" ${cur===k&&e.n!==3?'aria-current="page"':""} data-go="${k}">${ico(ic)}${l}</button></li>`).join("")+`</ul></li>`).join("")+`</ul>`;
+ if(aeGo){const b=document.querySelector('#parcours [data-go="'+aeGo.replace(/"/g,"")+'"]');if(b)try{b.focus({preventScroll:true})}catch(e){}}
 }
 function vehRendre(){const el=document.getElementById("vl");el.innerHTML=vehListe();
  const maj=()=>{ST.vq=el.querySelector("#vq").value;ST.vcar=el.querySelector("#vcar").value;ST.vo=el.querySelector("#vo").value;const g=el.querySelector("#vgrid");g.innerHTML=vehListe().match(/<div class="grid" id="vgrid">([\s\S]*)<\/div>$/)[1]};
@@ -478,7 +483,7 @@ function rendre(){
  document.getElementById("brand").textContent=T.nom;document.getElementById("brandsub").textContent=T.slogan;
  const bw=document.getElementById("bandeau-w");bw.hidden=!T.bandeau.length;document.getElementById("bandeau").innerHTML=T.bandeau.map(x=>`<span>${esc(x)}</span>`).join("");
  navRendre();
- const html=PAGES[PAGE]?PAGES[PAGE]():actPage(PAGE)||PAGES.accueil();
+ const html=Object.hasOwn(PAGES,PAGE)?PAGES[PAGE]():actPage(PAGE)||PAGES.accueil();
  document.getElementById("page").innerHTML=html;
  slideLance();if(document.getElementById("vl")){vehRendre()}if(document.getElementById("lv"))livraisonRendre();else scanStop();if(document.getElementById("sv"))suiviRendre();if(document.getElementById("cm"))commanderRendre();if(document.getElementById("shop"))rendreShop();if(document.getElementById("vend"))rendreVend();
  const sg=document.getElementById("suivi_ref");if(sg){const go=document.getElementById("suivi_go"),maj=()=>{const r=sg.value.trim().toUpperCase(),n=waNum();go.href=n?"https://wa.me/"+n+"?text="+encodeURIComponent("Bonjour, je souhaite le suivi de ma commande"+(r?" (réf. "+r+")":"")+"."):"#/espace-client"};sg.oninput=maj;maj()}
@@ -488,7 +493,7 @@ function rendre(){
 }
 document.addEventListener("click",e=>{
  const dd=e.target.closest("[data-dd]");document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>{if(!dd||m.id!==dd.dataset.dd)m.classList.remove("open")});
- if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
+ if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");dd.setAttribute("aria-expanded",m.classList.contains("open")?"true":"false");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
  const g=e.target.closest("[data-go]");if(g){document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>m.classList.remove("open"));allerA(g.dataset.go);return}
  if(e.target.id==="lm")document.getElementById("dlg").showModal();
  if(e.target.dataset&&e.target.dataset.lb){document.getElementById("lbi").src=e.target.src;document.getElementById("lbi").alt=e.target.alt;document.getElementById("lbc").textContent=e.target.closest("figure").innerText;document.getElementById("lb").classList.add("on")}

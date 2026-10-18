@@ -470,3 +470,22 @@ Test : `node tests/portail-suivi.js` (21 contrôles).
 - **Import dans Distributions** : Vente en ligne → « Importer les commandes reçues » (marqueurs `[BOUTIQUE:…]` et `[LIVRAISON:…]`) crée une commande « en attente de confirmation » : zone et frais de livraison recalculés, date et créneau affichés (« Programmée le … ») et notés dans les observations avec collecte, destinataire et colis. Zone inconnue, date passée, colis ou adresses manquants, doublon : refusés avec un motif.
 
 Test : `node tests/portail-livraison.js` (12 contrôles).
+
+## Revue de qualité (sécurité, calculs, accessibilité)
+
+Relecture complète du code récent (paie, impression et signature, portail, contrats, export, importations). Chaque défaut a été reproduit par un script avant d'être corrigé.
+
+- **Paie** : un salarié à 0 jour payé ne bloque plus la paie des autres (CMU non appliquée) ; une avance n'est jamais recouvrée deux fois (la validation refuse une paie calculée avant la validation de la précédente) ; la validation refuse des bulletins périmés (employé, variables, congés, avances ou paramètres modifiés depuis le calcul) ; la date d'effet d'une augmentation est respectée mois par mois ; une avance datée après le mois n'est pas retenue ; la paie s'arrête à la fin d'un CDD ; février est proratisé de façon continue ; les demandes de congé en attente sont déduites du solde, qui est revérifié à l'approbation ; le bordereau CNPS exclut les non déclarés ; montants négatifs, taux d'ancienneté et taux de cotisation hors bornes refusés ; dates de paiement antérieures à la paie et modes invalides refusés.
+- **Paiements annulables** : « Annuler » sur chaque paiement de salaires et chaque reversement (extourne, bulletins de nouveau « à payer »), ce qui permet ensuite d'annuler la validation de la paie.
+- **Agro** : chaque paiement ou avance en espèces crée son propre mouvement de caisse (le solde de caisse suit le grand livre) ; le personnel repris de l'ancienne fiche garde une date d'embauche passée (à corriger fiche par fiche).
+- **Export de produits** : garde-fou « aucun véhicule » renforcé (normalisation des accents, espaces invisibles, chiffres pleine largeur ; termes anglais, marques, types de véhicule) ; « Vin de palme » n'est plus bloqué ; fret négatif, taux démesuré, prix non numérique, changement d'unité avec du stock et pays « Ivory Coast » refusés ; coût FIFO exact sur les quantités fractionnaires.
+- **Contrats** : prolongation d'un contrat sans échéance corrigée ; une prolongation qui chevauche un autre contrat du véhicule est refusée ; dépôt négatif refusé ; décompte de fin avec ligne « trop-perçu » après la date de résiliation ; échéancier imprimé complet ; contrat résilié mentionné à l'article « Durée » ; clauses du modèle vidées = texte par défaut ; tarif du contrat rafraîchi après un avenant daté.
+- **Distributions** : programmation de livraison avec dates impossibles ou lointaines refusées, adresses dédupliquées ; un GPS vide n'est plus pris pour (0, 0) ; total affiché invalide ignoré ; quantité totale plafonnée ; le marqueur `{{SUIVI}}` d'un nom de client ne casse plus le message.
+- **Portail et signature** : sur un lien non signé, le bouton WhatsApp utilise toujours le numéro publié du portail (anti-hameçonnage) ; un lien `#p=` ne remplace plus le numéro publié ; le numéro destinataire d'un lien de commande est affiché et signalé s'il diffère de celui de l'entreprise ; le scanner de QR refuse les adresses d'un autre site ; la caméra est coupée quand le formulaire remplace le scanner ou que la page est masquée ; page inexistante = accueil ; focus conservé dans le menu, `aria-current` et `aria-expanded`.
+- **Clé de signature** : export réservé à un administrateur déverrouillé ; stockage plein = document non signé signalé (au lieu d'une clé perdue) ; première génération de clé non concurrente ; import d'une paire dépareillée refusé.
+- **Aperçu d'impression** : dialogue modal (`aria-modal`, focus piégé et restitué), iframe en bac à sable sans scripts.
+- **Service worker** (`angels-v15`) : scripts et données (`portail-data.js`, moteurs) en « réseau d'abord » pour ne jamais servir de clés publiques ou de prix périmés.
+
+À savoir (non traité) : les liens de commande client et vendeur restent non signés (le numéro destinataire est désormais affiché et signalé) ; les clés publiques retirées après « Régénérer » ne sont pas conservées (les anciens documents passent en « clé introuvable ») ; un jeton de suivi n'expire pas.
+
+Tests : `node tests/rh-revue.js` (11) et `node tests/revue-qualite.js` (9).

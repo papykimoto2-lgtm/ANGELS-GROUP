@@ -1,7 +1,7 @@
 /* Service worker ANGEL'S GROUP — installation (PWA) et usage hors ligne pour Livraison, Transport, Agro et le hub.
    Les pages sont servies réseau d'abord (mises à jour immédiates), cache en secours ; icônes et manifestes : cache d'abord.
    Aucune donnée métier n'est mise en cache ici : elles vivent dans le stockage local de chaque application. */
-const V = "angels-v14";
+const V = "angels-v15";
 const COQUE = ["./", "index.html", "parametres.html", "compta-groupe.html", "portail.html", "distribution.html", "transport.html", "agro.html", "hub.html", "verifier.html", "print-engine.js", "qrcode.js", "rh-engine.js",
   "manifest.webmanifest", "manifest-hub.webmanifest", "manifest-transport.webmanifest", "manifest-agro.webmanifest", "manifest-vendeur.webmanifest", "manifest-portail.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
@@ -41,6 +41,10 @@ self.addEventListener("fetch", e => {
   if (r.mode === "navigate") {                                              // pages : réseau d'abord, cache de CETTE page en secours
     e.respondWith(fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(cle(r.url), cp)); } return res; })
       .catch(async () => (await caches.match(cle(r.url))) || (await caches.match("index.html")) || (await caches.match("distribution.html")) || new Response("Hors ligne", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })));
+    return;
+  }
+  if (/\.(js|json)$/.test(u.pathname)) {                                   // scripts et données (portail-data.js : clés publiques, prix) : réseau d'abord pour ne jamais servir une version périmée
+    e.respondWith(fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); } return res; }).catch(async () => (await caches.match(r, { ignoreSearch: true })) || new Response("", { status: 503 })));
     return;
   }
   e.respondWith(caches.match(r, { ignoreSearch: true }).then(m => m || fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); } return res; })));
