@@ -1,0 +1,48 @@
+/* Connexion Catalogue véhicules (Transport) → page Véhicules du portail.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/portail-vehicules.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1200,height:1000}}),errs=[];let ok=0,ko=0;
+ const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label,o?"":info||"");o?ok++:ko++};
+ const pt=await ctx.newPage();pt.on("pageerror",e=>errs.push("transport: "+e.message));pt.on("dialog",d=>d.accept());await pt.goto(base+"/transport.html");await pt.waitForTimeout(500);
+ const PNG="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+ await pt.evaluate(PNG=>{ME=S.users.find(u=>u.role==="admin"&&u.actif);S.settings.tva_taux=18;
+  const a=o=>acheterVehicule(Object.assign({date:today(),fournisseur:"Auto Import SARL",marque:"Toyota",modele:"Corolla",annee:2020,vin:"VIN-"+Math.random().toString(36).slice(2,8).toUpperCase(),prix:1180000,paye:1180000,mode:"banque",km:30000},o));
+  const v1=a({}),v2=a({marque:"Honda",modele:"Civic",annee:2019});const L=S.vn.filter(v=>v.statut==="stock");
+  L[0].prix_affiche=4500000;L[0].carburant="Essence";L[1].prix_affiche=3900000;L[1].carburant="Diesel";L[0].fournisseur_secret="X";
+  S.attachments.push({id:"at_ph",nom:"p.png",type:"image/png",taille:5,t:now(),par:"t",data:PNG});FILES.set("at_ph",PNG);L[0].photos=["at_ph"];save()},PNG);
+ await pt.waitForTimeout(800);
+ const rec=await pt.evaluate(async()=>{const r=await pVehGet();return{n:r&&r.items.length,ph:r&&r.items[0].photos.length,json:JSON.stringify(r)}});
+ chk("PV-1","Transport publie les véhicules du parking dans le magasin du portail (2 fiches, photo réduite en JPEG)",rec.n===2&&rec.ph===1&&/data:image\/jpeg/.test(rec.json),JSON.stringify({n:rec.n,ph:rec.ph}));
+ chk("PV-2","jamais de coût, fournisseur, châssis ni emplacement dans les données publiées",!/VIN-|Auto Import|"achat"|"cout"|"vin"|fournisseur/i.test(rec.json),rec.json.slice(0,300));
+ const pp=await ctx.newPage();pp.on("pageerror",e=>errs.push("portail: "+e.message));await pp.goto(base+"/portail.html#/vehicules");await pp.waitForTimeout(700);
+ const pg=await pp.evaluate(()=>({cards:document.querySelectorAll("#vgrid .veh").length,txt:document.getElementById("page").innerText,nav:[...document.querySelectorAll(".tab-link")].some(x=>/VÉHICULES/.test(x.textContent))}));
+ chk("PV-3","portail : page Véhicules avec 2 fiches, prix affichés, entrée VÉHICULES dans le menu",pg.cards===2&&/4\s?500\s?000/.test(pg.txt)&&pg.nav,JSON.stringify({c:pg.cards,nav:pg.nav}));
+ await pp.evaluate(()=>{const i=document.getElementById("vcar");i.value="Diesel";i.dispatchEvent(new Event("change"))});
+ chk("PV-4","filtre carburant : une seule fiche (Diesel)",await pp.evaluate(()=>document.querySelectorAll("#vgrid .veh").length)===1);
+ await pp.evaluate(()=>{document.querySelector("[data-vd]").click()});
+ const fi=await pp.evaluate(()=>({open:document.getElementById("vdlg").open,txt:document.getElementById("vdlg").innerText}));
+ chk("PV-5","fiche détaillée : caractéristiques et bouton « Demander un devis sur WhatsApp »",fi.open&&/Demander un devis/.test(fi.txt)&&/Carburant/.test(fi.txt),fi.txt.slice(0,200));
+ await pp.evaluate(()=>{document.getElementById("vdx").click();location.hash="#/accueil"});await pp.waitForTimeout(300);
+ chk("PV-6","accueil : bandeau « Véhicules à vendre »",/Véhicules à vendre/.test(await pp.evaluate(()=>document.getElementById("page").innerText)));
+ await pt.evaluate(()=>{const v=S.vn.find(x=>x.statut==="stock"&&x.modele==="Civic");v.portail=false;save()});await pt.waitForTimeout(600);
+ await pp.waitForTimeout(500);
+ const cache=await pt.evaluate(async()=>(await pVehGet()).items.map(i=>i.modele));
+ chk("PV-7","fiche « Publié sur le portail : Non » : retirée du catalogue public",cache.length===1&&cache[0]==="Corolla",JSON.stringify(cache));
+ await pt.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");const v=S.vn.find(x=>x.modele==="Corolla");window.__msg=null;
+  const m="Demande\n[VEHICULE:"+btoa(unescape(encodeURIComponent(JSON.stringify({f:"AB12CD",r:v.ref,l:"Toyota Corolla",n:"Awa Kone",t:"0707070707",m:""})))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")+"]";window.__m=m});
+ const imp=await pt.evaluate(()=>{const r=demandeVehImporter(window.__m);const r2=demandeVehImporter(window.__m);return{ok:r.ok,dup:r2.ko.join("|"),cli:S.tiers_vn.some(t=>t.nom==="Awa Kone"),n:S.demandes_veh.length}});
+ chk("PV-8","demande de devis importée dans Transport (client créé, doublon refusé)",imp.ok===1&&/déjà importée/.test(imp.dup)&&imp.cli&&imp.n===1,JSON.stringify(imp));
+ const ps=await ctx.newPage();ps.on("pageerror",e=>errs.push("parametres: "+e.message));await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
+ await ps.evaluate(()=>{AUTH.transport={id:"x",nom:"t",exp:Date.now()+600000};uView();pTab("publication")});
+ const pub=await ps.evaluate(async()=>{const D=await pDonnees();return{n:D.veh.items.length}});
+ chk("PV-9","publication du portail (portail-data.js) : inclut le catalogue véhicules",pub.n===1,JSON.stringify(pub));
+ await ps.evaluate(()=>{pTab("boutique");const f=document.getElementById("pform");f.vehact.checked=false;f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}))});await pp.waitForTimeout(600);
+ await pp.evaluate(()=>{location.hash="#/vehicules"});await pp.waitForTimeout(300);
+ chk("PV-10","désactivation dans Paramètres : la page Véhicules et le menu disparaissent du portail",await pp.evaluate(()=>!/VÉHICULES/.test(document.getElementById("parcours").innerText)&&/sera publié/.test(document.getElementById("page").innerText)));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();

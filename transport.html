@@ -137,7 +137,7 @@ const needAny=(m,acts,msg)=>{if(!acts.some(a=>can(m,a)))throw new Error(msg||"Dr
 const need=(m,a,msg)=>{if(!can(m,a))throw new Error(msg||"Droits insuffisants ("+MODS[m]+" : "+ACT[a]+").")};
 
 /* ---------- Persistance, audit, transactions ---------- */
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend est requis.")}try{localStorage.setItem("angels_compta_transport",JSON.stringify(comptaResume()))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend est requis.")}try{localStorage.setItem("angels_compta_transport",JSON.stringify(comptaResume()))}catch(e){}try{if(typeof majPortailVehicules==="function")majPortailVehicules().catch(()=>{})}catch(e){}};
 const audit=(a,d)=>{S.audit.unshift({t:now(),u:ME?ME.nom:"système",r:ME?ME.role:"",a,d:d||""});if(S.audit.length>2000)S.audit.length=2000};
 function atomic(fn,quiet){
  const snap=JSON.stringify(S),me=ME&&ME.id;
@@ -2799,7 +2799,7 @@ const IMP_CLES=[["valeur","Valeur d'achat"],["poids","Poids"],["volume","Volume"
 const IMP_CAUSES=[["document","Document manquant"],["paiement","Paiement"],["controle","Contrôle"],["transitaire","Action du transitaire"],["autre","Autre cause"]];
 const impEtapesCfg=()=>{const c=S.settings.imp_etapes;return IMP_ETAPES_DEF.map(([k,l])=>({k,l,actif:!c||c[k]!==false}))};
 const nomEtape=k=>(IMP_ETAPES_DEF.find(x=>x[0]===k)||[0,k])[1];
-function migrerNegoce(){["vn","ventes_veh","imports","tiers_vn","reservations","devis","inventaires_vn","declarations"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.alertes_etat)S.alertes_etat={};
+function migrerNegoce(){["vn","ventes_veh","imports","tiers_vn","reservations","devis","inventaires_vn","declarations","demandes_veh"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.alertes_etat)S.alertes_etat={};
  S.ventes_veh.forEach(x=>{if(!x.livraison)x.livraison={statut:x.export&&x.exp&&x.exp.statut==="livre"?"livree":"a_livrer"};if(!x.hist)x.hist=[{t:x.t||now(),par:x.par||"",statut:"facturee",note:"Facture émise"}];if(x.acompte===undefined)x.acompte=sum(x.encaissements,e=>e.montant);if(!x.echeancier)x.echeancier=[];if(!x.statut)x.statut="facturee"});
  if(!S.settings.mig_perm_stock){["admin","directeur"].forEach(r=>{const a=(S.perms[r]||{}).ventes_veh;if(a)["x","a"].forEach(l=>{if(!a.includes(l))a.push(l)})});S.settings.mig_perm_stock=true}
  [["3111","Véhicules destinés à la vente","actif"],["4112","Clients — acheteurs de véhicules","actif"]].forEach(([num,nom,nat])=>{try{if(!planIndex().m.has(num))planCreer({num,nom,nat},true)}catch(e){}});
@@ -3380,7 +3380,7 @@ function majFicheVN(id,f){
  if(!canCat())throw new Error("Droits insuffisants (fiche catalogue).");const v=by(S.vn,id);if(!v)throw new Error("Véhicule introuvable.");if(["vendu","disparu"].includes(v.statut))throw new Error("Fiche non modifiable : véhicule vendu ou disparu.");
  const prix=f.prix_affiche===""||f.prix_affiche==null?0:Math.round(+f.prix_affiche);if(!(prix>=0))throw new Error("Prix affiché invalide.");if(!BOITES.some(b=>b[0]===(f.boite||"")))throw new Error("Boîte de vitesses invalide.");
  const pl=f.places===""||f.places==null||+f.places===0?0:Math.round(+f.places);if(!(pl>=0&&pl<=60))throw new Error("Nombre de places : 1 à 60.");if(f.carburant&&!CARBS.includes(f.carburant))throw new Error("Carburant invalide.");
- Object.assign(v,{prix_affiche:prix,boite:f.boite||"",places:pl,couleur:String(f.couleur||"").trim().slice(0,40),annee:+f.annee||v.annee||null,carburant:f.carburant||v.carburant||"",equipements:String(f.equipements||"").trim().slice(0,300),description:String(f.description||"").trim().slice(0,600)});audit("Fiche catalogue",v.ref+" — "+vnLib(v)+(prix?" — "+fcfa(prix):""))}
+ Object.assign(v,{prix_affiche:prix,boite:f.boite||"",places:pl,couleur:String(f.couleur||"").trim().slice(0,40),portail:f.portail==="non"?false:true,annee:+f.annee||v.annee||null,carburant:f.carburant||v.carburant||"",equipements:String(f.equipements||"").trim().slice(0,300),description:String(f.description||"").trim().slice(0,600)});audit("Fiche catalogue",v.ref+" — "+vnLib(v)+(prix?" — "+fcfa(prix):""))}
 function photoVN(id,att){
  if(!canCat())throw new Error("Droits insuffisants (fiche catalogue).");const v=by(S.vn,id);if(!v)throw new Error("Véhicule introuvable.");if(["vendu","disparu"].includes(v.statut))throw new Error("Fiche non modifiable : véhicule vendu ou disparu.");if(!att)throw new Error("Choisir une photo.");
  const a=by(S.attachments,att);if(!a||!/^image\//.test(a.type))throw new Error("Une image (JPEG, PNG ou WebP) est requise.");v.photos=v.photos||[];if(v.photos.length>=6)throw new Error("6 photos au maximum par véhicule.");v.photos.push(att);audit("Photo de véhicule ajoutée",v.ref)}
@@ -3391,17 +3391,19 @@ const specsVN=v=>[v.annee,v.km?nb(v.km)+" km":"",v.carburant,v.boite,v.places?v.
 function carteVN(v){
  const r=resActive(v),c=ctrlDe(v),src=photoSrc(v),ed=canCat();
  return`<div class="vc"><div class="ph">${src?`<img alt="${esc(vnLib(v))}" src="${esc(src)}">`:"🚗"}</div><div class="bd"><b>${esc(vnLib(v))}</b><span class="mu sm">${esc(specsVN(v))||"Caractéristiques à renseigner"}</span>
-  <div class="px">${v.prix_affiche?fcfa(v.prix_affiche):'<span class="mu">Prix à afficher</span>'}</div><div class="flex" style="gap:6px;flex-wrap:wrap">${statutBadge(v)}${c&&c.etat==="dommages"?badge("Dommages","er"):""}${(v.photos||[]).length?"":badge("Sans photo","mu")}</div>
+  <div class="px">${v.prix_affiche?fcfa(v.prix_affiche):'<span class="mu">Prix à afficher</span>'}</div><div class="flex" style="gap:6px;flex-wrap:wrap">${statutBadge(v)}${c&&c.etat==="dommages"?badge("Dommages","er"):""}${(v.photos||[]).length?"":badge("Sans photo","mu")}${v.portail===false?badge("Masqué du portail","mu"):""}</div>
   <span class="sm">📍 ${esc(v.loc||"emplacement non renseigné")} · ${esc(v.vin||v.ref)}</span><div class="flex" style="margin-top:6px">${btn("vn.det",v.id,"Fiche","ghost")}${ed?btn("cat.fiche",v.id,"✏️ Modifier","ghost")+btn("cat.photo",v.id,"📷 Photo","ghost"):""}${can("ventes_veh","c")&&!r?btn("rs.add",v.id,"Réserver","ghost"):""}</div></div></div>`}
 V.catalogue_veh=()=>{
  const t=tabOf("cat","parking"),T=tabs("cat",[["parking","Au parking"],["livraison","En livraison"]]),f=UI.f.cat||(UI.f.cat={q:"",s:"",c:""}),q=(f.q||"").toLowerCase();
  let h=head("Catalogue des véhicules",`<button class="btn ghost" data-a="cat.print">🖨️ Imprimer le catalogue</button>${csvBtn("stock_veh","catalogue_veh")}`)+T;
+ h+=portailVehCarte();
  if(t==="parking"){
   const all=parkingVN(),L=all.filter(v=>(!q||(vnLib(v)+" "+(v.vin||"")+" "+(v.couleur||"")+" "+(v.loc||"")+" "+v.ref).toLowerCase().includes(q))&&(!f.c||v.carburant===f.c)&&(!f.s||(f.s==="dispo"?!resActive(v):f.s==="reserve"?!!resActive(v):f.s==="dommages"?!!(ctrlDe(v)&&ctrlDe(v).etat==="dommages"):f.s==="incomplet"?(!v.prix_affiche||!(v.photos||[]).length):true)));
   const dis=all.filter(v=>!resActive(v));
   h+=`<div class="grid">${kp(nb(all.length),"Véhicules au parking")}${kp(nb(dis.length),"Disponibles à la vente","o")}${kp(nb(all.length-dis.length),"Réservés",all.length-dis.length?"w":"o")}${kp(fcfa(sum(dis,v=>v.prix_affiche)),"Valeur affichée des disponibles")}${kp(nb(all.filter(v=>!v.prix_affiche||!(v.photos||[]).length).length),"Fiches à compléter (prix ou photo)",all.some(v=>!v.prix_affiche||!(v.photos||[]).length)?"w":"o")}</div>
   <div class="card flex"><div><label>Recherche</label><input data-f="cat:q" value="${esc(f.q||"")}" placeholder="Marque, modèle, châssis, couleur, emplacement…" style="width:260px"></div><div><label>Situation</label><select data-f="cat:s">${opt([["dispo","Disponibles"],["reserve","Réservés"],["dommages","Avec dommages"],["incomplet","Fiche à compléter"]],f.s,"Tous")}</select></div><div><label>Carburant</label><select data-f="cat:c">${opt(CARBS.map(x=>[x,x]),f.c,"Tous")}</select></div></div>
-  <div class="cgrid">${L.map(carteVN).join("")||'<div class="card mu">Aucun véhicule au parking pour ces critères.</div>'}</div>`}
+  <div class="cgrid">${L.map(carteVN).join("")||'<div class="card mu">Aucun véhicule au parking pour ces critères.</div>'}</div>
+  <h2>Demandes de devis du portail</h2>${can("ventes_veh","c")?`<p><button class="btn ghost" data-a="dm.imp">Importer une demande (message WhatsApp)</button></p>`:""}${tbl(["Reçue","Client","Téléphone","Véhicule","Message","Statut",""],S.demandes_veh.slice().reverse().map(d=>tr([fdt(d.t),`<b>${esc(d.nom)}</b>`,esc(d.tel),esc(d.vlib||d.vref),esc(d.msg),badge(d.statut==="nouvelle"?"À traiter":"Traitée",d.statut==="nouvelle"?"wa":"ok"),can("ventes_veh","c")?btn("dm.ok",d.id,d.statut==="nouvelle"?"Marquer traitée":"Rouvrir","ghost"):""])),{empty:"Aucune demande reçue du portail."})}`}
  else{
   const A=arrivagesVN(),ret=A.filter(v=>{const d=impById(v.import_id);return d&&d.statut==="ouvert"&&d.eta&&d.eta<today()&&!fait(d,"arrive_port")}),V=ventesALivrer();
   h+=`<div class="grid">${kp(nb(A.length),"Arrivages en route vers le parc")}${kp(nb(ret.length),"Arrivages en retard",ret.length?"e":"o")}${kp(nb(A.filter(v=>(impById(v.import_id)||{}).blocage).length),"Arrivages bloqués",A.some(v=>(impById(v.import_id)||{}).blocage)?"e":"o")}${kp(nb(V.length),"Ventes à livrer aux clients")}${kp(fcfa(sum(V,vvReste)),"Soldes dus sur ces ventes",sum(V,vvReste)?"w":"o")}</div>
@@ -3409,12 +3411,49 @@ V.catalogue_veh=()=>{
   `<h2>Ventes à livrer aux clients</h2>`+tbl(["Vente","Véhicule","Client","Dossier de livraison","Solde dû","Autorisation","Emplacement",""],V.map(x=>{const v=vnById(x.vn_id);return tr([esc(x.facture_no||x.ref),`<b>${esc(vnLib(v))}</b><br><span class="mu sm">${esc(v.vin||v.ref)}</span>`,esc(tvn(x.client_id).nom),badge(...etatVente(x)),vvReste(x)?`<b class="er">${fcfa(vvReste(x))}</b>`:badge("Soldée","ok"),x.export?"—":x.livraison.autorise?esc(x.livraison.autorise.par)+(x.livraison.autorise.derogation?" (dérogation)":""):"à demander",esc(v.loc||"—"),`<div class="flex">${btn("vv.det",x.id,"Détail","ghost")}${venteBtns(x)}</div>`])}),{empty:"Aucune vente à livrer."})}
  return h};
 CSVS.catalogue_veh=()=>[["Section","Réf.","Véhicule","Châssis","Couleur","Km","Carburant","Boîte","Prix affiché","Emplacement / ETA","Statut"],[...parkingVN().map(v=>["Parking",v.ref,vnLib(v),v.vin,v.couleur||"",v.km||"",v.carburant||"",v.boite||"",v.prix_affiche||"",v.loc||"",statutCom(v)[0]]),...arrivagesVN().map(v=>{const d=impById(v.import_id)||{};return["Arrivage",v.ref,vnLib(v),v.vin,v.couleur||"",v.km||"",v.carburant||"",v.boite||"",v.prix_affiche||"",d.eta||"",statutCom(v)[0]]}),...ventesALivrer().map(x=>{const v=vnById(x.vn_id);return["Vente à livrer",v.ref,vnLib(v),v.vin,v.couleur||"",v.km||"",v.carburant||"",v.boite||"",x.prix,tvn(x.client_id).nom,etatVente(x)[0]]})]];
-A["cat.fiche"]=id=>{const v=by(S.vn,id);form("Fiche catalogue — "+vnLib(v),[{k:"prix_affiche",l:"Prix de vente affiché TTC (F)",t:"number"},{k:"annee",l:"Année",t:"number"},{k:"couleur",l:"Couleur"},{k:"carburant",l:"Carburant",t:"select",o:CARBS.map(x=>[x,x])},{k:"boite",l:"Boîte de vitesses",t:"select",o:BOITES},{k:"places",l:"Nombre de places",t:"number"},{k:"equipements",l:"Équipements (climatisation, GPS, caméra…)"},{k:"description",l:"Description pour le client",t:"area",full:1}],v,o=>majFicheVN(id,o))};
+A["cat.fiche"]=id=>{const v=by(S.vn,id);form("Fiche catalogue — "+vnLib(v),[{k:"prix_affiche",l:"Prix de vente affiché TTC (F)",t:"number"},{k:"annee",l:"Année",t:"number"},{k:"couleur",l:"Couleur"},{k:"carburant",l:"Carburant",t:"select",o:CARBS.map(x=>[x,x])},{k:"boite",l:"Boîte de vitesses",t:"select",o:BOITES},{k:"places",l:"Nombre de places",t:"number"},{k:"equipements",l:"Équipements (climatisation, GPS, caméra…)"},{k:"portail",l:"Publié sur le portail",t:"select",o:[["oui","Oui"],["non","Non (masqué)"]]},{k:"description",l:"Description pour le client",t:"area",full:1}],{...v,portail:v.portail===false?"non":"oui"},o=>majFicheVN(id,o))};
 A["cat.photo"]=id=>form("Ajouter une photo",[{k:"pj",l:"Photo du véhicule",t:"file"}],{},o=>photoVN(id,o.pj),"Ajouter");
 A["cat.rph"]=id=>{const[v,a]=id.split(":");if(atomic(()=>retirerPhotoVN(v,a))!==false){document.querySelectorAll(".md").forEach(m=>m.remove());render()}};
 A["cat.print"]=()=>{const L=parkingVN().filter(v=>!resActive(v));
  modal(`<div class="noprint flex"><button class="btn" onclick="window.print()">Imprimer</button><button class="btn ghost" onclick="this.closest('.md').remove()">Fermer</button></div><h1>${ORG()} — Véhicules disponibles</h1><p class="mu">Catalogue du ${fd(today())} · ${nb(L.length)} véhicule(s). Prix TTC, sous réserve de disponibilité.</p>
  <div class="cgrid">${L.map(v=>{const src=photoSrc(v);return`<div class="vc"><div class="ph">${src?`<img alt="" src="${esc(src)}">`:"🚗"}</div><div class="bd"><b>${esc(vnLib(v))}</b><span class="sm">${esc(specsVN(v))}</span>${v.equipements?`<span class="sm">${esc(v.equipements)}</span>`:""}${v.description?`<span class="sm">${esc(v.description)}</span>`:""}<div class="px">${v.prix_affiche?fcfa(v.prix_affiche):"Prix sur demande"}</div></div></div>`}).join("")||'<p class="mu">Aucun véhicule disponible.</p>'}</div>`)};
+
+/* ---------- Connexion du catalogue véhicules au portail public ---------- */
+const PDB="angels_portail";
+function pIdb(){return new Promise((ok,ko)=>{if(!window.indexedDB)return ko(new Error("Stockage indisponible"));const r=indexedDB.open(PDB,2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains("media"))d.createObjectStore("media",{keyPath:"id"});if(!d.objectStoreNames.contains("veh"))d.createObjectStore("veh",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)})}
+const pVehGet=async()=>{const db=await pIdb();return new Promise((ok,ko)=>{const q=db.transaction("veh").objectStore("veh").get("catalogue");q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ko(q.error)})};
+const pVehPut=async rec=>{const db=await pIdb();return new Promise((ok,ko)=>{const t=db.transaction("veh","readwrite");t.objectStore("veh").put(rec);t.oncomplete=()=>ok();t.onerror=()=>ko(t.error)})};
+const pVignettes=new Map();
+function pVignette(att){ // photo réduite (800 px, JPEG) pour le portail : jamais l'original, jamais les pièces administratives
+ if(pVignettes.has(att))return Promise.resolve(pVignettes.get(att));const src=fichier(att);if(!src||!/^data:image\/(png|jpeg|webp);base64,/.test(src))return Promise.resolve("");
+ return new Promise(ok=>{const im=new Image();im.onload=()=>{const k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);const d=c.toDataURL("image/jpeg",0.72);pVignettes.set(att,d);ok(d)};im.onerror=()=>ok("");im.src=src})}
+const pVehListe=()=>[...parkingVN().filter(v=>v.portail!==false).map(v=>({v,sit:resActive(v)?"reserve":"dispo"})),...arrivagesVN().filter(v=>v.portail!==false&&v.prix_affiche>0).map(v=>({v,sit:"arrivage"}))];
+const pVehSig=()=>JSON.stringify(pVehListe().map(({v,sit})=>[v.id,sit,v.prix_affiche,(v.photos||[]).map(a=>[a,!!fichier(a)]),v.marque,v.modele,v.annee,v.km,v.carburant,v.boite,v.places,v.couleur,v.equipements,v.description,sit==="arrivage"?(impById(v.import_id)||{}).eta:""]));
+let pVehEnCours=false,pVehDerniere="";
+async function majPortailVehicules(force){ // le portail n'expose que les fiches catalogue : jamais coût, fournisseur, châssis, emplacement ni marge
+ if(pVehEnCours||!S||!Array.isArray(S.vn))return false;pVehEnCours=true;
+ try{const sig=pVehSig();if(!force&&sig===pVehDerniere)return false;
+  if(!force&&!pVehDerniere){const rec=await pVehGet().catch(()=>null);if(rec&&rec.sig===sig){pVehDerniere=sig;return false}}
+  const items=[];for(const {v,sit} of pVehListe()){const ph=[];for(const a of (v.photos||[]).slice(0,4)){const d=await pVignette(a);if(d)ph.push(d)}
+   items.push({id:v.id,ref:v.ref,marque:v.marque,modele:v.modele,annee:v.annee||null,km:v.km||0,carburant:v.carburant||"",boite:v.boite||"",places:v.places||0,couleur:v.couleur||"",equipements:v.equipements||"",description:v.description||"",prix:v.prix_affiche||0,situation:sit,eta:sit==="arrivage"?((impById(v.import_id)||{}).eta||""):"",photos:ph})}
+  await pVehPut({id:"catalogue",t:now(),sig,items});pVehDerniere=sig;try{new BroadcastChannel("angels_portail").postMessage("maj")}catch(e){}return items.length}
+ catch(e){return false}finally{pVehEnCours=false}}
+const pVehNb=()=>pVehListe().length;
+function portailVehCarte(){const n=pVehNb(),L=pVehListe(),sans=L.filter(x=>!x.v.prix_affiche||!(x.v.photos||[]).length).length;
+ return `<div class="card"><div class="between"><div><b>Connexion au portail public</b><div class="mu sm">Le catalogue ci-dessous alimente la page « Véhicules » du portail : fiche, photos réduites et prix affiché. Coût, fournisseur, châssis, emplacement et marge ne sont jamais publiés.</div></div><div class="flex"><button class="btn" data-a="cat.sync">Synchroniser maintenant</button><a class="btn ghost" href="portail.html#/vehicules" target="_blank" rel="noopener">Voir sur le portail</a></div></div>
+ <p class="sm" style="margin:8px 0 0"><b>${nb(n)}</b> véhicule(s) publiés (au parking et arrivages avec prix)${sans?` — dont <b>${nb(sans)}</b> à compléter (prix ou photo)`:""}. Masquez une fiche avec « Publié sur le portail : Non ». Les visiteurs voient le catalogue à la dernière publication du portail (Hub → Paramètres → Publication).</p></div>`}
+A["cat.sync"]=async()=>{const n=await majPortailVehicules(true);alert(n===false?"Synchronisation impossible sur cet appareil.":"Catalogue synchronisé avec le portail : "+n+" véhicule(s).");render()};
+/* Demandes de devis reçues du portail (message WhatsApp avec marqueur [VEHICULE:…]) */
+function demandeVehImporter(txt){
+ need("ventes_veh","c");const mk=[...String(txt).matchAll(/\[VEHICULE:([A-Za-z0-9_-]+)\]/g)];if(!mk.length)throw new Error("Aucune demande dans ce texte (le marqueur [VEHICULE:…] est absent).");const res={ok:0,ko:[]};
+ mk.forEach(m=>{let d;try{d=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,"+").replace(/_/g,"/")))))}catch(e){res.ko.push("message illisible");return}
+  const f=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,12),nom=String(d.n||"").trim().replace(/\s+/g," ").slice(0,80),tel=String(d.t||"").replace(/[^0-9+]/g,"").slice(0,20),vref=String(d.r||"").slice(0,30);
+  if(!f||!nom||tel.replace(/\D/g,"").length<8){res.ko.push((nom||"Demande")+" : nom ou téléphone invalide");return}if(S.demandes_veh.some(x=>x.f===f)){res.ko.push(nom+" ("+f+") : déjà importée");return}
+  const v=S.vn.find(x=>x.ref===vref);let t=S.tiers_vn.find(x=>x.type==="client_veh"&&x.nom.toLowerCase()===nom.toLowerCase());if(!t)t=clientVN({nom,tel});
+  S.demandes_veh.push({id:uid("dm"),f,vn_id:v?v.id:"",vref,vlib:v?vnLib(v):String(d.l||"").slice(0,80),nom,tel,msg:String(d.m||"").slice(0,400),client_id:t.id,statut:"nouvelle",t:now()});res.ok++;audit("Demande de devis du portail",nom+" — "+(v?vnLib(v):vref))});
+ return res}
+A["dm.imp"]=()=>form("Importer des demandes du portail",[{k:"txt",l:"Message(s) WhatsApp reçu(s)",t:"area",full:1,req:1}],{},o=>{const r=demandeVehImporter(o.txt);alert((r.ok?r.ok+" demande(s) importée(s) : le client est créé dans « Clients (véhicules) ». ":"")+(r.ko.length?"Refusée(s) : "+r.ko.join(" | "):""));if(!r.ok)return false},"Importer");
+A["dm.ok"]=id=>{const d=by(S.demandes_veh,id);if(!d)return;if(atomic(()=>{need("ventes_veh","c");d.statut=d.statut==="nouvelle"?"traitee":"nouvelle"})!==false)render()};
 
 /* ---------- Navigation, rendu, événements ---------- */
 const NAV=[
@@ -3505,7 +3544,7 @@ barre();
 load();
 try{const id=sessionStorage.getItem("tr_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
 render();
-fichiersCharger().then(()=>{if(S&&S.attachments.length&&!document.querySelector(".md"))render()});
+fichiersCharger().then(()=>{if(S&&S.attachments.length&&!document.querySelector(".md"))render();try{majPortailVehicules()}catch(e){}});
 </script>
 </body>
 </html>
