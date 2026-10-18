@@ -383,3 +383,11 @@ La page `parametres.html` est rangée en **7 onglets** : 👥 Utilisateurs et r�
 - Les photos importées ne voyagent pas dans le lien du portail (lien léger) ; elles sont incluses dans `portail-data.js` et le portail autonome. Seules les images `data:` PNG/JPEG/WEBP/GIF ou https sont acceptées.
 - Les textes saisis par l'administrateur (bandeau, FAQ…) sont affichés tels quels : ils peuvent contenir des emojis si vous en écrivez.
 - Tests : `tests/portail-photos.js` (PHO-1 à PHO-11).
+
+### Vente en ligne (Distributions) connectée à la boutique du portail
+- **Plus besoin de copier de lien** : le catalogue publié dans *Distributions → Vente en ligne* (produits et prestations « Vendu en ligne », prix, stock, zones de livraison, comptes Mobile Money, numéro WhatsApp) alimente automatiquement la boutique du portail. À chaque enregistrement dans Distributions, le portail est mis à jour ; une page de portail déjà ouverte se rafraîchit en direct (même appareil). Sans article publié, le portail affiche « La boutique ouvre bientôt ».
+- *Distributions → Vente en ligne* : nouvelle carte **« Connexion au portail »** (état de la synchronisation, nombre d'articles, bouton **Synchroniser maintenant**, lien vers la boutique du portail).
+- *Paramètres → Boutique et vendeurs* : **Source du catalogue** — « Distributions — automatique » (par défaut) ou « Lien collé à la main » (dans ce mode, Distributions ne remplace plus le catalogue du portail) ; bouton **Synchroniser maintenant**.
+- **Visiteurs** : sans serveur, ils voient le catalogue de la **dernière publication** du portail (Hub → Paramètres → Publication : `portail-data.js` ou portail autonome, qui embarquent le catalogue le plus récent). Un catalogue réellement en direct pour les visiteurs suppose le serveur (Supabase).
+- La boucle complète fonctionne : commande sur le portail → message WhatsApp → import dans *Vente en ligne* (Mobile Money à vérifier, prix recalculés).
+- Tests : `tests/portail-vente-ligne.js` (VL-1 à VL-10).

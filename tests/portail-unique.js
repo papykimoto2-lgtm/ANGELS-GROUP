@@ -34,15 +34,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const ps=await ctx.newPage();ps.on("pageerror",e=>errs.push("parametres: "+e.message));ps.on("dialog",d=>d.accept());
  await ps.goto(base+"/parametres.html");await ps.waitForTimeout(300);
  const ro=await ps.evaluate(()=>{const f=document.getElementById("pform");f.nom.value="Pirate";f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));return{btn:f.querySelector("button.sb").disabled,k:localStorage.getItem(PKEY),m:document.getElementById("ptl").innerText.slice(0,200)}});
- chk("PTL-3","Paramètres : lecture seule sans administrateur déverrouillé ; enregistrement refusé, rien d'écrit",ro.btn&&ro.k===null&&/Déverrouill/.test(ro.m),JSON.stringify(ro));
+ chk("PTL-3","Paramètres : lecture seule sans administrateur déverrouillé ; enregistrement refusé, rien d'écrit",ro.btn&&!/Pirate/.test(ro.k||"")&&/Déverrouill/.test(ro.m),JSON.stringify(ro));
  const bad=await ps.evaluate(t=>{AUTH.dist={id:"x",nom:"t",exp:Date.now()+60000};pView();const out=[];const f=()=>document.getElementById("pform"),go=()=>{f().dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));return document.getElementById("ptl").innerText};
   f().hvideo.value="javascript:alert(1)";out.push(/Vidéo/.test(go()));f().hvideo.value="";
-  f().boutique.value="n'importe quoi";out.push(/Lien de boutique invalide/.test(go()));
+  f().bsrc.value="lien";f().boutique.value="n'importe quoi";out.push(/Lien de boutique invalide/.test(go()));
   f().boutique.value="";f().email.value="x";out.push(/e-mail invalide/.test(go()));f().email.value="";
   f().act0.checked=true;f().nm0.value="";out.push(/le nom est obligatoire/.test(go()));f().nm0.value="Distributions";return out},tok);
  chk("PTL-4","contrôles : vidéo non https, lien de boutique invalide, e-mail invalide, activité sans nom refusés",bad.every(Boolean),JSON.stringify(bad));
  const sv=await ps.evaluate(t=>{const f=document.getElementById("pform");f.nm0.value="Livraison express";f.tx0.value="Livré en 2 h";f.dt0.value="Nous livrons en moins de 2 heures.";f.act2.checked=false;f.bandeau.value="🎉 Ouverture de la boutique\n🚚 Livraison gratuite ce week-end";f.stats.value="500 | Clients livrés\n3 | Activités";f.at_t0.value="Rapide";f.at_x0.value="En 2 h";f.avis.value="Awa | Très rapide, merci !";
-  f.email.value="contact@exemple.ci";f.nom.value="Menko Test";f.couleur.value="#b45309";f.slogan.value="Slogan <b>test</b>";f.tel.value="0707000000";f.whatsapp.value="0707000000";f.boutique.value="https://exemple.ci/distribution.html#boutique="+t.t;f.faq.value="Où livrez-vous ? | Partout à Abidjan";
+  f.email.value="contact@exemple.ci";f.nom.value="Menko Test";f.couleur.value="#b45309";f.slogan.value="Slogan <b>test</b>";f.tel.value="0707000000";f.whatsapp.value="0707000000";f.bsrc.value="lien";f.boutique.value="https://exemple.ci/distribution.html#boutique="+t.t;f.faq.value="Où livrez-vous ? | Partout à Abidjan";
   f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));const c=JSON.parse(localStorage.getItem(PKEY)||"null");return c&&{nom:c.nom,b:c.boutique===t.t,na:c.activites.filter(a=>a.actif).length,nb:c.bandeau.length,ns:c.stats.length,av:c.avis.length,v:c.v,old:c.services===undefined&&c.entrees===undefined,m:document.getElementById("ptl").innerText.slice(0,60)}},tok);
  chk("PTL-5","administrateur déverrouillé : identité, bandeau, accueil, activités, avis, contact, boutique (jeton extrait du lien) et FAQ enregistrés",sv&&sv.nom==="Menko Test"&&sv.b&&sv.na===2&&sv.nb===2&&sv.ns===2&&sv.av===1&&sv.v===5&&sv.old&&/enregistré/.test(sv.m),JSON.stringify(sv));
  await pp.goto(base+"/portail.html");await pp.waitForTimeout(400);

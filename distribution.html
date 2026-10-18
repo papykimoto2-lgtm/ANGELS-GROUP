@@ -241,7 +241,7 @@ function garde(roles,l,d){
  if(ME.role==="vendeur"&&d){const v=vend();if(!v||d.vendeur_id!==v.id){toast("Commande d'un autre vendeur","err");return false}}
  return true}
 const can=(...roles)=>ME&&roles.includes(ME.role);
-function save(){if(CL.on)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Stockage local plein ou indisponible","err")}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}}
+function save(){if(CL.on)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Stockage local plein ou indisponible","err")}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}try{if(typeof majPortail==="function"&&S&&S.produits&&S.config)majPortail()}catch(e){}}
 function audit(action,detail){S.audit.push({ts:now(),user:who(),role:ME?ME.role:"système",action,detail:detail||""});if(S.audit.length>5000)S.audit.splice(0,S.audit.length-5000)}
 function toast(m,t){const d=document.createElement("div");d.className="t "+(t||"");d.textContent=m;$("#toast").appendChild(d);setTimeout(()=>d.remove(),t==="err"?5500:3000)}
 
@@ -4192,8 +4192,20 @@ Object.assign(ACT,{newPresta:()=>prestaForm(),editPresta:id=>prestaForm(presta(i
 const MM_OPS=["Wave","Orange Money","MTN MoMo","Moov Money","Autre"];
 const boutCatalogue=()=>S.produits.filter(p=>p.actif&&p.en_ligne),boutPrest=()=>(S.prestations||[]).filter(p=>p.actif&&p.en_ligne);
 const boutMM=()=>(S.config.momo_comptes||[]).map(s=>String(s).trim()).filter(s=>s&&!/exemple/i.test(s));
-function boutLink(){return location.href.split("#")[0].split("?")[0]+"#boutique="+b64({o:ORGRAW(),w:S.config.whatsapp||"",z:S.config.zones.map(z=>[z.nom,Math.round(z.frais||0)]),
- p:[...boutCatalogue().map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),...boutPrest().map(p=>[p.code,p.nom,Math.round(p.prix),-1])],m:boutMM(),t:Date.now()})}
+const boutPayload=()=>({o:ORGRAW(),w:S.config.whatsapp||"",z:S.config.zones.map(z=>[z.nom,Math.round(z.frais||0)]),
+ p:[...boutCatalogue().map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),...boutPrest().map(p=>[p.code,p.nom,Math.round(p.prix),-1])],m:boutMM()});
+function boutLink(){return location.href.split("#")[0].split("?")[0]+"#boutique="+b64({...boutPayload(),t:Date.now()})}
+/* Connexion Vente en ligne → portail : le catalogue publié ici alimente la boutique du portail (même appareil, sans copier de lien).
+   Mode « auto » par défaut ; le mode « lien » (Paramètres → Boutique et vendeurs) garde le lien collé à la main. Les visiteurs voient le catalogue à la dernière publication du portail. */
+const PORTAIL_KEY="angels_portail_v1";
+const boutNb=()=>boutCatalogue().length+boutPrest().length;
+function majPortail(force){
+ let c=null;try{c=JSON.parse(localStorage.getItem(PORTAIL_KEY)||"null")}catch(e){}c=c&&typeof c==="object"?c:{};
+ if(!force&&(c.boutique_src||"auto")!=="auto")return false;
+ const tok=boutNb()?b64(boutPayload()):"";if(c.boutique===tok&&(c.boutique_src||"auto")==="auto"&&!force)return false;
+ c.boutique=tok;c.boutique_src="auto";c.boutique_sync=now();localStorage.setItem(PORTAIL_KEY,JSON.stringify(c));
+ try{new BroadcastChannel("angels_portail").postMessage("maj")}catch(e){}return true}
+const portailEtat=()=>{let c=null;try{c=JSON.parse(localStorage.getItem(PORTAIL_KEY)||"null")}catch(e){}c=c&&typeof c==="object"?c:{};return{src:c.boutique_src||"auto",sync:c.boutique_sync||"",tok:!!c.boutique}};
 const webCmds=()=>S.commandes.filter(c=>c.web);
 const digits=s=>String(s||"").replace(/\D/g,"");
 function webCreer(d){
@@ -4237,6 +4249,9 @@ VIEWS.vente_ligne=()=>{
   return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${fdt(c.date)}</span></td><td>${esc(cl.nom)}<br><span class="sm mu">${esc(c.adr.zone)}</span></td><td>${fcfa(c.total)}</td><td>${pay}</td><td>${sb(c)}</td>
    <td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button>${val&&w.pay==="a_verifier"?` <button class="btn sm ok" data-act="webPayOk" data-id="${c.id}">✔ Paiement reçu</button> <button class="btn sm er ghost" data-act="webPayKo" data-id="${c.id}">✖ Non reçu</button>`:""}</td></tr>`});
  return`<div class="between"><h1>🛒 Vente en ligne</h1></div>
+ <div class="card"><h2>Connexion au portail</h2>${(()=>{const e=portailEtat(),n=boutNb();return e.src==="auto"?`<p>${n?`<b>Synchronisée automatiquement</b> : la boutique du portail affiche ces <b>${cat.length}</b> produit(s) et <b>${pre.length}</b> prestation(s) (prix, stock, zones et comptes Mobile Money à jour à chaque enregistrement).`:`Aucun article publié : la boutique du portail affiche « ouvre bientôt ». Cochez « Vendu en ligne » sur vos produits ou prestations.`}</p>${e.sync?`<p class="sm mu">Dernière synchronisation : ${fdt(e.sync)}</p>`:""}`:`<div class="al warn sm">Le portail utilise un <b>lien collé à la main</b> (Paramètres → Boutique et vendeurs). Il ne suit plus ce catalogue.</div>`})()}
+  <div class="flex" style="margin-top:8px"><button class="btn" data-act="portSync">Synchroniser maintenant</button><a class="btn ghost" href="portail.html#/boutique" target="_blank" rel="noopener">Ouvrir la boutique du portail</a></div>
+  <p class="sm mu" style="margin-top:8px">Sur cet appareil, le portail suit votre catalogue en direct. Pour que vos <b>visiteurs</b> voient les changements, republiez le portail : Hub → Paramètres → Publication (portail-data.js ou portail autonome). Les commandes arrivent sur WhatsApp et s'importent ci-dessous.</p></div>
  <div class="card"><h2>Votre boutique</h2>
   <p><b>${cat.length}</b> produit(s) publié(s) dont <b>${dispo.length}</b> en stock, et <b>${pre.length}</b> prestation(s). Cochez « Vendu en ligne » dans <a href="#" data-act="nav" data-id="produits">Produits & stock</a> ou <a href="#" data-act="nav" data-id="prestations">Prestations</a> pour publier.</p>
   ${!S.config.whatsapp?'<div class="al warn sm">Aucun numéro WhatsApp d\'entreprise : le client ne pourra pas vous envoyer sa commande. Renseignez-le dans Paramètres.</div>':""}
@@ -4247,6 +4262,7 @@ VIEWS.vente_ligne=()=>{
   <textarea id="wb_txt" rows="4" placeholder="🛒 Commande en ligne … [BOUTIQUE:…]" style="width:100%"></textarea><div class="flex" style="margin-top:8px"><button class="btn" data-act="webImport">📥 Importer</button></div></div>`:""}
  <h2>Commandes en ligne</h2>${tbl(["Commande","Client","Total","Paiement","Statut",""],rows,"Aucune commande en ligne pour le moment.")}`};
 Object.assign(ACT,{
+ portSync:()=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err");try{majPortail(true)}catch(e){return toast("Synchronisation impossible : "+e.message,"err")}toast(boutNb()?"Catalogue synchronisé avec le portail ("+boutNb()+" article(s))":"Synchronisé : aucun article publié pour l'instant","ok");render()},
  boutCopy:()=>ACT.cpTxt(boutLink()),
  boutWa:()=>window.open("https://wa.me/?text="+encodeURIComponent("🛒 Commandez en ligne chez "+ORGRAW()+" : "+boutLink()),"_blank","noopener"),
  boutOpen:()=>window.open(boutLink(),"_blank","noopener"),

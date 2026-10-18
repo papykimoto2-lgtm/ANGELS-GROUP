@@ -1,0 +1,58 @@
+/* Connexion Vente en ligne (Distributions) → boutique du portail : synchronisation automatique du catalogue.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/portail-vente-ligne.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1200,height:1000}}),errs=[];let ok=0,ko=0;
+ const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/transport.html");await p.waitForTimeout(500);
+ await p.evaluate(()=>{window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};
+  window.__try=fn=>{const snap=JSON.stringify(S),me=ME&&ME.id;try{fn();return null}catch(e){S=JSON.parse(snap);ME=me?by(S.users,me):null;return e.message}};
+  window.__sc=(c,f)=>sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte===c&&(!f||f(l,e)))),l=>(l.debit||0)-(l.credit||0));
+  window.__ach=o=>acheterVehicule(Object.assign({date:today(),fournisseur:"Auto Import SARL",marque:"Toyota",modele:"Corolla",annee:2020,vin:"VIN-"+Math.random().toString(36).slice(2,8).toUpperCase(),prix:1180000,paye:1180000,mode:"banque",km:30000},o));
+  window.__vente=(vid,o)=>vendreVehicule(Object.assign({vn_id:vid,date:today(),client:"Kouassi Yao",prix:1534000,mode:"banque"},o));
+  __as("admin");S.settings.tva_taux=18;S.attachments.push({id:"at_test",nom:"p.pdf",type:"application/pdf",taille:5,t:now(),par:"t",data:"data:application/pdf;base64,AAAA"})});
+ const t=async(id,label,fn,arg)=>{let r;try{r=await p.evaluate(fn,arg)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",typeof r==="string"?r:JSON.stringify(r))}};
+
+ const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label,o?"":info||"");o?ok++:ko++};
+ const pd=await ctx.newPage();pd.on("pageerror",e=>errs.push("distribution: "+e.message));pd.on("dialog",d=>d.accept());await pd.goto(base+"/distribution.html");await pd.waitForTimeout(500);
+ await pd.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");S.produits.forEach(p=>{p.en_ligne=false});(S.prestations||[]).forEach(p=>{p.en_ligne=false});save()});
+ const vide=await pd.evaluate(()=>({n:boutNb(),c:JSON.parse(localStorage.getItem("angels_portail_v1")||"null")}));
+ const pp=await ctx.newPage();pp.on("pageerror",e=>errs.push("portail: "+e.message));await pp.goto(base+"/portail.html#/boutique");await pp.waitForTimeout(500);
+ chk("VL-1","aucun article publié en ligne : la boutique du portail affiche « ouvre bientôt » (état de votre capture)",vide.n===0&&(!vide.c||!vide.c.boutique)&&/ouvre bientôt/.test(await pp.evaluate(()=>document.getElementById("shop").innerText)),JSON.stringify(vide).slice(0,200));
+ await pd.evaluate(()=>{const ps=S.produits.filter(p=>p.actif).slice(0,2);ps.forEach(p=>{p.en_ligne=true});save();window.__codes=ps.map(p=>p.code)});
+ await pp.waitForTimeout(500);
+ const conn=await pd.evaluate(()=>{const c=JSON.parse(localStorage.getItem("angels_portail_v1")),o=JSON.parse(decodeURIComponent(escape(atob(c.boutique.replace(/-/g,"+").replace(/_/g,"/")))));return{src:c.boutique_src,n:o.p.length,codes:o.p.map(x=>x[0]),sync:!!c.boutique_sync,w:o.w}});
+ chk("VL-2","publier des produits « Vendu en ligne » dans Distributions alimente automatiquement le portail (sans copier de lien) : catalogue, WhatsApp et zones",conn.src==="auto"&&conn.n===2&&conn.sync,JSON.stringify(conn));
+ const live=await pp.evaluate(()=>({rows:document.querySelectorAll("#shop .bp").length,zones:document.querySelectorAll("#b_zone option").length,txt:document.getElementById("shop").innerText}));
+ chk("VL-3","la page du portail déjà ouverte se met à jour en direct : 2 produits, zones de livraison, formulaire de commande",live.rows===2&&live.zones>1&&/Total à payer/.test(live.txt)&&!/ouvre bientôt/.test(live.txt),JSON.stringify({rows:live.rows,zones:live.zones}));
+ const prix=await pd.evaluate(()=>{const p=S.produits.find(x=>x.code===window.__codes[0]);p.prix=p.prix+500;save();return p.prix});await pp.waitForTimeout(500);
+ const maj=await pp.evaluate(p=>document.getElementById("shop").innerText.replace(/\s/g,"").includes(String(p).replace(/\B(?=(\d{3})+(?!\d))/g," ").replace(/\s/g,"")+"F"),prix);
+ chk("VL-4","modification d'un prix dans Distributions : le portail affiche le nouveau prix",maj,prix);
+ const ps=await ctx.newPage();ps.on("pageerror",e=>errs.push("parametres: "+e.message));ps.on("dialog",d=>d.accept());await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
+ await ps.evaluate(()=>{AUTH.dist={id:"x",nom:"t",exp:Date.now()+600000};uView();pTab("boutique")});await ps.waitForTimeout(150);
+ const par=await ps.evaluate(()=>({src:document.querySelector('#pform [name="bsrc"]').value,txt:[...document.querySelectorAll('#ptl .pp[data-pp="boutique"]')].map(x=>x.textContent).join(" ")}));
+ chk("VL-5","Paramètres → Boutique et vendeurs : source « Distributions — automatique », nombre d'articles synchronisés affiché",par.src==="auto"&&/2 article\(s\)/.test(par.txt)&&/Synchroniser maintenant/.test(par.txt),JSON.stringify(par).slice(0,300));
+ await ps.evaluate(()=>{const f=document.getElementById("pform");f.bsrc.value="lien";f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}))});
+ const lien=await pd.evaluate(()=>{const C=JSON.parse(localStorage.getItem("angels_portail_v1"));return{src:C.boutique_src,tok:C.boutique.slice(0,12)}});
+ await pd.evaluate(()=>{const p=S.produits.find(x=>x.code===window.__codes[1]);p.prix=p.prix+100;save()});
+ const apres=await pd.evaluate(()=>{const C=JSON.parse(localStorage.getItem("angels_portail_v1"));return{src:C.boutique_src,tok:C.boutique.slice(0,12)}});
+ chk("VL-6","mode « lien collé » : Distributions ne remplace plus le catalogue du portail",lien.src==="lien"&&apres.src==="lien"&&apres.tok===lien.tok,JSON.stringify({lien,apres}));
+ await pd.evaluate(()=>{sessionStorage.setItem("angels_me",ME.id);render();ACT.nav("vente_ligne")});await pd.waitForTimeout(200);
+ const carte=await pd.evaluate(()=>({txt:document.getElementById("app").innerText}));
+ chk("VL-7","Distributions → Vente en ligne : carte « Connexion au portail » (mode lien signalé, bouton Synchroniser, lien vers la boutique du portail)",/Connexion au portail/.test(carte.txt)&&/lien collé à la main/.test(carte.txt)&&/Synchroniser maintenant/.test(carte.txt)&&/Ouvrir la boutique du portail/.test(carte.txt),carte.txt.slice(0,500));
+ await pd.evaluate(()=>ACT.portSync());await pd.waitForTimeout(200);
+ const sync=await pd.evaluate(()=>{const C=JSON.parse(localStorage.getItem("angels_portail_v1"));return{src:C.boutique_src,txt:document.getElementById("app").innerText}});
+ chk("VL-8","« Synchroniser maintenant » : retour en mode automatique avec le catalogue actuel",sync.src==="auto"&&/Synchronisée automatiquement/.test(sync.txt)&&/2 produit/.test(sync.txt),JSON.stringify(sync).slice(0,300));
+ await ps.evaluate(()=>{PCUR=null;uView();pTab("boutique")});
+ await pd.evaluate(()=>{S.produits.forEach(p=>{if(p.en_ligne)p.prix=p.prix});const p=S.produits.find(x=>x.code===window.__codes[0]);p.prix=p.prix+1000;save()});
+ await ps.evaluate(()=>{pTab("publication")});
+ const pub=await ps.evaluate(async()=>{const D=await pDonnees();const o=JSON.parse(decodeURIComponent(escape(atob(D.cfg.boutique.replace(/-/g,"+").replace(/_/g,"/")))));return{n:o.p.length,src:D.cfg.boutique_src}});
+ chk("VL-9","publication du portail (portail-data.js / autonome) : inclut le catalogue de Distributions le plus récent",pub.n===2&&pub.src==="auto",JSON.stringify(pub));
+ const cmd=await pp.evaluate(async()=>{location.hash="#/boutique";await new Promise(r=>setTimeout(r,300));const e=id=>document.getElementById(id);document.querySelector('.bp [data-b="+"]').click();e("b_nom").value="Awa";e("b_tel").value="0102030405";e("b_zone").value=e("b_zone").options[1].value;e("b_zone").dispatchEvent(new Event("change"));e("b_q").value="Cocody";e("b_send").click();return(document.querySelector("#shop textarea.msg")||{}).value||""});
+ const imp=await pd.evaluate(m=>{const r=webImporter(m);return{ok:r.ok.length,ko:r.ko}},cmd);
+ chk("VL-10","boucle complète : commande passée sur le portail, importée dans Distributions → Vente en ligne",imp.ok===1&&imp.ko.length===0,JSON.stringify(imp));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();

@@ -22,7 +22,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const pd=await ctx.newPage();await pd.goto(base+"/distribution.html");await pd.waitForTimeout(400);
  const tok=await pd.evaluate(()=>b64({o:"ANGEL'S",w:"0707000000",z:S.config.zones.slice(0,2).map(z=>[z.nom,z.frais]),p:S.produits.filter(p=>p.actif).slice(0,3).map(p=>[p.code,p.nom,p.prix,p.stock]),m:[],t:1}));
  const ps=await ctx.newPage();ps.on("pageerror",e=>errs.push("parametres: "+e.message));ps.on("dialog",d=>d.accept());await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
- await ps.evaluate(t=>{AUTH.dist={id:"x",nom:"t",exp:Date.now()+600000};const C=pLire();C.boutique=t;localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;uView();pTab("accueil")},tok);await ps.waitForTimeout(150);
+ await ps.evaluate(t=>{AUTH.dist={id:"x",nom:"t",exp:Date.now()+600000};const C=pLire();C.boutique=t;C.boutique_src="lien";localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;uView();pTab("accueil")},tok);await ps.waitForTimeout(150);
  const ed=await ps.evaluate(()=>({ic:document.querySelectorAll('#pform [name^="ic"]').length,at:document.querySelectorAll('#pform [name^="at_t"]').length,txt:[...document.querySelectorAll("#ptl .pp")].filter(p=>p.dataset.pp==="accueil").map(p=>p.textContent).join(" ")}));
  chk("PHO-1","Paramètres : plus de champ « Icône » (emoji) ; trois atouts avec titre, texte et photo",ed.ic===0&&ed.at===3&&/Photo/.test(ed.txt)&&!/Icône/.test(ed.txt),JSON.stringify(ed).slice(0,200));
  await ps.evaluate(()=>{PIMG={k:"atp",i:0}});await ps.setInputFiles("#m_img",[{name:"a.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(500);
