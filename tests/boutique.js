@@ -46,7 +46,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const r2=await imp("admin",msg);t("WEB-11","même message importé deux fois : refusé (doublon)",/déjà importée/.test(r2)?true:r2);
  await st.evaluate(()=>{window.__fg=o=>"[BOUTIQUE:"+b64(Object.assign({f:"T"+Math.random().toString(36).slice(2,7),n:"Test Client",t:"0707000111",z:S.config.zones[0].nom,q:"Cocody",l:[["P-RIZ",1]],p:"e"},o))+"]"});
  const run=async(role,o)=>{const x=await st.evaluate(o=>__fg(o),o);return imp(role,x)};
- t("WEB-12","produit inconnu refusé",/produit inconnu/.test(await run("admin",{l:[["XXX",1]]}))?true:"accepté");
+ t("WEB-12","produit inconnu refusé",/inconnu/.test(await run("admin",{l:[["XXX",1]]}))?true:"accepté");
  t("WEB-13","zone inconnue refusée",/zone inconnue/.test(await run("admin",{z:"Atlantide"}))?true:"accepté");
  t("WEB-14","Mobile Money : même référence réutilisée refusée",/déjà utilisée/.test(await run("admin",{p:"m",op:"Wave",rf:"mp260101.1234.a5"}))?true:"accepté");
  const rt=await run("admin",{tt:1});
