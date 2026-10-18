@@ -23,7 +23,7 @@ main{padding:0 16px 40px;margin-top:-16px}
 .cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;border-top:5px solid var(--c);text-decoration:none;color:inherit}
 .card h2{margin:0;font-size:17px}
-.card .ic{color:var(--c)}.card .ic svg{width:34px;height:34px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.card .ic{font-size:30px}
 .card p{margin:0;color:var(--mu);font-size:13px}
 .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .kp div{background:var(--bg);border-radius:10px;padding:8px;text-align:center}
@@ -50,7 +50,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </style>
 </head>
 <body>
-<header><div class="w top"><div><h1>ANGEL'S GROUP — Hub</h1><p>Pilotage unique des filiales · <span id="date"></span></p></div></div></header>
+<header><div class="w top"><div><h1>🅰️ ANGEL'S GROUP — Hub</h1><p>Pilotage unique des filiales · <span id="date"></span></p></div></div></header>
 <main><div class="w">
 <section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="tw"><table id="tcons"></table></div><p class="note" id="ncons"></p></section>
 <h2 style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
@@ -58,19 +58,19 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <h3 style="margin-top:22px">Filiales</h3>
 <div class="cards">
  <a class="card" style="--c:var(--g1)" href="distribution.html" id="c-dist">
-  <div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="12" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="6" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></div><h2>Angel's Distributions</h2><p>Livraison à moto : commandes, livreurs, caisse, comptabilité SYSCOHADA.</p>
+  <div class="ic">🏍️</div><h2>Angel's Distributions</h2><p>Livraison à moto : commandes, livreurs, caisse, comptabilité SYSCOHADA.</p>
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="k-cmd">—</b><span>Commandes en cours</span></div><div><b id="k-liv">—</b><span>Livrées</span></div><div><b id="k-lvr">—</b><span>Livreurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
  <a class="card" style="--c:var(--g2)" href="transport.html">
-  <div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16l1.5-5.5A2 2 0 0 1 8.4 9h7.2a2 2 0 0 1 1.9 1.5L19 16"/><rect x="3" y="16" width="18" height="4" rx="1.5"/><circle cx="7" cy="18" r=".8"/><circle cx="17" cy="18" r=".8"/></svg></div><h2>Angel's &amp; Co Transport</h2><p>Taxi communal : lignes, taxis, chauffeurs, versements journaliers, arriérés, rentabilité.</p>
+  <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Taxi communal : lignes, taxis, chauffeurs, versements journaliers, arriérés, rentabilité.</p>
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="t-ot">—</b><span>Encaissé du jour</span></div><div><b id="t-v">—</b><span>Taxis</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
  <a class="card" style="--c:var(--g3)" href="agro.html" id="c-agro">
-  <div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19c3-5 6-8 10-10"/></svg></div><h2>Angel's Agro</h2><p>Élevage avicole : lots, ponte, conditionnement, nutrition, prophylaxie, stock, ventes, achats, comptabilité SYSCOHADA et rapports.</p>
+  <div class="ic">🐔</div><h2>Angel's Agro</h2><p>Élevage avicole : lots, ponte, conditionnement, nutrition, prophylaxie, stock, ventes, achats, comptabilité SYSCOHADA et rapports.</p>
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="a-v">—</b><span>Sujets vivants</span></div><div><b id="a-l">—</b><span>Lots en cours</span></div><div><b id="a-s">—</b><span>Stocks bas</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
@@ -79,27 +79,27 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <h3>Administration du groupe</h3>
 <div class="cards">
  <a class="card" style="--c:#0e7490" href="portail.html" id="c-portail">
-  <div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div><h2>Portail unique</h2><p>Site public et boutique en ligne du groupe, avec candidatures de vendeurs partenaires — réglés dans les Paramètres. N'ouvre aucune application de gestion.</p>
+  <div class="ic">🌐</div><h2>Portail unique</h2><p>Site public et boutique en ligne du groupe, avec candidatures de vendeurs partenaires — réglés dans les Paramètres. N'ouvre aucune application de gestion.</p>
   <span class="btn">Ouvrir le portail</span>
  </a>
  <a class="card" style="--c:#0b3b4c" href="compta-groupe.html" id="c-compta">
-  <div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg></div><h2>Comptabilité du groupe</h2><p>Contrôle d'intégrité des trois applications : opérations comptabilisées, écritures équilibrées, résultat par activité, ventes en ligne.</p>
+  <div class="ic">📒</div><h2>Comptabilité du groupe</h2><p>Contrôle d'intégrité des trois applications : opérations comptabilisées, écritures équilibrées, résultat par activité, ventes en ligne.</p>
   <span class="btn">Ouvrir la comptabilité du groupe</span>
  </a>
  <a class="card" style="--c:#475569" href="parametres.html" id="c-param">
-  <div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg></div><h2>Paramètres</h2><p>Utilisateurs et rôles de chaque application (Distributions, Transport, Agro) : création des comptes, attribution des rôles, PIN, activation.</p>
+  <div class="ic">⚙️</div><h2>Paramètres</h2><p>Utilisateurs et rôles de chaque application (Distributions, Transport, Agro) : création des comptes, attribution des rôles, PIN, activation.</p>
   <span class="btn">Ouvrir les paramètres</span>
  </a>
 </div>
 <h3>Socle commun du groupe (à mutualiser)</h3>
 <div class="mod">
- <div>Utilisateurs, rôles, permissions</div><div>Comptabilité SYSCOHADA consolidée</div>
- <div>Trésorerie et caisses</div><div>Facturation et documents</div>
- <div>Notifications</div><div>Journal d'audit</div>
- <div>Tableau de bord consolidé</div><div>Pièces jointes, exports PDF/Excel</div>
+ <div>👤 Utilisateurs, rôles, permissions</div><div>📒 Comptabilité SYSCOHADA consolidée</div>
+ <div>💰 Trésorerie et caisses</div><div>🧾 Facturation et documents</div>
+ <div>🔔 Notifications</div><div>🛡️ Journal d'audit</div>
+ <div>📊 Tableau de bord consolidé</div><div>📎 Pièces jointes, exports PDF/Excel</div>
 </div>
 </div></main>
-<footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>Installer</a></footer>
+<footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a></footer>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
@@ -191,7 +191,7 @@ function consolide(){
  $("ncons").textContent="Chiffres lus sur cet appareil (données locales de chaque application). « Non ouvert » : l'application n'a pas encore été utilisée ici. Résultat de Distributions : voir son module Comptabilité.";
 }
 /* ---------- Tableau de bord par module ---------- */
-const MODS=[{id:"dist",nom:"Distributions",ic:"",href:"distribution.html",c:"var(--g1)"},{id:"trans",nom:"Transport",ic:"",href:"transport.html",c:"var(--g2)"},{id:"agro",nom:"Agro",ic:"",href:"agro.html",c:"var(--g3)"}];
+const MODS=[{id:"dist",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)"},{id:"trans",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)"},{id:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)"}];
 let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||"dist"}catch(e){return"dist"}})();
 function tdb(X){
  const i=Math.max(0,MODS.findIndex(m=>m.id===MOD)),m=MODS[i],d=X[i][1];
