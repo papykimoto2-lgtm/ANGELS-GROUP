@@ -2403,7 +2403,7 @@ function bootSuiviLocal(id){
 /* ---------- Liens publics vers le portail unique : suivi signé, commande vendeur, commande client ---------- */
 const portailBase=()=>{let site="";try{site=ANGELS_PRINT.cfg().site||""}catch(e){}if(site)return site.replace(/\/+$/,"")+"/portail";if(/^https?:$/.test(location.protocol))return location.origin+"/portail";return new URL("portail.html",location.href).href};
 const portailLien=h=>portailBase()+h;
-function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,h:(v.hist||[]).map(x=>[x.a,x.ts])}}
+function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,h:(v.hist||[]).map(x=>[x.a,x.ts]),...(S.config.suivi_carte!==false&&c.statut==="en_cours"?{x:v.dest?[v.dest.lat,v.dest.lng]:undefined,y:v.pos?[v.pos.lat,v.pos.lng,v.pos.ts]:undefined}:{})}}
 async function suiviLienPortail(c){return portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)))}
 const SUIVI_PH=/\n?Suivi de votre commande : \{\{SUIVI\}\}/;
 async function notifMsg(n){if(!/\{\{SUIVI\}\}/.test(n.message))return n.message;const c=cmd(n.commande_id);if(!c)return n.message.replace(SUIVI_PH,"");try{return n.message.replace("{{SUIVI}}",await suiviLienPortail(c))}catch(e){return n.message.replace(SUIVI_PH,"")}}
