@@ -13,6 +13,12 @@
 
 Fichier unique : `distribution.html` (aucune dépendance, ouvrable par double-clic ; la carte OpenStreetMap demande Internet).
 
+## Prestations (services sans stock)
+- Menu **🛠️ Prestations** (administrateur, commercial) : catalogue de services avec code, désignation, prix, description, **actif** et **vendue en ligne** (démonstration : livraison express, emballage cadeau, course spéciale, installation). Une prestation ne se supprime pas, on la désactive ; le code doit être unique parmi les produits et les prestations.
+- **Commandes** : le formulaire de commande propose les produits et, dans un groupe « Prestations », les services. Une ligne de prestation ne touche jamais au stock ; son prix est copié à la création (changer le tarif ne modifie pas l'historique).
+- **Boutique en ligne** : les prestations cochées « vendue en ligne » apparaissent dans la boutique (sans limite de stock) et s'importent comme les produits, aux prix actuels ; une prestation désactivée depuis la publication du lien est refusée à l'import.
+- **Comptabilité automatique** : le chiffre d'affaires des prestations est comptabilisé avec celui des frais de livraison (ventes de services), les marchandises en ventes d'articles ; une remise s'impute d'abord sur les articles, puis sur les prestations. Mode local uniquement. Test : `node tests/prestations.js`.
+
 ## Vente en ligne (boutique publique)
 - **Publier** : dans *Produits & stock*, cochez **🛒 Vendu en ligne** sur chaque produit à vendre. Menu **🛒 Vente en ligne** (administrateur, superviseur, commercial, caissier) : **Copier le lien**, **Partager sur WhatsApp** ou **Prévisualiser** la boutique. Le lien (`distribution.html#boutique=…`) embarque le catalogue au moment du partage (produits, prix, stock, zones et frais, comptes Mobile Money, numéro WhatsApp) : repartagez-le après un changement.
 - **Client** : page mobile sans installation ni connexion — produits +/−, nom, téléphone, zone (frais affichés), quartier, repère, position GPS facultative, paiement **espèces à la livraison** ou **Mobile Money** (comptes affichés, opérateur et référence obligatoires). Le client envoie un message WhatsApp lisible qui contient un marqueur `[BOUTIQUE:…]`. Les comptes Mobile Money encore marqués « exemple » ne sont jamais publiés.
