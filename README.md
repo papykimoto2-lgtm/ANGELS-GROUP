@@ -13,6 +13,13 @@
 
 Fichier unique : `distribution.html` (aucune dépendance, ouvrable par double-clic ; la carte OpenStreetMap demande Internet).
 
+## Vente en ligne (boutique publique)
+- **Publier** : dans *Produits & stock*, cochez **🛒 Vendu en ligne** sur chaque produit à vendre. Menu **🛒 Vente en ligne** (administrateur, superviseur, commercial, caissier) : **Copier le lien**, **Partager sur WhatsApp** ou **Prévisualiser** la boutique. Le lien (`distribution.html#boutique=…`) embarque le catalogue au moment du partage (produits, prix, stock, zones et frais, comptes Mobile Money, numéro WhatsApp) : repartagez-le après un changement.
+- **Client** : page mobile sans installation ni connexion — produits +/−, nom, téléphone, zone (frais affichés), quartier, repère, position GPS facultative, paiement **espèces à la livraison** ou **Mobile Money** (comptes affichés, opérateur et référence obligatoires). Le client envoie un message WhatsApp lisible qui contient un marqueur `[BOUTIQUE:…]`. Les comptes Mobile Money encore marqués « exemple » ne sont jamais publiés.
+- **Import** (administrateur, superviseur, commercial) : coller un ou plusieurs messages dans *Vente en ligne → Importer*. La commande est créée **« en attente de confirmation »**, canal « Vente en ligne », avec **les prix et frais actuels** (jamais ceux du message ; un écart avec le total affiché au client est signalé). Refusés : doublon (même référence de commande), produit inconnu, zone inconnue, adresse absente, référence Mobile Money déjà utilisée. Un stock insuffisant est signalé (la sortie de stock se fait à la préparation, comme d'habitude).
+- **Mobile Money** : aucun encaissement avant vérification. Le caissier ou l'administrateur contrôle la réception puis clique **✔ Paiement reçu** (encaissement du total enregistré avec opérateur et référence, commande confirmée) ou **✖ Non reçu** (commande laissée en attente). Alertes du tableau de bord : commandes en ligne à confirmer, paiements à vérifier.
+- **Limites** : sans serveur, la commande arrive par WhatsApp et non en temps réel ; le catalogue publié est une copie (pas de stock en direct) ; mode local uniquement (le raccordement Supabase est une étape à venir). Test : `node tests/boutique.js`.
+
 ## Démonstration
 PIN : admin `1234` · direction `0000` · superviseur `1111` · caissier `2222` · commercial `3333` · préparateur `4444` · livreurs `0001` (Issa) / `0002` (Kouamé) / `0003` (Sékou).
 La session est propre à chaque onglet : ouvrez deux onglets (superviseur + livreur) ; ils se synchronisent via le stockage local.

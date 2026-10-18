@@ -198,6 +198,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"clients",l:"Clients",i:"👥",g:"Tiers & partenaires",r:["admin","superviseur","commercial"]},
  {v:"commandes",l:"Commandes",i:"🧾",g:"Commandes",r:["admin","superviseur","commercial","preparateur"]},
  {v:"notifs",l:"Notifications",i:"💬",g:"Commandes",r:["admin","superviseur","commercial"]},
+ {v:"vente_ligne",l:"Vente en ligne",i:"🛒",g:"Commandes",r:["admin","superviseur","commercial","caissier"]},
  {v:"produits",l:"Produits & stock",i:"📦",g:"Stock & préparation",r:["admin","commercial","preparateur"]},
  {v:"journal",l:"Journal des mouvements",i:"📒",g:"Stock & préparation",r:["admin","direction","superviseur","commercial","preparateur"]},
  {v:"inventaire",l:"Inventaire",i:"📋",g:"Stock & préparation",r:["admin","direction","superviseur","commercial","preparateur"]},
@@ -1092,6 +1093,7 @@ function alertes(){
  const nn=S.notifs.filter(n=>n.statut==="a_envoyer").length;if(nn)a.push({k:"",m:`${nn} message(s) client à envoyer (menu Notifications)`});
  const ec=S.livraisons.filter(l=>l.ecart_statut==="a_valider").length;if(ec)a.push({k:"err",m:`${ec} écart(s) d'encaissement à valider`});
  const nv=S.commandes.filter(c=>c.vendeur_id&&c.statut==="attente").length;if(nv)a.push({k:"warn",m:`${nv} commande(s) de vendeurs partenaires à confirmer`});
+ const nw=S.commandes.filter(c=>c.web&&c.statut==="attente").length;if(nw)a.push({k:"warn",m:`${nw} commande(s) de la boutique en ligne à confirmer`});const nmm=S.commandes.filter(c=>c.web&&c.web.pay==="a_verifier").length;if(nmm)a.push({k:"err",m:`${nmm} paiement(s) Mobile Money de la boutique à vérifier (menu Vente en ligne)`});
  const nf=S.commandes.filter(c=>c.statut==="echouee").length;if(nf)a.push({k:"warn",m:`${nf} livraison(s) échouée(s) à traiter`});
  const ng=S.commandes.filter(c=>!["livree","annulee","retour_recu","brouillon"].includes(c.statut)&&!c.adr.gps).length;if(ng)a.push({k:"",m:`${ng} commande(s) active(s) sans position GPS : envoyez le lien du portail au client`});
  const np=S.commandes.filter(c=>c.statut==="prete").length;if(np)a.push({k:"",m:`${np} commande(s) prête(s) à affecter`});
@@ -1298,10 +1300,10 @@ function cliDetail(id){const c=cli(id),cs=S.commandes.filter(x=>x.client_id===id
 
 /* ---------- Produits & stock ---------- */
 VIEWS.produits=()=>`<div class="between"><h1>Produits & stock</h1>${can("admin","commercial")?'<button class="btn" data-act="newProd">➕ Nouveau produit</button>':""}</div>
- ${tbl(["Code","Désignation","Prix","Stock","Seuil","Statut",""],S.produits.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.nom)}</td><td>${fcfa(p.prix)}</td><td><b style="color:${p.stock<=p.seuil?"var(--er)":"inherit"}">${p.stock}</b></td><td>${p.seuil}</td><td>${p.actif?badge("Actif","ok"):badge("Inactif","mu")}</td><td><button class="btn sm ghost" data-act="editProd" data-id="${p.id}">Modifier</button> <button class="btn sm ghost" data-act="adjProd" data-id="${p.id}">Ajuster stock</button></td></tr>`))}
+ ${tbl(["Code","Désignation","Prix","Stock","Seuil","Statut",""],S.produits.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.nom)}</td><td>${fcfa(p.prix)}</td><td><b style="color:${p.stock<=p.seuil?"var(--er)":"inherit"}">${p.stock}</b></td><td>${p.seuil}</td><td>${p.actif?badge("Actif","ok"):badge("Inactif","mu")}${p.en_ligne?" "+badge("🛒 En ligne","wa"):""}</td><td><button class="btn sm ghost" data-act="editProd" data-id="${p.id}">Modifier</button> <button class="btn sm ghost" data-act="adjProd" data-id="${p.id}">Ajuster stock</button></td></tr>`))}
  <h2>Derniers mouvements de stock</h2>${tbl(["Date","Produit","Type","Qté","Référence","Par"],S.stock_mvts.slice(-25).reverse().map(m=>`<tr><td>${fdt(m.ts)}</td><td>${esc(prod(m.produit_id)?prod(m.produit_id).nom:"?")}</td><td>${esc(m.type)}</td><td><b>${m.qte>0?"+":""}${m.qte}</b></td><td>${esc(m.ref||"")}</td><td>${esc(m.par)}</td></tr>`))}`;
-function prodForm(p){modal(p?"Modifier le produit":"Nouveau produit",`<div class="g2"><label>Code<input name="code" required value="${esc(p?p.code:"")}"></label><label>Désignation<input name="nom" required value="${esc(p?p.nom:"")}"></label></div><div class="g3"><label>Prix de vente<input type="number" name="prix" min="0" required value="${p?p.prix:""}"></label><label>Coût d'achat<input type="number" name="cout" min="0" value="${p?p.cout||0:0}"></label><label>${p?"Stock (via « Ajuster »)":"Stock initial"}<input type="number" name="stock" min="0" value="${p?p.stock:0}" ${p?"disabled":""}></label><label>Seuil d'alerte<input type="number" name="seuil" min="0" value="${p?p.seuil:10}"></label></div><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="actif" style="width:auto" ${!p||p.actif?"checked":""}> Produit actif</label>`,
- {onSubmit:d=>{if(CL.on)return CL.prodSave(p,d);if(p){Object.assign(p,{code:d.code,nom:d.nom,prix:+d.prix,cout:+d.cout||0,seuil:+d.seuil,actif:!!d.actif});audit("Modification produit",p.nom)}else{const n={id:uid("p"),code:d.code,nom:d.nom,prix:+d.prix,cout:+d.cout||0,stock:0,seuil:+d.seuil,actif:!!d.actif};S.produits.push(n);if(+d.stock>0)stockMvt(n,+d.stock,"stock_initial","");audit("Création produit",n.nom)}save();render()}})}
+function prodForm(p){modal(p?"Modifier le produit":"Nouveau produit",`<div class="g2"><label>Code<input name="code" required value="${esc(p?p.code:"")}"></label><label>Désignation<input name="nom" required value="${esc(p?p.nom:"")}"></label></div><div class="g3"><label>Prix de vente<input type="number" name="prix" min="0" required value="${p?p.prix:""}"></label><label>Coût d'achat<input type="number" name="cout" min="0" value="${p?p.cout||0:0}"></label><label>${p?"Stock (via « Ajuster »)":"Stock initial"}<input type="number" name="stock" min="0" value="${p?p.stock:0}" ${p?"disabled":""}></label><label>Seuil d'alerte<input type="number" name="seuil" min="0" value="${p?p.seuil:10}"></label></div><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="actif" style="width:auto" ${!p||p.actif?"checked":""}> Produit actif</label><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="en_ligne" style="width:auto" ${p&&p.en_ligne?"checked":""}> 🛒 Vendu en ligne (boutique publique)</label>`,
+ {onSubmit:d=>{if(CL.on)return CL.prodSave(p,d);if(p){Object.assign(p,{code:d.code,nom:d.nom,prix:+d.prix,cout:+d.cout||0,seuil:+d.seuil,actif:!!d.actif,en_ligne:!!d.en_ligne});audit("Modification produit",p.nom)}else{const n={id:uid("p"),code:d.code,nom:d.nom,prix:+d.prix,cout:+d.cout||0,stock:0,seuil:+d.seuil,actif:!!d.actif,en_ligne:!!d.en_ligne};S.produits.push(n);if(+d.stock>0)stockMvt(n,+d.stock,"stock_initial","");audit("Création produit",n.nom)}save();render()}})}
 
 /* ---------- Livreurs & motos ---------- */
 VIEWS.livreurs=()=>`<div class="between"><h1>Livreurs & motos</h1><div class="flex"><button class="btn" data-act="newLiv">➕ Livreur</button><button class="btn ghost" data-act="newMoto">➕ Moto</button></div></div>
@@ -1679,7 +1681,7 @@ document.addEventListener("change",e=>{const t=e.target;
  const row=t.closest("tr"),cInp=row.querySelector("[data-inv]"),nInp=row.querySelector("[data-invn]");const v=cInp.value===""?null:Math.max(0,Math.floor(+cInp.value)),note=nInp.value.trim();
  const save1=()=>{l.compte=v;l.note=note||null;if(!CL.on)save();const pr=document.getElementById("inv_prog");if(pr)pr.textContent=i.lignes.filter(x=>x.compte!=null).length+" / "+i.lignes.length;const ec=row.querySelector(".ec");if(ec){const e=v==null?null:v-l.theorique;ec.innerHTML=e==null?"—":`<span class="${e>0?"ecp":e<0?"ecn":""}">${e?sgn(e):"0"}</span>`}};
  if(CL.on){CL.rpc("saisir_comptage",{p_inventaire:i.id,p_produit:pid,p_compte:v,p_note:note||null}).then(save1).catch(x=>toast(fixErr(x),"err"))}else save1()});
-window.addEventListener("storage",e=>{if(e.key!==KEY||!e.newValue||$("#modal").innerHTML)return;try{S=JSON.parse(e.newValue)}catch(x){return}
+window.addEventListener("storage",e=>{if(/^#(boutique|portail|suivi|commande)=/.test(location.hash)||e.key!==KEY||!e.newValue||$("#modal").innerHTML)return;   /* pages publiques (boutique, portail, suivi, commande) : jamais redessinées par l'ERP ouvert dans un autre onglet */try{S=JSON.parse(e.newValue)}catch(x){return}
  if(ME){const u=usr(ME.id);if(!u||!u.actif){ME=null;sessionStorage.removeItem("angels_me");toast("Votre compte a été désactivé","err")}else ME=u}render()});
 let _tk=0;setInterval(()=>{if(!CL.on&&(_tk++)%2)return;if(ME&&!document.body.classList.contains("menu-open")&&!(ME.role==="livreur"&&Object.values(ui.mapOpen||{}).some(Boolean))&&!$("#modal").innerHTML&&!document.activeElement.matches("input,select,textarea")){if(CL.on)refresh().then(render).catch(()=>{});else render()}},30000);
 
@@ -4106,9 +4108,136 @@ Object.assign(ACT,{saveSec:()=>{if(CL.on)return toast("Disponible en mode démon
  cptSnapRest:id=>{if(!cptW())return;ask("Restaurer l'instantané","Confirmez en saisissant un motif *",mt=>{if(cptSnapRestore(id)){audit("Instantané restauré",mt);save();render();toast("Instantané restauré","ok")}return true},{label:"Restaurer",cls:"er"})},
  cptCsv:()=>{const x=ui.cptX;if(x)csvDown("compta-"+x.name,x.head,x.rows)},cptPrint:()=>{const x=ui.cptX;if(!x)return;rapport("Comptabilité — "+x.name,rptHead("Comptabilité — "+x.name,cptPer()[2])+tbl(x.head,x.rows.map(r=>"<tr>"+r.map(v=>`<td>${typeof v==="number"?fcfa(v):esc(v)}</td>`).join("")+"</tr>")))}});
 
+/* ---------- Vente en ligne : boutique publique (lien partageable) + import des commandes reçues par WhatsApp ----------
+   Le lien contient une copie du catalogue (produits « vendus en ligne », prix, stock, zones, comptes Mobile Money). Le client commande,
+   un message WhatsApp structuré ([BOUTIQUE:…]) part vers l'entreprise, et le personnel l'importe : prix et frais sont RECALCULÉS à l'import,
+   la commande arrive « en attente de confirmation ». Mobile Money : la référence est vérifiée par le caissier avant d'enregistrer l'encaissement. */
+const MM_OPS=["Wave","Orange Money","MTN MoMo","Moov Money","Autre"];
+const boutCatalogue=()=>S.produits.filter(p=>p.actif&&p.en_ligne);
+const boutMM=()=>(S.config.momo_comptes||[]).map(s=>String(s).trim()).filter(s=>s&&!/exemple/i.test(s));
+function boutLink(){return location.href.split("#")[0].split("?")[0]+"#boutique="+b64({o:ORGRAW(),w:S.config.whatsapp||"",z:S.config.zones.map(z=>[z.nom,Math.round(z.frais||0)]),
+ p:boutCatalogue().map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),m:boutMM(),t:Date.now()})}
+const webCmds=()=>S.commandes.filter(c=>c.web);
+const digits=s=>String(s||"").replace(/\D/g,"");
+function webCreer(d){
+ const ref=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,12);if(!ref)throw new Error("référence absente");
+ if(S.commandes.some(c=>c.web&&c.web.ref===ref))throw new Error("déjà importée");
+ const nom=String(d.n||"").trim().replace(/\s+/g," ").slice(0,80),tel=String(d.t||"").replace(/[^0-9+]/g,"").slice(0,20);
+ if(!nom||digits(tel).length<8)throw new Error("nom ou téléphone invalide");
+ const z=zone(String(d.z||""));if(!z)throw new Error("zone inconnue « "+String(d.z||"").slice(0,40)+" »");
+ const q=String(d.q||"").trim().slice(0,120),r=String(d.r||"").trim().slice(0,200),gps=isFinite(+d.a)&&isFinite(+d.o)&&d.a!=null&&d.o!=null&&Math.abs(+d.a)<=90&&Math.abs(+d.o)<=180?{lat:+d.a,lng:+d.o}:null;
+ if(!q&&!r&&!gps)throw new Error("adresse de livraison absente");
+ const acc={},notes=[];(Array.isArray(d.l)?d.l:[]).slice(0,60).forEach(x=>{const p=S.produits.find(y=>y.code===String(x[0])&&y.actif);if(!p)throw new Error("produit inconnu ou retiré « "+String(x[0]).slice(0,30)+" »");
+  const n=Math.max(1,Math.min(9999,Math.floor(+x[1])||1));acc[p.id]=(acc[p.id]||0)+n});
+ const lignes=Object.entries(acc).map(([id,qte])=>{const p=prod(id);if(qte>p.stock)notes.push("stock "+p.nom+" : "+p.stock+" dispo pour "+qte+" demandés");return{produit_id:id,qte,pu:p.prix}});
+ if(!lignes.length)throw new Error("aucun article");
+ const pm=d.p==="m"?"mm":"esp",op=String(d.op||"").trim().slice(0,30),rf=String(d.rf||"").trim().slice(0,40);
+ if(pm==="mm"){if(rf.length<4)throw new Error("référence Mobile Money absente");const dup=webCmds().find(c=>c.web.rf&&c.web.rf.toLowerCase()===rf.toLowerCase());if(dup)throw new Error("référence Mobile Money déjà utilisée ("+dup.numero+")")}
+ const prods=lignes.reduce((t,l)=>t+l.qte*l.pu,0),total=prods+(+z.frais||0);
+ if(d.tt!=null&&Math.round(+d.tt)!==total)notes.push("total affiché au client "+fcfa(d.tt)+", recalculé "+fcfa(total)+" (prix ou frais modifiés depuis la publication du lien)");
+ let cl=S.clients.find(c=>!c.vendeur_id&&digits(c.tel)===digits(tel));
+ if(!cl){cl={id:uid("cl"),nom,tel,tel2:"",adresses:[],note:""};S.clients.push(cl)}
+ let ad=cl.adresses.find(a=>a.zone===z.nom&&normTxt(a.quartier)===normTxt(q)&&normTxt(a.repere)===normTxt(r));
+ if(!ad){ad={id:uid("a"),libelle:"Livraison",zone:z.nom,quartier:q,repere:r,gps,instructions:"",defaut:!cl.adresses.length};cl.adresses.push(ad)}else if(gps&&!ad.gps)ad.gps=gps;
+ const pay=pm==="mm"?"Mobile Money "+(op||"")+" réf. "+rf+" (à vérifier)":"Espèces à la livraison";
+ const obs=["Boutique en ligne "+ref,pay,String(d.m||"").trim().slice(0,300),...notes].filter(Boolean).join(" · ");
+ const c=creerCmd({client_id:cl.id,adr:Object.assign({},ad),lignes,frais:z.frais||0,remise:0,paiement:"livraison",mode:pm==="mm"?(op||"Mobile Money"):"Espèces",priorite:"normale",canal:"Vente en ligne",obs,confirmer:false});
+ setStatut(c,"attente","Commande reçue de la boutique en ligne");
+ c.web={ref,at:now(),pm,op:pm==="mm"?op:"",rf:pm==="mm"?rf:"",pay:pm==="mm"?"a_verifier":null,tt:d.tt!=null?Math.round(+d.tt):null};
+ audit("Commande boutique en ligne importée",c.numero+" — "+fcfa(c.total)+" — "+(pm==="mm"?"Mobile Money":"espèces"));
+ return{numero:c.numero,nom,total:c.total,notes}}
+function webImporter(text){
+ const mk=[...String(text).matchAll(/\[BOUTIQUE:([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
+ if(!mk.length)throw new Error("Aucune commande de la boutique dans ce texte (le marqueur [BOUTIQUE:…] est absent)");
+ mk.forEach(m=>{let d;try{d=unb64(m[1])}catch(e){res.ko.push("message illisible");return}
+  try{res.ok.push(webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
+ return res}
+VIEWS.vente_ligne=()=>{
+ if(CL.on)return`<h1>🛒 Vente en ligne</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
+ const cat=boutCatalogue(),dispo=cat.filter(p=>p.stock>0),mm=boutMM(),imp=can("admin","commercial","superviseur"),val=can("admin","caissier");
+ const rows=webCmds().map(c=>{const w=c.web,cl=cli(c.client_id)||{nom:"?"};
+  const pay=w.pm==="mm"?`Mobile Money ${esc(w.op||"")}<br><span class="sm mu">réf. ${esc(w.rf)}</span> ${w.pay==="valide"?badge("Reçu","ok"):w.pay==="rejete"?badge("Non reçu","er"):badge("À vérifier","wa")}`:"Espèces à la livraison";
+  return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${fdt(c.date)}</span></td><td>${esc(cl.nom)}<br><span class="sm mu">${esc(c.adr.zone)}</span></td><td>${fcfa(c.total)}</td><td>${pay}</td><td>${sb(c)}</td>
+   <td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button>${val&&w.pay==="a_verifier"?` <button class="btn sm ok" data-act="webPayOk" data-id="${c.id}">✔ Paiement reçu</button> <button class="btn sm er ghost" data-act="webPayKo" data-id="${c.id}">✖ Non reçu</button>`:""}</td></tr>`});
+ return`<div class="between"><h1>🛒 Vente en ligne</h1></div>
+ <div class="card"><h2>Votre boutique</h2>
+  <p><b>${cat.length}</b> produit(s) publié(s) dont <b>${dispo.length}</b> en stock. Cochez « Vendu en ligne » dans <a href="#" data-act="nav" data-id="produits">Produits & stock</a> pour publier un produit.</p>
+  ${!S.config.whatsapp?'<div class="al warn sm">Aucun numéro WhatsApp d\'entreprise : le client ne pourra pas vous envoyer sa commande. Renseignez-le dans Paramètres.</div>':""}
+  ${mm.length?"":'<div class="al warn sm">Aucun compte Mobile Money réel dans Paramètres : la boutique n\'acceptera que le paiement à la livraison.</div>'}
+  <div class="flex" style="margin-top:8px"><button class="btn" data-act="boutCopy" ${cat.length?"":"disabled"}>📋 Copier le lien</button><button class="btn ok" data-act="boutWa" ${cat.length?"":"disabled"}>💬 Partager sur WhatsApp</button><button class="btn ghost" data-act="boutOpen" ${cat.length?"":"disabled"}>👁️ Prévisualiser</button></div>
+  <p class="sm mu" style="margin-top:8px">Le lien contient le catalogue tel qu'il est maintenant (prix, stock, zones). Repartagez-le après une modification. Les prix et frais sont de toute façon recalculés à l'import.</p></div>
+ ${imp?`<div class="card"><h2>Importer les commandes reçues</h2><p class="sm mu">Collez le message WhatsApp du client (ou plusieurs). La commande est créée « en attente de confirmation » avec les prix actuels.</p>
+  <textarea id="wb_txt" rows="4" placeholder="🛒 Commande en ligne … [BOUTIQUE:…]" style="width:100%"></textarea><div class="flex" style="margin-top:8px"><button class="btn" data-act="webImport">📥 Importer</button></div></div>`:""}
+ <h2>Commandes en ligne</h2>${tbl(["Commande","Client","Total","Paiement","Statut",""],rows,"Aucune commande en ligne pour le moment.")}`};
+Object.assign(ACT,{
+ boutCopy:()=>ACT.cpTxt(boutLink()),
+ boutWa:()=>window.open("https://wa.me/?text="+encodeURIComponent("🛒 Commandez en ligne chez "+ORGRAW()+" : "+boutLink()),"_blank","noopener"),
+ boutOpen:()=>window.open(boutLink(),"_blank","noopener"),
+ webImport:()=>{if(!can("admin","commercial","superviseur"))return toast("Droits insuffisants pour importer une commande","err");
+  let r;try{r=webImporter($("#wb_txt").value)}catch(e){return toast(e.message,"err")}
+  if(r.ok.length)save();
+  toast((r.ok.length?r.ok.length+" commande(s) importée(s) : "+r.ok.map(x=>x.numero+" ("+fcfa(x.total)+")").join(", ")+". ":"")+(r.ko.length?"Refusée(s) : "+r.ko.join(" | "):"")+(r.ok.some(x=>x.notes.length)?" À vérifier : "+r.ok.filter(x=>x.notes.length).map(x=>x.numero+" — "+x.notes.join(", ")).join(" | "):""),r.ko.length?"err":"ok");
+  render()},
+ webPayOk:id=>{if(!can("admin","caissier"))return toast("Réservé à l'administrateur et au caissier","err");const c=cmd(id);if(!c||!c.web||c.web.pay!=="a_verifier")return;
+  if(!confirm("Confirmer la réception de "+fcfa(c.total)+" sur le compte Mobile Money (réf. "+c.web.rf+") ?"))return;
+  const op=c.web.op||"Mobile Money";S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,montant:c.total,mode:op,ref:c.web.rf,ts:now(),par:who()});
+  c.paiement="avance";c.mode=op;c.web.pay="valide";c.web.pay_par=who();c.web.pay_le=now();
+  if(c.statut==="attente")setStatut(c,"confirmee","Paiement Mobile Money reçu");
+  audit("Paiement Mobile Money boutique validé",c.numero+" — "+fcfa(c.total)+" — réf. "+c.web.rf);save();render();toast("Paiement enregistré : "+c.numero+" confirmée","ok")},
+ webPayKo:id=>{if(!can("admin","caissier"))return toast("Réservé à l'administrateur et au caissier","err");const c=cmd(id);if(!c||!c.web||c.web.pay!=="a_verifier")return;
+  if(!confirm("Marquer le paiement (réf. "+c.web.rf+") comme NON reçu ? La commande reste en attente : contactez le client ou annulez-la."))return;
+  c.web.pay="rejete";c.web.pay_par=who();c.web.pay_le=now();audit("Paiement Mobile Money boutique non reçu",c.numero+" — réf. "+c.web.rf);save();render();toast("Paiement marqué non reçu : contactez le client ou annulez la commande","err")}});
+
+/* ---------- Page publique de la boutique (#boutique=…) ---------- */
+function bootBoutique(tok){
+ let p;try{p=unb64(tok);if(!p||!Array.isArray(p.p)||!Array.isArray(p.z))throw 0}catch(e){$("#app").innerHTML='<div class="login"><div class="card">Lien de boutique invalide ou expiré. Demandez-en un nouveau.</div></div>';return}
+ const org=String(p.o||""),zones=p.z.map(z=>({nom:String(z[0]),frais:Math.max(0,+z[1]||0)})),items=p.p.map(x=>({c:String(x[0]),n:String(x[1]),pu:Math.max(0,+x[2]||0),st:Math.max(0,+x[3]||0)})),
+  mm=(p.m||[]).map(String).slice(0,6),gp=String(p.w||"").replace(/\D/g,""),F=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F",app=$("#app"),st={q:{},gps:null};
+ document.title=org+" — Boutique en ligne";
+ const row=i=>`<div class="bp" data-c="${esc(i.c)}" style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line,#d8dee6)"><div style="flex:1"><b>${esc(i.n)}</b><br><span class="mu sm">${F(i.pu)}${i.st<=0?" · <b>Épuisé</b>":""}</span></div>
+  <div style="display:flex;align-items:center;gap:6px"><button type="button" class="btn sm ghost" data-b="-" aria-label="Retirer un ${esc(i.n)}" ${i.st<=0?"disabled":""}>−</button><b class="bn" style="min-width:22px;text-align:center">0</b><button type="button" class="btn sm ghost" data-b="+" aria-label="Ajouter un ${esc(i.n)}" ${i.st<=0?"disabled":""}>+</button></div></div>`;
+ app.innerHTML=`<div class="login"><div class="card" style="max-width:640px;width:100%">
+  <div style="font-size:13px;letter-spacing:1px;color:var(--b2);font-weight:700">${esc(org)}</div><h2 style="margin:2px 0 4px">🛒 Boutique en ligne</h2>
+  <div class="mu sm" style="margin-bottom:10px">Choisissez vos produits et indiquez où vous livrer : ${esc(org)} vous livre à moto.</div>
+  <h3 style="margin:8px 0">1. Produits</h3>${items.length?items.map(row).join(""):'<div class="mu">Aucun produit disponible pour le moment.</div>'}
+  <h3 style="margin:14px 0 8px">2. Vous</h3><div class="g2"><label>Votre nom<input id="b_nom" maxlength="80" autocomplete="name"></label><label>Téléphone / WhatsApp<input id="b_tel" inputmode="tel" autocomplete="tel" placeholder="07 07 00 00 00"></label></div>
+  <h3 style="margin:14px 0 8px">3. Où livrer ?</h3><div class="g2"><label>Zone<select id="b_zone"><option value="">— choisir —</option>${zones.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)} (livraison ${F(z.frais)})</option>`).join("")}</select></label><label>Quartier<input id="b_q" maxlength="120"></label></div>
+  <label>Point de repère (pharmacie, école, couleur du portail…)<input id="b_rep" maxlength="200"></label>
+  <div style="margin:8px 0"><button type="button" class="btn" id="b_gpsb">📍 Utiliser ma position actuelle</button> <span id="b_gps" class="sm mu">Recommandé : le livreur trouvera plus facilement.</span></div>
+  <label>Message (facultatif)<textarea id="b_note" rows="2" maxlength="300"></textarea></label>
+  <h3 style="margin:14px 0 8px">4. Paiement</h3>
+  <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="radio" name="b_pm" value="esp" checked style="width:auto"> Espèces à la livraison</label>
+  ${mm.length?`<label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="radio" name="b_pm" value="mm" style="width:auto"> Mobile Money (je paie maintenant)</label>
+  <div id="b_mm" style="display:none;margin-top:8px" class="pill"><div class="sm">Envoyez le <b>montant total</b> sur l'un de ces comptes, puis indiquez la référence reçue par SMS :</div><ul class="sm" style="margin:6px 0 6px 18px">${mm.map(m=>`<li>${esc(m)}</li>`).join("")}</ul>
+   <div class="g2"><label>Opérateur utilisé<select id="b_op">${MM_OPS.map(o=>`<option>${o}</option>`).join("")}</select></label><label>Référence de la transaction<input id="b_rf" maxlength="40" autocomplete="off"></label></div></div>`:""}
+  <div class="pill" style="margin-top:12px"><div style="display:flex;justify-content:space-between"><span>Produits</span><b id="b_sub">0 F</b></div><div style="display:flex;justify-content:space-between"><span>Livraison</span><b id="b_fee">—</b></div><div style="display:flex;justify-content:space-between;font-size:17px"><span>Total à payer</span><b id="b_tot">0 F</b></div></div>
+  <div id="b_err" class="al warn sm" style="display:none;margin-top:8px"></div>
+  <button type="button" class="btn" id="b_send" style="width:100%;margin-top:12px">Envoyer ma commande</button>
+  <div class="mu sm" style="margin-top:8px">Votre commande part par WhatsApp : ${esc(org)} la vérifie, confirme le prix et vous contacte. Prix et stock indiqués à la date de publication de cette page.</div></div></div>`;
+ const $b=id=>document.getElementById(id),zf=()=>(zones.find(z=>z.nom===$b("b_zone").value)||{}).frais,lines=()=>items.filter(i=>st.q[i.c]>0),sub=()=>lines().reduce((t,i)=>t+i.pu*st.q[i.c],0);
+ const calc=()=>{const s=sub(),f=zf();$b("b_sub").textContent=F(s);$b("b_fee").textContent=f==null?"— (choisir la zone)":F(f);$b("b_tot").textContent=F(s+(f||0))};
+ app.querySelectorAll(".bp").forEach(r=>{const i=items.find(x=>x.c===r.dataset.c);r.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{const q=(st.q[i.c]||0)+(b.dataset.b==="+"?1:-1);st.q[i.c]=Math.max(0,Math.min(i.st,99,q));r.querySelector(".bn").textContent=st.q[i.c];calc()})});
+ $b("b_zone").onchange=calc;app.querySelectorAll("[name=b_pm]").forEach(r=>r.onchange=()=>{const m=$b("b_mm");if(m)m.style.display=document.querySelector("[name=b_pm]:checked").value==="mm"?"block":"none"});
+ $b("b_gpsb").onclick=()=>{if(!navigator.geolocation)return toast("Géolocalisation indisponible : indiquez votre quartier et un repère","err");
+  navigator.geolocation.getCurrentPosition(g=>{st.gps={lat:+g.coords.latitude.toFixed(6),lng:+g.coords.longitude.toFixed(6),acc:Math.round(g.coords.accuracy||0)};$b("b_gps").textContent="✔ Position enregistrée (±"+st.gps.acc+" m)"},e=>toast("Position impossible : autorisez la localisation ou indiquez votre quartier","err"),{enableHighAccuracy:true,timeout:20000})};
+ $b("b_send").onclick=()=>{const err=m=>{const e=$b("b_err");e.textContent=m;e.style.display="block";e.scrollIntoView({block:"center"})},val=id=>$b(id).value.trim(),L=lines();
+  if(!L.length)return err("Choisissez au moins un produit");if(!val("b_nom"))return err("Indiquez votre nom");if(digits(val("b_tel")).length<8)return err("Indiquez un numéro de téléphone valide");
+  if(!val("b_zone"))return err("Choisissez votre zone de livraison");if(!val("b_q")&&!val("b_rep")&&!st.gps)return err("Indiquez votre quartier, un point de repère ou envoyez votre position");
+  const pm=(document.querySelector("[name=b_pm]:checked")||{}).value||"esp",op=pm==="mm"?$b("b_op").value:"",rf=pm==="mm"?val("b_rf"):"";if(pm==="mm"&&rf.length<4)return err("Indiquez la référence de votre paiement Mobile Money");
+  const total=sub()+zf(),ref=Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x%32]).join("");
+  const pl={f:ref,n:val("b_nom"),t:val("b_tel"),z:val("b_zone"),q:val("b_q"),r:val("b_rep"),a:st.gps?st.gps.lat:null,o:st.gps?st.gps.lng:null,l:L.map(i=>[i.c,st.q[i.c]]),p:pm==="mm"?"m":"e",op,rf,m:val("b_note"),tt:total};
+  const msg=`🛒 Commande en ligne — ${org} (réf. ${ref})\nNom : ${pl.n}\nTél : ${pl.t}\nZone : ${pl.z}${pl.q?" · "+pl.q:""}${pl.r?" · "+pl.r:""}\n${st.gps?"📍 https://maps.google.com/?q="+st.gps.lat+","+st.gps.lng+"\n":""}Articles :\n${L.map(i=>"- "+st.q[i.c]+" x "+i.n+" ("+F(i.pu)+")").join("\n")}\nLivraison : ${F(zf())}\nTotal : ${F(total)}\nPaiement : ${pm==="mm"?"Mobile Money "+op+" — réf. "+rf:"espèces à la livraison"}${pl.m?"\nMessage : "+pl.m:""}\n[BOUTIQUE:${b64(pl)}]`;
+  app.innerHTML=`<div class="login"><div class="card" style="text-align:center;max-width:460px"><div style="font-size:42px">📲</div><h2>Dernière étape</h2><p>Référence <b style="font-size:20px;letter-spacing:2px" id="b_ref">${ref}</b></p>
+   <p>Touchez le bouton pour envoyer votre commande à <b>${esc(org)}</b> sur WhatsApp. ${pm==="mm"?"Elle sera confirmée dès que le paiement (réf. "+esc(rf)+") aura été vérifié.":"Vous payez à la livraison."}</p>
+   ${gp?`<a class="btn ok" id="b_wa" style="display:block;text-decoration:none;font-size:17px" target="_blank" rel="noopener" href="https://wa.me/${telWA(gp)}?text=${encodeURIComponent(msg)}">💬 Envoyer sur WhatsApp</a>`:'<div class="al warn sm">Numéro WhatsApp de la boutique non renseigné : copiez le message ci-dessous et envoyez-le.</div>'}
+   <button type="button" class="btn ghost" id="b_cp" style="width:100%;margin-top:8px">📋 Copier le message</button><textarea id="b_msg" readonly rows="6" style="width:100%;margin-top:8px;font-size:12px">${esc(msg)}</textarea></div></div>`;
+  $b("b_cp").onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(msg):Promise.reject()).then(()=>toast("Message copié","ok"),()=>{$b("b_msg").select()})}};
+ calc()}
+
 /* ---------- Démarrage ---------- */
-const _ptok=(location.hash.match(/^#portail=(.+)$/)||[])[1],_stok=(location.hash.match(/^#suivi=(.+)$/)||[])[1],_ctok=(location.hash.match(/^#commande=(.+)$/)||[])[1];
-if(_ctok&&CL.on&&/^[a-f0-9]{64}$/.test(_ctok)){bootOrderCloud(_ctok)}
+const _btok=(location.hash.match(/^#boutique=(.+)$/)||[])[1],_ptok=(location.hash.match(/^#portail=(.+)$/)||[])[1],_stok=(location.hash.match(/^#suivi=(.+)$/)||[])[1],_ctok=(location.hash.match(/^#commande=(.+)$/)||[])[1];
+if(_btok){bootBoutique(_btok)}
+else if(_ctok&&CL.on&&/^[a-f0-9]{64}$/.test(_ctok)){bootOrderCloud(_ctok)}
 else if(_ctok&&!CL.on){bootOrderLocal(_ctok)}
 else if(_stok&&CL.on&&/^[a-f0-9]{64}$/.test(_stok)){bootSuiviCloud(_stok)}
 else if(_stok&&!CL.on){bootSuiviLocal(_stok)}
