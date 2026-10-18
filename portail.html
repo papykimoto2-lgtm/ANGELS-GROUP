@@ -32,11 +32,11 @@ a{color:inherit}
 .nav-dropdown-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:230px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:8px;box-shadow:0 14px 34px rgba(0,0,0,.16);z-index:30}
 .nav-dropdown-menu.open{display:grid;gap:2px}.p-activites .nav-dropdown-menu{right:auto;left:0}
 .parcours{background:linear-gradient(90deg,color-mix(in srgb,var(--c) 10%,#fff),var(--card) 60%);border-top:1px solid var(--bd)}
-.parcours-in{display:flex;align-items:center;gap:10px;overflow-x:auto;scrollbar-width:none;padding-top:4px;padding-bottom:4px}.parcours-in::-webkit-scrollbar{display:none}
-.p-etape{display:flex;align-items:center;gap:6px;flex:none;padding-right:6px}
+.parcours-in{display:flex;flex-wrap:wrap;align-items:center;gap:2px 14px;padding-top:6px;padding-bottom:6px}
+.p-etape{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;flex:0 1 auto;padding-right:6px}
 .p-hd{display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);white-space:nowrap}
 .p-hd b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--c2);color:#fff;font-size:.75rem}
-.p-liste{list-style:none;margin:0;padding:0;display:flex;gap:2px}
+.p-liste{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:2px}@media(max-width:700px){.p-etape{flex:1 1 100%;flex-direction:column;align-items:flex-start;padding:2px 0 4px;border-bottom:1px dashed var(--bd)}.p-etape:last-child{border-bottom:0}}
 .tab-link{display:inline-flex;align-items:center;gap:6px;padding:9px 11px;font:inherit;font-size:.76rem;font-weight:700;letter-spacing:.2px;color:var(--tx);background:transparent;border:0;border-radius:99px;cursor:pointer;white-space:nowrap;min-height:40px;text-decoration:none}
 .tab-link:hover{background:color-mix(in srgb,var(--c3) 14%,transparent)}.go:hover,.hero-btn:hover{filter:brightness(.92)}.go{background:var(--c3)}.tab-link.active{background:var(--c);color:#fff}
 .nav-dropdown-menu .tab-link{border-radius:10px;width:100%;justify-content:flex-start}
