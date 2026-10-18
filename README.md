@@ -418,3 +418,46 @@ Exportation de **produits** (agricoles, élevage, agroalimentaires, manufacturé
 - Alertes : devis expirés, factures échues, expéditions en retard, documents à préparer, stock bas ; export CSV.
 
 Test : `node tests/export-produits.js` (19 contrôles).
+
+## Moteur d'impression commun et contrats d'exploitation
+
+**Moteur d'impression** (`print-engine.js` + `qrcode.js`, modèle du moteur Menko Immo) partagé par Distributions, Transport et Agro :
+- **En-tête par division** : logo, raison sociale, forme, capital, RCCM, NCC, siège, téléphone, e-mail et couleur de la division qui émet le document (repli sur le groupe, puis sur l'application ; monogramme si aucun logo).
+- **Pied de page** sur chaque page : pied commun ou propre à la division, mentions légales, référence du document.
+- **QR code de sécurité signé** : signature numérique ECDSA P-256 (WebCrypto) de la référence, de la date, du montant et de l'empreinte du contenu. La clé privée reste sur l'appareil émetteur ; la clé publique est publiée avec le portail (`portail-data.js`). La page **`/verifier`** (verifier.html) confirme « authentique » ou « non authentique » sans serveur ; document modifié ou clé inconnue : non confirmé. Sans WebCrypto (page non sécurisée) : repli signalé sur un contrôle simple. Registre local des documents émis.
+- **Aperçu A4** (portrait / paysage, zoom), Imprimer / PDF, téléchargement HTML. `window.print()` est branché sur le moteur : tous les imprimés existants (reçus, états, bordereaux) en profitent ; Distributions passe par `printDoc` (les étiquettes de colis restent hors moteur).
+- **Réglages** : Hub → Paramètres → onglet **Impression** (logos par division, identité légale, pied, QR, adresse publique du site, clé : créer, régénérer, exporter / importer pour émettre depuis plusieurs appareils, document d'essai). Publication : la clé publique et les noms de division sont ajoutés à `portail-data.js`.
+
+**Contrats d'exploitation** (Transport) :
+- Indicateurs (actifs, revenu théorique par jour, impayés, dépôts à percevoir, fins proches, à signer), recherche, filtre par mode, export CSV, menu d'actions compact.
+- Documents imprimés : **contrat** (9 articles, clauses modifiables via « Modèle du contrat »), **avenant** de tarif, **échéancier**, **décompte de fin** (solde dû, retenue sur dépôt, reste à payer ou dépôt à restituer).
+- **Signature** : date et scan du contrat signé ; **prolongation** ; **nouveau contrat** à partir d'un contrat résilié.
+
+Tests : `node tests/impression-contrats.js` (27 contrôles).
+
+## Ressources humaines et paie — Transport, Distributions et Agro, chacune connectée à SA comptabilité
+
+Un moteur commun (`rh-engine.js`, modèle du module RH de Menko) est branché dans les trois applications par un adaptateur : **les données (S.rh), les droits, le plan comptable et la trésorerie restent propres à chaque application**. Menu « Ressources humaines et paie » (Transport : module `rh` dans les droits ; Agro : administrateur, direction, comptable, validation réservée à l'administrateur et à la direction ; Distributions : administrateur et direction).
+
+- **Employés** : fiche complète (matricule par division TRA / DIS / AGR, contrat CDI, CDD, journalier, stage, consultant, rémunération, parts fiscales, CMU, n° CNPS, déclaré ou non, mode de paiement), historique de rémunération, sortie et réintégration, contrat de travail, attestation et certificat de travail imprimés avec le moteur d'impression (en-tête de la division, QR signé).
+- **Congés** : acquisition 2,2 jours par mois, demandes, chevauchements et soldes contrôlés, validation ; le congé sans solde réduit les jours payés.
+- **Paie mensuelle** : variables du mois (absences, heures supplémentaires, primes, retenues, avance), calcul **ITS par tranches avec RICF, CNPS (retraite plafonnée, prestations familiales, accident du travail), CMU, charges patronales, FDFP**, proratas d'embauche et de sortie, ancienneté automatique, bulletins et livre de paie imprimables. Barèmes et taux repris de Menko, modifiables dans « Paramètres de paie » : à valider avec votre expert-comptable.
+- **Connexion à la comptabilité de l'application** : validation de la paie → une écriture équilibrée (débit 6611 et 6641 ; crédit 422 net à payer, 4313 CNPS et CMU, 447 ITS et FDFP, 4211 avances récupérées, 428 retenues) ; paiement des salaires (422 / trésorerie : banque, Mobile Money, espèces) ; reversement CNPS, ITS et FDFP ; avances sur salaire (4211) récupérées automatiquement ; annulation avec motif par extourne tant que rien n'est payé. Transport : charges imputées à l'activité de l'employé (analytique) et contrôle automatique des écritures ; Agro : journal PAIE et mouvements de caisse ; Distributions : pièces validées de la comptabilité (en espèces, l'écriture utilise le compte caisse comptable sans mouvement de caisse physique : préférer banque ou Mobile Money). Comptes par défaut paramétrables dans chaque comptabilité.
+- **Alertes** : CNPS manquant ou non déclaré, CDD échu ou proche, salaire sous le SMIG, paie non validée, salaires à payer, cotisations à reverser (échéance le 15), congés à traiter ; exports CSV (employés, paie, bordereau CNPS, état ITS).
+- **Consolidé du groupe** : la page Comptabilité du groupe affiche l'effectif, la masse salariale, le coût employeur et les cotisations à reverser de chaque division.
+- Agro : l'ancienne page « Personnel » renvoie vers ce module ; les salariés existants sont repris comme employés à la première ouverture.
+
+Test : `node tests/rh.js` (26 contrôles sur les trois applications).
+
+## Suivi de livraison et liens de commande via le portail unique
+
+Le portail devient l'unique page publique des clients : plus besoin d'ouvrir l'application de gestion.
+
+- **Suivi de livraison** (`/portail#/suivi/<jeton>`, menu « SUIVI LIVRAISON ») : le client voit l'étape de sa commande (reçue, confirmée, préparée, livreur désigné, en route, livrée), le prénom du livreur, l'heure d'arrivée estimée et le montant à payer à la livraison. Distributions → commande → « Lien de suivi » crée un **jeton signé** (ECDSA, même clé que les documents imprimés) : le portail affiche « information certifiée par l'entreprise » si la signature est valide avec la clé publiée dans `portail-data.js` (Hub → Paramètres → Impression puis Publication), « non vérifiable » si la clé n'est pas publiée, et **refuse tout lien modifié**. Le code de confirmation, la position GPS et le téléphone du client n'y figurent jamais.
+- **Carte de suivi** : pendant la livraison (« en route »), la page de suivi affiche une carte (fond OpenStreetMap, sans bibliothèque externe) avec la destination du client et la dernière position connue du livreur, et un lien « Ouvrir dans OpenStreetMap » ; hors connexion, les repères restent visibles sans fond de carte. Les coordonnées ne figurent dans le jeton que pendant la livraison et peuvent être désactivées (`S.config.suivi_carte = false`). L'accueil du portail a aussi une carte « Suivre ma livraison » (champ du lien).
+- **Notifications WhatsApp** : les messages « commande confirmée » et « livreur en route » ajoutent automatiquement, à l'envoi, le lien de suivi à jour (l'état est arrêté à la création du lien, d'où un lien neuf à chaque étape ; au-delà de deux heures le portail le signale et propose de demander l'état actuel par WhatsApp). Un suivi en direct pour tous les visiteurs, sans lien renvoyé, demande le backend Supabase.
+- **Lien de commande du vendeur** (Distributions, espace vendeur → « Lien de commande », avec QR) : ouvre sur le portail la page « Commander chez <vendeur> » (articles, quantités, prix s'ils sont connus, adresse, position GPS) ; la commande part sur le WhatsApp du vendeur avec le marqueur `[ANGELS:…]` déjà reconnu par « Saisie depuis WhatsApp ».
+- **Lien de commande client** (fiche client → « Lien de commande », avec QR) : ouvre la boutique du portail avec le nom, le téléphone et l'adresse du client déjà remplis ; la commande s'importe dans Vente en ligne.
+- Les anciens liens (`#suivi=`, `#commande=`) continuent de fonctionner ; en mode serveur (Supabase) le suivi en direct existant est conservé.
+
+Test : `node tests/portail-suivi.js` (21 contrôles).

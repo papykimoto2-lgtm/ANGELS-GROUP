@@ -67,11 +67,14 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <section id="ptl"></section>
 </div><div id="s-stats" hidden><h2 style="margin:6px 0 10px;font-size:16px">📊 Statistiques portail</h2><p class="note">Activité commerciale venue du portail : commandes de la boutique en ligne et candidatures de vendeurs partenaires, lues dans les données de Distributions de cet appareil. Le portail est un site public sans serveur : le nombre de visites n'est pas mesuré.</p><section id="pstat"></section></div>
 <div id="s-acces" hidden><h2 style="margin:6px 0 10px;font-size:16px">🔑 Accès portail (tous acteurs)</h2><p class="note">Toutes les personnes en lien avec le portail : clients de la boutique en ligne, candidats vendeurs et vendeurs partenaires. Contactez-les sur WhatsApp et gérez l'accès des vendeurs partenaires (activation / désactivation du compte, après déverrouillage de Distributions dans l'onglet Utilisateurs).</p><section id="pacc"></section></div>
+<div id="s-imp" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖨️ Impression — en-tête, logo par division, pied de page et QR de sécurité</h2><p class="note">Moteur d'impression commun à Distributions, Transport et Agro : chaque document imprimé porte l'en-tête de la division qui l'émet (logo, raison sociale, RCCM, NCC, siège), un pied de page et un QR code de sécurité signé que l'on contrôle sur la page de vérification.</p><section id="pimp"></section></div>
 <div id="s-med" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
 <p class="note">Ajoutez des photos, des vidéos (par lien YouTube / Vimeo / fichier https) et des documents PDF qui s'affichent sur le portail public : diaporama d'accueil, galerie, pages d'activité, page Société, documents à télécharger. Les photos sont compressées automatiquement ; documents PDF : 1,5 Mo maximum (au-delà, utilisez « Document par lien »).</p>
 <section id="pmed"></section>
 </div></div></main>
 <footer>© ANGEL'S GROUP · Paramètres · <a href="index.html">Retour au hub</a></footer>
+<script src="qrcode.js"></script>
+<script src="print-engine.js"></script>
 <script>
 const $=s=>document.getElementById(s);
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
@@ -345,7 +348,7 @@ document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="m_photos"){
   const C=pLire();C.logo=await imgCompress(f,360,0.9,"image/png");localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Logo importé."};pDiffuse()}catch(e){PMSG={er:1,t:e.message}}pView()})()}});
 /* ---------- Publication : portail-data.js ou portail autonome ---------- */
 async function pVeh(){try{const db=await idbOpen();return await new Promise((ok,ko)=>{const q=db.transaction("veh").objectStore("veh").get("catalogue");q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ko(q.error)})}catch(e){return null}}
-async function pDonnees(){const C=pLire();let L=[];try{L=await mAll()}catch(e){}const V=await pVeh();return{v:1,publie:new Date().toISOString(),cfg:C,media:L,veh:C.vehicules_actif===false?{items:[]}:{t:V?V.t:"",items:V?V.items:[]}}}
+async function pDonnees(){const C=pLire();let L=[];try{L=await mAll()}catch(e){}const V=await pVeh();const PI=typeof ANGELS_PRINT!=="undefined"?ANGELS_PRINT.cfg():null,print=PI?{keys:ANGELS_PRINT.pubs(),site:PI.site,noms:Object.fromEntries(ANGELS_PRINT.DIVS.map(([k])=>[k,ANGELS_PRINT.ident(k).nom]))}:{keys:[],noms:{}};return{v:1,publie:new Date().toISOString(),cfg:C,media:L,print,veh:C.vehicules_actif===false?{items:[]}:{t:V?V.t:"",items:V?V.items:[]}}}
 const pJs=o=>JSON.stringify(o).replace(/</g,"\\u003c").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029");
 function pTelecharge(nom,txt,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 async function pPublie(mode){
@@ -431,15 +434,55 @@ document.addEventListener("click",ev=>{
 document.addEventListener("change",ev=>{if(ev.target.id==="sper"){SJ=+ev.target.value;sView()}});
 document.addEventListener("input",ev=>{if(ev.target.id==="aq"){AF.q=ev.target.value;const pos=ev.target.selectionStart;aView();const i=$("aq");i.focus();i.setSelectionRange(pos,pos)}});
 /* ---------- Onglets de la page ---------- */
-const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["publication","🚀 Publication"]];
+
+/* ---------- Impression : en-têtes par division, pied de page, QR de sécurité (moteur partagé print-engine.js) ---------- */
+let IMSG=null;
+const iE=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const IF=[["raison","Raison sociale (en-tête)"],["forme","Forme juridique"],["capital","Capital"],["rccm","RCCM"],["ncc","N° compte contribuable (NCC)"],["siege","Siège / adresse"],["tel","Téléphone"],["email","E-mail"],["pied","Pied de page spécifique"]];
+function iView(){
+ const el=$("pimp");if(!el||typeof ANGELS_PRINT==="undefined")return;const ok=pDebloque(),dis=ok?"":"disabled",C=ANGELS_PRINT.cfg(),K=ANGELS_PRINT.cleInfo(),R=ANGELS_PRINT.registre();
+ const card=d=>{const [k,n]=d,x=C.div[k];return `<div class="card" data-idiv="${k}" style="margin:12px 0"><h3 style="margin:0 0 6px;font-size:14px">${k==="groupe"?"🏢 Groupe — valeurs par défaut de toutes les divisions":"🏷️ Division "+iE(n)}</h3>
+  <div class="uf" style="align-items:center"><div style="width:84px;height:84px;border:1px dashed var(--bd);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff">${x.logo?`<img src="${iE(x.logo)}" alt="Logo ${iE(n)}" style="max-width:80px;max-height:80px">`:'<span class="mu sm" style="text-align:center">Pas de logo</span>'}</div>
+  <div><label class="sb g" style="cursor:pointer;display:inline-block;padding:8px 12px">Importer le logo<input type="file" accept="image/png,image/jpeg,image/webp" data-ilogo="${k}" ${dis} hidden></label> ${x.logo?`<button type="button" class="sb g" data-ilogoclr="${k}" ${dis}>Retirer</button>`:""}<div class="mu sm">${k==="groupe"?"Utilisé par les divisions sans logo propre.":"Sans logo : celui du groupe, puis un monogramme."}</div></div>
+  <label>Couleur<input type="color" name="${k}__couleur" value="${iE(x.couleur||"#1f3a5f")}" ${dis} style="width:56px;height:38px;padding:2px"></label></div>
+  <div class="uf">${IF.map(([f,l])=>`<label style="flex:1;min-width:${f==="pied"||f==="siege"?"260":"170"}px">${l}<input name="${k}__${f}" value="${iE(x[f])}" maxlength="${f==="pied"?200:90}" ${dis} style="width:100%"></label>`).join("")}</div></div>`};
+ el.innerHTML=(IMSG?`<div class="umsg ${IMSG.er?"er":""}">${iE(IMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le PIN d\'un administrateur pour modifier l\'impression.</div>')+
+ `<form id="iform"><div class="card" style="margin:12px 0"><h3 style="margin:0 0 6px;font-size:14px">🔐 QR code de sécurité et pied de page</h3>
+  <div class="uf"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="qr" ${C.qr?"checked":""} ${dis}> QR de sécurité signé sur chaque document imprimé</label></div>
+  <div class="uf"><label style="flex:1;min-width:260px">Adresse publique du site (https) — le QR ouvre la page de vérification<input name="site" value="${iE(C.site)}" placeholder="https://votre-site.vercel.app" maxlength="120" ${dis} style="width:100%"></label>
+  <label style="flex:1;min-width:260px">Pied de page commun à tous les documents<input name="pied" value="${iE(C.pied)}" maxlength="200" placeholder="Merci de votre confiance" ${dis} style="width:100%"></label></div>
+  <div class="uf"><label style="flex:1;min-width:260px">Mentions légales (bas de page)<textarea name="mentions" rows="2" maxlength="300" ${dis} style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)">${iE(C.mentions)}</textarea></label></div></div>
+  ${ANGELS_PRINT.DIVS.map(card).join("")}<div class="uf"><button type="submit" class="sb" ${dis}>Enregistrer les réglages d'impression</button></div></form>
+ <div class="card" style="margin:12px 0"><h3 style="margin:0 0 6px;font-size:14px">🗝️ Clé de signature des documents</h3>
+  <p class="note">Chaque document porte un QR signé (ECDSA P-256). La clé privée reste sur cet appareil ; la clé publique est publiée avec le portail (onglet Publication) et permet de vérifier l'authenticité sur <a href="verifier.html">verifier.html</a>. Pour émettre depuis plusieurs appareils, exportez la clé ici puis importez-la sur les autres appareils.</p>
+  <p>${K.existe?`Clé active : <b>${iE(K.kid)}</b> · créée le ${iE(String(K.t).slice(0,10))}`:"Aucune clé : elle sera créée au premier document imprimé."} · <b>${R.length}</b> document(s) enregistré(s) sur cet appareil.</p>
+  <div class="uf"><button type="button" class="sb g" data-ik="gen" ${dis}>${K.existe?"Régénérer la clé":"Créer la clé"}</button><button type="button" class="sb g" data-ik="exp" ${K.existe?"":"disabled"}>Exporter la clé</button><label class="sb g" style="cursor:pointer;padding:8px 12px">Importer une clé<input type="file" accept="application/json,.json" data-ik="imp" ${dis} hidden></label><button type="button" class="sb g" data-ik="essai">Imprimer un document d'essai</button></div>
+  <p class="note">Régénérer la clé : les documents déjà imprimés avec l'ancienne clé ne seront plus confirmés par la page de vérification si l'ancienne clé n'est plus publiée. Gardez une copie de la clé exportée en lieu sûr.</p></div>`;
+}
+async function iEnregistrer(f){
+ const C=ANGELS_PRINT.cfg(),d=new FormData(f);C.qr=!!d.get("qr");C.site=String(d.get("site")||"").trim();C.pied=String(d.get("pied")||"").trim();C.mentions=String(d.get("mentions")||"").trim();
+ if(C.site&&!/^https:\/\/[^\s"'<>]+$/.test(C.site))throw new Error("Adresse du site : https:// obligatoire.");
+ ANGELS_PRINT.DIVS.forEach(([k])=>{IF.forEach(([f])=>{C.div[k][f]=String(d.get(k+"__"+f)||"").trim()});const c=String(d.get(k+"__couleur")||"");C.div[k].couleur=/^#[0-9a-f]{6}$/i.test(c)?c:""});
+ if(!ANGELS_PRINT.sauver(C))throw new Error("Stockage plein.");
+}
+document.addEventListener("submit",ev=>{if(ev.target.id!=="iform")return;ev.preventDefault();(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");const logos=ANGELS_PRINT.cfg();await iEnregistrer(ev.target);const C=ANGELS_PRINT.cfg();ANGELS_PRINT.DIVS.forEach(([k])=>{C.div[k].logo=logos.div[k].logo});ANGELS_PRINT.sauver(C);IMSG={t:"Réglages d'impression enregistrés : tous les documents imprimés les utilisent."}}catch(e){IMSG={er:1,t:e.message}}iView()})()});
+document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset&&t.dataset.ilogo){const f=t.files[0];if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Ce n'est pas une image.");const src=await imgCompress(f,360,0.9,"image/png"),C=ANGELS_PRINT.cfg();C.div[t.dataset.ilogo].logo=src;ANGELS_PRINT.sauver(C);IMSG={t:"Logo importé."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}
+ if(t.dataset&&t.dataset.ik==="imp"){const f=t.files[0];if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");const K=await ANGELS_PRINT.cleImporter(await f.text());IMSG={t:"Clé importée : "+K.kid}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-ilogoclr],[data-ik]");if(!b||b.tagName==="INPUT")return;
+ if(b.dataset.ilogoclr){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return iView()}const C=ANGELS_PRINT.cfg();C.div[b.dataset.ilogoclr].logo="";ANGELS_PRINT.sauver(C);IMSG={t:"Logo retiré."};return iView()}
+ const k=b.dataset.ik;if(k==="essai"){ANGELS_PRINT.ouvrir({division:"groupe",titre:"Document d'essai",ref:"ESSAI-"+new Date().getFullYear()+"-0001",montant:125000,corps:"<p>Ce document d'essai vérifie l'en-tête, le pied de page et le QR de sécurité de votre entreprise.</p><table><tr><th>Désignation</th><th>Montant</th></tr><tr><td>Prestation d'essai</td><td>125 000 F</td></tr></table>",signatures:[["Pour l'entreprise","Nom, qualité, signature"],["Le client","Lu et approuvé"]],emetteur:"Paramètres"});return}
+ if(k==="exp"){const t=ANGELS_PRINT.cleExporter();if(!t)return;const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"application/json"}));a.download="cle-signature-angels.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return}
+ if(k==="gen"){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return iView()}if(ANGELS_PRINT.cleInfo().existe&&!confirm("Régénérer la clé ? Les documents déjà imprimés ne seront plus confirmés si l'ancienne clé n'est plus publiée."))return;(async()=>{try{const K=await ANGELS_PRINT.cleRegenerer();IMSG={t:"Clé active : "+K.kid+". Republiez le portail pour publier la clé publique."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
+
+const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["impression","🖨️ Impression"],["publication","🚀 Publication"]];
 let PTAB=(()=>{try{const t=sessionStorage.getItem("angels_param_tab");return PTABS.some(x=>x[0]===t)?t:"users"}catch(e){return"users"}})();
 function pTab(t){if(!PTABS.some(x=>x[0]===t))t="users";PTAB=t;try{sessionStorage.setItem("angels_param_tab",t)}catch(e){}
  $("ptabs").innerHTML=PTABS.map(x=>`<button type="button" role="tab" aria-selected="${x[0]===t}" class="tab ${x[0]===t?"on":""}" data-pt="${x[0]}">${x[1]}</button>`).join("");
- $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","medias","stats","acces"].includes(t);$("s-ptl").hidden=!portail;
+ $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";$("s-imp").hidden=t!=="impression";if(t==="impression")iView();if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","medias","stats","acces","impression"].includes(t);$("s-ptl").hidden=!portail;
  document.querySelectorAll("#ptl .pp").forEach(p=>{p.hidden=p.dataset.pp!==t});const bar=document.querySelector("#pform>.uf");if(bar)bar.style.display=t==="publication"?"none":"flex"}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-pt]");if(b)pTab(b.dataset.pt)});
 pView();mView();pTab(PTAB);
-{const _uv=uView;uView=function(){_uv();if(typeof pView==="function"){pView();mView()}}}
+{const _uv=uView;uView=function(){_uv();if(typeof pView==="function"){pView();mView();if(typeof iView==="function")iView()}}}
 uView();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

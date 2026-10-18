@@ -93,6 +93,10 @@
     {
       "source": "/agro",
       "destination": "/agro.html"
+    },
+    {
+      "source": "/verifier",
+      "destination": "/verifier.html"
     }
   ]
 }
