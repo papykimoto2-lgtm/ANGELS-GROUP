@@ -56,10 +56,17 @@
     var ans = diffJ(dernierJour(mois), e.embauche) / 365.25; if (ans < 2) return 0;
     return Math.min(25, 2 + Math.floor(ans - 2));
   }
+  function salMois(e, mois) { /* salaire de base et sursalaire applicables au mois (selon la date d'effet) */
+    var h = e.historique || [], fin = dernierJour(mois), best = null;
+    h.forEach(function (x) { if (x && x.from && x.from <= fin && (!best || x.from >= best.from)) best = x; });
+    if (!best) h.forEach(function (x) { if (x && x.from && (!best || x.from < best.from)) best = x; });
+    return best && best.sal_base > 0 ? { sal_base: best.sal_base, sursalaire: best.sursalaire || 0 } : { sal_base: e.sal_base, sursalaire: e.sursalaire };
+  }
   function joursPayes(e, mois, v, p, rr) {
     var ms = premierJour(mois), me = dernierJour(mois), s = e.embauche && e.embauche > ms ? e.embauche : ms, f = e.sortie && e.sortie.date && e.sortie.date < me ? e.sortie.date : me;
+    if (e.contrat === "CDD" && e.fin_contrat && e.fin_contrat < f) f = e.fin_contrat;
     var cal = diffJ(f, s) + 1; if (cal <= 0) return 0;
-    var j = cal >= 28 && s === ms && f === me ? p.joursMois : Math.min(p.joursMois, cal);
+    var nbCal = diffJ(me, ms) + 1, j = s === ms && f === me ? p.joursMois : (nbCal < p.joursMois ? R(cal * p.joursMois / nbCal) : Math.min(p.joursMois, cal));
     var ss = 0; rr.conges.forEach(function (c) { if (c.emp_id === e.id && c.statut === "approuve" && c.type === "sans_solde") { var a = c.debut > s ? c.debut : s, b = c.fin < f ? c.fin : f; if (b >= a) ss += diffJ(b, a) + 1; } });
     return Math.max(0, j - ss - (+v.abs || 0));
   }
@@ -69,9 +76,9 @@
     var trB = R((+e.transport || 0) * pro), trExo = e.declare === false ? trB : Math.min(trB, p.transportExo), trImp = Math.max(0, trB - trExo);
     var bi = cat + sur + anc + prim + log_ + hs + trImp, brut = bi + trExo, exo = e.declare === false;
     var cnpsS = exo ? 0 : R(Math.min(bi, p.plafondRetraite) * p.cnpsSal), ib = itsBrut(bi, p), rc = ricf(+e.parts || 1, p), itsN = Math.max(0, ib - rc), nb = Math.max(1, +e.cmu_pers || 1);
-    var cmuS = exo ? 0 : p.cmuSal * nb, ret = R(+v.retenues || 0), av = R(+v.avance || 0), totS = cnpsS + itsN + cmuS + ret + av;
+    var cmuS = exo || jours <= 0 ? 0 : p.cmuSal * nb, ret = R(+v.retenues || 0), av = R(+v.avance || 0), totS = cnpsS + itsN + cmuS + ret + av;
     var bATPF = Math.min(bi, p.plafondATPF), cRP = exo ? 0 : R(Math.min(bi, p.plafondRetraite) * p.cnpsPat), cAT = exo ? 0 : R(bATPF * p.tauxAT), cPF = exo ? 0 : R(bATPF * p.tauxPF);
-    var itsP = R(bi * p.itsPat), fTA = R(bi * p.fdfpTA), fFC = R(bi * p.fdfpFC), fRG = R(bi * p.fdfpRegul), cmuP = exo ? 0 : p.cmuPat * nb, totP = cRP + cAT + cPF + itsP + fTA + fFC + fRG + cmuP;
+    var itsP = R(bi * p.itsPat), fTA = R(bi * p.fdfpTA), fFC = R(bi * p.fdfpFC), fRG = R(bi * p.fdfpRegul), cmuP = exo || jours <= 0 ? 0 : p.cmuPat * nb, totP = cRP + cAT + cPF + itsP + fTA + fFC + fRG + cmuP;
     return { jours: jours, categoriel: cat, sursalaire: sur, tauxAnc: v._anc || 0, anciennete: anc, primes: prim, logement: log_, hs: hs, transport: trExo, transportImp: trImp,
       brutImposable: bi, brut: brut, cnpsSal: cnpsS, itsBrut: ib, ricf: rc, its: itsN, cmuSal: cmuS, retenues: ret, avance: av, totalRetenues: totS,
       cnpsRetPat: cRP, cnpsAT: cAT, cnpsPF: cPF, itsPat: itsP, fdfpTA: fTA, fdfpFC: fFC, fdfpRegul: fRG, cmuPat: cmuP, totalPatronal: totP,
@@ -81,25 +88,30 @@
   var fdfpTotal = function (c) { return c.fdfpTA + c.fdfpFC + c.fdfpRegul; };
   var empActif = function (e) { return !(e.sortie && e.sortie.date); };
   var empNom = function (e) { return ((e.nom || "") + " " + (e.prenoms || "")).trim(); };
-  var empPresent = function (e, mois) { var me = dernierJour(mois); return (!e.embauche || e.embauche <= me) && (!(e.sortie && e.sortie.date) || e.sortie.date >= premierJour(mois)); };
+  var empPresent = function (e, mois) { var me = dernierJour(mois); return (!e.embauche || e.embauche <= me) && (!(e.sortie && e.sortie.date) || e.sortie.date >= premierJour(mois)) && !(e.contrat === "CDD" && e.fin_contrat && e.fin_contrat < premierJour(mois)); };
   function variable(mois, empId) { var r = rh(); return r.variables.filter(function (x) { return x.mois === mois && x.emp_id === empId; })[0] || { mois: mois, emp_id: empId, abs: 0, hs: 0, primes: 0, retenues: 0, avance: null }; }
-  function avanceDue(empId) { return sum(rh().avances.filter(function (a) { return a.emp_id === empId; }), function (a) { return a.reste; }); }
-  function avanceAuto(empId) { return R(sum(rh().avances.filter(function (a) { return a.emp_id === empId && a.reste > 0; }), function (a) { return Math.min(a.reste, a.retenue || a.reste); })); }
+  function avanceDue(empId, mois) { var fin = mois ? dernierJour(mois) : "9999"; return sum(rh().avances.filter(function (a) { return a.emp_id === empId && a.date <= fin; }), function (a) { return a.reste; }); }
+  function avanceAuto(empId, mois) { var fin = mois ? dernierJour(mois) : "9999"; return R(sum(rh().avances.filter(function (a) { return a.emp_id === empId && a.reste > 0 && a.date <= fin; }), function (a) { return Math.min(a.reste, a.retenue || a.reste); })); }
 
   /* ---------- Paie mensuelle ---------- */
   function paieDe(mois) { return rh().paies.filter(function (x) { return x.mois === mois; })[0]; }
-  function calculerMois(mois) {
-    need("c"); var r = rh(), p = P(), pa = paieDe(mois);
-    if (pa && pa.statut !== "brouillon") throw new Error("La paie de " + libMois(mois) + " est déjà validée : annulez la validation pour la recalculer.");
+  function construireBulletins(mois) {
+    var r = rh(), p = P();
     var emps = r.employes.filter(function (e) { return empPresent(e, mois); });
     if (!emps.length) throw new Error("Aucun employé actif sur " + libMois(mois) + ".");
-    var bul = emps.map(function (e) {
+    return emps.map(function (e0) {
+      var e = Object.assign({}, e0, salMois(e0, mois));
       var v = variable(mois, e.id), vv = { abs: v.abs, hs: v.hs, primes: v.primes, retenues: v.retenues, _anc: tauxAnc(e, mois) };
-      vv.avance = v.avance != null && v.avance !== "" ? Math.min(+v.avance, avanceDue(e.id)) : avanceAuto(e.id);
+      vv.avance = v.avance != null && v.avance !== "" ? Math.min(+v.avance, avanceDue(e.id, mois)) : avanceAuto(e.id, mois);
       var j = joursPayes(e, mois, vv, p, r), c = calcul(e, vv, p, j);
       if (c.totalRetenues > c.brut) throw new Error(empNom(e) + " : avances et retenues (" + fcfa(c.avance + c.retenues) + ") supérieures au brut du mois : réduisez-les dans les variables.");
       return { emp_id: e.id, mat: e.mat, nom: empNom(e), poste: e.poste || "", act: e.act || "", mode: e.mode_paie || "banque", calc: c, paye: false };
     });
+  }
+  function calculerMois(mois) {
+    need("c"); var r = rh(), p = P(), pa = paieDe(mois);
+    if (pa && pa.statut !== "brouillon") throw new Error("La paie de " + libMois(mois) + " est déjà validée : annulez la validation pour la recalculer.");
+    var bul = construireBulletins(mois);
     if (!pa) { pa = { id: uid("pa"), mois: mois, statut: "brouillon", bulletins: [] }; r.paies.push(pa); }
     pa.bulletins = bul; pa.calc_le = new Date().toISOString(); log("Paie calculée", libMois(mois) + " — " + bul.length + " bulletin(s)"); return pa;
   }
@@ -122,11 +134,13 @@
     if (pa.statut !== "brouillon") throw new Error("Paie déjà validée.");
     if (mois > moisCle(today())) throw new Error("Impossible de valider la paie d'un mois futur.");
     var prev = r.paies.filter(function (x) { return x.mois < mois && x.statut === "brouillon"; })[0]; if (prev) throw new Error("Validez d'abord la paie de " + libMois(prev.mois) + ".");
+    var sig = function (L) { return JSON.stringify(L.map(function (b) { return [b.emp_id, b.calc]; })); };
+    if (sig(construireBulletins(mois)) !== sig(pa.bulletins)) throw new Error("Les données ont changé depuis le calcul de la paie de " + libMois(mois) + " (employé, variables, congés, avances ou paramètres) : recalculez avant de valider.");
     var C = H.compta.comptes(), L = lignesPaie(pa, C, !!H.compta.analytique), dt = dernierJour(mois); if (dt > today()) dt = today();
     var id = H.compta.poster({ journal: "PAIE", date: dt, libelle: "Paie " + libMois(mois) + " — " + pa.bulletins.length + " salarié(s)", piece: "PAIE-" + mois, source: { type: "rh_paie", id: pa.id }, lines: L });
     pa.statut = "valide"; pa.entry_id = id; pa.valide_par = H.user(); pa.valide_le = new Date().toISOString(); pa.date = dt;
     pa.bulletins.forEach(function (b, i) { b.no = "BUL-" + mois.replace("-", "") + "-" + (b.mat || ("" + (i + 1))); });
-    pa.bulletins.forEach(function (b) { var rest = b.calc.avance; r.avances.filter(function (a) { return a.emp_id === b.emp_id && a.reste > 0; }).forEach(function (a) { var m = Math.min(rest, a.reste); a.reste -= m; rest -= m; (a.retenues = a.retenues || []).push({ mois: mois, montant: m }); }); });
+    pa.bulletins.forEach(function (b) { var rest = b.calc.avance; r.avances.filter(function (a) { return a.emp_id === b.emp_id && a.reste > 0 && a.date <= dernierJour(mois); }).forEach(function (a) { var m = Math.min(rest, a.reste); a.reste -= m; rest -= m; (a.retenues = a.retenues || []).push({ mois: mois, montant: m }); }); });
     log("Paie validée", libMois(mois) + " — net " + fcfa(sum(pa.bulletins, function (b) { return b.calc.net; })));
     return pa;
   }
@@ -134,8 +148,8 @@
     need("x"); var r = rh(), pa = paieDe(mois);
     if (!pa || pa.statut === "brouillon") throw new Error("Aucune paie validée pour ce mois.");
     if (String(motif || "").trim().length < 5) throw new Error("Motif obligatoire (5 caractères minimum).");
-    if (pa.bulletins.some(function (b) { return b.paye; })) throw new Error("Des salaires sont déjà payés : annulation impossible (extournez les paiements d'abord).");
-    if (r.reversements.some(function (x) { return x.mois === mois && !x.annule; })) throw new Error("Des cotisations de ce mois sont déjà reversées : annulation impossible.");
+    if (pa.bulletins.some(function (b) { return b.paye; })) throw new Error("Des salaires sont déjà payés : annulez d'abord les paiements (onglet Paie).");
+    if (r.reversements.some(function (x) { return x.mois === mois && !x.annule; })) throw new Error("Des cotisations de ce mois sont déjà reversées : annulez d'abord les reversements (onglet Charges sociales).");
     if (r.paies.some(function (x) { return x.mois > mois && x.statut !== "brouillon"; })) throw new Error("Une paie plus récente est validée : annulez-la d'abord.");
     H.compta.extourner(pa.entry_id, "Annulation paie " + libMois(mois) + " — " + String(motif).trim());
     pa.bulletins.forEach(function (b) { var rest = b.calc.avance; r.avances.filter(function (a) { return a.emp_id === b.emp_id; }).reverse().forEach(function (a) { (a.retenues || []).filter(function (x) { return x.mois === mois; }).forEach(function (x) { a.reste += x.montant; }); a.retenues = (a.retenues || []).filter(function (x) { return x.mois !== mois; }); }); });
@@ -143,15 +157,27 @@
   }
   function payerSalaires(mois, mode, ids, date) {
     need("c"); var pa = paieDe(mois); if (!pa || pa.statut === "brouillon") throw new Error("Validez d'abord la paie de " + libMois(mois) + ".");
-    var d = date || today(); if (d > today()) throw new Error("Date dans le futur.");
+    var d = date || today(); if (d > today()) throw new Error("Date dans le futur."); if (pa.date && d < pa.date) throw new Error("Date antérieure à la validation de la paie (" + fd(pa.date) + ").");
     var L = pa.bulletins.filter(function (b) { return !b.paye && b.calc.net > 0 && (!ids || ids.indexOf(b.emp_id) >= 0); });
     if (!L.length) throw new Error("Aucun salaire à payer.");
     if (!MODES.some(function (m) { return m[0] === mode; })) throw new Error("Mode de règlement invalide.");
-    var tot = sum(L, function (b) { return b.calc.net; }), C = H.compta.comptes(), t = H.compta.treso(mode, tot, "sortie", "Salaires " + libMois(mois), { type: "rh_salaires", id: pa.id });
-    var pid = uid("pay"), id = H.compta.poster({ journal: t.journal, date: d, libelle: "Paiement des salaires " + libMois(mois) + " (" + L.length + ")", piece: "SAL-" + mois, source: { type: "rh_salaires", id: pid }, lines: [{ compte: C.paie_du, debit: tot }, { compte: t.compte, credit: tot }] });
+    var tot = sum(L, function (b) { return b.calc.net; }), C = H.compta.comptes(), pid = uid("pay"), t = H.compta.treso(mode, tot, "sortie", "Salaires " + libMois(mois), { type: "rh_salaires", id: pid });
+    var id = H.compta.poster({ journal: t.journal, date: d, libelle: "Paiement des salaires " + libMois(mois) + " (" + L.length + ")", piece: "SAL-" + mois, source: { type: "rh_salaires", id: pid }, lines: [{ compte: C.paie_du, debit: tot }, { compte: t.compte, credit: tot }] });
     L.forEach(function (b) { b.paye = true; b.paye_le = d; b.paye_mode = mode; b.pay_id = pid; });
     (pa.paiements = pa.paiements || []).push({ id: pid, date: d, mode: mode, montant: tot, nb: L.length, entry_id: id, par: H.user() }); log("Salaires payés", libMois(mois) + " " + fcfa(tot) + " (" + mode + ")");
     return tot;
+  }
+  function annulerPaiement(mois, pid, motif) {
+    need("x"); var pa = paieDe(mois), p = pa && (pa.paiements || []).filter(function (x) { return x.id === pid && !x.annule; })[0];
+    if (!p) throw new Error("Paiement introuvable ou déjà annulé."); if (String(motif || "").trim().length < 5) throw new Error("Motif obligatoire (5 caractères minimum).");
+    H.compta.extourner(p.entry_id, "Annulation paiement des salaires " + libMois(mois) + " — " + String(motif).trim());
+    pa.bulletins.forEach(function (b) { if (b.pay_id === pid) { b.paye = false; delete b.paye_le; delete b.paye_mode; delete b.pay_id; } });
+    p.annule = { par: H.user(), le: new Date().toISOString(), motif: String(motif).trim() }; log("Paiement de salaires annulé", libMois(mois) + " " + fcfa(p.montant) + " — " + motif);
+  }
+  function annulerReversement(rid, motif) {
+    need("x"); var r = rh(), v = by(r.reversements, rid); if (!v || v.annule) throw new Error("Reversement introuvable ou déjà annulé."); if (String(motif || "").trim().length < 5) throw new Error("Motif obligatoire (5 caractères minimum).");
+    H.compta.extourner(v.entry_id, "Annulation reversement " + ORGS[v.org][0] + " " + libMois(v.mois) + " — " + String(motif).trim());
+    v.annule = { par: H.user(), le: new Date().toISOString(), motif: String(motif).trim() }; log("Reversement annulé", ORGS[v.org][0] + " " + libMois(v.mois) + " " + fcfa(v.montant) + " — " + motif);
   }
   function dus(mois) { /* cotisations dues pour un mois validé */
     var pa = paieDe(mois); if (!pa || pa.statut === "brouillon") return { cnps: 0, its: 0, fdfp: 0 };
@@ -160,9 +186,11 @@
   var ORGS = { cnps: ["CNPS et CMU", "paie_cnps"], its: ["ITS (impôt sur traitements et salaires)", "paie_its"], fdfp: ["FDFP (apprentissage et formation continue)", "paie_fdfp"] };
   function reverse(mois, org, mode, date) {
     need("c"); if (!ORGS[org]) throw new Error("Organisme inconnu."); var r = rh(), d = date || today(); if (d > today()) throw new Error("Date dans le futur.");
+    if (!MODES.some(function (x) { return x[0] === mode; })) throw new Error("Mode de règlement invalide.");
+    var pr = paieDe(mois); if (pr && pr.date && d < pr.date) throw new Error("Date antérieure à la paie de " + libMois(mois) + " (" + fd(pr.date) + ").");
     var du = dus(mois)[org], paye = sum(r.reversements.filter(function (x) { return x.mois === mois && x.org === org && !x.annule; }), function (x) { return x.montant; }), reste = du - paye;
     if (!(reste > 0)) throw new Error("Rien à reverser pour " + ORGS[org][0] + " sur " + libMois(mois) + ".");
-    var C = H.compta.comptes(), t = H.compta.treso(mode, reste, "sortie", ORGS[org][0] + " " + mois, { type: "rh_reversement", id: mois + org }), rid = uid("rv");
+    var C = H.compta.comptes(), rid = uid("rv"), t = H.compta.treso(mode, reste, "sortie", ORGS[org][0] + " " + mois, { type: "rh_reversement", id: rid });
     var id = H.compta.poster({ journal: t.journal, date: d, libelle: "Reversement " + ORGS[org][0] + " — " + libMois(mois), piece: org.toUpperCase() + "-" + mois, source: { type: "rh_reversement", id: rid }, lines: [{ compte: C[ORGS[org][1]], debit: reste }, { compte: t.compte, credit: reste }] });
     r.reversements.push({ id: rid, mois: mois, org: org, montant: reste, date: d, mode: mode, entry_id: id, par: H.user() }); log("Cotisations reversées", ORGS[org][0] + " " + libMois(mois) + " " + fcfa(reste)); return reste;
   }
@@ -170,7 +198,8 @@
     need("c"); var r = rh(), e = by(r.employes, f.emp_id); if (!e || !empActif(e)) throw new Error("Employé introuvable ou sorti.");
     var m = R(+f.montant), d = f.date || today(); if (!(m > 0)) throw new Error("Montant invalide."); if (d > today()) throw new Error("Date dans le futur.");
     var ret = R(+f.retenue || 0); if (ret < 0 || ret > m) throw new Error("Retenue mensuelle : entre 0 et le montant de l'avance."); if (!f.motif || !String(f.motif).trim()) throw new Error("Motif obligatoire.");
-    var C = H.compta.comptes(), t = H.compta.treso(f.mode, m, "sortie", "Avance " + empNom(e), { type: "rh_avance", id: e.id }), aid = uid("av");
+    if (!MODES.some(function (x) { return x[0] === f.mode; })) throw new Error("Mode de règlement invalide.");
+    var C = H.compta.comptes(), aid = uid("av"), t = H.compta.treso(f.mode, m, "sortie", "Avance " + empNom(e), { type: "rh_avance", id: aid });
     var id = H.compta.poster({ journal: t.journal, date: d, libelle: "Avance sur salaire — " + empNom(e), piece: "AV-" + (e.mat || ""), source: { type: "rh_avance", id: aid }, lines: [{ compte: C.paie_avances, debit: m }, { compte: t.compte, credit: m }] });
     r.avances.push({ id: aid, emp_id: e.id, date: d, montant: m, reste: m, retenue: ret || m, motif: String(f.motif).trim(), mode: f.mode, entry_id: id, par: H.user() }); log("Avance accordée", empNom(e) + " " + fcfa(m));
   }
@@ -186,6 +215,8 @@
     if (f.contrat === "CDD" && !f.fin_contrat) throw new Error("Date de fin obligatoire pour un CDD."); if (f.fin_contrat && f.fin_contrat < f.embauche) throw new Error("Fin de contrat antérieure à l'embauche.");
     if (f.naissance && f.naissance > today()) throw new Error("Date de naissance invalide.");
     if (f.tel && String(f.tel).replace(/\D/g, "").length < 8) throw new Error("Téléphone invalide.");
+    ["sursalaire", "transport", "logement", "primes"].forEach(function (k) { if (f[k] !== "" && f[k] != null && !(+f[k] >= 0)) throw new Error("Montant invalide : " + k + " (positif ou nul)."); });
+    if (f.anc_taux !== "" && f.anc_taux != null && !(+f.anc_taux >= 0 && +f.anc_taux <= 25)) throw new Error("Taux d'ancienneté : entre 0 et 25 %.");
     var declare = f.declare !== "non" && f.declare !== false; if (declare && !String(f.cnps_no || "").trim() && f.id === undefined && false) throw new Error("N° CNPS requis.");
     var o = { nom: nom, prenoms: String(f.prenoms || "").trim(), sexe: f.sexe || "", naissance: f.naissance || "", cni: String(f.cni || "").trim(), tel: String(f.tel || "").trim(), adresse: String(f.adresse || "").trim(),
       poste: String(f.poste || "").trim(), categorie: String(f.categorie || "").trim(), dept: String(f.dept || "").trim(), act: String(f.act || ""), embauche: f.embauche, contrat: f.contrat, fin_contrat: f.fin_contrat || "",
@@ -212,19 +243,21 @@
   function soldeConges(e, au) {
     var d = au || today(), mois = Math.max(0, diffJ(d, e.embauche) / 30.4375), acquis = R(mois * P().congeParMois * 10) / 10;
     var pris = sum(rh().conges.filter(function (c) { return c.emp_id === e.id && c.type === "annuel" && c.statut === "approuve"; }), function (c) { return c.jours; });
-    return { acquis: acquis, pris: pris, reste: R((acquis - pris) * 10) / 10 };
+    var att = sum(rh().conges.filter(function (c) { return c.emp_id === e.id && c.type === "annuel" && c.statut === "demande"; }), function (c) { return c.jours; });
+    return { acquis: acquis, pris: pris, attente: att, reste: R((acquis - pris) * 10) / 10, dispo: R((acquis - pris - att) * 10) / 10 };
   }
   function demandeConge(f) {
     need("c"); var r = rh(), e = by(r.employes, f.emp_id); if (!e || !empActif(e)) throw new Error("Employé introuvable ou sorti.");
     if (!TYPES_CONGE.some(function (t) { return t[0] === f.type; })) throw new Error("Type de congé invalide."); if (!f.debut || !f.fin || f.fin < f.debut) throw new Error("Période invalide.");
     var j = diffJ(f.fin, f.debut) + 1; if (j > 366) throw new Error("Période trop longue.");
     if (r.conges.some(function (c) { return c.emp_id === e.id && c.statut !== "refuse" && c.statut !== "annule" && !(f.fin < c.debut || f.debut > c.fin); })) throw new Error("Une autre demande couvre déjà cette période.");
-    if (f.type === "annuel" && j > soldeConges(e, f.fin).reste + 0.001) throw new Error("Solde de congés insuffisant (" + soldeConges(e, f.fin).reste + " jour(s) acquis disponibles).");
+    if (f.type === "annuel" && j > soldeConges(e, f.fin).dispo + 0.001) throw new Error("Solde de congés insuffisant (" + soldeConges(e, f.fin).dispo + " jour(s) disponibles, demandes en attente déduites).");
     var c = { id: uid("cg"), emp_id: e.id, type: f.type, debut: f.debut, fin: f.fin, jours: j, statut: "demande", motif: String(f.motif || "").trim(), par: H.user(), at: new Date().toISOString() }; r.conges.push(c); log("Demande de congé", empNom(e) + " " + j + " j"); return c;
   }
   function decideConge(id, ok, motif) {
     need("a"); var c = by(rh().conges, id); if (!c || c.statut !== "demande") throw new Error("Demande introuvable ou déjà traitée.");
-    if (!ok && String(motif || "").trim().length < 3) throw new Error("Motif du refus obligatoire."); c.statut = ok ? "approuve" : "refuse"; c.decide_par = H.user(); c.decide_le = new Date().toISOString(); if (!ok) c.refus = String(motif).trim();
+    if (!ok && String(motif || "").trim().length < 3) throw new Error("Motif du refus obligatoire.");
+    if (ok && c.type === "annuel") { var ee = by(rh().employes, c.emp_id), sc = ee && soldeConges(ee, c.fin); if (sc && c.jours > sc.reste + 0.001) throw new Error("Solde de congés insuffisant à l'approbation (" + sc.reste + " jour(s))."); } c.statut = ok ? "approuve" : "refuse"; c.decide_par = H.user(); c.decide_le = new Date().toISOString(); if (!ok) c.refus = String(motif).trim();
     log(ok ? "Congé approuvé" : "Congé refusé", empNom(by(rh().employes, c.emp_id) || {}) + " " + c.debut);
   }
   function setVariable(mois, f) {
@@ -320,12 +353,17 @@
     var k = B.length ? '<div class="rh-k">' + kpi(B.length, "Bulletins") + kpi(fcfa(tot(function (c) { return c.brut; })), "Brut total") + kpi(fcfa(tot(function (c) { return c.totalRetenues; })), "Retenues salariales") + kpi(fcfa(tot(function (c) { return c.net; })), "Net à payer") + kpi(fcfa(tot(function (c) { return c.totalPatronal; })), "Charges patronales") + kpi(fcfa(tot(function (c) { return c.cout; })), "Coût employeur") + "</div>" : "";
     var emps = r.employes.filter(function (e) { return empPresent(e, m); });
     var rows = val || B.length ? B.map(function (b) { var c = b.calc; return [esc(b.mat), "<b>" + esc(b.nom) + "</b>", c.jours + " j", fcfa(c.brut), fcfa(c.cnpsSal + c.cmuSal), fcfa(c.its), fcfa(c.avance + c.retenues), "<b>" + fcfa(c.net) + "</b>", val ? (b.paye ? bd("payé", "ok") : bd("à payer", "wa")) : "", btn("bul", m + "|" + b.emp_id, "Bulletin") + (!val && H.can("e") ? btn("p.var", m + "|" + b.emp_id, "Variables") : "")]; }) : emps.map(function (e) { return [esc(e.mat), "<b>" + esc(empNom(e)) + "</b>", "—", "—", "—", "—", "—", "—", "", !val && H.can("e") ? btn("p.var", m + "|" + e.id, "Variables") : ""]; });
-    return bar + (pa && pa.statut === "brouillon" && pa.annulee ? '<div class="rh-al">Validation annulée le ' + fd(pa.annulee.le) + " : " + esc(pa.annulee.motif) + "</div>" : "") + (val ? '<div class="rh-n">Paie ' + esc(libMois(m)) + " validée par " + esc(pa.valide_par) + " le " + fd(pa.valide_le) + " — écriture comptable générée.</div>" : '<div class="rh-n">Brouillon : saisissez les variables du mois (absences, heures supplémentaires, primes, retenues, avance à récupérer) puis calculez et validez.</div>') + k + tbl(["Matricule", "Employé", "Jours payés", "Brut", "CNPS + CMU", "ITS", "Avances et retenues", "Net", "Statut", ""], rows, "Aucun employé actif sur ce mois.");
+    return bar + (pa && pa.statut === "brouillon" && pa.annulee ? '<div class="rh-al">Validation annulée le ' + fd(pa.annulee.le) + " : " + esc(pa.annulee.motif) + "</div>" : "") + (val ? '<div class="rh-n">Paie ' + esc(libMois(m)) + " validée par " + esc(pa.valide_par) + " le " + fd(pa.valide_le) + " — écriture comptable générée.</div>" : '<div class="rh-n">Brouillon : saisissez les variables du mois (absences, heures supplémentaires, primes, retenues, avance à récupérer) puis calculez et validez.</div>') + k + payList(pa, m) + tbl(["Matricule", "Employé", "Jours payés", "Brut", "CNPS + CMU", "ITS", "Avances et retenues", "Net", "Statut", ""], rows, "Aucun employé actif sur ce mois.");
+  }
+  function payList(pa, m) {
+    var L = pa && pa.statut !== "brouillon" ? (pa.paiements || []) : []; if (!L.length) return "";
+    return '<div class="rh-n"><b>Paiements des salaires</b><br>' + L.map(function (p) { return esc(fd(p.date)) + " — " + fcfa(p.montant) + " (" + p.nb + " salarié(s), " + esc(p.mode) + ")" + (p.annule ? " — annulé : " + esc(p.annule.motif) : (H.can("x") ? " " + btn("p.annulpay", m + "|" + p.id, "Annuler", "er") : "")); }).join("<br>") + "</div>";
   }
   function vCharges() {
     var r = rh(), L = r.paies.filter(function (p) { return p.statut !== "brouillon"; }).sort(function (a, b) { return b.mois.localeCompare(a.mois); }), rows = [];
     L.forEach(function (p) { Object.keys(ORGS).forEach(function (o) { var d = dus(p.mois)[o], pay = sum(r.reversements.filter(function (x) { return x.mois === p.mois && x.org === o && !x.annule; }), function (x) { return x.montant; }); rows.push([esc(libMois(p.mois)), esc(ORGS[o][0]), fcfa(d), fcfa(pay), d - pay > 0 ? "<b>" + fcfa(d - pay) + "</b>" : bd("soldé", "ok"), (d - pay > 0 && H.can("c") ? btn("rv", p.mois + "|" + o, "Reverser") : "") + (H.can("p") && o !== "fdfp" ? btn("csv", "decl|" + p.mois + "|" + o, "CSV") : "")]); }); });
-    return '<div class="rh-n">Cotisations calculées à la validation de la paie : CNPS (retraite, prestations familiales, accident du travail) et CMU, ITS salarial et patronal, FDFP. Le reversement est comptabilisé (débit du compte de dette, crédit de la trésorerie).</div>' + tbl(["Mois", "Organisme", "Dû", "Reversé", "Reste", ""], rows, "Aucune paie validée.");
+    var rv = r.reversements.filter(function (x) { return !x.annule; }).slice().reverse().map(function (x) { return [esc(fd(x.date)), esc(libMois(x.mois)), esc(ORGS[x.org][0]), fcfa(x.montant), esc(x.mode), H.can("x") ? btn("rv.annul", x.id, "Annuler", "er") : ""]; });
+    return '<div class="rh-n">Cotisations calculées à la validation de la paie : CNPS (retraite, prestations familiales, accident du travail) et CMU, ITS salarial et patronal, FDFP. Le reversement est comptabilisé (débit du compte de dette, crédit de la trésorerie).</div>' + tbl(["Mois", "Organisme", "Dû", "Reversé", "Reste", ""], rows, "Aucune paie validée.") + (rv.length ? "<h3>Reversements effectués</h3>" + tbl(["Date", "Mois", "Organisme", "Montant", "Mode", ""], rv, "") : "");
   }
   function vLivre() {
     var r = rh(), an = UIS.mois.slice(0, 4), L = r.paies.filter(function (p) { return p.statut !== "brouillon" && p.mois.slice(0, 4) === an; }).sort(function (a, b) { return a.mois.localeCompare(b.mois); });
@@ -412,14 +450,14 @@
 
   /* ---------- CSV ---------- */
   function csvOut(name, head, rows) {
-    var q = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""').replace(/^([=+\-@])/, "'$1") + '"'; };
+    var q = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""').replace(/^([=+@\t\r]|-(?![\d.,]+$))/, "'$1") + '"'; };
     var b = new Blob(["﻿" + [head].concat(rows).map(function (r) { return r.map(q).join(";"); }).join("\n")], { type: "text/csv" }), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = name + ".csv"; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
   }
   function csv(k) {
     need("p"); var r = rh(), p = k.split("|");
     if (p[0] === "employes") return csvOut("employes", ["Matricule", "Nom", "Prénoms", "Poste", "Contrat", "Embauche", "Fin contrat", "Salaire base", "Sursalaire", "N° CNPS", "Déclaré CNPS", "Sortie"], r.employes.map(function (e) { return [e.mat, e.nom, e.prenoms, e.poste, e.contrat, e.embauche, e.fin_contrat, e.sal_base, e.sursalaire, e.cnps_no, e.declare === false ? "non" : "oui", e.sortie ? e.sortie.date : ""]; }));
     if (p[0] === "paie") { var pa = paieDe(p[1]); return csvOut("paie-" + p[1], ["Matricule", "Salarié", "Jours", "Brut imposable", "Brut", "CNPS salarié", "ITS", "CMU salarié", "Avances", "Retenues", "Net", "CNPS patronal", "ITS patronal", "FDFP", "CMU patronal", "Coût"], (pa ? pa.bulletins : []).map(function (b) { var c = b.calc; return [b.mat, b.nom, c.jours, c.brutImposable, c.brut, c.cnpsSal, c.its, c.cmuSal, c.avance, c.retenues, c.net, c.cnpsRetPat + c.cnpsAT + c.cnpsPF, c.itsPat, fdfpTotal(c), c.cmuPat, c.cout]; })); }
-    if (p[0] === "decl") { var pb = paieDe(p[1]); if (!pb) return; if (p[2] === "cnps") return csvOut("bordereau-cnps-" + p[1], ["Matricule", "N° CNPS", "Salarié", "Base cotisable", "Retraite salariale", "Retraite patronale", "Prestations familiales", "Accident du travail", "CMU"], pb.bulletins.map(function (b) { var c = b.calc, e = by(r.employes, b.emp_id) || {}; return [b.mat, e.cnps_no || "", b.nom, Math.min(c.brutImposable, P().plafondRetraite), c.cnpsSal, c.cnpsRetPat, c.cnpsPF, c.cnpsAT, c.cmuSal + c.cmuPat]; })); return csvOut("etat-its-" + p[1], ["Matricule", "Salarié", "Brut imposable", "ITS brut", "RICF", "ITS salarial", "ITS patronal"], pb.bulletins.map(function (b) { var c = b.calc; return [b.mat, b.nom, c.brutImposable, c.itsBrut, c.ricf, c.its, c.itsPat]; })); }
+    if (p[0] === "decl") { var pb = paieDe(p[1]); if (!pb) return; if (p[2] === "cnps") return csvOut("bordereau-cnps-" + p[1], ["Matricule", "N° CNPS", "Salarié", "Base cotisable", "Retraite salariale", "Retraite patronale", "Prestations familiales", "Accident du travail", "CMU"], pb.bulletins.filter(function (b) { return !b.calc.exoCnps; }).map(function (b) { var c = b.calc, e = by(r.employes, b.emp_id) || {}; return [b.mat, e.cnps_no || "", b.nom, Math.min(c.brutImposable, P().plafondRetraite), c.cnpsSal, c.cnpsRetPat, c.cnpsPF, c.cnpsAT, c.cmuSal + c.cmuPat]; })); return csvOut("etat-its-" + p[1], ["Matricule", "Salarié", "Brut imposable", "ITS brut", "RICF", "ITS salarial", "ITS patronal"], pb.bulletins.map(function (b) { var c = b.calc; return [b.mat, b.nom, c.brutImposable, c.itsBrut, c.ricf, c.its, c.itsPat]; })); }
   }
 
   /* ---------- Actions ---------- */
@@ -434,6 +472,8 @@
     "cg.ok": function (id) { H.run(function () { decideConge(id, true); }); after(); }, "cg.no": function (id) { ask("Refuser la demande", "Motif du refus", function (m) { decideConge(id, false, m); }, "Refuser"); },
     "p.calc": function (m) { H.run(function () { calculerMois(m); }); after(); },
     "p.val": function (m) { if (!confirm("Valider la paie de " + libMois(m) + " ? L'écriture comptable sera générée et les variables verrouillées.")) return; H.run(function () { validerMois(m); }); after(); },
+    "p.annulpay": function (x) { var s = x.split("|"); ask("Annuler le paiement des salaires de " + libMois(s[0]), "Motif de l'annulation", function (mo) { annulerPaiement(s[0], s[1], mo); }, "Annuler le paiement"); },
+    "rv.annul": function (id) { ask("Annuler le reversement", "Motif de l'annulation", function (mo) { annulerReversement(id, mo); }, "Annuler le reversement"); },
     "p.annul": function (m) { ask("Annuler la validation de " + libMois(m), "Motif de l'annulation", function (mo) { annulerValidation(m, mo); }, "Annuler la validation"); },
     "p.pay": function (m) { var pa = paieDe(m), du = sum(pa.bulletins.filter(function (b) { return !b.paye; }), function (b) { return b.calc.net; }); form("Payer les salaires de " + libMois(m) + " — " + fcfa(du), [{ k: "mode", l: "Mode de règlement", t: "select", o: MODES }, { k: "date", l: "Date de paiement", t: "date", req: 1 }], { mode: "banque", date: today() }, function (o) { payerSalaires(m, o.mode, null, o.date); }, "Payer"); },
     "p.var": function (x) { var s = x.split("|"), e = by(rh().employes, s[1]), v = variable(s[0], s[1]); form("Variables de " + libMois(s[0]) + " — " + empNom(e), [{ k: "abs", l: "Jours d'absence non payés", t: "number" }, { k: "hs", l: "Heures supplémentaires (F)", t: "number" }, { k: "primes", l: "Primes ponctuelles imposables (F)", t: "number" }, { k: "retenues", l: "Retenues diverses (F)", t: "number" }, { k: "avance", l: "Avance à récupérer (F)", t: "number", blank: 1, h: "Vide : retenue automatique selon l'échéancier de l'avance (" + fcfa(avanceDue(e.id)) + " restant dû)." }, { k: "note", l: "Note", full: 1 }], { abs: v.abs, hs: v.hs, primes: v.primes, retenues: v.retenues, avance: v.avance == null ? "" : v.avance, note: v.note }, function (o) { setVariable(s[0], Object.assign({}, o, { emp_id: e.id })); if (paieDe(s[0])) calculerMois(s[0]); }, "Enregistrer et recalculer"); },
@@ -443,7 +483,7 @@
     rv: function (x) { var s = x.split("|"), d = dus(s[0])[s[1]] - sum(rh().reversements.filter(function (y) { return y.mois === s[0] && y.org === s[1] && !y.annule; }), function (y) { return y.montant; }); form("Reverser " + ORGS[s[1]][0] + " — " + libMois(s[0]) + " : " + fcfa(d), [{ k: "mode", l: "Mode de règlement", t: "select", o: MODES }, { k: "date", l: "Date", t: "date", req: 1 }], { mode: "banque", date: today() }, function (o) { reverse(s[0], s[1], o.mode, o.date); }, "Reverser"); },
     csv: function (k) { try { csv(k); } catch (e) { alert(e.message); } },
     "doc.contrat": function (id) { docContrat(by(rh().employes, id)); }, "doc.attestation": function (id) { docAttestation(by(rh().employes, id)); }, "doc.certificat": function (id) { docCertificat(by(rh().employes, id)); },
-    "par.save": function () { var r = rh(), o = {}; document.querySelectorAll("[data-rh-par]").forEach(function (i) { var v = String(i.value).replace(",", ".").trim(); o[i.dataset.rhPar] = v === "" ? "" : +v; }); H.run(function () { need("a"); Object.keys(o).forEach(function (k) { if (o[k] !== "" && (!isFinite(o[k]) || o[k] < 0)) throw new Error("Paramètre invalide : " + k); }); r.params = Object.assign({}, r.params, o); log("Paramètres de paie modifiés"); }); after(); },
+    "par.save": function () { var r = rh(), o = {}; document.querySelectorAll("[data-rh-par]").forEach(function (i) { var v = String(i.value).replace(",", ".").trim(); o[i.dataset.rhPar] = v === "" ? "" : +v; }); H.run(function () { need("a"); Object.keys(o).forEach(function (k) { if (o[k] !== "" && (!isFinite(o[k]) || o[k] < 0 || (PAIE_DEF[k] > 0 && PAIE_DEF[k] < 1 && o[k] > 1))) throw new Error("Paramètre invalide : " + k + (PAIE_DEF[k] < 1 ? " (taux entre 0 et 1, ex. 0,063 pour 6,3 %)" : "")); }); r.params = Object.assign({}, r.params, o); log("Paramètres de paie modifiés"); }); after(); },
     "par.reset": function () { if (!confirm("Revenir aux valeurs par défaut ?")) return; H.run(function () { need("a"); rh().params = {}; log("Paramètres de paie réinitialisés"); }); after(); }
   };
   document.addEventListener("click", function (e) {
@@ -454,6 +494,6 @@
   document.addEventListener("change", function (e) { var t = e.target; if (!H) return; if (t.dataset && t.dataset.rhMois) { UIS.mois = t.value; H.render(); } if (t.dataset && t.dataset.rhInact) { UIS.inactifs = t.checked; H.render(); } });
 
   G.ANGELS_RH = { host: null, view: view, P: P, calcul: calcul, itsBrut: itsBrut, ricf: ricf, tauxAnc: tauxAnc, joursPayes: joursPayes, resume: function (h) { H = h || H; return resume(); }, publier: function (h) { H = h || H; publier(); }, alertes: function (h) { H = h || H; return alertes(); }, PAIE_DEF: PAIE_DEF, UI: UIS,
-    ops: { saveEmploye: saveEmploye, sortie: sortieEmploye, reintegrer: reintegrer, calculerMois: calculerMois, validerMois: validerMois, annulerValidation: annulerValidation, payerSalaires: payerSalaires, reverser: reverse, avance: octroyerAvance, conge: demandeConge, decideConge: decideConge, variable: setVariable, soldeConges: soldeConges, paieDe: paieDe, dus: dus, state: rh },
+    ops: { saveEmploye: saveEmploye, sortie: sortieEmploye, reintegrer: reintegrer, calculerMois: calculerMois, validerMois: validerMois, annulerValidation: annulerValidation, annulerPaiement: annulerPaiement, annulerReversement: annulerReversement, payerSalaires: payerSalaires, reverser: reverse, avance: octroyerAvance, conge: demandeConge, decideConge: decideConge, variable: setVariable, soldeConges: soldeConges, paieDe: paieDe, dus: dus, state: rh },
     use: function (h) { H = h; this.host = h; } };
 })(window);
