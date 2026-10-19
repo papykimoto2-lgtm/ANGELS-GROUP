@@ -583,3 +583,7 @@ Plusieurs postes peuvent travailler sur les **mêmes données**. Chaque poste ga
 
 Tests : `node tests/sync-serveur.js` (12 contrôles serveur), `node tests/sync-postes.js` (13 contrôles à deux postes avec le vrai code serveur), onglet Cloud dans `tests/parametres-onglets.js`.
 Limites : délai de quelques secondes entre postes ; enregistrements de plus de 900 Ko non synchronisés (signalés) ; données entièrement locales tant qu'aucune clé n'est enregistrée.
+
+### Hub → Cloud / Supabase → « État de la synchronisation (envoi ↔ réception) »
+Panneau inspiré de celui de ZAHARA : pastilles « Connecté au cloud », dernier envoi, dernière réception ; compteurs éléments / à jour / à envoyer / à récupérer / en file d'attente / suppressions, par application (tableau) ; boutons **Vérifier l'état**, **Resynchro complète**, **Purger le cache local** (confirmation, refusée si l'appareil n'a jamais été synchronisé), **Tout envoyer**, **Tout récupérer**, **Réessayer la file**, **Rafraîchir**, **File d'attente** (nature, table, élément), **Diagnostic cloud** (adresse, temps de réponse, enregistrements par application, erreurs récentes), **Écart cloud ↔ local** (par table : seulement ici, seulement serveur, différents). Les actions qui modifient les données exigent une application déverrouillée par un administrateur ; si l'application visée est ouverte dans un autre onglet, c'est elle qui exécute l'action (elle détient l'état en mémoire).
+Test : `node tests/sync-etat.js` (10 contrôles).

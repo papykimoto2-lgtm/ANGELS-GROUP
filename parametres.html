@@ -49,6 +49,7 @@ h3{margin:26px 0 10px;font-size:15px}
 .ut td,.ut th{text-align:left}.ut td{white-space:normal}.uf{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:10px 0}.uf label{display:block;font-size:12px;color:var(--mu);font-weight:600}
 .uf input,.uf select,.ut select{font:inherit;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-height:40px;display:block;margin-top:3px}
 button.sb{border:0;border-radius:8px;padding:8px 12px;background:var(--c,var(--b));color:#fff;font:inherit;font-weight:700;cursor:pointer;min-height:38px}button.sb.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+.bd0{display:inline-block;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:700;background:#eef2f6;color:#1c2430}.bd0.ok{background:#e3f5ea;color:#118a4b}.bd0.er{background:#fde8e8;color:#c62828}.bd0.wa{background:#fff1d6;color:#8a5a00}
 .umsg{margin:8px 0;padding:8px 12px;border-radius:8px;font-size:13px;background:#e3f5ea;color:var(--ok)}.umsg.er{background:#fde8e8;color:#c62828}.off{opacity:.55}
 .tabs .tab.on{background:var(--b2);color:#fff;border-color:var(--b2)}.bar i{background:var(--b)}.bar span{font-size:10px}#ptabs .tab{min-height:42px}
 footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
@@ -71,13 +72,18 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <div id="s-cloud" hidden><h2 style="margin:6px 0 10px;font-size:16px">☁️ Cloud / Supabase</h2><p class="note">Connexion du groupe à son projet Supabase : comptes des livreurs vérifiés par le serveur, passerelle livreur (numéros des clients retirés des téléphones) et pont téléphonique. Sans configuration, les applications fonctionnent en mode local (données stockées dans l'appareil). Seule la clé <b>anonyme</b> (publique) se saisit ici ; la clé d'administration reste dans Distributions → Paramètres.</p>
 <div class="two" style="margin-top:12px"><div class="pan"><h4>☁️ Connexion Supabase</h4><div class="uf" style="display:block"><label>URL du projet Supabase<input id="cl-url" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="none" style="width:100%"></label><label style="margin-top:8px">Clé anonyme (anon key)<input id="cl-key" placeholder="eyJh…" autocomplete="off" autocapitalize="none" style="width:100%"></label></div><div id="cl-badge" style="margin:8px 0;font-size:13px"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="sb" data-cl="save">💾 Enregistrer</button><button type="button" class="sb g" data-cl="test">🔌 Tester</button><button type="button" class="sb g" data-cl="clear">🗑️ Effacer</button><button type="button" class="sb g" data-cl="def">↩ Projet par défaut</button></div><div id="cl-res" style="margin-top:10px;font-size:13px"></div></div>
 <div class="pan"><h4>🔄 Synchronisation entre postes</h4><p class="note" style="margin-top:0">Les postes partagent les mêmes données : chaque saisie est envoyée au serveur et reprise par les autres postes en quelques secondes. À régler sur <b>chaque poste</b> avec la même clé (secret <code>SYNC_KEY</code> de Supabase).</p><div class="uf" style="display:block"><label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx)"><input type="checkbox" id="cs-on" style="width:auto;margin:0"> Synchroniser les applications de cet appareil</label><label style="margin-top:8px">Clé de synchronisation<input id="cs-key" type="password" placeholder="Valeur du secret SYNC_KEY" autocomplete="off" autocapitalize="none" style="width:100%"></label></div><div id="cs-badge" style="margin:8px 0;font-size:13px"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="sb" data-cl="sync-save">💾 Enregistrer</button><button type="button" class="sb g" data-cl="sync-test">🔌 Tester la clé</button></div><div id="cs-res" style="margin-top:10px;font-size:13px"></div></div>
-<div class="pan"><h4>🔗 Applications branchées</h4><ul class="det" id="cl-apps"></ul><p class="note">La passerelle livreur et le pont se règlent dans Distributions → Paramètres. L'application des livreurs est <a href="livreur.html">livreur.html</a>.</p></div></div></div>
+<div class="pan"><h4>🔗 Applications branchées</h4><ul class="det" id="cl-apps"></ul><p class="note">La passerelle livreur et le pont se règlent dans Distributions → Paramètres. L'application des livreurs est <a href="livreur.html">livreur.html</a>.</p></div></div>
+<div class="pan" style="margin-top:12px"><h4>📊 État de la synchronisation (envoi ↔ réception)</h4><p class="note" style="margin-top:0">Compare, application par application, les enregistrements de cet appareil et ceux du serveur. Une application ouverte dans un autre onglet exécute elle-même les actions ; sinon elles s'appliquent aux données de cet appareil.</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0"><span id="ss-conn" class="bd0">…</span><span id="ss-envoi" class="bd0">⬆ Dernier envoi : —</span><span id="ss-recep" class="bd0">⬇ Dernière réception : —</span><label style="font-size:13px;color:var(--mu);font-weight:600;margin-left:auto">Application <select id="ss-app" style="font:inherit;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)"><option value="tous">Toutes</option><option value="distribution">Distributions</option><option value="transport">Transport</option><option value="agro">Agro</option></select></label></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="sb g" data-ss="diag">🔍 Vérifier l'état (local ↔ cloud)</button><button type="button" class="sb g" data-ss="resync">🔁 Resynchro complète</button><button type="button" class="sb g" data-ss="purge" style="color:#c62828;border-color:#c62828">🧹 Purger le cache local</button><button type="button" class="sb" data-ss="send">⬆ Tout envoyer</button><button type="button" class="sb g" data-ss="recv">⬇ Tout récupérer</button><button type="button" class="sb g" data-ss="retry">🔄 Réessayer la file</button><button type="button" class="sb g" data-ss="diag">⟳ Rafraîchir</button><button type="button" class="sb g" data-ss="file">📋 File d'attente</button><button type="button" class="sb g" data-ss="cloud">🩺 Diagnostic cloud</button><button type="button" class="sb g" data-ss="ecart">🔎 Écart cloud ↔ local</button></div>
+<div id="ss-kpi" style="margin:12px 0 6px;font-size:13px;color:var(--mu)">Cliquez sur « Vérifier l'état ».</div><div style="overflow-x:auto"><table class="ut" id="ss-tab" style="width:100%"></table></div><div id="ss-out" style="margin-top:10px;font-size:13px"></div></div></div>
 <div id="s-med" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
 <p class="note">Ajoutez des photos, des vidéos (par lien YouTube / Vimeo / fichier https) et des documents PDF qui s'affichent sur le portail public : diaporama d'accueil, galerie, pages d'activité, page Société, documents à télécharger. Les photos sont compressées automatiquement ; documents PDF : 1,5 Mo maximum (au-delà, utilisez « Document par lien »).</p>
 <section id="pmed"></section>
 </div></div></main>
 <footer>© ANGEL'S GROUP · Paramètres · <a href="index.html">Retour au hub</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
 <script src="passerelle-config.js"></script>
+<script src="sync-engine.js"></script>
 <script src="qrcode.js"></script>
 <script src="auth-engine.js"></script>
 <script src="print-engine.js"></script>
@@ -494,10 +500,54 @@ function clValide(url,key){url=String(url||"").trim().replace(/\/+$/,"").replace
  if(clRole(key)==="service_role")throw new Error("Cette clé est la clé « service_role » (secrète) : refusée. Utilisez la clé anonyme (anon / publishable).");
  if(!/^(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_publishable_[\w-]+)$/.test(key))throw new Error("Clé anonyme invalide (elle commence par eyJ… ou sb_publishable_…)");
  return{url,key}}
-function clView(){csView();const e=clEff(),u=$("cl-url"),k=$("cl-key");if(!u)return;if(document.activeElement!==u&&document.activeElement!==k){u.value=e.url;k.value=e.key}
+function clView(){csView();if(!ssView._n){ssView._n=1;ssRender()}const e=clEff(),u=$("cl-url"),k=$("cl-key");if(!u)return;if(document.activeElement!==u&&document.activeElement!==k){u.value=e.url;k.value=e.key}
  $("cl-badge").innerHTML=e.off?'<b style="color:#c62828">● Mode local — aucune connexion Supabase</b>':`<b style="color:#118a4b">● Connecté — ${esc(e.url)}${e.defaut?" (projet par défaut)":""}</b>`;
  const A=(()=>{try{return JSON.parse(localStorage.getItem("angels_erp_v1")||"null")}catch(x){return null}})(),c=(A&&A.config)||{};
  $("cl-apps").innerHTML=[["Passerelle livreur (Distributions)",c.passerelle_actif===true],["Pont téléphonique (Distributions)",!!(c.appel_pont&&c.appel_pont.actif)],["Application des livreurs (livreur.html)",!e.off&&!!e.url]].map(x=>`<li><span>${x[0]}</span><b style="color:${x[1]?"#118a4b":"#6b7390"}">${x[1]?"● Actif":"○ Inactif"}</b></li>`).join("")}
+/* État de la synchronisation (envoi ↔ réception) : lecture et actions sur les trois applications. */
+const SS_APPS=[["distribution","Distributions"],["transport","Transport"],["agro","Agro"]];
+const ssSel=()=>{const v=$("ss-app").value;return v==="tous"?SS_APPS:SS_APPS.filter(a=>a[0]===v)};
+const ssHeure=t=>t?new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"—";
+let SSD={};
+const ssOut=h=>{$("ss-out").innerHTML=h};
+function ssRender(erreur){const ds=SS_APPS.map(a=>SSD[a[0]]).filter(Boolean),conn=$("ss-conn");
+ if(!ANGELS_SYNC.actif()){conn.className="bd0";conn.textContent="○ Synchronisation non configurée";}
+ else if(erreur){conn.className="bd0 er";conn.textContent="⚠ Cloud injoignable";}
+ else if(ds.length){conn.className="bd0 ok";conn.textContent="● Connecté au cloud";}
+ const mx=k=>Math.max(0,...ds.map(d=>d[k]||0));$("ss-envoi").textContent="⬆ Dernier envoi : "+ssHeure(mx("envoi"));$("ss-recep").textContent="⬇ Dernière réception : "+ssHeure(mx("reception"));
+ const som=k=>ds.reduce((n,d)=>n+(d[k]||0),0);
+ $("ss-kpi").innerHTML=ds.length?`📦 <b>${som("elements")}</b> éléments · <span style="color:#118a4b">✔ <b>${som("aJour")}</b> à jour</span> · <span style="color:#1565c0">⬆ <b>${som("aEnvoyer")}</b> à envoyer</span> · <span style="color:#1565c0">⬇ <b>${som("aRecuperer")}</b> à récupérer</span> · 📝 <b>${som("enFile")}</b> en file d'attente · 🗑 <b>${som("suppressions")}</b> suppression(s)`:"Cliquez sur « Vérifier l'état ».";
+ $("ss-tab").innerHTML=ds.length?`<thead><tr><th>Application</th><th>Éléments</th><th>À jour</th><th>À envoyer</th><th>À récupérer</th><th>Sur le serveur</th><th>État</th></tr></thead><tbody>${ds.map(d=>`<tr><td><b>${esc(d.nom)}</b></td><td>${d.elements}</td><td>${d.aJour}</td><td>${d.aEnvoyer+d.suppressions?`<b style="color:#1565c0">${d.aEnvoyer+d.suppressions}</b>`:0}</td><td>${d.aRecuperer?`<b style="color:#1565c0">${d.aRecuperer}</b>`:0}</td><td>${d.serveur==null?"—":d.serveur}</td><td>${!d.actif?"Non configurée":!d.amorce?"Première synchro à faire":d.aEnvoyer+d.suppressions+d.aRecuperer?"En attente":"✔ À jour"}</td></tr>`).join("")}</tbody>`:""}
+function ssView(){}
+async function ssDiag(){if(!ANGELS_SYNC.actif()){ssRender();return ssOut('<div class="umsg er">Synchronisation non configurée : renseignez la clé ci-dessus.</div>')}
+ ssOut("Vérification en cours…");let erreur=null;
+ for(const [k,n] of SS_APPS){try{SSD[k]=await ANGELS_SYNC.commande(k,"diagnostic")}catch(e){erreur=e;SSD[k]=Object.assign(SSD[k]||{app:k,nom:n,elements:0,aJour:0,aEnvoyer:0,suppressions:0,enFile:0,aRecuperer:0,serveur:null,actif:true,amorce:false},{})}}
+ ssRender(erreur);ssOut(erreur?`<div class="umsg er">${esc(erreur.message||erreur)}</div>`:"")}
+const ssTypes={nouveau:"🆕 nouveau",modifié:"✏️ modifié",supprimé:"🗑 supprimé"};
+async function ssAction(k){
+ const write=["send","recv","resync","purge","retry"].includes(k);
+ if(k==="diag")return ssDiag();
+ if(!ANGELS_SYNC.actif())return ssOut('<div class="umsg er">Synchronisation non configurée : renseignez la clé ci-dessus.</div>');
+ if(write&&!pDebloque())return ssOut('<div class="umsg er">Déverrouillez d\'abord une application avec le mot de passe d\'un administrateur.</div>');
+ const apps=ssSel(),act={send:"envoyerTout",recv:"recupererTout",resync:"resynchro",retry:"reessayer",purge:"purgerCache",file:"file",cloud:"cloud",ecart:"ecart"}[k];let h="";
+ if(k==="purge"){
+  let perdues=0,nonSync=[];for(const [a,n] of apps){try{const d=await ANGELS_SYNC.commande(a,"diagnostic");perdues+=d.aEnvoyer+d.suppressions;if(!d.amorce)nonSync.push(n)}catch(e){nonSync.push(n)}}
+  if(nonSync.length)return ssOut(`<div class="umsg er">Purge impossible pour ${esc(nonSync.join(", "))} : cet appareil n'est pas encore synchronisé, les données ne pourraient pas être rechargées depuis le serveur. Lancez d'abord « Resynchro complète ».</div>`);
+  if(!confirm("PURGER LE CACHE LOCAL — "+apps.map(a=>a[1]).join(", ")+"\n\nLes données de cet appareil seront effacées puis rechargées depuis le serveur à la prochaine ouverture."+(perdues?"\n\n⚠ "+perdues+" modification(s) non envoyée(s) seront PERDUES.":"")+"\n\nContinuer ?"))return;
+ }
+ ssOut("Action en cours…");
+ for(const [a,n] of apps){
+  try{const r=await ANGELS_SYNC.commande(a,act);
+   if(k==="file")h+=`<div style="margin:6px 0"><b>${esc(n)}</b> — ${r.length} modification(s) en attente</div>${r.length?`<table class="ut" style="width:100%"><thead><tr><th>Nature</th><th>Table</th><th>Élément</th></tr></thead><tbody>${r.slice(0,50).map(x=>`<tr><td>${ssTypes[x.type]||x.type}</td><td>${esc(x.coll)}</td><td>${esc(x.nom)}</td></tr>`).join("")}</tbody></table>${r.length>50?`<div class="note">… et ${r.length-50} autres</div>`:""}`:""}`;
+   else if(k==="cloud")h+=`<div class="umsg" style="background:#eef2f6;color:#1c2430"><b>${esc(n)}</b> — ${esc(r.url)}<br>Réponse en ${r.ms} ms · serveur : Distributions ${r.serveur.distribution} · Transport ${r.serveur.transport} · Agro ${r.serveur.agro} enregistrement(s) · curseur local ${r.curseur} · ${r.amorce?"poste amorcé":"première synchronisation à faire"}${r.erreurs.length?`<br>Erreurs récentes : ${r.erreurs.map(e=>esc(ssHeure(e.t))+" — "+esc(e.m)).join(" ; ")}`:""}</div>`;
+   else if(k==="ecart")h+=`<div style="margin:6px 0"><b>${esc(n)}</b> — ${r.ecarts?`<span style="color:#c62828">${r.ecarts} écart(s)</span>`:'<span style="color:#118a4b">aucun écart</span>'}</div><table class="ut" style="width:100%"><thead><tr><th>Table</th><th>Local</th><th>Serveur</th><th>Seulement ici</th><th>Seulement serveur</th><th>Différents</th></tr></thead><tbody>${r.lignes.slice(0,40).map(x=>`<tr><td>${esc(x.coll==="_doc"?"réglages":x.coll)}</td><td>${x.local}</td><td>${x.serveur}</td><td>${x.seulLocal||0}</td><td>${x.seulServeur||0}</td><td>${x.different||0}</td></tr>`).join("")}</tbody></table>`;
+   else if(k==="purge")h+=`<div class="umsg">${esc(n)} : cache local purgé. Ouvrez l'application : elle récupère ses données depuis le serveur.</div>`;
+   else{SSD[a]=r;h+=`<div class="umsg">${esc(n)} : ${k==="send"?"envoi":k==="recv"?"réception":k==="resync"?"resynchronisation":"file relancée"} terminé — ${r.aEnvoyer+r.suppressions} à envoyer, ${r.aRecuperer} à récupérer.</div>`}
+  }catch(e){h+=`<div class="umsg er">${esc(n)} : ${esc(e.message||e)}</div>`}
+ }
+ ssOut(h);if(write)ssDiag().then(()=>ssOut(h));
+}
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-ss]");if(b)ssAction(b.dataset.ss)});
 const CS_K="angels_sync";
 function csView(){const o=(()=>{try{return JSON.parse(localStorage.getItem(CS_K)||"null")}catch(e){return null}})(),k=$("cs-key"),on=$("cs-on");if(!k)return;if(document.activeElement!==k){k.value=(o&&o.cle)||""}on.checked=!!(o&&o.actif);
  $("cs-badge").innerHTML=o&&o.actif&&o.cle?'<b style="color:#118a4b">● Synchronisation activée sur cet appareil</b>':'<b style="color:#6b7390">○ Synchronisation désactivée (mode local)</b>'}

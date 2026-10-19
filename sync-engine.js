@@ -7,8 +7,17 @@
    Réglage : Paramètres du Hub → Cloud / Supabase (adresse du projet + clé de synchronisation SYNC_KEY), stocké sur l'appareil. */
 (function (G) {
   "use strict";
-  var CFG_K = "angels_supabase", SYNC_K = "angels_sync", P = null, B = { cursor: 0, map: {}, boot: false };
-  var st = { etat: "inactif", dernier: 0, err: "", busy: false, again: false, applying: false, deb: null, trop: [], doublons: [], attenteRefresh: false };
+  /* Profils : réglages propres à chaque application (clé de stockage, ce qui reste local, secrets jamais envoyés). */
+  var PROFILS = {
+    distribution: { nom: "Distributions", cle: "angels_erp_v1", exclude: ["pos", "gps_hist", "tries", "pass", "pass_err"], secrets: { config: ["appel_pont.cle_admin"] }, derives: ["angels_compta_distribution", "angels_portail_v1"] },
+    transport: { nom: "Transport", cle: "angels_transport_v3", exclude: ["tries", "gps_pos", "gps_alerts", "alertes_etat"], derives: ["angels_compta_transport", "angels_transport_files"] },
+    agro: { nom: "Agro", cle: "angels_agro_v1", exclude: ["tries"], derives: ["angels_compta_agro"] }
+  };
+  /* Une instance du moteur = une application. Dans une application elle tourne en continu ; le Hub en crée une « sans écran » pour lire l'état et agir. */
+  function Moteur(P) {
+  P = Object.assign({ exclude: [], ajout: ["audit"], seq: ["seq"], secrets: {}, derives: [] }, P); if (!P.nom) P.nom = P.app;
+  var CFG_K = "angels_supabase", SYNC_K = "angels_sync", B = { cursor: 0, map: {}, boot: false };
+  var st = { etat: "inactif", dernier: 0, err: "", busy: false, again: false, applying: false, deb: null, trop: [], doublons: [], attenteRefresh: false, erreurs: [] };
 
   function lire(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
   function conf() {
@@ -109,14 +118,16 @@
     return true;
   }
 
-  async function tirer(c) {
-    var chg = false, suite = true;
+  async function tirer(c, tout) {
+    var chg = false, suite = true, recus = 0;
+    if (tout) B.cursor = 0;
     while (suite) {
       var r = await appel(c, { action: "tirer", depuis: B.cursor, limite: 300 }), S = P.get();
-      r.lignes.forEach(function (l) { var b = B.map[l.coll + "|" + l.id]; if (b && b[0] === l.rev) return; if (appliquer(S, l)) chg = true; });
-      B.cursor = r.curseur; suite = r.suite; sauverBase();
+      r.lignes.forEach(function (l) { var b = B.map[l.coll + "|" + l.id]; if (!tout && b && b[0] === l.rev) return; recus++; if (appliquer(S, l)) chg = true; });
+      B.cursor = r.curseur; suite = r.suite; if (recus) B.reception = Date.now(); sauverBase();
     }
     if (chg) { persister(); signalerDoublons(); rafraichir(); }
+    return recus;
   }
   function signalerDoublons() {
     try {
@@ -132,9 +143,9 @@
     ops.forEach(function (o) { var t = o.del ? 80 : JSON.stringify(o.data).length + 120; if (cur.length && (cur.length >= 300 || taille + t > 900000)) { out.push(cur); cur = []; taille = 0; } cur.push(o); taille += t; });
     if (cur.length) out.push(cur); return out;
   }
-  async function pousser(c) {
+  async function pousser(c, tout) {
     var S = P.get(), cur = photo(S), ops = [], dels = 0, total = Object.keys(B.map).length, key;
-    for (key in cur) { var e = cur[key], b = B.map[key]; if (!b) ops.push({ coll: e.coll, id: e.id, kind: e.kind, base: 0, data: e.data, _h: e.hash }); else if (b[1] !== e.hash) ops.push({ coll: e.coll, id: e.id, kind: e.kind, base: b[0], data: e.data, _h: e.hash }); }
+    for (key in cur) { var e = cur[key], b = B.map[key]; if (!b) ops.push({ coll: e.coll, id: e.id, kind: e.kind, base: 0, data: e.data, _h: e.hash }); else if (tout || b[1] !== e.hash) ops.push({ coll: e.coll, id: e.id, kind: e.kind, base: b[0], data: e.data, _h: e.hash }); }
     for (key in B.map) { if (!(key in cur)) { var m = B.map[key]; if (m[2] === "enreg") { var p = key.indexOf("|"); ops.push({ coll: key.slice(0, p), id: key.slice(p + 1), kind: "enreg", base: m[0], del: true }); dels++; } else if (m[2] === "trop" || m[2] === "doc") delete B.map[key]; } }
     if (dels >= 20 && dels >= total * 0.5) {
       var go = false; try { go = confirm("SUPPRESSION MASSIVE — " + P.nom + "\n\nCe poste a supprimé " + dels + " enregistrements d'un coup (sur " + total + ").\n\nOK = supprimer aussi sur le serveur et les autres postes\nAnnuler = restaurer ces données depuis le serveur"); } catch (e2) { }
@@ -158,6 +169,7 @@
         msgs.push((j.coll === "_doc" ? "réglage « " + j.id + " »" : j.coll + " " + ((o && o.data && (o.data.numero || o.data.nom)) || j.id)) + (sv.par ? " (par " + sv.par + ")" : ""));
       });
       (r.trop || []).forEach(function (j) { var k = j.coll + "|" + j.id, o = hs[k]; if (o) B.map[k] = [0, o._h, "trop"]; st.trop.push(j.coll + " " + j.id); });
+      if (r.appliques.length) B.envoi = Date.now();
       sauverBase();
     }
     if (msgs.length) { persister(); rafraichir(); avis("Modification simultanée : la version déjà enregistrée par un autre poste est conservée → " + msgs.slice(0, 3).join(" ; ") + ". Vérifiez puis recommencez si besoin.", "err"); }
@@ -166,7 +178,7 @@
 
   var badge = null;
   function majBadge() {
-    if (!document.body) return; var c = conf();
+    if (!document.body || !P.badge) return; var c = conf();
     if (!c || !P) { if (badge) { badge.remove(); badge = null; } return; }
     if (!badge) {
       badge = document.createElement("button"); badge.type = "button"; badge.id = "aa-sync";
@@ -194,20 +206,117 @@
         var res = await pousser(c);
         if (res === "restaurer") { await amorcer(c); }
         st.etat = "ok"; st.dernier = Date.now(); st.err = "";
-      } catch (e) { st.etat = (typeof navigator !== "undefined" && navigator.onLine === false) ? "hors ligne" : "erreur"; st.err = String(e && e.message || e).slice(0, 90); }
+      } catch (e) { st.etat = (typeof navigator !== "undefined" && navigator.onLine === false) ? "hors ligne" : "erreur"; st.err = String(e && e.message || e).slice(0, 90); st.erreurs.unshift({ t: Date.now(), m: st.err }); st.erreurs.length = Math.min(st.erreurs.length, 5); }
     })().then(function () { st.busy = false; st.run = null; majBadge(); }, function () { st.busy = false; st.run = null; majBadge(); });
     return st.run;
   }
   function signal() { if (!P || st.applying || !conf()) return; clearTimeout(st.deb); st.deb = setTimeout(cycle, 1500); }
 
-  function init(o) {
-    P = Object.assign({ exclude: [], ajout: ["audit"], seq: ["seq"], secrets: {}, nom: o.app }, o);
-    var b = lire("angels_sync_base_" + o.app); if (b && b.map) B = b;
+  function demarrer() {
+    var b = lire("angels_sync_base_" + P.app); if (b && b.map) B = b;
     setInterval(function () { if (!document.hidden) cycle(); if (st.attenteRefresh) rafraichir(); }, 12000);
     setInterval(function () { if (st.attenteRefresh && !occupe()) rafraichir(); }, 2500);
     document.addEventListener("visibilitychange", function () { if (!document.hidden) cycle(); });
     G.addEventListener("online", function () { cycle(); });
-    setTimeout(function () { majBadge(); cycle(); }, 900);
+    setTimeout(function () { persister(); majBadge(); cycle(); }, 900);   /* le stockage de l'appareil reflète l'état en mémoire (migrations de démarrage comprises) */
+    try { canal = new BroadcastChannel("angels_sync_cmd"); canal.onmessage = function (ev) { var m = ev.data || {}; if (m.app !== P.app || !m.id || m.rep) return; if (m.action === "ping") return canal.postMessage({ rep: m.id, app: P.app, ok: true }); lancer(m.action).then(function (d) { canal.postMessage({ rep: m.id, app: P.app, ok: true, data: d }); }, function (e) { canal.postMessage({ rep: m.id, app: P.app, ok: false, err: String(e && e.message || e) }); }); }; } catch (e) { }
   }
-  G.ANGELS_SYNC = { init: init, signal: signal, cycle: cycle, etat: function () { return { busy: st.busy, etat: st.etat, dernier: st.dernier, err: st.err, actif: !!conf(), base: B, trop: st.trop.slice(), doublons: st.doublons.slice() }; }, actif: function () { return !!conf(); } };
+  var canal = null;
+  function charger() { var b = lire("angels_sync_base_" + P.app); if (b && b.map) B = b; }
+  function libelle(app, coll, id) { try { var S = P.get(), a = S[coll]; if (Array.isArray(a)) { for (var i = 0; i < a.length; i++) if (a[i] && a[i].id === id) return a[i].numero || a[i].nom || a[i].immat || a[i].libelle || id; } } catch (e) { } return id; }
+
+  /* ----- Lecture de l'état (sans rien modifier) ----- */
+  async function lignesServeur(c, depuis) {
+    var out = [], suite = true, curseur = depuis || 0;
+    while (suite) { var r = await appel(c, { action: "tirer", depuis: curseur, limite: 500 }); out = out.concat(r.lignes); curseur = r.curseur; suite = r.suite; }
+    return out;
+  }
+  async function diagnostic() {
+    var c = conf(), S = P.get(), cur = photo(S), n = 0, aJour = 0, env = 0, supp = 0, key;
+    for (key in cur) { n++; var b = B.map[key]; if (b && b[1] === cur[key].hash) aJour++; else env++; }
+    for (key in B.map) if (!(key in cur) && B.map[key][2] === "enreg") supp++;
+    var rec = 0, serveur = null;
+    if (c) {
+      var L = await lignesServeur(c, B.boot ? B.cursor : 0);
+      L.forEach(function (l) { var b = B.map[l.coll + "|" + l.id]; if (!b || b[0] !== l.rev) rec++; });
+      serveur = (await appel(c, { action: "etat" })).enregistrements[P.app];
+    }
+    return { app: P.app, nom: P.nom, actif: !!c, amorce: !!B.boot, elements: n, aJour: aJour, aEnvoyer: env, suppressions: supp, enFile: env + supp, aRecuperer: rec, serveur: serveur, envoi: B.envoi || 0, reception: B.reception || 0, etat: st.etat, err: st.err };
+  }
+  function file() {
+    var S = P.get(), cur = photo(S), out = [], key;
+    for (key in cur) { var b = B.map[key]; if (!b) out.push({ type: "nouveau", coll: cur[key].coll, id: cur[key].id, nom: cur[key].coll === "_doc" ? "réglage " + cur[key].id : libelle(P.app, cur[key].coll, cur[key].id) }); else if (b[1] !== cur[key].hash) out.push({ type: "modifié", coll: cur[key].coll, id: cur[key].id, nom: cur[key].coll === "_doc" ? "réglage " + cur[key].id : libelle(P.app, cur[key].coll, cur[key].id) }); }
+    for (key in B.map) if (!(key in cur) && B.map[key][2] === "enreg") { var p = key.indexOf("|"); out.push({ type: "supprimé", coll: key.slice(0, p), id: key.slice(p + 1), nom: key.slice(p + 1) }); }
+    return out;
+  }
+  async function ecart() {
+    var c = conf(); if (!c) throw new Error("Synchronisation non configurée");
+    var S = P.get(), cur = photo(S), srv = {}, L = await lignesServeur(c, 0), par = {};
+    L.forEach(function (l) { if (!l.supprime) srv[l.coll + "|" + l.id] = l; });
+    function ligne(coll) { return par[coll] || (par[coll] = { coll: coll, local: 0, serveur: 0, seulLocal: 0, seulServeur: 0, different: 0 }); }
+    Object.keys(cur).forEach(function (k) { var e = cur[k], x = ligne(e.coll); x.local++; var s2 = srv[k]; if (!s2) x.seulLocal++; else { x.serveur++; if (canon(s2.data) !== canon(e.data)) x.different++; } });
+    Object.keys(srv).forEach(function (k) { if (!(k in cur)) { var x = ligne(srv[k].coll); x.serveur++; x.seulServeur++; } });
+    var rows = Object.keys(par).map(function (k) { return par[k]; }).sort(function (a, b) { return (b.seulLocal + b.seulServeur + b.different) - (a.seulLocal + a.seulServeur + a.different) || a.coll.localeCompare(b.coll); });
+    return { app: P.app, nom: P.nom, lignes: rows, ecarts: rows.reduce(function (n, x) { return n + x.seulLocal + x.seulServeur + x.different; }, 0) };
+  }
+  async function infoCloud() {
+    var c = conf(); if (!c) throw new Error("Synchronisation non configurée sur cet appareil");
+    var t0 = Date.now(), r = await appel(c, { action: "etat" }); return { app: P.app, nom: P.nom, url: c.fn, ms: Date.now() - t0, serveur: r.enregistrements, heure: r.heure, curseur: B.cursor, amorce: !!B.boot, erreurs: st.erreurs.slice() };
+  }
+
+  /* ----- Actions ----- */
+  async function envoyerTout() { var c = conf(); if (!c) throw new Error("Synchronisation non configurée"); if (!B.boot) { if (!(await amorcer(c))) throw new Error(st.err || "Première synchronisation refusée"); } var res = await pousser(c, true); if (res === "restaurer") await amorcer(c); st.etat = "ok"; st.dernier = Date.now(); majBadge(); return diagnostic(); }
+  async function recupererTout() { var c = conf(); if (!c) throw new Error("Synchronisation non configurée"); if (!B.boot) { if (!(await amorcer(c))) throw new Error(st.err || "Première synchronisation refusée"); } await tirer(c, true); st.etat = "ok"; st.dernier = Date.now(); majBadge(); return diagnostic(); }
+  async function resynchro() { await recupererTout(); return envoyerTout(); }
+  async function reessayer() { await cycle(); return diagnostic(); }
+  async function purgerCache() {
+    var nb = file().length;
+    [P.cle, "angels_sync_base_" + P.app].concat(P.derives || []).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { } });
+    B = { cursor: 0, map: {}, boot: false }; try { sessionStorage.clear(); } catch (e) { }
+    if (P.badge) setTimeout(function () { location.reload(); }, 300);
+    return { purge: true, perdues: nb };
+  }
+  function lancer(action) {
+    switch (action) {
+      case "diagnostic": charger(); return diagnostic();
+      case "file": charger(); return Promise.resolve(file());
+      case "ecart": charger(); return ecart();
+      case "cloud": charger(); return infoCloud();
+      case "envoyerTout": return envoyerTout();
+      case "recupererTout": return recupererTout();
+      case "resynchro": return resynchro();
+      case "reessayer": return reessayer();
+      case "purgerCache": return purgerCache();
+    }
+    return Promise.reject(new Error("Action inconnue"));
+  }
+  return { cycle: cycle, signal: signal, demarrer: demarrer, lancer: lancer, charger: charger, etat: function () { return { busy: st.busy, etat: st.etat, dernier: st.dernier, err: st.err, actif: !!conf(), base: B, trop: st.trop.slice(), doublons: st.doublons.slice() }; } };
+  }
+
+  var M = null;
+  var LECTURE = { diagnostic: 1, file: 1, ecart: 1, cloud: 1 };
+  /* Commande depuis le Hub : une application ouverte dans un onglet exécute elle-même l'action (elle détient l'état en mémoire) ; sinon le Hub l'exécute sur les données de l'appareil. */
+  function commande(app, action) {
+    var prof = PROFILS[app]; if (!prof) return Promise.reject(new Error("Application inconnue"));
+    function sansEcran() {
+      var S = null, pm = Object.assign({ app: app }, prof);
+      var m2 = Moteur(Object.assign(pm, { get: function () { return S || (S = (function () { try { return JSON.parse(localStorage.getItem(prof.cle) || "null") || {}; } catch (e) { return {}; } })()); }, persist: function () { try { localStorage.setItem(prof.cle, JSON.stringify(S)); } catch (e) { } } }));
+      m2.charger(); return m2.lancer(action).then(function (r) { return r; });
+    }
+    if (LECTURE[action] || typeof BroadcastChannel === "undefined") return sansEcran();
+    return new Promise(function (res, rej) {
+      var id = "c" + Date.now() + Math.random().toString(36).slice(2, 6), ch = new BroadcastChannel("angels_sync_cmd"), present = false, fini = false;
+      function fin(f, v) { if (fini) return; fini = true; try { ch.close(); } catch (e) { } f(v); }
+      ch.onmessage = function (ev) { var m = ev.data || {}; if (m.rep !== id) return; if (!present) { present = true; clearTimeout(t); ch.postMessage({ id: id + "x", app: app, action: action }); id = id + "x"; return; } if (m.ok) fin(res, m.data); else fin(rej, new Error(m.err || "Échec")); };
+      ch.postMessage({ id: id, app: app, action: "ping" });
+      var t = setTimeout(function () { if (present) return; sansEcran().then(function (v) { fin(res, v); }, function (e) { fin(rej, e); }); }, 700);
+    });
+  }
+  G.ANGELS_SYNC = {
+    PROFILS: PROFILS, commande: commande,
+    init: function (o) { M = Moteur(Object.assign({}, PROFILS[o.app] || {}, o, { badge: true })); M.demarrer(); },
+    signal: function () { if (M) M.signal(); }, cycle: function () { return M ? M.cycle() : Promise.resolve(); },
+    etat: function () { return M ? M.etat() : { etat: "inactif", actif: false, base: { cursor: 0, map: {}, boot: false } }; },
+    actif: function () { var u = null, s = null; try { u = JSON.parse(localStorage.getItem("angels_supabase") || "null"); s = JSON.parse(localStorage.getItem("angels_sync") || "null"); } catch (e) { } var def = G.ANGELS_PASSERELLE || {}, url = (u && u.off) ? "" : (u && u.url) || def.url || ""; return !!(s && s.actif && s.cle && /^https:\/\//.test(url)); }
+  };
 })(window);
