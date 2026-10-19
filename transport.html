@@ -100,6 +100,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="roles-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
+<script src="tiers-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
@@ -2369,7 +2370,7 @@ A["dp.rej"]=id=>{if(atomic(()=>validerDepense(id,null,false)))render()};
 const dcLine=l=>`${l.debit?fcfa(l.debit):""}`,ccLine=l=>`${l.credit?fcfa(l.credit):""}`;
 V.compta=()=>{
  const t=tabOf("compta","ecritures"),f=UI.f.ec||(UI.f.ec={j:"",p:today().slice(0,7)});
- let h=head("Comptabilité générale")+`<div class="note">Plan comptable SYSCOHADA révisé (comptes imputables uniquement) — à valider par le comptable de l'entreprise avant toute utilisation en production.</div>`+tabs("compta",[["ecritures","Écritures"],["brouillard","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["plan","Plan comptable"],["regles","🤖 Compta automatique"],["ana","📐 Analytique par activité"],["journaux","Journaux"],["budgets","💰 Budgets"],["bq","🏦 Rapprochement bancaire"],["exo","🔒 Clôture d'exercice"],["cd","⚙️ Comptes par défaut"]]);
+ let h=head("Comptabilité générale")+`<div class="note">Plan comptable SYSCOHADA révisé (comptes imputables uniquement) — à valider par le comptable de l'entreprise avant toute utilisation en production.</div>`+tabs("compta",[["ecritures","Écritures"],["brouillard","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["plan","Plan comptable"],["regles","🤖 Compta automatique"],["ana","📐 Analytique par activité"],["journaux","Journaux"],["budgets","💰 Budgets"],["bq","🏦 Rapprochement bancaire"],["rel","👤 Relevé de compte"],["exo","🔒 Clôture d'exercice"],["cd","⚙️ Comptes par défaut"]]);
  if(t==="ecritures"){
   const list=S.entries.filter(e=>(!f.j||e.journal===f.j)&&(!f.p||per(e.date)===f.p)&&(!f.o||(f.o==="auto"?!(e.source&&e.source.type==="manual"):(e.source&&e.source.type==="manual")))).sort((a,b)=>b.date.localeCompare(a.date)||b.numero.localeCompare(a.numero));
   h+=`<div class="card flex"><select data-f="ec:o" style="width:auto">${opt([["auto","Automatiques"],["manuelle","Manuelles (visées)"]],f.o,"Toutes origines")}</select><select data-f="ec:j" style="width:auto">${opt(JOURNAUX,f.j,"Tous journaux")}</select><input type="month" data-f="ec:p" value="${f.p}" style="width:auto">${can("compta","c")?`<button class="btn" data-a="od.new">+ Écriture manuelle</button>`:""}${csvBtn("compta","ecritures")}</div>`+
@@ -2378,6 +2379,7 @@ V.compta=()=>{
  if(t==="brouillard"){const tot=b=>sum(b.lines,l=>l.debit||0);
   h+=`<div class="flex" style="margin-bottom:10px">${can("compta","c")?`<button class="btn" data-a="od.new">➕ Nouvelle écriture manuelle</button>`:""}</div>`+tbl(["Date","Journal","Libellé","Lignes","Débit","Crédit","Saisi par",""],S.brouillard.map(b=>{const d=sum(b.lines,l=>l.debit),c=sum(b.lines,l=>l.credit);return tr([fd(b.date),esc(b.journal),esc(b.libelle),b.lines.length,fcfa(d),fcfa(c)+(d!==c?" "+badge("Déséquilibrée","er"):""),esc(b.par),`<div class="flex">${btn("bo.det",b.id,"Détail","ghost")}${can("compta","a")?btn("bo.vis",b.id,"✅ Viser","ok"):""}${can("compta","c")?btn("bo.del",b.id,"Supprimer","er"):""}</div>`])}),"Aucune écriture en brouillard")+`<div class="sm mu">Une écriture manuelle reste en brouillard jusqu'à son visa par un autre utilisateur (séparation des tâches). Le visa vérifie l'équilibre, les comptes et la période ouverte. Une écriture visée est définitive : correction par extourne.</div>`}
  if(t==="bq")h+=bqUI();
+ if(t==="rel")h+=ANGELS_TIERS.view(TIERS_HOST);
  if(t==="exo")h+=exoUI();
  if(t==="cd"){const w=can("compta","a"),c=S.settings.comptes||{};
   h+=`<div class="sm mu" style="margin-bottom:8px">Aucune valeur n'est codée en dur : chaque écriture automatique prend ses comptes ici. Si un compte est vide ou inconnu du plan, l'opération est bloquée. Un code inexistant est créé automatiquement au plan (à affiner). Un compte de bilan déjà mouvementé ne peut plus être changé (reclasser par écriture).</div>`+
@@ -3753,6 +3755,11 @@ const RH_HOST={division:"transport",matPrefixe:"TRA",actDefaut:"admin",state:()=
   extourner:(id,motif)=>{const e=by(S.entries,id);if(!e)throw new Error("Écriture de paie introuvable.");extourner(e,motif)},
   treso:(mode,m,sens,motif,src)=>{const t=vnTreso(mode,m,sens);if(t.cs)S.cash_mv.push({id:uid("cm"),session_id:t.cs.id,date:now(),sens,montant:m,categorie:"Personnel et paie",motif,statut:"validee",source:src,par:ME.nom});return{compte:t.compte,journal:t.journal}}}};
 ANGELS_RH.use(RH_HOST);
+/* ---------- Comptes de tiers : relevé de compte individuel et ancienneté par pièce (moteur tiers-engine.js) ---------- */
+const TIERS_HOST={division:"transport",can:a=>can("compta",a==="p"?"p":"v"),user:()=>ME?ME.nom:"système",render:()=>render(),util:{fcfa},audit:(a,d)=>audit(a,d),identite:()=>prtFb(),aller:()=>{view="compta";UI.tab.compta="rel";render()},
+ comptes:()=>{const dft=["client","fournisseur"].map(k=>{try{return cdef(k)}catch(e){return null}});return cptsTiers().filter(num=>dft.includes(num)||lignesTiers(num).some(x=>x.l.tiers)).map(num=>{const a=by(S.accounts,num,"num")||{};return{compte:num,lib:a.nom||num,nature:num.slice(0,2)==="41"?"D":"C"}})},
+ lignes:compte=>lignesTiers(compte).map(x=>{const o=x.l.ob&&by(S.obligations,x.l.ob);return{k:x.ref,date:x.e.date,piece:x.e.piece||x.e.numero||"",libelle:x.e.libelle||"",journal:x.e.journal||"",debit:x.l.debit||0,credit:x.l.credit||0,tiers:x.l.tiers||"",tn:x.l.tiers?(tiersDe(x.l.tiers).nom||x.l.tiers):"(sans tiers)",lettre:x.l.lettre||"",echeance:(o&&o.date_ech&&(x.l.debit||0)>0)?o.date_ech:""}})};
+ANGELS_TIERS.use(TIERS_HOST);
 V.rh=()=>head("Ressources humaines et paie")+ANGELS_RH.view(RH_HOST);
 
 /* ---------- Navigation, rendu, événements ---------- */
