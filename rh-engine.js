@@ -6,7 +6,7 @@
   "use strict";
   /* ---------- Paramètres de paie (valeurs de Menko, modifiables par application) ---------- */
   var PAIE_DEF = {
-    joursMois: 30, smig: 75000, ricfParPart: 11000,
+    joursMois: 30, majHS: 0.25, smig: 75000, ricfParPart: 11000,
     bareme: [[0, 75000, 0], [75000, 240000, 0.16], [240000, 800000, 0.21], [800000, 2400000, 0.24], [2400000, 8000000, 0.28], [8000000, 1e15, 0.32]],
     cnpsSal: 0.063, cnpsPat: 0.077, plafondRetraite: 3375000, tauxAT: 0.05, tauxPF: 0.0575, plafondATPF: 75000,
     itsPat: 0.012, fdfpTA: 0.004, fdfpFC: 0.006, fdfpRegul: 0.006, cmuSal: 500, cmuPat: 500, transportExo: 30000, congeParMois: 2.2
@@ -38,7 +38,7 @@
     var S = H.state();
     S.rh = S.rh || {};
     var r = S.rh; r.v = 1;
-    ["employes", "variables", "avances", "conges", "paies", "reversements", "historique"].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = []; });
+    ["employes", "variables", "avances", "conges", "paies", "reversements", "historique", "pointages", "formations", "postes", "candidats", "missions", "mobilites", "declarations"].forEach(function (k) { if (!Array.isArray(r[k])) r[k] = []; });
     r.params = r.params || {}; r.seq = r.seq || {};
     return r;
   }
@@ -309,6 +309,9 @@
       var imp = x.bulletins.filter(function (b) { return !b.paye && b.calc.net > 0; }).length; if (imp) A.push({ k: "wa", m: "Paie " + libMois(x.mois) + " : " + imp + " salaire(s) à payer." });
       ["cnps", "its", "fdfp"].forEach(function (o) { var d = dus(x.mois)[o], pay = sum(r.reversements.filter(function (y) { return y.mois === x.mois && y.org === o && !y.annule; }), function (y) { return y.montant; }); if (d - pay > 0 && t > addJ(dernierJour(x.mois), 15)) A.push({ k: "er", m: ORGS[o][0] + " " + libMois(x.mois) + " : " + fcfa(d - pay) + " à reverser (échéance dépassée)." }); });
     });
+    r.paies.filter(function (x) { return x.statut !== "brouillon"; }).forEach(function (x) { Object.keys(DST).forEach(function (o) { if (t > echeance(x.mois) && (dus(x.mois)[o] || 0) > 0 && !declDe(o, x.mois)) A.push({ k: "wa", m: "Déclaration " + DST[o] + " de " + libMois(x.mois) + " non enregistrée (échéance " + fd(echeance(x.mois)) + ")." }); }); });
+    r.missions.filter(function (m) { return m.statut === "valide" && m.fin < t; }).forEach(function (m) { A.push({ k: "wa", m: "Mission " + m.numero + " terminée le " + fd(m.fin) + " : à clôturer (frais réels)." }); });
+    r.candidats.filter(function (c) { return c.statut === "entretien" && c.entretien && c.entretien < t; }).forEach(function (c) { A.push({ k: "wa", m: "Candidat " + c.nom + " : entretien du " + fd(c.entretien) + " passé, décision à prendre." }); });
     r.conges.filter(function (c) { return c.statut === "demande"; }).forEach(function (c) { A.push({ k: "wa", m: "Demande de congé à traiter : " + empNom(by(r.employes, c.emp_id) || {}) + " du " + fd(c.debut) + " au " + fd(c.fin) + "." }); });
     return A;
   }
@@ -322,7 +325,7 @@
     ".rh-w select,.rh-w input:not([type=checkbox]){width:auto;max-width:100%}.rh-n{background:var(--card,#fff);border:1px solid var(--bd,#d5dbe3);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;color:var(--mu,#5b6572)}.rh-w{overflow:auto}.rh-w table{width:100%;border-collapse:collapse;font-size:13px}.rh-w th,.rh-w td{border-bottom:1px solid var(--bd,#d5dbe3);padding:6px 8px;text-align:left;vertical-align:top;white-space:nowrap}.rh-w th{font-size:12px;color:var(--mu,#5b6572)}" +
     ".rh-b{font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--bd,#d5dbe3);background:var(--card,#fff);color:var(--tx,#1c2430);cursor:pointer}.rh-b.p{background:var(--b2,#1f3a5f);color:#fff;border-color:var(--b2,#1f3a5f)}.rh-b.er{color:#b3261e;border-color:#b3261e}.rh-b.ok{background:#1f8a4c;color:#fff;border-color:#1f8a4c}.rh-bd{display:inline-block;border-radius:99px;padding:1px 8px;font-size:12px;border:1px solid var(--bd,#d5dbe3)}.rh-bd.ok{border-color:#1f8a4c;color:#1f8a4c}.rh-bd.wa{border-color:#b26a00;color:#b26a00}.rh-bd.er{border-color:#b3261e;color:#b3261e}";
   function css() { if (document.getElementById("rh-css")) return; var s = document.createElement("style"); s.id = "rh-css"; s.textContent = CSS; document.head.appendChild(s); }
-  var TABS = [["tableau", "Tableau de bord"], ["employes", "Employés"], ["conges", "Congés"], ["paie", "Paie du mois"], ["charges", "Cotisations"], ["livre", "Livre de paie"], ["params", "Paramètres de paie"]];
+  var TABS = [["tableau", "Cockpit RH"], ["employes", "Employés"], ["pointage", "Pointage"], ["conges", "Congés"], ["mobilite", "Mobilité et missions"], ["formations", "Formations"], ["recrutement", "Recrutement"], ["paie", "Paie du mois"], ["charges", "Cotisations"], ["declarations", "Déclarations"], ["livre", "Livre de paie"], ["params", "Paramètres de paie"]];
   var UIS = { tab: "tableau", mois: moisCle(today()), q: "", inactifs: false };
   var kpi = function (v, l) { return "<div><b>" + v + "</b><span>" + esc(l) + "</span></div>"; };
   var bd = function (t, c) { return '<span class="rh-bd ' + (c || "") + '">' + esc(t) + "</span>"; };
@@ -349,7 +352,7 @@
     return '<div class="rh-w" style="margin:8px 0">' + btn("back", "", "← Employés") + btn("doc.contrat", e.id, "Contrat de travail") + btn("doc.attestation", e.id, "Attestation de travail") + (empActif(e) ? "" : btn("doc.certificat", e.id, "Certificat de travail")) + (H.can("c") && empActif(e) ? btn("av.add", e.id, "Avance sur salaire") : "") + (H.can("e") && empActif(e) ? btn("emp.sortie", e.id, "Enregistrer la sortie", "er") : "") + (H.can("a") && !empActif(e) ? btn("emp.reint", e.id, "Réintégrer") : "") + "</div>" +
       "<h3>" + esc(empNom(e)) + " — " + esc(e.mat) + "</h3><div class=\"rh-k\">" + kpi(fcfa(e.sal_base + (e.sursalaire || 0)), "Salaire (base + sursalaire)") + kpi(sc.reste + " j", "Congés disponibles (" + sc.acquis + " acquis, " + sc.pris + " pris)") + kpi(avanceDue(e.id) ? fcfa(avanceDue(e.id)) : "0 F", "Avances à récupérer") + kpi(e.parts, "Parts fiscales") + "</div>" +
       "<p>" + esc(e.poste || "") + " · " + esc(e.contrat) + " depuis le " + fd(e.embauche) + (e.fin_contrat ? " jusqu'au " + fd(e.fin_contrat) : "") + " · " + esc(e.tel || "pas de téléphone") + (e.cni ? " · CNI " + esc(e.cni) : "") + (H.comptes ? " · compte : " + (compteDe(e) ? "<b>" + esc(compteDe(e).nom) + "</b> (" + esc(compteDe(e).role || "") + (compteDe(e).actif ? "" : ", désactivé") + ")" : "aucun") : "") + "</p>" +
-      "<h3>Historique de rémunération</h3>" + tbl(["Effet", "Base", "Sursalaire", "Motif", "Par"], h.map(function (x) { return [fd(x.from), fcfa(x.sal_base), fcfa(x.sursalaire), esc(x.motif), esc(x.par)]; })) +
+      (rh().formations.filter(function (f) { return f.participants.indexOf(e.id) >= 0 && f.statut !== "annule"; }).length ? "<h3>Formations</h3>" + tbl(["Formation", "Période", "Heures", "Statut"], rh().formations.filter(function (f) { return f.participants.indexOf(e.id) >= 0 && f.statut !== "annule"; }).map(function (f) { return [esc(f.titre), fd(f.debut), f.heures || "—", bd((FST[f.statut] || [f.statut])[0], (FST[f.statut] || [0, ""])[1])]; })) : "") + (rh().mobilites.filter(function (m) { return m.emp_id === e.id; }).length ? "<h3>Mobilité</h3>" + tbl(["Effet", "Mouvement", "Poste", "Salaire"], rh().mobilites.filter(function (m) { return m.emp_id === e.id; }).map(function (m) { return [fd(m.date_effet), esc(m.type), esc(m.apres.poste || ""), fcfa(m.apres.sal_base)]; })) : "") + "<h3>Historique de rémunération</h3>" + tbl(["Effet", "Base", "Sursalaire", "Motif", "Par"], h.map(function (x) { return [fd(x.from), fcfa(x.sal_base), fcfa(x.sursalaire), esc(x.motif), esc(x.par)]; })) +
       "<h3>Bulletins</h3>" + tbl(["Mois", "N°", "Brut", "Retenues", "Net", "Payé", ""], rh().paies.filter(function (p) { return p.statut !== "brouillon"; }).sort(function (a, b) { return b.mois.localeCompare(a.mois); }).map(function (p) { var b = p.bulletins.filter(function (x) { return x.emp_id === e.id; })[0]; return b ? [esc(libMois(p.mois)), esc(b.no), fcfa(b.calc.brut), fcfa(b.calc.totalRetenues), "<b>" + fcfa(b.calc.net) + "</b>", b.paye ? bd("payé " + fd(b.paye_le), "ok") : bd("à payer", "wa"), btn("bul", p.mois + "|" + e.id, "Bulletin")] : null; }).filter(Boolean), "Aucun bulletin.");
   }
   function vConges() {
@@ -385,11 +388,11 @@
   }
   function vParams() {
     var p = P(), r = rh();
-    return '<div class="rh-n">Barèmes et taux repris du module de paie de Menko : à valider avec votre expert-comptable avant la première paie réelle. Les modifications s\'appliquent aux paies non encore validées.</div><div class="rh-g">' + [["smig", "SMIG mensuel (F)"], ["tauxAT", "Taux accident du travail (ex. 0,02 à 0,05)"], ["cnpsSal", "CNPS retraite — part salariale"], ["cnpsPat", "CNPS retraite — part patronale"], ["tauxPF", "CNPS prestations familiales"], ["plafondRetraite", "Plafond mensuel retraite (F)"], ["plafondATPF", "Plafond AT et PF (F)"], ["itsPat", "ITS patronal"], ["fdfpTA", "FDFP — taxe d'apprentissage"], ["fdfpFC", "FDFP — formation continue"], ["fdfpRegul", "FDFP — régularisation"], ["cmuSal", "CMU salariale (F / personne)"], ["cmuPat", "CMU patronale (F / personne)"], ["transportExo", "Prime de transport exonérée (plafond, F)"], ["congeParMois", "Jours de congé acquis par mois"]].map(function (x) { return "<label>" + esc(x[1]) + '<input data-rh-par="' + x[0] + '" value="' + esc(p[x[0]]) + '" ' + (H.can("a") ? "" : "disabled") + "></label>"; }).join("") + "</div>" + (H.can("a") ? '<div class="rh-f">' + btn("par.save", "", "Enregistrer les paramètres", "p") + btn("par.reset", "", "Valeurs par défaut") + "</div>" : "") + "<h3>Barème ITS mensuel</h3>" + tbl(["De", "À", "Taux"], p.bareme.map(function (t) { return [fcfa(t[0]), t[1] > 1e12 ? "—" : fcfa(t[1]), (t[2] * 100).toFixed(0) + " %"]; })) + "<h3>Journal des opérations RH</h3>" + tbl(["Date", "Utilisateur", "Opération", "Détail"], r.historique.slice(0, 40).map(function (x) { return [fd(x.t), esc(x.u), esc(x.a), esc(x.d)]; }), "Aucune opération.");
+    return '<div class="rh-n">Barèmes et taux repris du module de paie de Menko : à valider avec votre expert-comptable avant la première paie réelle. Les modifications s\'appliquent aux paies non encore validées.</div><div class="rh-g">' + [["smig", "SMIG mensuel (F)"], ["majHS", "Majoration des heures supplémentaires (ex. 0,25 = +25 %)"], ["tauxAT", "Taux accident du travail (ex. 0,02 à 0,05)"], ["cnpsSal", "CNPS retraite — part salariale"], ["cnpsPat", "CNPS retraite — part patronale"], ["tauxPF", "CNPS prestations familiales"], ["plafondRetraite", "Plafond mensuel retraite (F)"], ["plafondATPF", "Plafond AT et PF (F)"], ["itsPat", "ITS patronal"], ["fdfpTA", "FDFP — taxe d'apprentissage"], ["fdfpFC", "FDFP — formation continue"], ["fdfpRegul", "FDFP — régularisation"], ["cmuSal", "CMU salariale (F / personne)"], ["cmuPat", "CMU patronale (F / personne)"], ["transportExo", "Prime de transport exonérée (plafond, F)"], ["congeParMois", "Jours de congé acquis par mois"]].map(function (x) { return "<label>" + esc(x[1]) + '<input data-rh-par="' + x[0] + '" value="' + esc(p[x[0]]) + '" ' + (H.can("a") ? "" : "disabled") + "></label>"; }).join("") + "</div>" + (H.can("a") ? '<div class="rh-f">' + btn("par.save", "", "Enregistrer les paramètres", "p") + btn("par.reset", "", "Valeurs par défaut") + "</div>" : "") + "<h3>Barème ITS mensuel</h3>" + tbl(["De", "À", "Taux"], p.bareme.map(function (t) { return [fcfa(t[0]), t[1] > 1e12 ? "—" : fcfa(t[1]), (t[2] * 100).toFixed(0) + " %"]; })) + "<h3>Journal des opérations RH</h3>" + tbl(["Date", "Utilisateur", "Opération", "Détail"], r.historique.slice(0, 40).map(function (x) { return [fd(x.t), esc(x.u), esc(x.a), esc(x.d)]; }), "Aucune opération.");
   }
   function view(host) {
     H = host; css(); G.ANGELS_RH.host = host; if (H.migrer && H.can("v")) { try { H.migrer(rh()); } catch (e) { } } if (!H.can("v")) return '<div class="rh-n">Accès aux ressources humaines non autorisé pour votre profil.</div>';
-    var body = UIS.fiche && by(rh().employes, UIS.fiche) ? vFiche(by(rh().employes, UIS.fiche)) : ({ tableau: vTableau, employes: vEmployes, conges: vConges, paie: vPaie, charges: vCharges, livre: vLivre, params: vParams }[UIS.tab] || vTableau)();
+    var body = UIS.fiche && by(rh().employes, UIS.fiche) ? vFiche(by(rh().employes, UIS.fiche)) : ({ tableau: vCockpit, employes: vEmployes, pointage: vPointage, conges: vConges, mobilite: vMobilite, formations: vFormations, recrutement: vRecrutement, paie: vPaie, charges: vCharges, declarations: vDeclarations, livre: vLivre, params: vParams }[UIS.tab] || vCockpit)();
     return '<div class="rh-root"><div class="rh-t">' + TABS.map(function (t) { return '<button type="button" class="' + (UIS.tab === t[0] && !UIS.fiche ? "on" : "") + '" data-rh="tab" data-id="' + t[0] + '">' + t[1] + "</button>"; }).join("") + "</div>" + body + "</div>";
   }
 
@@ -398,7 +401,7 @@
     var ov = document.createElement("div"); ov.className = "rh-ov";
     var f = fields.map(function (x) {
       var o = typeof x.o === "function" ? x.o() : x.o, sec = x.sec ? '<div class="sec">' + esc(x.sec) + "</div>" : "", v = init && init[x.k] != null ? init[x.k] : "", c = x.full || x.t === "area" ? ' class="full"' : "";
-      var inp = x.t === "select" ? '<select name="' + x.k + '">' + o.map(function (y) { return '<option value="' + esc(y[0]) + '" ' + (String(y[0]) === String(v) ? "selected" : "") + ">" + esc(y[1]) + "</option>"; }).join("") + "</select>" : x.t === "area" ? '<textarea name="' + x.k + '" rows="2">' + esc(v) + "</textarea>" : '<input name="' + x.k + '" type="' + (x.t || "text") + '" ' + (x.t === "number" ? 'step="any"' : "") + ' value="' + esc(v) + '" autocomplete="off">';
+      var inp = x.t === "multi" ? '<div style="max-height:150px;overflow:auto;border:1px solid var(--bd,#d5dbe3);border-radius:8px;padding:6px;margin-top:3px">' + o.map(function (y) { return '<label style="display:block;margin:0"><input type="checkbox" name="' + x.k + '" value="' + esc(y[0]) + '" style="width:auto;margin:0 6px 0 0" ' + ((Array.isArray(v) ? v : []).indexOf(y[0]) >= 0 ? "checked" : "") + ">" + esc(y[1]) + "</label>"; }).join("") + "</div>" : x.t === "select" ? '<select name="' + x.k + '">' + o.map(function (y) { return '<option value="' + esc(y[0]) + '" ' + (String(y[0]) === String(v) ? "selected" : "") + ">" + esc(y[1]) + "</option>"; }).join("") + "</select>" : x.t === "area" ? '<textarea name="' + x.k + '" rows="2">' + esc(v) + "</textarea>" : '<input name="' + x.k + '" type="' + (x.t || "text") + '" ' + (x.t === "number" ? 'step="any"' : "") + ' value="' + esc(v) + '" autocomplete="off">';
       return sec + "<label" + c + ">" + esc(x.l) + (x.req ? " *" : "") + inp + (x.h ? '<small style="display:block;color:var(--mu,#5b6572)">' + esc(x.h) + "</small>" : "") + "</label>";
     }).join("");
     ov.innerHTML = '<div class="rh-bx" role="dialog"><h3>' + esc(title) + '</h3><form novalidate><div class="rh-g">' + f + '</div><div class="rh-f"><button type="button" class="rh-b" data-x="1">Annuler</button><button class="rh-b p">' + esc(ok || "Valider") + "</button></div></form></div>";
@@ -406,7 +409,7 @@
     ov.querySelectorAll("[data-x]").forEach(function (b) { b.onclick = function () { ov.remove(); }; }); ov.onmousedown = function (e) { if (e.target === ov) ov.remove(); };
     fm.onsubmit = function (e) {
       e.preventDefault(); var o = {}, bad = null;
-      fields.forEach(function (x) { var v = fm.elements[x.k].value.trim(); if (x.req && v === "" && !bad) bad = x.l + " requis."; o[x.k] = x.t === "number" ? (v === "" ? (x.blank ? "" : 0) : +v) : v; });
+      fields.forEach(function (x) { if (x.t === "multi") { o[x.k] = Array.prototype.map.call(fm.querySelectorAll('input[name="' + x.k + '"]:checked'), function (i) { return i.value; }); return; } var v = fm.elements[x.k].value.trim(); if (x.req && v === "" && !bad) bad = x.l + " requis."; o[x.k] = x.t === "number" ? (v === "" ? (x.blank ? "" : 0) : +v) : v; });
       if (bad) return alert(bad);
       var r = H.run(function () { return onSave(o); }); if (r !== false) { ov.remove(); after(); }
     };
@@ -416,7 +419,7 @@
   function after() { publier(); H.render(); }
   var empOpts = function (act) { return rh().employes.filter(function (e) { return !act || empActif(e); }).map(function (e) { return [e.id, e.mat + " · " + empNom(e)]; }); };
   var OUINON = [["oui", "Oui"], ["non", "Non"]];
-  function formEmploye(e) {
+  function formEmploye(e, preset, onDone) {
     var acts = H.acts ? H.acts() : null, F = [
       { k: "nom", l: "Nom", req: 1, sec: "Identité" }, { k: "prenoms", l: "Prénoms" }, { k: "sexe", l: "Sexe", t: "select", o: [["", "—"], ["M", "Masculin"], ["F", "Féminin"]] }, { k: "naissance", l: "Date de naissance", t: "date" }, { k: "cni", l: "N° CNI / pièce" }, { k: "tel", l: "Téléphone" }, { k: "adresse", l: "Adresse", full: 1 },
       { k: "poste", l: "Poste / fonction", sec: "Emploi" }, { k: "categorie", l: "Catégorie (grille)" }, { k: "dept", l: "Service / département" }, { k: "contrat", l: "Type de contrat", t: "select", o: TYPES_CTR }, { k: "embauche", l: "Date d'embauche", t: "date", req: 1 }, { k: "fin_contrat", l: "Fin de contrat (CDD)", t: "date" }].concat(acts ? [{ k: "act", l: "Activité (comptabilité analytique)", t: "select", o: acts }] : []).concat([
@@ -426,8 +429,8 @@
       { k: "mode_paie", l: "Mode de paiement du salaire", t: "select", o: MODES, sec: "Paiement" }, { k: "compte_paie", l: "Compte bancaire / n° Mobile Money" }]).concat(H.comptes ? [{ k: "user_id", l: "Compte utilisateur (facultatif)", t: "select", sec: "Accès à l'application", h: "Relie la fiche au compte de connexion de cette personne. Un compte ne peut être lié qu'à un seul employé en poste.",
       o: [["", "— aucun —"]].concat(comptes().filter(function (c) { return !ficheDe(c.id) || (e && ficheDe(c.id).id === e.id); }).map(function (c) { return [c.id, c.nom + " (" + (c.role || "") + ")" + (c.actif ? "" : " — désactivé")]; })) }] : []);
     if (e) F.push({ k: "effet", l: "Date d'effet du changement de salaire", t: "date", sec: "Modification" }, { k: "motif_sal", l: "Motif du changement de salaire" });
-    var init = e ? Object.assign({}, e, { anc_auto: e.anc_auto === false ? "non" : "oui", declare: e.declare === false ? "non" : "oui", effet: today() }) : { contrat: "CDI", embauche: today(), anc_auto: "oui", declare: "oui", parts: 1, cmu_pers: 1, mode_paie: "banque", act: acts ? (H.actDefaut || acts[0][0]) : "" };
-    form(e ? "Modifier " + empNom(e) : "Nouvel employé", F, init, function (o) { saveEmploye(Object.assign({}, o, { id: e && e.id, derog_smig: o.sal_base < P().smig && confirm("Le salaire de base est inférieur au SMIG (" + fcfa(P().smig) + "). Confirmer la dérogation ?") })); }, e ? "Enregistrer" : "Créer la fiche");
+    var init = e ? Object.assign({}, e, { anc_auto: e.anc_auto === false ? "non" : "oui", declare: e.declare === false ? "non" : "oui", effet: today() }) : Object.assign({ contrat: "CDI", embauche: today(), anc_auto: "oui", declare: "oui", parts: 1, cmu_pers: 1, mode_paie: "banque", act: acts ? (H.actDefaut || acts[0][0]) : "" }, preset || {});
+    form(e ? "Modifier " + empNom(e) : "Nouvel employé", F, init, function (o) { var emp = saveEmploye(Object.assign({}, o, { id: e && e.id, derog_smig: o.sal_base < P().smig && confirm("Le salaire de base est inférieur au SMIG (" + fcfa(P().smig) + "). Confirmer la dérogation ?") })); if (onDone) onDone(emp); }, e ? "Enregistrer" : "Créer la fiche");
   }
 
   /* ---------- Impression (moteur partagé ANGELS_PRINT) ---------- */
@@ -470,8 +473,254 @@
   function csv(k) {
     need("p"); var r = rh(), p = k.split("|");
     if (p[0] === "employes") return csvOut("employes", ["Matricule", "Nom", "Prénoms", "Poste", "Contrat", "Embauche", "Fin contrat", "Salaire base", "Sursalaire", "N° CNPS", "Déclaré CNPS", "Sortie"], r.employes.map(function (e) { return [e.mat, e.nom, e.prenoms, e.poste, e.contrat, e.embauche, e.fin_contrat, e.sal_base, e.sursalaire, e.cnps_no, e.declare === false ? "non" : "oui", e.sortie ? e.sortie.date : ""]; }));
+    if (p[0] === "pointage") return csvOut("pointage-" + p[1], ["Matricule", "Salarié", "Date", "Statut", "H. supp.", "Note"], r.pointages.filter(function (x) { return x.date.slice(0, 7) === p[1]; }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (x) { var e = empDeId(x.emp_id); return [e.mat, empNom(e), x.date, ptLib(x.statut)[1], x.hs, x.note]; }));
+    if (p[0] === "formations") return csvOut("formations", ["Formation", "Type", "Organisme", "Début", "Fin", "Heures", "Participants", "Coût", "FDFP", "Montant FDFP", "Statut"], r.formations.map(function (f) { return [f.titre, f.type, f.organisme, f.debut, f.fin, f.heures, f.participants.map(function (i) { return empNom(empDeId(i)); }).join(", "), f.cout, f.fdfp, f.fdfp_montant, (FST[f.statut] || [f.statut])[0]]; }));
+    if (p[0] === "mobilite") return csvOut("mobilite", ["Effet", "Employé", "Mouvement", "Poste avant", "Poste après", "Salaire avant", "Salaire après", "Motif", "Décision"], r.mobilites.map(function (m) { return [m.date_effet, empNom(empDeId(m.emp_id)), m.type, m.avant.poste, m.apres.poste, m.avant.sal_base, m.apres.sal_base, m.motif, m.ref]; }));
+    if (p[0] === "missions") return csvOut("ordres-de-mission", ["N°", "Objet", "Destination", "Début", "Fin", "Chef", "Équipe", "Frais prévus", "Frais réels", "Statut"], r.missions.map(function (m) { return [m.numero, m.objet, m.destination, m.debut, m.fin, empNom(empDeId(m.chef)), m.equipe.map(function (i) { return empNom(empDeId(i)); }).join(", "), m.frais, m.frais_reels == null ? "" : m.frais_reels, (MST[m.statut] || [m.statut])[0]]; }));
     if (p[0] === "paie") { var pa = paieDe(p[1]); return csvOut("paie-" + p[1], ["Matricule", "Salarié", "Jours", "Brut imposable", "Brut", "CNPS salarié", "ITS", "CMU salarié", "Avances", "Retenues", "Net", "CNPS patronal", "ITS patronal", "FDFP", "CMU patronal", "Coût"], (pa ? pa.bulletins : []).map(function (b) { var c = b.calc; return [b.mat, b.nom, c.jours, c.brutImposable, c.brut, c.cnpsSal, c.its, c.cmuSal, c.avance, c.retenues, c.net, c.cnpsRetPat + c.cnpsAT + c.cnpsPF, c.itsPat, fdfpTotal(c), c.cmuPat, c.cout]; })); }
     if (p[0] === "decl") { var pb = paieDe(p[1]); if (!pb) return; if (p[2] === "cnps") return csvOut("bordereau-cnps-" + p[1], ["Matricule", "N° CNPS", "Salarié", "Base cotisable", "Retraite salariale", "Retraite patronale", "Prestations familiales", "Accident du travail", "CMU"], pb.bulletins.filter(function (b) { return !b.calc.exoCnps; }).map(function (b) { var c = b.calc, e = by(r.employes, b.emp_id) || {}; return [b.mat, e.cnps_no || "", b.nom, Math.min(c.brutImposable, P().plafondRetraite), c.cnpsSal, c.cnpsRetPat, c.cnpsPF, c.cnpsAT, c.cmuSal + c.cmuPat]; })); return csvOut("etat-its-" + p[1], ["Matricule", "Salarié", "Brut imposable", "ITS brut", "RICF", "ITS salarial", "ITS patronal"], pb.bulletins.map(function (b) { var c = b.calc; return [b.mat, b.nom, c.brutImposable, c.itsBrut, c.ricf, c.its, c.itsPat]; })); }
+  }
+
+  /* ============================================================
+     Pages RH reprises du modèle Menko immo : pointage, formations, recrutement, mobilité et ordres de mission,
+     déclarations sociales et fiscales, cockpit. Les données restent dans S.rh de chaque application.
+     ============================================================ */
+  var jOuvres = function (mois) { var n = 0, d = premierJour(mois), f = dernierJour(mois); while (d <= f) { var w = new Date(d + "T00:00:00Z").getUTCDay(); if (w !== 0 && w !== 6) n++; d = addJ(d, 1); } return n; };
+  var estOuvre = function (d) { var w = new Date(d + "T00:00:00Z").getUTCDay(); return w !== 0 && w !== 6; };
+  var validDate = function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || "") && !isNaN(Date.parse(d + "T00:00:00Z")); };
+  var empDeId = function (id) { return by(rh().employes, id) || {}; };
+  var enPoste = function (e, d) { return (!e.embauche || e.embauche <= d) && !(e.sortie && e.sortie.date && e.sortie.date < d); };
+  function paieVerrou(mois) { var pa = paieDe(mois); if (pa && pa.statut !== "brouillon") throw new Error("La paie de " + libMois(mois) + " est validée : modification impossible."); }
+
+  /* ---------- Pointage ---------- */
+  var PT = [["P", "Présent", "ok"], ["R", "Retard", "wa"], ["A", "Absent non justifié", "er"], ["AT", "Absence justifiée / arrêt", ""], ["C", "Congé", ""], ["M", "Mission", ""]];
+  var ptLib = function (s) { return (PT.filter(function (x) { return x[0] === s; })[0] || [s, s, ""]); };
+  var ptMois = function (empId, mois) { return rh().pointages.filter(function (x) { return x.emp_id === empId && x.date.slice(0, 7) === mois; }); };
+  function savePointage(date, lignes) {
+    need("c"); if (!validDate(date)) throw new Error("Date invalide."); if (date > today()) throw new Error("Impossible de pointer une date future."); paieVerrou(moisCle(date));
+    var r = rh(), n = 0;
+    lignes.forEach(function (l) {
+      var e = by(r.employes, l.emp_id); if (!e) throw new Error("Employé introuvable."); if (!enPoste(e, date)) { if (l.statut) throw new Error(empNom(e) + " n'est pas en poste le " + fd(date) + "."); return; }
+      var cur = r.pointages.filter(function (x) { return x.emp_id === l.emp_id && x.date === date; })[0], hs = Math.max(0, +l.hs || 0); if (hs > 12) throw new Error("Heures supplémentaires : 12 h maximum par jour.");
+      if (!l.statut) { if (cur) { r.pointages = r.pointages.filter(function (x) { return x !== cur; }); n++; } return; }
+      if (!PT.some(function (x) { return x[0] === l.statut; })) throw new Error("Statut de pointage invalide.");
+      if (cur) { cur.statut = l.statut; cur.hs = hs; cur.note = String(l.note || cur.note || ""); } else r.pointages.push({ id: uid("pt"), emp_id: l.emp_id, date: date, statut: l.statut, hs: hs, note: String(l.note || "") }); n++;
+    });
+    log("Pointage", fd(date) + " — " + n + " ligne(s)");
+  }
+  function genererPointage(mois) {
+    need("c"); paieVerrou(mois); var r = rh(), fin = dernierJour(mois) < today() ? dernierJour(mois) : today(), n = 0, d = premierJour(mois);
+    while (d <= fin) {
+      if (estOuvre(d)) r.employes.forEach(function (e) {
+        if (!enPoste(e, d) || r.pointages.some(function (x) { return x.emp_id === e.id && x.date === d; })) return;
+        var s = "P"; if (r.conges.some(function (c) { return c.emp_id === e.id && c.statut === "approuve" && c.debut <= d && c.fin >= d; })) s = "C"; else if (r.missions.some(function (m) { return m.statut === "valide" || m.statut === "terminee" ? m.equipe.indexOf(e.id) >= 0 && m.debut <= d && m.fin >= d : false; })) s = "M";
+        r.pointages.push({ id: uid("pt"), emp_id: e.id, date: d, statut: s, hs: 0, note: "auto" }); n++;
+      });
+      d = addJ(d, 1);
+    }
+    log("Pointage généré", libMois(mois) + " — " + n + " ligne(s)"); return n;
+  }
+  function impactPaie(e, mois) {
+    var pts = ptMois(e.id, mois), p = P(), abs = pts.filter(function (x) { return x.statut === "A"; }).length, h = sum(pts, function (x) { return x.hs; });
+    var sm = salMois(e, mois), jo = Math.max(1, jOuvres(mois)), hsF = R(sm.sal_base / (jo * 8) * h * (1 + (p.majHS != null ? p.majHS : 0.25)));
+    return { abs: abs, h: h, hsF: hsF, pts: pts.length };
+  }
+  function appliquerImpact(mois) {
+    need("e"); paieVerrou(mois); var r = rh(), n = 0;
+    r.employes.filter(function (e) { return empPresent(e, mois); }).forEach(function (e) {
+      var im = impactPaie(e, mois); if (!im.pts) return; var v = variable(mois, e.id);
+      setVariable(mois, { emp_id: e.id, abs: Math.min(30, im.abs), hs: im.hsF, primes: v.primes, retenues: v.retenues, avance: v.avance == null ? "" : v.avance, note: v.note }); n++;
+    });
+    if (!n) throw new Error("Aucun pointage sur " + libMois(mois) + " : rien à appliquer."); if (paieDe(mois)) calculerMois(mois); log("Impact du pointage appliqué à la paie", libMois(mois) + " — " + n + " salarié(s)"); return n;
+  }
+  function vPointage() {
+    var r = rh(), m = UIS.mois, act = r.employes.filter(function (e) { return empPresent(e, m); }), pa = paieDe(m), verrou = pa && pa.statut !== "brouillon", tot = { A: 0, R: 0 };
+    var rows = act.map(function (e) {
+      var pts = ptMois(e.id, m), c = {}; PT.forEach(function (x) { c[x[0]] = pts.filter(function (y) { return y.statut === x[0]; }).length; }); var im = impactPaie(e, m); tot.A += c.A; tot.R += c.R;
+      return [esc(e.mat), "<b>" + esc(empNom(e)) + "</b>", c.P, c.R || "—", c.A ? "<b>" + c.A + "</b>" : "—", c.AT || "—", c.C || "—", c.M || "—", im.h ? im.h + " h" : "—", im.pts ? (im.abs ? "−" + im.abs + " j" : "") + (im.hsF ? " +" + fcfa(im.hsF) : "") || "aucun" : "—"];
+    });
+    var lst = r.pointages.filter(function (x) { return x.date.slice(0, 7) === m && (x.statut === "A" || x.statut === "R"); }).sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 25).map(function (x) { var s = ptLib(x.statut); return [fd(x.date), esc(empNom(empDeId(x.emp_id))), bd(s[1], s[2]), esc(x.note || "")]; });
+    return '<div class="rh-w" style="margin-bottom:8px"><select data-rh-mois="1">' + moisOpts(m) + "</select> " + (H.can("c") && !verrou ? btn("pt.jour", "", "Saisie d'une journée", "p") + btn("pt.auto", m, "⚡ Génération automatique") : "") + (H.can("e") && !verrou ? btn("pt.apply", m, "Appliquer à la paie", "ok") : "") + (H.can("p") ? btn("csv", "pointage|" + m, "CSV") : "") + (verrou ? " " + bd("paie validée : verrouillé", "wa") : "") + "</div>" +
+      '<div class="rh-n">Statuts : P présent, R retard, A absent non justifié (retenue), « absence justifiée / arrêt », C congé (payé), M mission. L\'impact sur la paie reprend les absences non justifiées (jours non payés) et les heures supplémentaires (majoration ' + Math.round((P().majHS != null ? P().majHS : 0.25) * 100) + " %, paramétrable) dans les variables de paie du mois ; il ne s'applique qu'à une paie non validée. La génération automatique complète les jours ouvrés manquants (présent, congé approuvé ou mission validée).</div>" +
+      '<div class="rh-k">' + kpi(act.length, "Salariés pointés") + kpi(tot.A, "Absences non justifiées") + kpi(tot.R, "Retards") + kpi(jOuvres(m), "Jours ouvrés du mois") + "</div>" +
+      tbl(["Matricule", "Salarié", "P", "R", "A", "Justifiée", "Congé", "Mission", "H. supp.", "Impact paie"], rows, "Aucun salarié en poste sur ce mois.") + "<h3>Absences et retards récents</h3>" + tbl(["Date", "Salarié", "Statut", "Note"], lst, "Aucune absence ni retard.");
+  }
+
+  /* ---------- Formations ---------- */
+  var FTYPES = [["interne", "Interne"], ["externe", "Externe (organisme)"], ["en_ligne", "En ligne"], ["habilitation", "Habilitation / sécurité"]], FST = { planifie: ["planifiée", "wa"], en_cours: ["en cours", ""], termine: ["terminée", "ok"], annule: ["annulée", "er"] }, FDST = [["", "Non éligible"], ["a_deposer", "À déposer"], ["depose", "Dossier déposé"], ["rembourse", "Remboursé"]];
+  function saveFormation(f) {
+    need(f.id ? "e" : "c"); var r = rh(), titre = String(f.titre || "").trim(); if (!titre) throw new Error("Titre de la formation obligatoire.");
+    if (!validDate(f.debut)) throw new Error("Date de début obligatoire."); if (f.fin && f.fin < f.debut) throw new Error("Fin antérieure au début.");
+    ["heures", "cout", "fdfp_montant"].forEach(function (k) { if (f[k] !== "" && f[k] != null && !(+f[k] >= 0)) throw new Error("Montant ou durée invalide : " + k + "."); });
+    if ((+f.fdfp_montant || 0) > (+f.cout || 0)) throw new Error("Le remboursement FDFP ne peut dépasser le coût de la formation.");
+    var part = (f.participants || []).filter(function (id) { return by(r.employes, id); });
+    var o = { titre: titre, type: FTYPES.some(function (x) { return x[0] === f.type; }) ? f.type : "externe", organisme: String(f.organisme || "").trim(), debut: f.debut, fin: f.fin || f.debut, heures: +f.heures || 0, cout: R(+f.cout || 0), fdfp: String(f.fdfp || ""), fdfp_montant: R(+f.fdfp_montant || 0), statut: FST[f.statut] ? f.statut : "planifie", participants: part, objectifs: String(f.objectifs || "").trim() };
+    if (o.fdfp && !FDST.some(function (x) { return x[0] === o.fdfp; })) o.fdfp = "";
+    if (f.id) { var x = by(r.formations, f.id); if (!x) throw new Error("Formation introuvable."); Object.assign(x, o); log("Formation modifiée", titre); return x; }
+    var n = Object.assign({ id: uid("fo"), par: H.user(), t: new Date().toISOString() }, o); r.formations.push(n); log("Formation créée", titre + " (" + part.length + " participant(s))"); return n;
+  }
+  function statutFormation(id, st, motif) {
+    need("e"); var f = by(rh().formations, id); if (!f) throw new Error("Formation introuvable."); if (!FST[st]) throw new Error("Statut invalide."); if (st === "annule" && String(motif || "").trim().length < 3) throw new Error("Motif d'annulation obligatoire.");
+    f.statut = st; if (st === "annule") f.annule = { par: H.user(), motif: String(motif).trim() }; log("Formation " + FST[st][0], f.titre + (motif ? " — " + motif : ""));
+  }
+  function formFormation(f) {
+    var emps = empOpts(true); form(f ? "Modifier la formation" : "Nouvelle formation", [{ k: "titre", l: "Intitulé", req: 1, full: 1 }, { k: "type", l: "Type", t: "select", o: FTYPES }, { k: "organisme", l: "Organisme / formateur" }, { k: "debut", l: "Début", t: "date", req: 1 }, { k: "fin", l: "Fin", t: "date" }, { k: "heures", l: "Durée (heures)", t: "number" }, { k: "cout", l: "Coût total (F)", t: "number" },
+      { k: "fdfp", l: "Dossier FDFP", t: "select", o: FDST }, { k: "fdfp_montant", l: "Remboursement FDFP attendu (F)", t: "number" }, { k: "statut", l: "Statut", t: "select", o: Object.keys(FST).map(function (k) { return [k, FST[k][0]]; }) }, { k: "participants", l: "Participants", t: "multi", o: emps, full: 1 }, { k: "objectifs", l: "Objectifs", t: "area", full: 1 }],
+      f ? Object.assign({}, f) : { type: "externe", statut: "planifie", debut: today() }, function (o) { saveFormation(Object.assign({}, o, { id: f && f.id })); }, f ? "Enregistrer" : "Créer");
+  }
+  function vFormations() {
+    var r = rh(), an = today().slice(0, 4), ok = r.formations.filter(function (f) { return f.statut !== "annule"; }), anF = ok.filter(function (f) { return f.debut.slice(0, 4) === an; });
+    var fl = UIS.fstat ? r.formations.filter(function (f) { return f.statut === UIS.fstat; }) : r.formations, att = sum(ok.filter(function (f) { return f.fdfp && f.fdfp !== "rembourse"; }), function (f) { return f.fdfp_montant; }), rem = sum(ok.filter(function (f) { return f.fdfp === "rembourse"; }), function (f) { return f.fdfp_montant; });
+    return '<div class="rh-w" style="margin-bottom:8px">' + (H.can("c") ? btn("fo.add", "", "+ Formation", "p") : "") + '<select data-rh-fstat="1"><option value="">Tous statuts</option>' + Object.keys(FST).map(function (k) { return '<option value="' + k + '" ' + (UIS.fstat === k ? "selected" : "") + ">" + FST[k][0] + "</option>"; }).join("") + "</select>" + (H.can("p") ? btn("csv", "formations", "CSV") : "") + "</div>" +
+      '<div class="rh-k">' + kpi(anF.filter(function (f) { return f.statut === "planifie" || f.statut === "en_cours"; }).length, "Formations à venir ou en cours (" + an + ")") + kpi(sum(ok, function (f) { return f.participants.length; }), "Participations (cumul)") + kpi(fcfa(sum(anF, function (f) { return f.cout; })), "Budget " + an) + kpi(fcfa(att), "FDFP attendu") + kpi(fcfa(rem), "FDFP remboursé") + "</div>" +
+      '<div class="rh-n">Le FDFP finance partiellement les formations sur dossier (la taxe employeur — apprentissage et formation continue — est calculée à la paie : voir Paramètres de paie).</div>' +
+      tbl(["Formation", "Type", "Période", "Heures", "Participants", "Coût", "FDFP", "Statut", ""], fl.slice().sort(function (a, b) { return b.debut.localeCompare(a.debut); }).map(function (f) {
+        var s = FST[f.statut] || [f.statut, ""], fdl = (FDST.filter(function (x) { return x[0] === f.fdfp; })[0] || [0, ""])[1];
+        return ["<b>" + esc(f.titre) + "</b>" + (f.organisme ? "<br><small>" + esc(f.organisme) + "</small>" : ""), esc((FTYPES.filter(function (x) { return x[0] === f.type; })[0] || [0, f.type])[1]), fd(f.debut) + (f.fin !== f.debut ? " → " + fd(f.fin) : ""), f.heures || "—", f.participants.map(function (id) { return esc(empNom(empDeId(id))); }).join(", ") || "—", fcfa(f.cout), f.fdfp ? esc(fdl) + (f.fdfp_montant ? " " + fcfa(f.fdfp_montant) : "") : "—", bd(s[0], s[1]),
+          H.can("e") && f.statut !== "annule" ? btn("fo.edit", f.id, "Modifier") + (f.statut !== "termine" ? btn("fo.fin", f.id, "Terminer", "ok") + btn("fo.annul", f.id, "Annuler", "er") : "") : ""];
+      }), "Aucune formation.");
+  }
+
+  /* ---------- Recrutement ---------- */
+  var CST = [["recu", "Reçue"], ["preselection", "Présélectionnée"], ["entretien", "Entretien"], ["offre", "Offre"], ["embauche", "Embauchée"], ["refuse", "Refusée"]], PST = { ouvert: ["ouvert", "ok"], pourvu: ["pourvu", ""], clos: ["clos", "er"] };
+  function savePoste(f) {
+    need(f.id ? "e" : "c"); var r = rh(), t = String(f.intitule || "").trim(); if (!t) throw new Error("Intitulé du poste obligatoire."); if (f.limite && f.ouverture && f.limite < f.ouverture) throw new Error("Date limite antérieure à l'ouverture.");
+    if (f.salaire !== "" && f.salaire != null && !(+f.salaire >= 0)) throw new Error("Salaire proposé invalide.");
+    var o = { intitule: t, dept: String(f.dept || "").trim(), contrat: TYPES_CTR.some(function (x) { return x[0] === f.contrat; }) ? f.contrat : "CDI", salaire: R(+f.salaire || 0), ouverture: f.ouverture || today(), limite: f.limite || "", statut: PST[f.statut] ? f.statut : "ouvert", description: String(f.description || "").trim() };
+    if (f.id) { var p = by(r.postes, f.id); if (!p) throw new Error("Poste introuvable."); Object.assign(p, o); log("Poste modifié", t); return p; }
+    var n = Object.assign({ id: uid("po"), par: H.user() }, o); r.postes.push(n); log("Poste ouvert", t); return n;
+  }
+  function saveCandidat(f) {
+    need(f.id ? "e" : "c"); var r = rh(), nom = String(f.nom || "").trim(); if (!nom) throw new Error("Nom du candidat obligatoire."); var po = by(r.postes, f.poste_id); if (!po) throw new Error("Poste obligatoire.");
+    if (!f.id && po.statut !== "ouvert") throw new Error("Ce poste n'est plus ouvert aux candidatures."); if (f.tel && String(f.tel).replace(/\D/g, "").length < 8) throw new Error("Téléphone invalide.");
+    if (f.pretention !== "" && f.pretention != null && !(+f.pretention >= 0)) throw new Error("Prétention salariale invalide.");
+    var o = { nom: nom, tel: String(f.tel || "").trim(), email: String(f.email || "").trim(), poste_id: po.id, date: f.date || today(), entretien: f.entretien || "", pretention: R(+f.pretention || 0), notes: String(f.notes || "").trim() };
+    if (f.id) { var c = by(r.candidats, f.id); if (!c) throw new Error("Candidature introuvable."); Object.assign(c, o); log("Candidature modifiée", nom); return c; }
+    if (r.candidats.some(function (c) { return c.poste_id === po.id && c.nom.toLowerCase() === nom.toLowerCase() && c.statut !== "refuse"; })) throw new Error("Cette personne a déjà candidaté à ce poste.");
+    var n = Object.assign({ id: uid("cd"), statut: "recu", par: H.user() }, o); r.candidats.push(n); log("Candidature", nom + " — " + po.intitule); return n;
+  }
+  function etapeCandidat(id, st, note) {
+    need("e"); var c = by(rh().candidats, id); if (!c) throw new Error("Candidature introuvable."); if (c.statut === "embauche") throw new Error("Candidat déjà embauché."); if (st === "embauche") throw new Error("L'embauche se fait par « Embaucher » (création de la fiche employé).");
+    if (!CST.some(function (x) { return x[0] === st; })) throw new Error("Étape invalide."); if (st === "refuse" && String(note || "").trim().length < 3) throw new Error("Motif du refus obligatoire.");
+    if (st === "entretien" && !c.entretien) throw new Error("Renseignez d'abord la date d'entretien (modifier la candidature)."); c.statut = st; if (st === "refuse") c.refus = String(note).trim(); log("Candidat « " + (CST.filter(function (x) { return x[0] === st; })[0][1]) + " »", c.nom);
+  }
+  function vRecrutement() {
+    var r = rh(), po = r.postes, can = UIS.rpost ? r.candidats.filter(function (c) { return c.poste_id === UIS.rpost; }) : r.candidats;
+    var cols = CST.map(function (s) {
+      var L = can.filter(function (c) { return c.statut === s[0]; });
+      return '<div class="rh-n" style="min-width:160px"><b>' + s[1] + " (" + L.length + ")</b>" + L.map(function (c) {
+        return '<div style="border:1px solid var(--bd,#d5dbe3);border-radius:8px;padding:6px;margin-top:6px;background:var(--bg,#fff);color:var(--tx,#1c2430)"><b>' + esc(c.nom) + "</b><br><small>" + esc((by(po, c.poste_id) || {}).intitule || "") + (c.entretien ? " · entretien " + fd(c.entretien) : "") + (c.pretention ? " · " + fcfa(c.pretention) : "") + "</small>" +
+          (H.can("e") && c.statut !== "embauche" ? '<div style="margin-top:4px">' + (c.statut !== "refuse" ? btn("cd.next", c.id, "→ " + (c.statut === "offre" ? "Embaucher" : "Étape suivante"), "p") + btn("cd.no", c.id, "Refuser", "er") : "") + btn("cd.edit", c.id, "Modifier") + "</div>" : "") + "</div>";
+      }).join("") + "</div>";
+    }).join("");
+    return '<div class="rh-w" style="margin-bottom:8px">' + (H.can("c") ? btn("po.add", "", "+ Poste ouvert", "p") + btn("cd.add", "", "+ Candidature") : "") + '<select data-rh-rpost="1"><option value="">Tous les postes</option>' + po.map(function (p) { return '<option value="' + p.id + '" ' + (UIS.rpost === p.id ? "selected" : "") + ">" + esc(p.intitule) + "</option>"; }).join("") + "</select></div>" +
+      '<div class="rh-k">' + kpi(po.filter(function (p) { return p.statut === "ouvert"; }).length, "Postes ouverts") + kpi(r.candidats.length, "Candidatures") + kpi(r.candidats.filter(function (c) { return c.statut === "entretien" && c.entretien >= today(); }).length, "Entretiens à venir") + kpi(r.candidats.filter(function (c) { return c.statut === "embauche"; }).length, "Recrutements finalisés") + "</div>" +
+      tbl(["Poste", "Service", "Contrat", "Salaire proposé", "Ouvert le", "Limite", "Candidats", "Statut", ""], po.map(function (p) { var s = PST[p.statut] || [p.statut, ""]; return ["<b>" + esc(p.intitule) + "</b>", esc(p.dept || "—"), esc(p.contrat), p.salaire ? fcfa(p.salaire) : "—", fd(p.ouverture), p.limite ? fd(p.limite) : "—", r.candidats.filter(function (c) { return c.poste_id === p.id; }).length, bd(s[0], s[1]), H.can("e") ? btn("po.edit", p.id, "Modifier") + (p.statut === "ouvert" ? btn("po.clos", p.id, "Clore", "er") : "") : ""]; }), "Aucun poste ouvert.") +
+      "<h3>Pipeline des candidatures</h3><div style=\"display:flex;gap:8px;overflow:auto;align-items:flex-start\">" + cols + "</div>";
+  }
+  function formPoste(p) { form(p ? "Modifier le poste" : "Poste ouvert", [{ k: "intitule", l: "Intitulé du poste", req: 1, full: 1 }, { k: "dept", l: "Service / département" }, { k: "contrat", l: "Type de contrat", t: "select", o: TYPES_CTR }, { k: "salaire", l: "Salaire de base proposé (F)", t: "number" }, { k: "ouverture", l: "Ouverture", t: "date" }, { k: "limite", l: "Date limite", t: "date" }, { k: "statut", l: "Statut", t: "select", o: Object.keys(PST).map(function (k) { return [k, PST[k][0]]; }) }, { k: "description", l: "Description / profil", t: "area", full: 1 }], p ? Object.assign({}, p) : { contrat: "CDI", ouverture: today(), statut: "ouvert" }, function (o) { savePoste(Object.assign({}, o, { id: p && p.id })); }, p ? "Enregistrer" : "Ouvrir le poste"); }
+  function formCandidat(c) { form(c ? "Modifier la candidature" : "Nouvelle candidature", [{ k: "nom", l: "Nom et prénoms", req: 1, full: 1 }, { k: "poste_id", l: "Poste", t: "select", o: function () { return rh().postes.filter(function (p) { return p.statut === "ouvert" || (c && c.poste_id === p.id); }).map(function (p) { return [p.id, p.intitule]; }); } }, { k: "tel", l: "Téléphone" }, { k: "email", l: "E-mail" }, { k: "date", l: "Date de candidature", t: "date" }, { k: "entretien", l: "Date d'entretien", t: "date" }, { k: "pretention", l: "Prétention salariale (F)", t: "number" }, { k: "notes", l: "Notes", t: "area", full: 1 }], c ? Object.assign({}, c) : { date: today(), poste_id: UIS.rpost || "" }, function (o) { saveCandidat(Object.assign({}, o, { id: c && c.id })); }, c ? "Enregistrer" : "Enregistrer"); }
+  function embaucher(c) {
+    var po = by(rh().postes, c.poste_id) || {}, parts = c.nom.split(" ");
+    formEmploye(null, { nom: parts[0], prenoms: parts.slice(1).join(" "), tel: c.tel, poste: po.intitule || "", dept: po.dept || "", contrat: po.contrat || "CDI", sal_base: c.pretention || po.salaire || "", embauche: today() }, function (emp) {
+      c.statut = "embauche"; c.emp_id = emp.id; c.embauche_le = today(); log("Candidat embauché", c.nom + " → " + emp.mat);
+      if (po.id && po.statut === "ouvert" && confirm("Clore le poste « " + po.intitule + " » (pourvu) ?")) { po.statut = "pourvu"; }
+    });
+  }
+
+  /* ---------- Mobilité interne et ordres de mission ---------- */
+  var MOBT = [["mutation", "Mutation (changement de service ou de poste)"], ["promotion", "Promotion"], ["mutation_promotion", "Mutation + promotion"], ["changement_grille", "Changement de grille salariale"]], MST = { brouillon: ["brouillon", "wa"], valide: ["validé", "ok"], terminee: ["terminée", ""], annulee: ["annulé", "er"] };
+  function saveMobilite(f) {
+    need("e"); var r = rh(), e = by(r.employes, f.emp_id); if (!e || !empActif(e)) throw new Error("Employé introuvable ou sorti."); if (!MOBT.some(function (x) { return x[0] === f.type; })) throw new Error("Type de mouvement invalide.");
+    if (!validDate(f.date_effet)) throw new Error("Date d'effet obligatoire."); if (f.date_effet < e.embauche) throw new Error("Date d'effet antérieure à l'embauche."); if (String(f.motif || "").trim().length < 3) throw new Error("Motif obligatoire.");
+    var apres = { poste: String(f.poste || "").trim() || e.poste || "", dept: String(f.dept || "").trim() || e.dept || "", categorie: String(f.categorie || "").trim() || e.categorie || "", sal_base: +f.sal_base > 0 ? R(+f.sal_base) : e.sal_base };
+    var avant = { poste: e.poste || "", dept: e.dept || "", categorie: e.categorie || "", sal_base: e.sal_base };
+    if (apres.poste === avant.poste && apres.dept === avant.dept && apres.categorie === avant.categorie && apres.sal_base === avant.sal_base) throw new Error("Aucun changement : modifiez au moins le poste, le service, la catégorie ou le salaire.");
+    if (f.type === "changement_grille" && apres.sal_base === avant.sal_base && apres.categorie === avant.categorie) throw new Error("Un changement de grille modifie la catégorie ou le salaire.");
+    if (apres.sal_base !== avant.sal_base) { if (apres.sal_base < P().smig && e.contrat !== "stage" && e.contrat !== "prestataire") throw new Error("Salaire inférieur au SMIG (" + fcfa(P().smig) + ")."); (e.historique = e.historique || []).push({ from: f.date_effet, sal_base: apres.sal_base, sursalaire: e.sursalaire || 0, motif: "Mobilité : " + String(f.motif).trim(), par: H.user(), at: new Date().toISOString() }); }
+    e.poste = apres.poste; e.dept = apres.dept; e.categorie = apres.categorie; e.sal_base = apres.sal_base;
+    var m = { id: uid("mb"), emp_id: e.id, type: f.type, date_effet: f.date_effet, avant: avant, apres: apres, motif: String(f.motif).trim(), ref: String(f.ref || "").trim(), decide_par: String(f.decide_par || "").trim(), par: H.user(), t: new Date().toISOString() };
+    r.mobilites.push(m); log("Mobilité interne", empNom(e) + " — " + (MOBT.filter(function (x) { return x[0] === f.type; })[0][1]) + " au " + f.date_effet); return m;
+  }
+  function saveMission(f) {
+    need(f.id ? "e" : "c"); var r = rh(), equipe = (f.equipe || []).filter(function (id) { var e = by(r.employes, id); return e && empActif(e); });
+    if (!f.chef || !by(r.employes, f.chef)) throw new Error("Chef de mission obligatoire."); if (equipe.indexOf(f.chef) < 0) equipe.push(f.chef);
+    var obj = String(f.objet || "").trim(), dest = String(f.destination || "").trim(); if (!obj) throw new Error("Objet de la mission obligatoire."); if (!dest) throw new Error("Destination obligatoire.");
+    if (!validDate(f.debut) || !validDate(f.fin)) throw new Error("Période de mission obligatoire."); if (f.fin < f.debut) throw new Error("La fin ne peut précéder le début."); if (f.frais !== "" && f.frais != null && !(+f.frais >= 0)) throw new Error("Frais prévus invalides.");
+    var o = { chef: f.chef, equipe: equipe, objet: obj, destination: dest, debut: f.debut, fin: f.fin, transport: String(f.transport || "").trim(), frais: R(+f.frais || 0) };
+    if (f.id) { var m = by(r.missions, f.id); if (!m) throw new Error("Ordre de mission introuvable."); if (m.statut !== "brouillon") throw new Error("Seul un ordre en brouillon peut être modifié."); Object.assign(m, o); log("Ordre de mission modifié", m.numero); return m; }
+    var n = Object.assign({ id: uid("om"), numero: "OM-" + today().slice(0, 4) + "-" + String(seq("om")).padStart(4, "0"), statut: "brouillon", par: H.user(), t: new Date().toISOString() }, o); r.missions.push(n); log("Ordre de mission créé", n.numero + " — " + obj); return n;
+  }
+  function etatMission(id, st, x) {
+    var m = by(rh().missions, id); if (!m) throw new Error("Ordre de mission introuvable."); var r = rh();
+    if (st === "valide") { need("a"); if (m.statut !== "brouillon") throw new Error("Ordre déjà traité."); var clash = r.missions.filter(function (o) { return o !== m && o.statut === "valide" && o.debut <= m.fin && o.fin >= m.debut && o.equipe.some(function (i) { return m.equipe.indexOf(i) >= 0; }); })[0]; if (clash) throw new Error("Un agent est déjà en mission sur cette période (" + clash.numero + ")."); m.statut = "valide"; m.valide_par = H.user(); }
+    else if (st === "terminee") { need("e"); if (m.statut !== "valide") throw new Error("Seule une mission validée peut être clôturée."); if (!(+x >= 0)) throw new Error("Frais réels invalides."); m.statut = "terminee"; m.frais_reels = R(+x); }
+    else if (st === "annulee") { need("x"); if (m.statut === "terminee" || m.statut === "annulee") throw new Error("Ordre déjà clôturé."); if (String(x || "").trim().length < 3) throw new Error("Motif d'annulation obligatoire."); m.statut = "annulee"; m.annule = { par: H.user(), motif: String(x).trim() }; }
+    else throw new Error("Statut invalide."); log("Ordre de mission " + (MST[m.statut] || [m.statut])[0], m.numero);
+  }
+  function vMobilite() {
+    var r = rh(), lib = function (id) { return esc(empNom(empDeId(id))); };
+    var mv = r.mobilites.slice().sort(function (a, b) { return b.date_effet.localeCompare(a.date_effet); }).map(function (m) { return [fd(m.date_effet), "<b>" + lib(m.emp_id) + "</b>", esc((MOBT.filter(function (x) { return x[0] === m.type; })[0] || [0, m.type])[1]), esc(m.avant.poste || "—") + (m.avant.dept ? " · " + esc(m.avant.dept) : "") + (m.avant.categorie ? " · cat. " + esc(m.avant.categorie) : "") + " · " + fcfa(m.avant.sal_base), esc(m.apres.poste || "—") + (m.apres.dept ? " · " + esc(m.apres.dept) : "") + (m.apres.categorie ? " · cat. " + esc(m.apres.categorie) : "") + " · <b>" + fcfa(m.apres.sal_base) + "</b>", esc(m.motif), esc(m.ref || "")]; });
+    var om = r.missions.slice().sort(function (a, b) { return b.debut.localeCompare(a.debut); }).map(function (m) {
+      var s = MST[m.statut] || [m.statut, ""]; return [esc(m.numero), "<b>" + esc(m.objet) + "</b><br><small>" + esc(m.destination) + "</small>", fd(m.debut) + " → " + fd(m.fin), lib(m.chef), m.equipe.map(function (i) { return esc(empNom(empDeId(i))); }).join(", "), fcfa(m.frais) + (m.frais_reels != null ? "<br><small>réels " + fcfa(m.frais_reels) + "</small>" : ""), bd(s[0], s[1]),
+        btn("om.print", m.id, "Imprimer") + (m.statut === "brouillon" && H.can("e") ? btn("om.edit", m.id, "Modifier") : "") + (m.statut === "brouillon" && H.can("a") ? btn("om.ok", m.id, "Valider", "ok") : "") + (m.statut === "valide" && H.can("e") ? btn("om.fin", m.id, "Clôturer") : "") + ((m.statut === "brouillon" || m.statut === "valide") && H.can("x") ? btn("om.annul", m.id, "Annuler", "er") : "")];
+    });
+    return '<div class="rh-k">' + kpi(r.mobilites.length, "Mouvements enregistrés") + kpi(r.mobilites.filter(function (m) { return m.type === "promotion" || m.type === "mutation_promotion"; }).length, "Promotions") + kpi(r.mobilites.filter(function (m) { return m.type === "mutation" || m.type === "mutation_promotion"; }).length, "Mutations") + kpi(r.missions.filter(function (m) { return m.statut === "valide" && m.debut <= today() && m.fin >= today(); }).length, "Missions en cours") + "</div>" +
+      "<h3>Mobilité interne</h3>" + (H.can("e") ? '<div class="rh-w" style="margin-bottom:8px">' + btn("mb.add", "", "+ Mutation / promotion", "p") + (H.can("p") ? btn("csv", "mobilite", "CSV") : "") + "</div>" : "") + tbl(["Effet", "Employé", "Mouvement", "Avant", "Après", "Motif", "Décision"], mv, "Aucun mouvement.") +
+      "<h3>Ordres de mission</h3>" + (H.can("c") ? '<div class="rh-w" style="margin-bottom:8px">' + btn("om.add", "", "+ Ordre de mission", "p") + (H.can("p") ? btn("csv", "missions", "CSV") : "") + "</div>" : "") + tbl(["N°", "Objet", "Période", "Chef", "Équipe", "Frais", "Statut", ""], om, "Aucun ordre de mission.");
+  }
+  function formMobilite() { var emps = empOpts(true); form("Mutation / promotion", [{ k: "emp_id", l: "Employé", t: "select", o: emps }, { k: "type", l: "Mouvement", t: "select", o: MOBT }, { k: "date_effet", l: "Date d'effet", t: "date", req: 1 }, { k: "ref", l: "Référence de la décision" }, { k: "poste", l: "Nouveau poste", sec: "Après le mouvement (laisser vide = inchangé)" }, { k: "dept", l: "Nouveau service / département" }, { k: "categorie", l: "Nouvelle catégorie" }, { k: "sal_base", l: "Nouveau salaire de base (F)", t: "number" }, { k: "decide_par", l: "Décidé par" }, { k: "motif", l: "Motif", req: 1, full: 1 }], { type: "mutation", date_effet: today() }, function (o) { saveMobilite(o); }, "Enregistrer le mouvement"); }
+  function formMission(m) { var emps = empOpts(true); form(m ? "Modifier " + m.numero : "Ordre de mission", [{ k: "objet", l: "Objet de la mission", req: 1, full: 1 }, { k: "destination", l: "Destination / zone", req: 1 }, { k: "chef", l: "Chef de mission", t: "select", o: emps }, { k: "debut", l: "Du", t: "date", req: 1 }, { k: "fin", l: "Au", t: "date", req: 1 }, { k: "transport", l: "Moyen de transport" }, { k: "frais", l: "Frais prévus (F)", t: "number" }, { k: "equipe", l: "Équipe", t: "multi", o: emps, full: 1 }], m ? Object.assign({}, m) : { debut: today(), fin: today() }, function (o) { saveMission(Object.assign({}, o, { id: m && m.id })); }, m ? "Enregistrer" : "Créer l'ordre"); }
+  function docMission(m) {
+    imprimer({ titre: "Ordre de mission", ref: m.numero, date: m.debut, corps: "<p>Il est donné ordre à l'agent désigné ci-dessous d'effectuer la mission suivante pour le compte de l'entreprise.</p>" + tbl(["Objet", "Destination", "Période", "Transport", "Frais prévus"], [[esc(m.objet), esc(m.destination), fd(m.debut) + " au " + fd(m.fin), esc(m.transport || "—"), fcfa(m.frais)]]) + "<h3>Chef de mission</h3><p>" + esc(empNom(empDeId(m.chef))) + "</p><h3>Équipe</h3>" + tbl(["Matricule", "Nom", "Fonction"], m.equipe.map(function (i) { var e = empDeId(i); return [esc(e.mat || ""), esc(empNom(e)), esc(e.poste || "")]; })) + '<p style="margin-top:30px">Visa de la direction : ______________________</p>' });
+  }
+
+  /* ---------- Déclarations sociales et fiscales ---------- */
+  var DST = { cnps: "CNPS et CMU", its: "ITS", fdfp: "FDFP" };
+  var echeance = function (mois) { return addJ(dernierJour(mois), 15); };
+  var declDe = function (org, mois) { return rh().declarations.filter(function (x) { return x.org === org && x.mois === mois && !x.annule; })[0]; };
+  function saveDeclaration(f) {
+    need("c"); var r = rh(); if (!DST[f.org]) throw new Error("Organisme invalide."); var pa = paieDe(f.mois); if (!pa || pa.statut === "brouillon") throw new Error("La paie de " + libMois(f.mois || "") + " n'est pas validée.");
+    if (declDe(f.org, f.mois)) throw new Error("Déclaration déjà enregistrée pour cette période."); if (!validDate(f.date) || f.date > today()) throw new Error("Date de dépôt invalide."); if (String(f.ref || "").trim().length < 3) throw new Error("Référence ou n° d'accusé de dépôt obligatoire.");
+    var d = { id: uid("dc"), org: f.org, mois: f.mois, date: f.date, ref: String(f.ref).trim(), montant: dus(f.mois)[f.org] || 0, par: H.user() }; r.declarations.push(d); log("Déclaration déposée", DST[f.org] + " " + libMois(f.mois) + " — " + d.ref); return d;
+  }
+  function annulerDeclaration(id, motif) { need("x"); var d = by(rh().declarations, id); if (!d || d.annule) throw new Error("Déclaration introuvable."); if (String(motif || "").trim().length < 3) throw new Error("Motif obligatoire."); d.annule = { par: H.user(), motif: String(motif).trim() }; log("Déclaration annulée", DST[d.org] + " " + libMois(d.mois) + " — " + motif); }
+  function vDeclarations() {
+    var r = rh(), L = r.paies.filter(function (p) { return p.statut !== "brouillon"; }).sort(function (a, b) { return b.mois.localeCompare(a.mois); }), rows = [], t = today();
+    L.forEach(function (p) { Object.keys(DST).forEach(function (o) {
+      var dd = dus(p.mois)[o] || 0, dc = declDe(o, p.mois), ech = echeance(p.mois), st = dc ? bd("déposée le " + fd(dc.date), "ok") : (t > ech ? bd("en retard", "er") : bd("à déposer", "wa"));
+      rows.push([esc(libMois(p.mois)), esc(DST[o]), fcfa(dd), fd(ech), st, dc ? esc(dc.ref) : "—", (!dc && H.can("c") ? btn("dc.add", o + "|" + p.mois, "Enregistrer le dépôt", "p") : "") + (dc && H.can("x") ? btn("dc.annul", dc.id, "Annuler", "er") : "") + (H.can("p") && o !== "fdfp" ? btn("csv", "decl|" + p.mois + "|" + o, "CSV") : "")]);
+    }); });
+    var ans = {}; L.forEach(function (p) { ans[p.mois.slice(0, 4)] = 1; });
+    return '<div class="rh-n">Suivi des déclarations mensuelles (échéance : le 15 du mois suivant). Le dépôt se fait sur les portails officiels (CNPS, impôts, FDFP) : enregistrez ici la référence de l\'accusé pour le suivi et les alertes. Le reversement des sommes est suivi dans « Cotisations ».</div>' +
+      '<div class="rh-k">' + kpi(rows.filter(function (x) { return /déposée/.test(x[4]); }).length, "Déclarations déposées") + kpi(rows.filter(function (x) { return /à déposer/.test(x[4]); }).length, "À déposer") + kpi(rows.filter(function (x) { return /en retard/.test(x[4]); }).length, "En retard") + "</div>" +
+      tbl(["Mois", "Organisme", "Montant dû", "Échéance", "Statut", "Référence", ""], rows, "Aucune paie validée.") +
+      (Object.keys(ans).length ? "<h3>État annuel des salaires (DAS)</h3>" + '<div class="rh-w">' + Object.keys(ans).sort().reverse().map(function (a) { return btn("p.annuel", a, "État annuel " + a); }).join("") + "</div>" : "");
+  }
+
+  /* ---------- Cockpit RH ---------- */
+  var barres = function (rows, fmt) { var mx = Math.max.apply(null, rows.map(function (x) { return x.v; }).concat([1])); return rows.length ? rows.map(function (x) { return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13px"><span style="width:120px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.l) + '</span><span style="flex:1;background:var(--bd,#d5dbe3);border-radius:6px;height:14px"><span style="display:block;height:14px;border-radius:6px;background:' + (x.c || "var(--b2,#1f3a5f)") + ";width:" + Math.round(x.v / mx * 100) + '%"></span></span><b style="width:90px;text-align:right">' + esc(fmt ? fmt(x.v) : x.v) + "</b></div>"; }).join("") : '<div style="color:var(--mu,#5b6572)">Pas encore de données.</div>'; };
+  function derniersMois(n) { var o = [], d = new Date(); d.setUTCDate(1); for (var i = 0; i < n; i++) { o.unshift(d.toISOString().slice(0, 7)); d.setUTCMonth(d.getUTCMonth() - 1); } return o; }
+  function cockpit() {
+    var r = rh(), act = r.employes.filter(empActif), an = today().slice(0, 4), t = today();
+    var age = function (e) { return e.naissance ? Math.floor(diffJ(t, e.naissance) / 365.25) : null; }, ages = act.map(age).filter(function (x) { return x != null; });
+    var tr = [["< 25 ans", 0, 24], ["25-34", 25, 34], ["35-44", 35, 44], ["45-54", 45, 54], ["55 et +", 55, 200]], pyr = tr.map(function (x) { var q = act.filter(function (e) { var a = age(e); return a != null && a >= x[1] && a <= x[2]; }); return { l: x[0], H: q.filter(function (e) { return e.sexe === "M"; }).length, F: q.filter(function (e) { return e.sexe === "F"; }).length, N: q.filter(function (e) { return e.sexe !== "M" && e.sexe !== "F"; }).length }; });
+    var ent = r.employes.filter(function (e) { return (e.embauche || "").slice(0, 4) === an; }).length, sor = r.employes.filter(function (e) { return e.sortie && (e.sortie.date || "").slice(0, 4) === an; }).length, turn = act.length + sor ? Math.round(sor / ((act.length + sor / 2) || 1) * 1000) / 10 : 0;
+    var mm = derniersMois(6), masse = mm.map(function (m) { var pa = paieDe(m); return { l: libMois(m).slice(0, 4) + " " + m.slice(0, 4), v: pa && pa.statut !== "brouillon" ? sum(pa.bulletins, function (b) { return b.calc.brut; }) : 0 }; });
+    var absr = mm.map(function (m) { var emp = r.employes.filter(function (e) { return empPresent(e, m); }).length, jo = jOuvres(m), ab = r.pointages.filter(function (x) { return x.date.slice(0, 7) === m && (x.statut === "A" || x.statut === "AT"); }).length, has = r.pointages.some(function (x) { return x.date.slice(0, 7) === m; }); return has && emp ? { l: libMois(m).slice(0, 4) + " " + m.slice(0, 4), v: Math.round(ab / (emp * jo) * 1000) / 10 } : null; }).filter(Boolean);
+    var dep = {}; act.forEach(function (e) { var k = e.dept || "Non renseigné"; dep[k] = (dep[k] || 0) + 1; });
+    var anc = act.length ? Math.round(sum(act, function (e) { return e.embauche ? diffJ(t, e.embauche) / 365.25 : 0; }) / act.length * 10) / 10 : 0;
+    return { act: act, ages: ages, pyr: pyr, ent: ent, sor: sor, turn: turn, masse: masse, absr: absr, dep: dep, anc: anc };
+  }
+  function vCockpit() {
+    var c = cockpit(), s = resume(), A = alertes(), moy = c.ages.length ? Math.round(sum(c.ages, function (x) { return x; }) / c.ages.length) : null, f = c.act.filter(function (e) { return e.sexe === "F"; }).length;
+    return '<div class="rh-k">' + kpi(c.act.length, "Effectif actif") + kpi(c.ent + " / " + c.sor, "Entrées / sorties " + today().slice(0, 4)) + kpi(c.turn + " %", "Turnover annuel") + kpi(fcfa(s.brut_mois), "Masse salariale brute (" + (s.dernier_mois ? libMois(s.dernier_mois) : "—") + ")") + kpi(fcfa(s.cout_mois), "Coût employeur") + kpi(fcfa(s.net_mois), "Net à payer") + kpi(fcfa(s.charges_dues), "Cotisations à reverser") + kpi(moy != null ? moy + " ans" : "—", "Âge moyen") + kpi(c.anc + " ans", "Ancienneté moyenne") + kpi(c.act.length ? Math.round(f / c.act.length * 100) + " %" : "—", "Femmes") + kpi(s.conges_en_cours, "En congé aujourd'hui") + "</div>" +
+      '<div class="rh-g" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div class="rh-n"><b>👥 Pyramide des âges</b>' + (c.ages.length ? barres(c.pyr.map(function (x) { return { l: x.l + " (H" + x.H + " · F" + x.F + (x.N ? " · ?" + x.N : "") + ")", v: x.H + x.F + x.N }; })) : '<div style="margin-top:6px">Renseignez les dates de naissance dans les fiches.</div>') + "</div>" +
+      '<div class="rh-n"><b>💰 Masse salariale brute — 6 mois</b>' + barres(c.masse, fcfa) + "</div>" +
+      '<div class="rh-n"><b>🏢 Effectif par service</b>' + barres(Object.keys(c.dep).map(function (k) { return { l: k, v: c.dep[k] }; })) + "</div>" +
+      '<div class="rh-n"><b>📉 Absentéisme mensuel (taux, %)</b>' + barres(c.absr.map(function (x) { return { l: x.l, v: x.v, c: "#b3261e" }; }), function (v) { return v + " %"; }) + "</div></div>" +
+      "<h3>Alertes et actions RH (" + A.length + ")</h3>" + (A.length ? A.slice(0, 60).map(function (a) { return '<div class="rh-al ' + (a.k === "er" ? "er" : "") + '">' + esc(a.m) + "</div>"; }).join("") : '<div class="rh-n">Aucune alerte.</div>') +
+      '<div class="rh-n">Comptabilité : la validation de la paie génère l\'écriture (charges 661 / 664 ; dettes 422, 4313 CNPS, 447 ITS et FDFP, 4211 avances), le paiement des salaires et le reversement des cotisations sont comptabilisés dans la comptabilité de cette application.</div>';
   }
 
   /* ---------- Actions ---------- */
@@ -497,6 +746,25 @@
     rv: function (x) { var s = x.split("|"), d = dus(s[0])[s[1]] - sum(rh().reversements.filter(function (y) { return y.mois === s[0] && y.org === s[1] && !y.annule; }), function (y) { return y.montant; }); form("Reverser " + ORGS[s[1]][0] + " — " + libMois(s[0]) + " : " + fcfa(d), [{ k: "mode", l: "Mode de règlement", t: "select", o: MODES }, { k: "date", l: "Date", t: "date", req: 1 }], { mode: "banque", date: today() }, function (o) { reverse(s[0], s[1], o.mode, o.date); }, "Reverser"); },
     csv: function (k) { try { csv(k); } catch (e) { alert(e.message); } },
     "doc.contrat": function (id) { docContrat(by(rh().employes, id)); }, "doc.attestation": function (id) { docAttestation(by(rh().employes, id)); }, "doc.certificat": function (id) { docCertificat(by(rh().employes, id)); },
+    "pt.jour": function () {
+      var act = rh().employes.filter(function (e) { return empActif(e); }), F = [{ k: "date", l: "Date", t: "date", req: 1 }], init = { date: today() }, st = [["", "— non pointé —"]].concat(PT.map(function (x) { return [x[0], x[1]]; }));
+      act.forEach(function (e) { var c = rh().pointages.filter(function (x) { return x.emp_id === e.id && x.date === today(); })[0]; F.push({ k: "s_" + e.id, l: e.mat + " · " + empNom(e), t: "select", o: st }, { k: "h_" + e.id, l: "H. supp. (h)", t: "number" }); init["s_" + e.id] = c ? c.statut : ""; init["h_" + e.id] = c ? c.hs : ""; });
+      form("Pointage d'une journée", F, init, function (o) { savePointage(o.date, act.map(function (e) { return { emp_id: e.id, statut: o["s_" + e.id], hs: o["h_" + e.id] }; })); }, "Enregistrer");
+    },
+    "pt.auto": function (m) { if (!confirm("Générer le pointage automatique de " + libMois(m) + " (jours ouvrés manquants) ?")) return; H.run(function () { genererPointage(m); }); after(); },
+    "pt.apply": function (m) { if (!confirm("Appliquer les absences et heures supplémentaires de " + libMois(m) + " aux variables de paie ?")) return; H.run(function () { appliquerImpact(m); }); after(); },
+    "fo.add": function () { formFormation(null); }, "fo.edit": function (id) { formFormation(by(rh().formations, id)); }, "fo.fin": function (id) { H.run(function () { statutFormation(id, "termine"); }); after(); },
+    "fo.annul": function (id) { ask("Annuler la formation", "Motif de l'annulation", function (m) { statutFormation(id, "annule", m); }, "Annuler la formation"); },
+    "po.add": function () { formPoste(null); }, "po.edit": function (id) { formPoste(by(rh().postes, id)); }, "po.clos": function (id) { ask("Clore le poste", "Motif (pourvu en interne, abandon…)", function (m) { need("e"); var p = by(rh().postes, id); p.statut = "clos"; p.clos = m; log("Poste clos", p.intitule + " — " + m); }, "Clore"); },
+    "cd.add": function () { formCandidat(null); }, "cd.edit": function (id) { formCandidat(by(rh().candidats, id)); },
+    "cd.next": function (id) { var c = by(rh().candidats, id), ordre = ["recu", "preselection", "entretien", "offre"], i = ordre.indexOf(c.statut); if (c.statut === "offre") return embaucher(c); H.run(function () { etapeCandidat(id, ordre[i + 1]); }); after(); },
+    "cd.no": function (id) { ask("Refuser la candidature", "Motif du refus", function (m) { etapeCandidat(id, "refuse", m); }, "Refuser"); },
+    "mb.add": function () { formMobilite(); },
+    "om.add": function () { formMission(null); }, "om.edit": function (id) { formMission(by(rh().missions, id)); }, "om.ok": function (id) { H.run(function () { etatMission(id, "valide"); }); after(); }, "om.print": function (id) { docMission(by(rh().missions, id)); },
+    "om.fin": function (id) { form("Clôturer la mission", [{ k: "frais", l: "Frais réels (F)", t: "number", req: 1 }], {}, function (o) { etatMission(id, "terminee", o.frais); }, "Clôturer"); },
+    "om.annul": function (id) { ask("Annuler l'ordre de mission", "Motif de l'annulation", function (m) { etatMission(id, "annulee", m); }, "Annuler l'ordre"); },
+    "dc.add": function (x) { var s = x.split("|"); form("Dépôt de déclaration — " + DST[s[0]] + " " + libMois(s[1]), [{ k: "date", l: "Date de dépôt", t: "date", req: 1 }, { k: "ref", l: "Référence / n° d'accusé", req: 1 }], { date: today() }, function (o) { saveDeclaration({ org: s[0], mois: s[1], date: o.date, ref: o.ref }); }, "Enregistrer"); },
+    "dc.annul": function (id) { ask("Annuler la déclaration", "Motif", function (m) { annulerDeclaration(id, m); }, "Annuler"); },
     "par.save": function () { var r = rh(), o = {}; document.querySelectorAll("[data-rh-par]").forEach(function (i) { var v = String(i.value).replace(",", ".").trim(); o[i.dataset.rhPar] = v === "" ? "" : +v; }); H.run(function () { need("a"); Object.keys(o).forEach(function (k) { if (o[k] !== "" && (!isFinite(o[k]) || o[k] < 0 || (PAIE_DEF[k] > 0 && PAIE_DEF[k] < 1 && o[k] > 1))) throw new Error("Paramètre invalide : " + k + (PAIE_DEF[k] < 1 ? " (taux entre 0 et 1, ex. 0,063 pour 6,3 %)" : "")); }); r.params = Object.assign({}, r.params, o); log("Paramètres de paie modifiés"); }); after(); },
     "par.reset": function () { if (!confirm("Revenir aux valeurs par défaut ?")) return; H.run(function () { need("a"); rh().params = {}; log("Paramètres de paie réinitialisés"); }); after(); }
   };
@@ -505,9 +773,9 @@
     try { f(t.dataset.id, t); } catch (x) { alert(x.message); }
   });
   document.addEventListener("input", function (e) { var t = e.target; if (t.dataset && t.dataset.rhQ) { UIS.q = t.value; var pos = t.selectionStart; H.render(); var n = document.querySelector("[data-rh-q]"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) { } } } });
-  document.addEventListener("change", function (e) { var t = e.target; if (!H) return; if (t.dataset && t.dataset.rhMois) { UIS.mois = t.value; H.render(); } if (t.dataset && t.dataset.rhInact) { UIS.inactifs = t.checked; H.render(); } });
+  document.addEventListener("change", function (e) { var t = e.target; if (!H) return; if (t.dataset && t.dataset.rhMois) { UIS.mois = t.value; H.render(); } if (t.dataset && t.dataset.rhInact) { UIS.inactifs = t.checked; H.render(); } if (t.dataset && t.dataset.rhFstat) { UIS.fstat = t.value; H.render(); } if (t.dataset && t.dataset.rhRpost) { UIS.rpost = t.value; H.render(); } });
 
   G.ANGELS_RH = { host: null, view: view, P: P, calcul: calcul, itsBrut: itsBrut, ricf: ricf, tauxAnc: tauxAnc, joursPayes: joursPayes, ficheDe: function (id, h) { H = h || H; return ficheDe(id); }, resume: function (h) { H = h || H; return resume(); }, publier: function (h) { H = h || H; publier(); }, alertes: function (h) { H = h || H; return alertes(); }, PAIE_DEF: PAIE_DEF, UI: UIS,
-    ops: { saveEmploye: saveEmploye, sortie: sortieEmploye, reintegrer: reintegrer, calculerMois: calculerMois, validerMois: validerMois, annulerValidation: annulerValidation, annulerPaiement: annulerPaiement, annulerReversement: annulerReversement, payerSalaires: payerSalaires, reverser: reverse, avance: octroyerAvance, conge: demandeConge, decideConge: decideConge, variable: setVariable, soldeConges: soldeConges, paieDe: paieDe, dus: dus, state: rh },
+    ops: { savePointage: savePointage, genererPointage: genererPointage, appliquerImpact: appliquerImpact, impactPaie: impactPaie, saveFormation: saveFormation, statutFormation: statutFormation, savePoste: savePoste, saveCandidat: saveCandidat, etapeCandidat: etapeCandidat, saveMobilite: saveMobilite, saveMission: saveMission, etatMission: etatMission, saveDeclaration: saveDeclaration, annulerDeclaration: annulerDeclaration, cockpit: cockpit, saveEmploye: saveEmploye, sortie: sortieEmploye, reintegrer: reintegrer, calculerMois: calculerMois, validerMois: validerMois, annulerValidation: annulerValidation, annulerPaiement: annulerPaiement, annulerReversement: annulerReversement, payerSalaires: payerSalaires, reverser: reverse, avance: octroyerAvance, conge: demandeConge, decideConge: decideConge, variable: setVariable, soldeConges: soldeConges, paieDe: paieDe, dus: dus, state: rh },
     use: function (h) { H = h; this.host = h; } };
 })(window);
