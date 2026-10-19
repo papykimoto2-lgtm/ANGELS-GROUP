@@ -97,6 +97,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="passerelle-config.js"></script>
 <script src="auth-engine.js"></script>
 <script src="sync-engine.js"></script>
+<script src="roles-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
@@ -2747,7 +2748,7 @@ A["rq.no"]=id=>form("Rejeter la demande",[{k:"rep",l:"Motif",t:"area",req:1,full
 /* ---- Utilisateurs, droits, audit, paramètres, sauvegarde ---- */
 V.users=()=>{
  const f=UI.f.pm||(UI.f.pm={role:"flotte"}),mods=f.role==="chauffeur"?["portail"]:Object.keys(MODS).filter(m=>m!=="portail");
- return head("Utilisateurs et droits",can("users","c")?`<button class="btn" data-a="us.add">+ Utilisateur</button>`:"")+
+ return head("Utilisateurs et droits",(can("users","c")?`<button class="btn ghost" data-a="rl.ouvrir">🛡️ Rôles et droits</button><button class="btn" data-a="us.add">+ Utilisateur</button>`:""))+
  tbl(["Nom","Rôle","État","Dernière activité",""],S.users.map(u=>{const la=S.audit.find(a=>a.u===u.nom);return tr([esc(u.nom),esc(ROLES[u.role]||u.role),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),la?fdt(la.t):"—",`<div class="flex">${can("users","e")?btn("us.pin",u.id,"Réinitialiser le mot de passe","ghost"):""}${can("users","x")&&u.id!==ME.id?btn("us.tg",u.id,u.actif?"Désactiver":"Activer","ghost"):""}</div>`])}))+
  `<h2>Matrice des droits</h2><div class="card flex"><label style="margin:0">Rôle</label><select data-f="pm:role" style="width:auto">${opt(Object.entries(ROLES),f.role)}</select></div>`+
  tbl(["Module",...Object.values(ACT)],mods.map(m=>tr([esc(MODS[m]),...Object.keys(ACT).map(a=>`<input type="checkbox" data-a="pm.tg" data-id="${f.role}:${m}:${a}" ${(S.perms[f.role][m]||[]).includes(a)?"checked":""} ${can("users","e")&&!(f.role==="admin"&&m==="users")?"":"disabled"}>`)])));
@@ -2755,6 +2756,7 @@ V.users=()=>{
 A["pm.tg"]=(id,el)=>{if(atomic(()=>{need("users","e");const[r,m,a]=id.split(":");if(r==="admin"&&m==="users")throw new Error("Droits d'administration non modifiables.");const s=new Set(S.perms[r][m]||[]);el.checked?s.add(a):s.delete(a);S.perms[r][m]=[...s];audit("Droits modifiés",r+" / "+m+" / "+a+" = "+el.checked)}))render();else render()};
 /* Mots de passe : l'administrateur ne choisit jamais le mot de passe d'un autre ; un mot de passe temporaire est généré, montré une fois, et doit être changé à la première connexion. */
 async function mdpTemp(uid_,titre){const mdp=ANGELS_AUTH.generer(),u0=by(S.users,uid_);if(!u0)return;const pwd=await ANGELS_AUTH.creer(mdp);const u=by(S.users,uid_);if(!u)return;u.pwd=pwd;u.chg=true;delete u.h;delete S.tries[u.id];save();await ANGELS_AUTH.afficherTemp({titre:titre||"Mot de passe temporaire",nom:u.nom,mdp});render()}
+A["rl.ouvrir"]=()=>{if(!can("users","c"))return alert("Droits insuffisants.");ANGELS_ROLES.ouvrir({app:"transport",nomApp:"Transport",get:()=>S,persister:()=>save(),audit:(a,d)=>audit(a,d),apres:()=>render()})};
 A["us.add"]=()=>form("Nouvel utilisateur",[{k:"nom",l:"Nom",req:1},{k:"role",l:"Rôle",t:"select",o:Object.entries(ROLES).filter(r=>r[0]!=="chauffeur")}],{},o=>{need("users","c");if(S.users.some(x=>x.nom.toLowerCase()===o.nom.toLowerCase()))throw new Error("Un utilisateur porte déjà ce nom.");const u={id:uid("u"),nom:o.nom,role:o.role,actif:true,pwd:null,chg:true};S.users.push(u);audit("Utilisateur créé",o.nom+" ("+o.role+")");return{post:()=>mdpTemp(u.id,"Compte créé")}});
 A["us.pin"]=id=>{if(!confirm("Réinitialiser le mot de passe de cet utilisateur ? Un mot de passe temporaire sera généré et l'utilisateur devra le changer à la prochaine connexion."))return;if(atomic(()=>{need("users","e");const u=by(S.users,id);if(!u)throw new Error("Compte introuvable.");u.pwd=null;u.chg=true;delete u.h;S.tries[u.id]={n:0,until:0};audit("Mot de passe réinitialisé",u.nom)})!==false)mdpTemp(id,"Mot de passe réinitialisé")};
 A["us.tg"]=id=>{if(atomic(()=>{need("users","x");const u=by(S.users,id);if(u.id===ME.id)throw new Error("Impossible de se désactiver soi-même.");u.actif=!u.actif;audit("Compte "+(u.actif?"activé":"désactivé"),u.nom)}))render()};
@@ -3804,6 +3806,7 @@ function loginHTML(){
 A.demoIn=(id,t)=>demoFill(t);
 A["demo.tg"]=()=>{if(atomic(()=>{need("audit","e");S.settings.acces_demo=!demoOK();audit("Accès démo par profil",demoOK()?"activé":"désactivé")})!==false)render()};
 function render(){
+ try{ANGELS_ROLES.majRoles("transport",S,ROLES)}catch(e){}
  try{document.title=ORGRAW()+" "+stv("org_activite")}catch(e){}
  const app=$("#app");planDatalists();
  if(!ME){

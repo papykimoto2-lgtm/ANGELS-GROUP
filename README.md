@@ -591,3 +591,12 @@ Test : `node tests/sync-etat.js` (10 contrôles).
 ### Application livreur hors ligne d'abord
 `livreur.html` garde sur le téléphone les dernières missions (48 h) et une **file d'actions** : sans réseau, « Accepter », « Colis pris en charge », « Démarrer », « Impossible », incidents et position sont enregistrés, la mission change aussitôt d'état à l'écran (« en attente d'envoi ») et tout part **dans l'ordre** au retour du réseau. La **confirmation de livraison** reste « en attente » (jamais « livrée » localement) : le serveur vérifie le code à l'envoi, et un refus (code incorrect…) est signalé au livreur. L'application s'ouvre sans réseau si elle a déjà été utilisée ; la bibliothèque de connexion est mise en cache (service worker `angels-v19`). Un autre livreur sur le même téléphone efface mémoire et file ; la déconnexion avec des actions non envoyées demande confirmation.
 Test : `node tests/livreur-hors-ligne.js` (9 contrôles).
+
+## Rôles et droits personnalisés (Distributions, Transport, Agro, Hub)
+Bouton **🛡️ Rôles et droits** (Distributions → Utilisateurs & droits ; Agro → Utilisateurs & audit ; Transport → Utilisateurs et droits ; Hub → Paramètres → Utilisateurs et rôles, après déverrouillage par un administrateur).
+- **Créer, enregistrer, modifier, supprimer** des rôles (ex. « Chef d'équipe ») avec des droits cochés **module par module et action par action** (écrans visibles + actions : créer des commandes, valider la caisse, annuler une vente, clôturer…), en partant de zéro ou de la copie d'un rôle existant.
+- Les **rôles d'origine** sont modifiables aussi (sauf l'administrateur, toujours complet, et les profils rattachés à une fiche : livreur, vendeur, chauffeur) et se **rétablissent** en un clic dans Distributions et Agro.
+- Contrôles : nom unique de 3 à 40 caractères, au moins un droit de consultation, suppression refusée tant que des utilisateurs ont le rôle, confirmation pour les droits sensibles (⚠). Tout est inscrit au journal d'audit (« via Hub » depuis le Hub).
+- Les rôles et droits sont **synchronisés entre postes** (`roles_perso`, `droits_roles`, matrice `perms` de Transport) et pris en compte à la prochaine connexion de chaque utilisateur.
+- Les droits par défaut du catalogue (`roles-engine.js`) reproduisent exactement les droits d'origine : vérifié par test sur chaque menu et chaque contrôle d'action du code.
+Test : `node tests/roles.js` (13 contrôles) et SYP-13 dans `tests/sync-postes.js`.

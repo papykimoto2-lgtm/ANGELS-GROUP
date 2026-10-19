@@ -96,6 +96,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="passerelle-config.js"></script>
 <script src="auth-engine.js"></script>
 <script src="sync-engine.js"></script>
+<script src="roles-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
@@ -127,7 +128,7 @@ const ACL={ // qui peut faire quoi (appliqué aussi dans les fonctions, pas seul
  vente:["admin","commercial","caissier"],annulvente:["admin","direction"],paiement:["admin","caissier","commercial"],
  charge:["admin","chef","comptable","caissier"],treso:["admin","caissier","comptable"],compta:["admin","comptable"],plan:["admin","comptable"],extourne:["admin","comptable","direction"],
  periode:["admin","comptable","direction"],visa:["admin","comptable","direction"],caisse_op:["admin","caissier"],caisse_val:["admin","direction"],caisse_cfg:["admin","direction"],perso:["admin","direction","chef"],rh:["admin","direction","comptable"],rh_val:["admin","direction"],param:["admin","direction"],users:["admin"],tiers:["admin","commercial","magasinier","comptable"]};
-const can=a=>!!ME&&(ME.role==="seed"||(ACL[a]||[]).includes(ME.role));
+const can=a=>{if(!ME)return false;if(ME.role==="seed")return true;const ov=ANGELS_ROLES.surcharge("agro",S,ME.role);return ov?ov.has(a):(ACL[a]||[]).includes(ME.role)};   /* rôles personnalisés / modifiés : droits du gestionnaire de rôles */
 const need=(a,msg)=>{if(!can(a))throw new Error(msg||"Droits insuffisants pour cette action.")};
 const NAV=[
  {v:"dash",l:"Tableau de bord",i:"📊",g:"Pilotage",r:ALL},{v:"rapports",l:"Rapports",i:"📨",g:"Pilotage",r:["admin","direction","chef","comptable"]},
@@ -2051,11 +2052,12 @@ A["rp.send"]=v=>{const[p,c]=v.split(":"),[a,b]=rapPeriode(p),n=RAP_PERIODES[p][0
  if(c==="wa")rapWA(txt,cfg.whatsapp);else{const to=cfg.email||prompt("Adresse email :");if(to)rapMail(txt,to,n+" — "+cfg.nom)}};
 A["rp.cfg"]=()=>{try{need("param");const c=rapCfg();c.whatsapp=$("#rpWa").value.trim();c.email=$("#rpMail").value.trim();c.nom=$("#rpNom").value.trim()||"";if(c.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email))throw new Error("Email invalide.");if(c.whatsapp&&!/^\+?[\d\s]{8,16}$/.test(c.whatsapp))throw new Error("Numéro WhatsApp invalide.");audit("Destinations des rapports","modifiées");save();alert("Enregistré.")}catch(e){alert(e.message)}};
 /* ---- Administration ---- */
-V.users=()=>{const t=tabOf("users","u");let h=head("Utilisateurs & audit",t==="u"?`<button class="btn" data-a="us.add">+ Utilisateur</button>`:"")+tabs("users",[["u","Utilisateurs"],["a","Journal d'audit"]]);
+V.users=()=>{const t=tabOf("users","u");let h=head("Utilisateurs & audit",t==="u"?`<button class="btn ghost" data-a="rl.ouvrir">🛡️ Rôles et droits</button><button class="btn" data-a="us.add">+ Utilisateur</button>`:"")+tabs("users",[["u","Utilisateurs"],["a","Journal d'audit"]]);
  if(t==="u")return h+tbl(["Nom","Rôle","État",""],S.users.map(u=>tr([esc(u.nom),esc(ROLES[u.role]),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),`<div class="flex">${btn("us.pin",u.id,"Réinitialiser le mot de passe","ghost")}${u.id!==ME.id?btn("us.tg",u.id,u.actif?"Désactiver":"Activer","ghost"):""}</div>`])));
  const q=(UI.f.au&&UI.f.au.q||"").toLowerCase();return h+`<div class="card"><input data-f="au:q" placeholder="Filtrer…" value="${esc(UI.f.au&&UI.f.au.q||"")}"></div>`+tbl(["Date","Utilisateur","Rôle","Action","Détail"],S.audit.filter(a=>!q||(a.u+a.a+a.d).toLowerCase().includes(q)).map(a=>tr([fdt(a.t),esc(a.u),esc(a.r),esc(a.a),esc(a.d)])))};
 /* Mots de passe : l'administrateur ne choisit jamais le mot de passe d'un autre ; un mot de passe temporaire est généré, montré une fois, et doit être changé à la première connexion. */
 async function mdpTemp(uid_,titre){const mdp=ANGELS_AUTH.generer(),u0=by(S.users,uid_);if(!u0)return;const pwd=await ANGELS_AUTH.creer(mdp);const u=by(S.users,uid_);if(!u)return;u.pwd=pwd;u.chg=true;delete u.h;delete S.tries[u.id];save();await ANGELS_AUTH.afficherTemp({titre:titre||"Mot de passe temporaire",nom:u.nom,mdp});render()}
+A["rl.ouvrir"]=()=>{if(!can("users"))return alert("Droits insuffisants.");ANGELS_ROLES.ouvrir({app:"agro",nomApp:"Agro",get:()=>S,persister:()=>save(),audit:(a,d)=>audit(a,d),apres:()=>render()})};
 A["us.add"]=()=>form("Nouvel utilisateur",[{k:"nom",l:"Nom",req:1},{k:"role",l:"Rôle",t:"select",o:Object.entries(ROLES)}],{},o=>{need("users");if(S.users.some(x=>x.nom.toLowerCase()===o.nom.toLowerCase()))throw new Error("Un utilisateur porte déjà ce nom.");const u={id:uid("u"),nom:o.nom,role:o.role,actif:true,pwd:null,chg:true};S.users.push(u);audit("Utilisateur créé",o.nom);return{post:()=>mdpTemp(u.id,"Compte créé")}});
 A["us.pin"]=id=>{if(!confirm("Réinitialiser le mot de passe de cet utilisateur ? Un mot de passe temporaire sera généré et l'utilisateur devra le changer à la prochaine connexion."))return;if(atomic(()=>{need("users");const u=by(S.users,id);if(!u)throw new Error("Compte introuvable.");u.pwd=null;u.chg=true;delete u.h;S.tries[u.id]={n:0,until:0};audit("Mot de passe réinitialisé",u.nom)})!==false)mdpTemp(id,"Mot de passe réinitialisé")};
 function changerMdp(obligatoire){const m0=ME;return ANGELS_AUTH.ouvrirChangement({titre:"Changer mon mot de passe",nom:m0.nom,min:mdpMin(),obligatoire:!!obligatoire,ancien:async m=>(await ANGELS_AUTH.connecter(by(S.users,m0.id),m)).ok,enregistrer:async n=>{const u=by(S.users,m0.id);await ANGELS_AUTH.appliquer(u,n,false);ME=u;audit("Mot de passe modifié");save()}})}
@@ -2076,7 +2078,7 @@ function restaurer(txt){need("param");let o;try{o=JSON.parse(txt)}catch(e){throw
 A["bk.imp"]=async()=>{const f=$("#bkf");if(!f||!f.files[0])return alert("Choisir un fichier.");const txt=await f.files[0].text(),snap=JSON.stringify(S);try{const pb=restaurer(txt);save();alert(pb.length?"Restauré avec anomalies :\n"+pb.join("\n"):"Restauration réussie : intégrité vérifiée.");render()}catch(e){S=JSON.parse(snap);ME=by(S.users,ME.id);alert(e.message)}};
 A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n"):"Intégrité OK.")};
 /* ---------- Connexion, rendu, événements ---------- */
-const showNav=n=>n.r.includes(ME.role);
+const showNav=n=>{const ov=ANGELS_ROLES.surcharge("agro",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
 async function login(id,mdp){
  const u=by(S.users,id);if(!u)return"Compte inconnu.";const t=S.tries[u.id]||{n:0,until:0};
  if(Date.now()<t.until)return"Compte bloqué "+stv("blocage_min")+" minute(s) (trop de tentatives).";if(!u.actif)return"Compte désactivé.";
@@ -2111,6 +2113,7 @@ function loginHTML(){
 A.demoIn=(id,t)=>demoFill(t);
 A["demo.tg"]=()=>{if(atomic(()=>{need("param");S.settings.acces_demo=!demoOK();audit("Accès démo par profil",demoOK()?"activé":"désactivé")})!==false)render()};
 function render(){
+ try{ANGELS_ROLES.majRoles("agro",S,ROLES)}catch(e){}
  try{document.title=ORGRAW()+" — "+stv("org_activite")}catch(e){}
  const app=$("#app");
  if(!ME){
