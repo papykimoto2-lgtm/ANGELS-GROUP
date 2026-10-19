@@ -85,7 +85,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   return m1.join()==="Facture commerciale"&&m2.length===0&&/Joindre/.test(E[0])&&/introuvable/.test(E[1])&&/invalide/.test(E[2])||JSON.stringify({m1,m2,E})});
  // transitaire
  await t("IMP-13","transitaire externe : ne voit que ses dossiers, actualise les étapes ouvertes à l'externe, propose des frais (non comptabilisés) validés ensuite par l'interne ; aucun accès à la comptabilité ni aux paiements",()=>{
-  const u={id:uid("u"),nom:"Transit Plus Abidjan",role:"transitaire",actif:true};u.h=hashPin(u.id,"4242");S.users.push(u);
+  const u={id:uid("u"),nom:"Transit Plus Abidjan",role:"transitaire",actif:true};u.pwd=Object.assign({},ANGELS_AUTH.DEMO);S.users.push(u);
   const d=__mk({transitaire_user:u.id}),o=__mk({});const id=d.id;__st(id,"achat_docs");__st(id,"transport");__st(id,"expedie");const nE=S.entries.length;
   ME=by(S.users,u.id);const R={};R.vis=impVisibles().map(x=>x.id).join()===id;R.creer=__try(()=>__mk({}));R.autre=__try(()=>__st(o.id,"navire_annonce"));R.interne=__try(()=>__st(id,"paiement"));
   __st(id,"navire_annonce");__st(id,"arrive_port");R.paie=__try(()=>__st(id,"debarque",{}))===null;R.reserve=__try(()=>__st(id,"remis_transit",{}))===null;

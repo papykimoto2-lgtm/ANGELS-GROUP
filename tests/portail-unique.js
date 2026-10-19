@@ -67,14 +67,13 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const cd=await pd.evaluate(m=>{const out={};ME=S.users.find(u=>u.role==="admin");const nv0=S.vendeurs.length,nu0=S.users.length;
   const r=candImporter(m);out.imp=r.ok.length;const dup=candImporter(m);out.dup=dup.ko.length&&/déjà/.test(dup.ko[0]);
   const c=S.candidatures[S.candidatures.length-1];out.noacc=S.vendeurs.length===nv0&&S.users.length===nu0&&c.statut==="attente";
-  try{candApprouver(c.id,"12","5")}catch(e){out.pinko=/PIN/.test(e.message)}
-  ME=S.users.find(u=>u.role==="livreur"||u.role==="preparateur")||ME;let denied=false;const savedRole=ME.role;try{candApprouver(c.id,"4321","5")}catch(e){denied=/Droits/.test(e.message)}out.denied=denied||savedRole==="admin";
-  ME=S.users.find(u=>u.role==="admin");const v=candApprouver(c.id,"4321","7.5");const u=S.users.find(x=>x.id===v.user_id);out.vend=v.nom==="Fatou Diallo"&&v.commission_pct===7.5&&u.role==="vendeur"&&u.pin_h===hashPin(u.id,"4321");out.statut=c.statut==="approuvee"&&c.vendeur_id===v.id;
-  out.twice=(()=>{try{candApprouver(c.id,"4321","5")}catch(e){return /déjà traitée/.test(e.message)}})();
+  ME=S.users.find(u=>u.role==="livreur"||u.role==="preparateur")||ME;let denied=false;const savedRole=ME.role;try{candApprouver(c.id,"5")}catch(e){denied=/Droits/.test(e.message)}out.denied=denied||savedRole==="admin";
+  ME=S.users.find(u=>u.role==="admin");const v=candApprouver(c.id,"7.5");const u=S.users.find(x=>x.id===v.user_id);out.vend=v.nom==="Fatou Diallo"&&v.commission_pct===7.5&&u.role==="vendeur"&&u.pwd===null&&u.chg===true&&u.pin_h===undefined;out.statut=c.statut==="approuvee"&&c.vendeur_id===v.id;
+  out.twice=(()=>{try{candApprouver(c.id,"5")}catch(e){return /déjà traitée/.test(e.message)}})();
   const m2=m.replace(/\[VENDEUR:[^\]]+\]/,"["+"VENDEUR:"+b64({f:"ZZZZZZ",n:"Koffi",t:"0909090909",a:"Vente de sacs"})+"]");candImporter(m2);const c2=S.candidatures[S.candidatures.length-1];
   try{candRefuser(c2.id,"x")}catch(e){out.motif=/Motif/.test(e.message)}candRefuser(c2.id,"Produits non conformes");out.ref=c2.statut==="refusee"&&c2.hist.length===2;
   ui.page="vendeurs";out.vue=/Candidatures reçues du portail/.test(VIEWS.vendeurs())&&!/NaN|undefined/.test(VIEWS.vendeurs());return out},cand.msg);
- chk("PTL-10","Distributions : import des candidatures (doublon refusé, rien créé sans accord), approbation avec PIN et commission, refus motivé, historique conservé, écran",cd.imp===1&&cd.dup&&cd.noacc&&cd.pinko&&cd.denied&&cd.vend&&cd.statut&&cd.twice&&cd.motif&&cd.ref&&cd.vue,JSON.stringify(cd));
+ chk("PTL-10","Distributions : import des candidatures (doublon refusé, rien créé sans accord), approbation (mot de passe temporaire) et commission, refus motivé, historique conservé, écran",cd.imp===1&&cd.dup&&cd.noacc&&cd.denied&&cd.vend&&cd.statut&&cd.twice&&cd.motif&&cd.ref&&cd.vue,JSON.stringify(cd));
  // lien partagé / sécurité
  const lien=await ps.evaluate(()=>pLien(pLire()));
  const ctx2=await b.newContext(),p2=await ctx2.newPage();p2.on("pageerror",e=>errs.push("p2: "+e.message));

@@ -23,7 +23,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const msg=[["AAAAAA","Awa Koné","0102030405","e"],["BBBBBB","Moussa Traoré","0505050505","m","MP260101.9001"],["CCCCCC","Awa Koné","0102030405","e"]].map(x=>"[BOUTIQUE:"+mk(x[0],x[1],x[2],x[3],x[4])+"]").join(" ");
   const r=webImporter(msg);const c=S.commandes.find(c=>c.numero===r.ok[0].numero);c.statut="livree";c.hist.push({ts:now(),de:"en_cours",a:"livree",par:"t",note:""});
   const cm=candImporter("[VENDEUR:"+b64({f:"D1",n:"Fatou Diallo",t:"0707070707",v:"Yopougon",a:"Cosmétiques",p:"Savons"})+"] [VENDEUR:"+b64({f:"D2",n:"Koffi Yao",t:"0808080808",a:"Sacs"})+"]");
-  candApprouver(S.candidatures[0].id,"4321","5");candRefuser(S.candidatures[1].id,"Produits non conformes");save();
+  candApprouver(S.candidatures[0].id,"5");candRefuser(S.candidatures[1].id,"Produits non conformes");save();
   return{imp:r.ok.length,cand:cm.ok.length,adminId:ME.id,vend:S.vendeurs.length,total:c.total}});
  chk("ACC-0","jeu d'essai créé dans Distributions : 3 commandes en ligne (dont 1 livrée, 1 Mobile Money), 2 candidatures (1 approuvée, 1 refusée)",seed.imp===3&&seed.cand===2,JSON.stringify(seed));
  const ps=await ctx.newPage();ps.on("pageerror",e=>errs.push("parametres: "+e.message));ps.on("dialog",d=>d.accept());await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);

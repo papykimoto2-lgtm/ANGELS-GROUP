@@ -60,10 +60,10 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <header><div class="w top"><div><h1>⚙️ Paramètres — ANGEL'S GROUP</h1><p>Utilisateurs et rôles de chaque application · <span id="date"></span></p></div><a class="back" href="index.html">← Hub</a></div></header>
 <main><div class="w"><div class="tabs" id="ptabs" role="tablist" style="margin-top:18px"></div><div id="s-users">
 <h2 style="margin:6px 0 10px;font-size:16px">👥 Utilisateurs et rôles des applications</h2>
-<p class="note">Créez les comptes et attribuez les rôles de Distributions, Transport et Agro. Chaque application se déverrouille avec le PIN d'un de ses administrateurs ; les changements sont inscrits au journal d'audit de l'application (« via Hub ») et pris en compte aussitôt.</p>
+<p class="note">Créez les comptes et attribuez les rôles de Distributions, Transport et Agro. Chaque application se déverrouille avec le mot de passe d'un de ses administrateurs ; les changements sont inscrits au journal d'audit de l'application (« via Hub ») et pris en compte aussitôt.</p>
 <div class="tabs" id="utabs"></div><section id="usr"></section>
 </div><div id="s-ptl" hidden><h2 style="margin:6px 0 10px;font-size:16px">🌐 Portail unique du groupe</h2>
-<p class="note">Le portail est le site public du groupe et sa boutique en ligne (<a href="portail.html">portail.html</a>) : il ne donne jamais accès aux applications de gestion. Réglez ici l'identité, la boutique, les candidatures de vendeurs partenaires, les services, la FAQ et le contact. Les réglages sont enregistrés sur cet appareil ; pour les publier, copiez le <b>lien du portail</b> (il contient les réglages) et partagez-le. Modification réservée à un administrateur : déverrouillez d'abord une application avec le PIN d'un administrateur (onglet « Utilisateurs et rôles »).</p>
+<p class="note">Le portail est le site public du groupe et sa boutique en ligne (<a href="portail.html">portail.html</a>) : il ne donne jamais accès aux applications de gestion. Réglez ici l'identité, la boutique, les candidatures de vendeurs partenaires, les services, la FAQ et le contact. Les réglages sont enregistrés sur cet appareil ; pour les publier, copiez le <b>lien du portail</b> (il contient les réglages) et partagez-le. Modification réservée à un administrateur : déverrouillez d'abord une application avec le mot de passe d'un administrateur (onglet « Utilisateurs et rôles »).</p>
 <section id="ptl"></section>
 </div><div id="s-stats" hidden><h2 style="margin:6px 0 10px;font-size:16px">📊 Statistiques portail</h2><p class="note">Activité commerciale venue du portail : commandes de la boutique en ligne et candidatures de vendeurs partenaires, lues dans les données de Distributions de cet appareil. Le portail est un site public sans serveur : le nombre de visites n'est pas mesuré.</p><section id="pstat"></section></div>
 <div id="s-acces" hidden><h2 style="margin:6px 0 10px;font-size:16px">🔑 Accès portail (tous acteurs)</h2><p class="note">Toutes les personnes en lien avec le portail : clients de la boutique en ligne, candidats vendeurs et vendeurs partenaires. Contactez-les sur WhatsApp et gérez l'accès des vendeurs partenaires (activation / désactivation du compte, après déverrouillage de Distributions dans l'onglet Utilisateurs).</p><section id="pacc"></section></div>
@@ -74,6 +74,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </div></div></main>
 <footer>© ANGEL'S GROUP · Paramètres · <a href="index.html">Retour au hub</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
 <script src="qrcode.js"></script>
+<script src="auth-engine.js"></script>
 <script src="print-engine.js"></script>
 <script>
 const $=s=>document.getElementById(s);
@@ -86,21 +87,19 @@ const hashPin=(id,p)=>{let x=5381;for(const c of id+":"+p)x=((x<<5)+x+c.charCode
 const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const stamp=()=>new Date().toISOString();
 const RL={ /* mêmes profils que dans chaque application ; « lie » = profils rattachés à une fiche, créés dans leur application */
- dist:{key:"angels_erp_v1",ph:"pin_h",lie:["livreur","vendeur"],roles:{admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"},
-  ok:G=>G&&G.v===1&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>[Math.max(4,+(G.config&&G.config.pin_len)||4),8],
+ dist:{key:"angels_erp_v1",lie:["livreur","vendeur"],roles:{admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"},
+  ok:G=>G&&G.v===1&&Array.isArray(G.users)&&Array.isArray(G.audit),mdp:G=>Math.max(8,+(G.config&&G.config.mdp_min)||10),
   aud:(G,a,d,u)=>G.audit.push({ts:stamp(),user:u.nom,role:u.role,action:a,detail:d})},
- trans:{key:"angels_transport_v3",ph:"h",lie:["chauffeur"],roles:{admin:"Administrateur général",directeur:"Directeur / propriétaire",flotte:"Gestionnaire de flotte",caissier:"Caissier",comptable:"Comptable",controleur:"Contrôleur",chauffeur:"Chauffeur",transitaire:"Transitaire externe",importateur:"Responsable importation",stock_auto:"Gestionnaire de stock automobile",commercial_auto:"Commercial automobile"},
-  ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>{const n=+(G.settings&&G.settings.pin_len)||4;return[n,n]},
+ trans:{key:"angels_transport_v3",lie:["chauffeur"],roles:{admin:"Administrateur général",directeur:"Directeur / propriétaire",flotte:"Gestionnaire de flotte",caissier:"Caissier",comptable:"Comptable",controleur:"Contrôleur",chauffeur:"Chauffeur",transitaire:"Transitaire externe",importateur:"Responsable importation",stock_auto:"Gestionnaire de stock automobile",commercial_auto:"Commercial automobile"},
+  ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),mdp:G=>Math.max(8,+(G.settings&&G.settings.mdp_min)||10),
   aud:(G,a,d,u)=>G.audit.unshift({t:stamp(),u:u.nom,r:u.role,a,d})},
- agro:{key:"angels_agro_v1",ph:"h",lie:[],roles:{admin:"Administrateur",direction:"Direction générale",chef:"Chef d'exploitation",soigneur:"Soigneur",magasinier:"Magasinier",commercial:"Commercial",caissier:"Caissier",comptable:"Comptable"},
-  ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),pin:G=>{const n=+(G.settings&&G.settings.pin_len)||4;return[n,n]},
+ agro:{key:"angels_agro_v1",lie:[],roles:{admin:"Administrateur",direction:"Direction générale",chef:"Chef d'exploitation",soigneur:"Soigneur",magasinier:"Magasinier",commercial:"Commercial",caissier:"Caissier",comptable:"Comptable"},
+  ok:G=>G&&Array.isArray(G.users)&&Array.isArray(G.audit),mdp:G=>Math.max(8,+(G.settings&&G.settings.mdp_min)||10),
   aud:(G,a,d,u)=>G.audit.unshift({t:stamp(),u:u.nom,r:u.role,a,d})}};
 let UM=(()=>{try{return sessionStorage.getItem("hub_umod")||"dist"}catch(e){return"dist"}})(),UEDIT=null,UMSG=null;
 const AUTH={},TRY={},DUREE=10*60*1000;
 const uEtat=m=>{const G=lire(RL[m].key);return G&&RL[m].ok(G)?G:null};
 const uSess=m=>{const a=AUTH[m];if(a&&a.exp>Date.now())return a;delete AUTH[m];return null};
-const pinTxt=m=>{const[a,b]=RL[m].pin(uEtat(m));return a===b?a+" chiffres":a+" à "+b+" chiffres"};
-const pinOk=(m,G,p)=>{const[a,b]=RL[m].pin(G);return new RegExp("^\\d{"+a+","+b+"}$").test(p)};
 const admins=(G,m)=>G.users.filter(u=>u.role==="admin"&&u.actif!==false);
 function uView(){
  $("utabs").innerHTML=MODS.map(x=>`<button class="tab${x.id===UM?" on":""}" data-um="${x.id}" style="--c:${x.c}">${x.ic} ${x.nom}</button>`).join("");
@@ -111,21 +110,21 @@ function uView(){
   const ad=admins(G,m);
   box.innerHTML=msg+(ad.length?`<form class="uf" id="ugate"><div class="note" style="flex-basis:100%;margin:0">La gestion des comptes de ${E(mod.nom)} exige l'accord d'un administrateur de cette application.</div>
    <label>Administrateur<select name="u">${ad.map(u=>`<option value="${E(u.id)}">${E(u.nom)}</option>`).join("")}</select></label>
-   <label>Son PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" required></label><button class="sb" style="--c:${mod.c}">🔓 Déverrouiller</button></form>`
+   <label>Son mot de passe<input name="pwd" type="password" autocomplete="current-password" required></label><button class="sb" style="--c:${mod.c}">🔓 Déverrouiller</button></form>`
    :`<p class="note">Aucun administrateur actif dans ${E(mod.nom)} : ouvrez l'application pour réactiver un compte administrateur.</p>`);return}
- const nAd=admins(G,m).length,[lo,hi]=R.pin(G),pat="[0-9]{"+lo+","+hi+"}";
+ const nAd=admins(G,m).length;
  const rows=G.users.map(u=>{const lie=R.lie.includes(u.role),act=u.actif!==false,last=u.role==="admin"&&act&&nAd<=1;
   const role=lie?`${E(R.roles[u.role]||u.role)} <span class="note">(fiche liée)</span>`:`<select data-ur="${E(u.id)}" aria-label="Rôle de ${E(u.nom)}">${Object.entries(R.roles).filter(([k])=>!R.lie.includes(k)).map(([k,v])=>`<option value="${k}"${k===u.role?" selected":""}>${E(v)}</option>`).join("")}${R.roles[u.role]?"":`<option value="${E(u.role)}" selected>${E(u.role)}</option>`}</select>`;
-  const ed=UEDIT===u.id?`<form class="uf" data-upin="${E(u.id)}" style="margin:6px 0 0"><label>Nouveau PIN (${pinTxt(m)})<input name="pin" type="password" inputmode="numeric" pattern="${pat}" autocomplete="off" required></label><button class="sb" style="--c:${mod.c}">Valider</button><button type="button" class="sb g" data-ux="1">Annuler</button></form>`:"";
+  const ed="";
   return`<tr class="${act?"":"off"}"><td><b>${E(u.nom)}</b>${last?' <span class="note">(dernier administrateur)</span>':""}</td><td>${role}</td><td>${act?'<span class="ok">Actif</span>':'<span class="er">Désactivé</span>'}</td>
-   <td><button class="sb g" data-up="${E(u.id)}">🔑 PIN</button> <button class="sb g" data-ut="${E(u.id)}">${act?"Désactiver":"Réactiver"}</button>${ed}</td></tr>`}).join("");
+   <td><button class="sb g" data-up="${E(u.id)}">🔑 Mot de passe</button> <button class="sb g" data-ut="${E(u.id)}">${act?"Désactiver":"Réactiver"}</button>${ed}</td></tr>`}).join("");
  box.innerHTML=msg+`<p class="note" style="margin:0 0 8px">Autorisé par <b>${E(au.nom)}</b> (administrateur ${E(mod.nom)}) · <a href="#" data-ulock="1">Verrouiller</a></p>
   <div class="tw"><table class="ut"><thead><tr><th>Utilisateur</th><th>Rôle</th><th>État</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
   <form class="uf" id="uadd"><label>Nom<input name="nom" required maxlength="60"></label>
    <label>Rôle<select name="role">${Object.entries(R.roles).filter(([k])=>!R.lie.includes(k)).map(([k,v])=>`<option value="${k}">${E(v)}</option>`).join("")}</select></label>
-   <label>PIN (${pinTxt(m)})<input name="pin" type="password" inputmode="numeric" pattern="${pat}" autocomplete="off" required></label><button class="sb" style="--c:${mod.c}">➕ Créer le compte</button></form>
+   <button class="sb" style="--c:${mod.c}">➕ Créer le compte</button><span class="note" style="flex-basis:100%;margin:0">Un mot de passe temporaire est généré et montré une seule fois ; l'utilisateur devra le changer à sa première connexion.</span></form>
   ${R.lie.length?`<p class="note">Les comptes « ${R.lie.map(k=>E(R.roles[k])).join(" » et « ")} » se créent dans ${E(mod.nom)}, avec leur fiche (téléphone, zone, moto…).</p>`:""}
-  <p class="note">Les changements s'appliquent aussitôt dans l'application, y compris si elle est ouverte. Les droits et les PIN sont stockés sur cet appareil (pas de serveur) : voir « Limites assumées ».</p>`;
+  <p class="note">Les changements s'appliquent aussitôt dans l'application, y compris si elle est ouverte. Les droits et les mots de passe (hachés) sont stockés sur cet appareil (pas de serveur) : voir « Limites assumées ».</p>`;
 }
 /* écrit dans l'application : relit l'état, revérifie l'autorisation, applique, journalise, enregistre */
 function uAgir(m,fn){
@@ -135,13 +134,16 @@ function uAgir(m,fn){
  try{const t=fn(G,R,me);try{localStorage.setItem(R.key,JSON.stringify(G))}catch(e){throw new Error("Stockage plein : changement non enregistré.")}UMSG={t};UEDIT=null}catch(e){UMSG={er:1,t:e.message}}
  uView()
 }
+async function uReset(id){const mdp=ANGELS_AUTH.generer(),rec=await ANGELS_AUTH.creer(mdp);let nom0="";
+ uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");u.pwd=rec;u.chg=true;delete u.h;delete u.pin_h;if(G.tries&&typeof G.tries==="object")G.tries[u.id]={n:0,until:0};nom0=u.nom;R.aud(G,"Mot de passe réinitialisé (via Hub)",u.nom,me);return u.nom+" : mot de passe temporaire généré."});
+ if(UMSG&&!UMSG.er&&nom0)await ANGELS_AUTH.afficherTemp({titre:"Mot de passe réinitialisé",nom:nom0,mdp})}
 document.addEventListener("click",e=>{
  const t=e.target.closest("[data-um],[data-up],[data-ut],[data-ux],[data-ulock]");if(!t)return;
  if(t.dataset.um){UM=t.dataset.um;UEDIT=null;UMSG=null;try{sessionStorage.setItem("hub_umod",UM)}catch(x){}return uView()}
  e.preventDefault();
  if(t.dataset.ulock){delete AUTH[UM];UMSG=null;UEDIT=null;return uView()}
  if(t.dataset.ux){UEDIT=null;return uView()}
- if(t.dataset.up){UEDIT=t.dataset.up;UMSG=null;return uView()}
+ if(t.dataset.up){const id=t.dataset.up,G0=uEtat(UM),u0=G0&&G0.users.find(x=>x.id===id);if(!u0)return;if(!confirm('Réinitialiser le mot de passe de '+u0.nom+' ? Un mot de passe temporaire sera généré et montré une seule fois.'))return;UMSG=null;return uReset(id)}
  if(t.dataset.ut){const id=t.dataset.ut;uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");
   const act=u.actif!==false;if(act){if(u.id===me.id)throw new Error("Impossible de désactiver le compte qui vous autorise.");if(u.role==="admin"&&admins(G,UM).length<=1)throw new Error("Impossible : c'est le dernier administrateur actif.")}
   u.actif=!act;R.aud(G,"Compte "+(u.actif?"réactivé":"désactivé")+" (via Hub)",u.nom,me);return u.nom+" : compte "+(u.actif?"réactivé":"désactivé")+"."})}
@@ -152,19 +154,20 @@ document.addEventListener("change",e=>{const s=e.target.closest("[data-ur]");if(
   const av=u.role;u.role=nv;R.aud(G,"Rôle modifié (via Hub)",u.nom+" : "+av+" → "+nv,me);return u.nom+" : rôle « "+R.roles[nv]+" »."})});
 document.addEventListener("submit",e=>{const f=e.target;if(f.id==="ugate"){e.preventDefault();const m=UM,G=uEtat(m);if(!G)return uView();
   const tr=TRY[m]||(TRY[m]={n:0,until:0});if(tr.until>Date.now()){UMSG={er:1,t:"Trop d'essais : patientez "+Math.ceil((tr.until-Date.now())/1000)+" s."};return uView()}
-  const d=new FormData(f),u=G.users.find(x=>x.id===d.get("u")&&x.role==="admin"&&x.actif!==false);
-  if(u&&u[RL[m].ph]===hashPin(u.id,String(d.get("pin")))){TRY[m]={n:0,until:0};AUTH[m]={id:u.id,nom:u.nom,exp:Date.now()+DUREE};UMSG=null}
-  else{tr.n++;if(tr.n>=5){tr.n=0;tr.until=Date.now()+60000}UMSG={er:1,t:"PIN incorrect."}}
-  return uView()}
- if(f.id==="uadd"){e.preventDefault();const d=new FormData(f);
-  uAgir(UM,(G,R,me)=>{const nom=String(d.get("nom")||"").trim().replace(/\s+/g," "),role=String(d.get("role")),pin=String(d.get("pin"));
-   if(!nom)throw new Error("Nom obligatoire.");if(!R.roles[role]||R.lie.includes(role))throw new Error("Profil non autorisé depuis le hub.");
-   if(!pinOk(UM,G,pin))throw new Error("PIN : "+pinTxt(UM)+".");
-   if(G.users.some(u=>String(u.nom).toLowerCase()===nom.toLowerCase()))throw new Error("Un compte porte déjà ce nom.");
-   const u={id:uid("u"),nom,role,actif:true};u[R.ph]=hashPin(u.id,pin);G.users.push(u);R.aud(G,"Utilisateur créé (via Hub)",nom+" ("+role+")",me);return nom+" : compte créé ("+R.roles[role]+")."});return}
- if(f.dataset.upin){e.preventDefault();const id=f.dataset.upin,pin=String(new FormData(f).get("pin"));
-  uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");if(!pinOk(UM,G,pin))throw new Error("PIN : "+pinTxt(UM)+".");
-   u[R.ph]=hashPin(u.id,pin);if(G.tries&&typeof G.tries==="object")G.tries[u.id]={n:0,until:0};R.aud(G,"PIN réinitialisé (via Hub)",u.nom,me);return u.nom+" : PIN modifié."})}
+  const d=new FormData(f),u=G.users.find(x=>x.id===d.get("u")&&x.role==="admin"&&x.actif!==false),pwd=String(d.get("pwd"));
+  (async()=>{let r={ok:false};try{if(u)r=await ANGELS_AUTH.connecter(u,pwd)}catch(x){UMSG={er:1,t:x.message};return uView()}
+   if(r.ok&&r.legacy){UMSG={er:1,t:"Les codes PIN ne sont plus acceptés : ouvrez l'application et connectez-vous une fois pour créer votre mot de passe."}}
+   else if(r.ok&&u.chg){UMSG={er:1,t:"Votre mot de passe est temporaire : ouvrez l'application et connectez-vous une fois pour le remplacer."}}
+   else if(r.ok){TRY[m]={n:0,until:0};AUTH[m]={id:u.id,nom:u.nom,exp:Date.now()+DUREE};UMSG=null}
+   else{tr.n++;if(tr.n>=5){tr.n=0;tr.until=Date.now()+60000}UMSG={er:1,t:"Administrateur ou mot de passe incorrect."}}
+   uView()})();return}
+ if(f.id==="uadd"){e.preventDefault();const d=new FormData(f),mdp=ANGELS_AUTH.generer();
+  (async()=>{const rec=await ANGELS_AUTH.creer(mdp);let nom0="";
+   uAgir(UM,(G,R,me)=>{const nom=String(d.get("nom")||"").trim().replace(/\s+/g," "),role=String(d.get("role"));
+    if(!nom)throw new Error("Nom obligatoire.");if(!R.roles[role]||R.lie.includes(role))throw new Error("Profil non autorisé depuis le hub.");
+    if(G.users.some(u=>String(u.nom).toLowerCase()===nom.toLowerCase()))throw new Error("Un compte porte déjà ce nom.");
+    const u={id:uid("u"),nom,role,actif:true,pwd:rec,chg:true};G.users.push(u);nom0=nom;R.aud(G,"Utilisateur créé (via Hub)",nom+" ("+role+")",me);return nom+" : compte créé ("+R.roles[role]+")."});
+   if(UMSG&&!UMSG.er&&nom0)await ANGELS_AUTH.afficherTemp({titre:"Compte créé",nom:nom0,mdp})})();return}
 });
 window.addEventListener("storage",()=>{if(!document.activeElement||!/INPUT|SELECT/.test(document.activeElement.tagName))uView()});
 window.addEventListener("storage",ev=>{if(ev.key===PKEY&&(!document.activeElement||!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))){PCUR=null;pView()}});
@@ -198,7 +201,7 @@ function pView(){
  const e=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
  const TA='style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)"';
  const H=t=>`<h3 style="margin:16px 0 4px;font-size:14px">${t}</h3>`;
- el.innerHTML=(PMSG?`<div class="umsg ${PMSG.er?"er":""}">${e(PMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le PIN d\'un administrateur pour modifier le portail.</div>')+
+ el.innerHTML=(PMSG?`<div class="umsg ${PMSG.er?"er":""}">${e(PMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le mot de passe d\'un administrateur pour modifier le portail.</div>')+
  `<form id="pform"><div class="pp" data-pp="identite">${H("🎨 Identité du portail")}<p class="note">Chaque réglage est publié sur le portail : aucune donnée n'est codée en dur.</p>
  <div class="uf"><label style="flex:1;min-width:240px">Nom affiché sur le portail<input name="nom" value="${e(C.nom)}" maxlength="60" style="width:100%"></label></div>
  <div class="uf"><label style="flex:1;min-width:240px">Slogan (sous le nom, dans l'en-tête)<input name="slogan" value="${e(C.slogan)}" maxlength="160" style="width:100%"></label></div>
@@ -272,15 +275,15 @@ function pFromForm(form,C,strict){
  return C}
 const pSync=()=>{const f=$("pform");if(!f)return PCUR||pLire();PCUR=pFromForm(f,PCUR||pLire(),false);return PCUR};
 document.addEventListener("submit",ev=>{if(ev.target.id!=="pform")return;ev.preventDefault();
- try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");
+ try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");
   const C=pFromForm(ev.target,PCUR||pLire(),true);
   try{localStorage.setItem(PKEY,JSON.stringify(C))}catch(x){throw new Error("Stockage plein : retirez des médias ou une photo volumineuse.")}PCUR=null;pDiffuse();PMSG={t:"Portail enregistré sur cet appareil. Pour le publier : téléchargez portail-data.js (à déposer à côté de portail.html) ou générez un portail autonome."}}
  catch(e){PMSG={er:1,t:e.message}}pView()});
 let PIMG=null;
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(!b)return;const k=b.dataset.p,i=+b.dataset.i;
- if(k==="bsync"){if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return pView()}const C=pSync(),d=pCatDist();if(!d){PMSG={er:1,t:"Aucune donnée de Distributions sur cet appareil : ouvrez Distributions une fois."};return pView()}C.boutique_src="auto";C.boutique=d.tok;C.boutique_sync=new Date().toISOString();try{localStorage.setItem(PKEY,JSON.stringify(C))}catch(x){PMSG={er:1,t:"Stockage plein."};return pView()}PCUR=null;pDiffuse();PMSG={t:d.n?"Catalogue synchronisé : "+d.n+" article(s) publié(s) en ligne.":"Synchronisé : Distributions n'a aucun article publié en ligne pour le moment."};return pView()}
+ if(k==="bsync"){if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return pView()}const C=pSync(),d=pCatDist();if(!d){PMSG={er:1,t:"Aucune donnée de Distributions sur cet appareil : ouvrez Distributions une fois."};return pView()}C.boutique_src="auto";C.boutique=d.tok;C.boutique_sync=new Date().toISOString();try{localStorage.setItem(PKEY,JSON.stringify(C))}catch(x){PMSG={er:1,t:"Stockage plein."};return pView()}PCUR=null;pDiffuse();PMSG={t:d.n?"Catalogue synchronisé : "+d.n+" article(s) publié(s) en ligne.":"Synchronisé : Distributions n'a aucun article publié en ligne pour le moment."};return pView()}
  if(["aadd","aup","adown","adel","abn","abx","dgp","dgx","atp","atx","ppp","ppx"].includes(k)){
-  if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return pView()}
+  if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return pView()}
   const C=pSync(),A=C.activites;
   if(k==="aadd"){if(A.length<8)A.push({nom:"",slogan:"",texte:"",detail:"",points:[],banniere:"",actif:false})}
   else if(k==="aup"&&i>0)[A[i-1],A[i]]=[A[i],A[i-1]];
@@ -314,7 +317,7 @@ async function mView(){
  const el=$("pmed");if(!el)return;const C=pLire(),ok=pDebloque(),dis=ok?"":"disabled";let L=[];try{L=await mAll()}catch(e){PMM={er:1,t:e.message}}
  const e=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
  const ko=Math.round(L.reduce((t,m)=>t+(m.type!=="video"?String(m.src).length*0.75:0),0)/1024);
- el.innerHTML=(PMM?`<div class="umsg ${PMM.er?"er":""}">${e(PMM.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le PIN d\'un administrateur pour modifier les médias.</div>')+
+ el.innerHTML=(PMM?`<div class="umsg ${PMM.er?"er":""}">${e(PMM.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le mot de passe d\'un administrateur pour modifier les médias.</div>')+
  `<div class="pan" style="margin-bottom:12px"><h4>➕ Ajouter des médias</h4><form id="mform" onsubmit="return false"><div class="uf"><label>Catégorie<select name="cat">${PMCAT.map(c=>`<option value="${c[0]}" ${MCUR.cat===c[0]?"selected":""}>${c[1]}</option>`).join("")}</select></label><label>Titre / légende<input name="titre" value="${e(MCUR.titre)}" maxlength="100" placeholder="Ex : Livraison à Cocody, notre équipe…"></label>
   <label>Rattacher à<select name="act">${mAct(C).map(a=>`<option value="${a[0]}" ${MCUR.act===a[0]?"selected":""}>${e(a[1])}</option>`).join("")}</select></label></div>
   <label style="display:block">Commentaire / description (affiché sous le média sur le portail)<textarea name="comment" rows="2" maxlength="400" style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)">${e(MCUR.comment)}</textarea></label>
@@ -326,7 +329,7 @@ async function mView(){
 }
 function mVals(){const f=$("mform");return{cat:f.cat.value,titre:f.titre.value.trim().slice(0,100),act:f.act.value,comment:f.comment.value.trim().slice(0,400)}}
 async function mAjout(kind,files){
- try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");
+ try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");
   const v=mVals();MCUR={...v};if(kind!=="doc"&&v.cat==="activite"&&!v.act)throw new Error("Catégorie « Activité » : choisissez l'activité dans « Rattacher à ».");
   const base={cat:v.cat,titre:v.titre,comment:v.comment,act:v.cat==="activite"?v.act:v.act,t:Date.now()};let n=0;
   if(kind==="photos"){if(!files.length)return;if(files.length>30)throw new Error("30 photos maximum à la fois.");
@@ -340,11 +343,11 @@ async function mAjout(kind,files){
  return mView()}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-m]");if(!b)return;const k=b.dataset.m;
  if(k==="photos")$("m_photos").click();else if(k==="pdf")$("m_pdf").click();else if(k==="video"||k==="doclien")mAjout(k,[]);
- else if(k==="del"){if(!pDebloque()){PMM={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return mView()}if(confirm("Retirer ce média du portail ?"))mDel(b.dataset.id).then(()=>{PMM={t:"Média retiré."};pDiffuse();mView()})}});
+ else if(k==="del"){if(!pDebloque()){PMM={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return mView()}if(confirm("Retirer ce média du portail ?"))mDel(b.dataset.id).then(()=>{PMM={t:"Média retiré."};pDiffuse();mView()})}});
 document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="m_photos"){const f=[...t.files];t.value="";mAjout("photos",f)}else if(t.id==="m_pdf"){const f=[...t.files];t.value="";mAjout("pdf",f)}
- else if(t.id==="m_img"){const f=t.files[0];t.value="";if(!f||!PIMG)return;const q=PIMG;PIMG=null;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Choisissez une image (PNG, JPG, WEBP).");
+ else if(t.id==="m_img"){const f=t.files[0];t.value="";if(!f||!PIMG)return;const q=PIMG;PIMG=null;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Choisissez une image (PNG, JPG, WEBP).");
   const C=pSync(),src=await imgCompress(f,q.k==="dgp"?640:q.k==="abn"?1280:320,0.78,"image/jpeg");if(q.k==="dgp")C.motdg.photo=src;else if(q.k==="atp"){while(C.atouts.length<=q.i)C.atouts.push({photo:"",titre:"",texte:""});C.atouts[q.i].photo=src}else if(q.k==="ppp"){C.photosProduits=C.photosProduits||{};C.photosProduits[q.c]=src}else C.activites[q.i].banniere=src;PMSG={t:"Photo importée : pensez à enregistrer le portail."}}catch(e){PMSG={er:1,t:e.message}}pView()})()}
- else if(t.id==="m_logo"){const f=t.files[0];t.value="";if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Le logo doit être une image (PNG, JPG, SVG, WEBP).");if(f.size>2*1024*1024)throw new Error("Logo : 2 Mo maximum.");
+ else if(t.id==="m_logo"){const f=t.files[0];t.value="";if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Le logo doit être une image (PNG, JPG, SVG, WEBP).");if(f.size>2*1024*1024)throw new Error("Logo : 2 Mo maximum.");
   const C=pLire();C.logo=await imgCompress(f,360,0.9,"image/png");localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Logo importé."};pDiffuse()}catch(e){PMSG={er:1,t:e.message}}pView()})()}});
 /* ---------- Publication : portail-data.js ou portail autonome ---------- */
 async function pVeh(){try{const db=await idbOpen();return await new Promise((ok,ko)=>{const q=db.transaction("veh").objectStore("veh").get("catalogue");q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ko(q.error)})}catch(e){return null}}
@@ -359,7 +362,7 @@ async function pPublie(mode){
    h=h.replace(MARQ,()=>"<scr"+"ipt>"+js+"</scr"+"ipt>");pTelecharge("portail.html",h,"text/html");PMSG={t:"Portail autonome généré (réglages et médias inclus) : remplacez portail.html sur le site par ce fichier."}}}
  catch(e){PMSG={er:1,t:e.message}}pView()}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(!b)return;if(b.dataset.p==="data")pPublie("data");if(b.dataset.p==="auto")pPublie("auto");
- if(b.dataset.p==="logo"){if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return pView()}$("m_logo").click()}
+ if(b.dataset.p==="logo"){if(!pDebloque()){PMSG={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return pView()}$("m_logo").click()}
  if(b.dataset.p==="logox"&&pDebloque()){const C=pLire();C.logo="";localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;PMSG={t:"Logo retiré."};pDiffuse();pView()}});
 
 
@@ -418,7 +421,7 @@ function aView(){
  el.innerHTML=(AMSG?`<div class="umsg ${AMSG.er?"er":""}">${eE(AMSG.t)}</div>`:"")+
  `<div class="tabs">${[["tous","Tous ("+aActeurs(G).length+")"],["client","Clients ("+N("client")+")"],["candidat","Candidats ("+N("candidat")+")"],["vendeur","Vendeurs partenaires ("+N("vendeur")+")"]].map(x=>`<button type="button" class="tab ${AF.t===x[0]?"on":""}" data-af="${x[0]}">${x[1]}</button>`).join("")}</div>
  <div class="uf"><label>Rechercher (nom ou téléphone)<input id="aq" value="${eE(AF.q)}"></label><button type="button" class="sb g" data-s="acsv">⬇️ Exporter (CSV)</button></div>
- ${adm?"":'<p class="note">Pour activer ou désactiver un accès vendeur : onglet « Utilisateurs et rôles » → Distributions → saisissez le PIN d\'un administrateur.</p>'}
+ ${adm?"":'<p class="note">Pour activer ou désactiver un accès vendeur : onglet « Utilisateurs et rôles » → Distributions → saisissez le mot de passe d\'un administrateur.</p>'}
  <div style="overflow-x:auto"><table class="ut" style="min-width:680px"><tr><th>Type</th><th>Nom</th><th>Téléphone</th><th>Détail</th><th>Accès / statut</th><th>Dernière activité</th><th></th></tr>`+
  (A.map(a=>`<tr><td>${lib[a.k]}</td><td><b>${eE(a.nom)}</b></td><td>${eE(a.tel)}</td><td>${eE(a.info)}</td><td>${eE(a.statut)}</td><td>${eE(String(a.der||"").slice(0,10)||"—")}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${telWA(a.tel).length>=8?`<a class="sb g" style="text-decoration:none;display:inline-flex;align-items:center" href="https://wa.me/${telWA(a.tel)}" target="_blank" rel="noopener">💬</a>`:""}${a.k==="vendeur"&&a.uid?`<button type="button" class="sb g" ${adm?"":"disabled"} data-av="${eE(a.uid)}">${a.actif?"Désactiver l'accès":"Réactiver l'accès"}</button>`:""}</div></td></tr>`).join("")||'<tr><td colspan="7" class="note">Aucun acteur pour ce filtre.</td></tr>')+`</table></div>`;
 }
@@ -446,7 +449,7 @@ function iView(){
   <div><label class="sb g" style="cursor:pointer;display:inline-block;padding:8px 12px">Importer le logo<input type="file" accept="image/png,image/jpeg,image/webp" data-ilogo="${k}" ${dis} hidden></label> ${x.logo?`<button type="button" class="sb g" data-ilogoclr="${k}" ${dis}>Retirer</button>`:""}<div class="mu sm">${k==="groupe"?"Utilisé par les divisions sans logo propre.":"Sans logo : celui du groupe, puis un monogramme."}</div></div>
   <label>Couleur<input type="color" name="${k}__couleur" value="${iE(x.couleur||"#1f3a5f")}" ${dis} style="width:56px;height:38px;padding:2px"></label></div>
   <div class="uf">${IF.map(([f,l])=>`<label style="flex:1;min-width:${f==="pied"||f==="siege"?"260":"170"}px">${l}<input name="${k}__${f}" value="${iE(x[f])}" maxlength="${f==="pied"?200:90}" ${dis} style="width:100%"></label>`).join("")}</div></div>`};
- el.innerHTML=(IMSG?`<div class="umsg ${IMSG.er?"er":""}">${iE(IMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le PIN d\'un administrateur pour modifier l\'impression.</div>')+
+ el.innerHTML=(IMSG?`<div class="umsg ${IMSG.er?"er":""}">${iE(IMSG.t)}</div>`:"")+(ok?"":'<div class="umsg er">Lecture seule : déverrouillez une application avec le mot de passe d\'un administrateur pour modifier l\'impression.</div>')+
  `<form id="iform"><div class="card" style="margin:12px 0"><h3 style="margin:0 0 6px;font-size:14px">🔐 QR code de sécurité et pied de page</h3>
   <div class="uf"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="qr" ${C.qr?"checked":""} ${dis}> QR de sécurité signé sur chaque document imprimé</label></div>
   <div class="uf"><label style="flex:1;min-width:260px">Adresse publique du site (https) — le QR ouvre la page de vérification<input name="site" value="${iE(C.site)}" placeholder="https://votre-site.vercel.app" maxlength="120" ${dis} style="width:100%"></label>
@@ -465,14 +468,14 @@ async function iEnregistrer(f){
  ANGELS_PRINT.DIVS.forEach(([k])=>{IF.forEach(([f])=>{C.div[k][f]=String(d.get(k+"__"+f)||"").trim()});const c=String(d.get(k+"__couleur")||"");C.div[k].couleur=/^#[0-9a-f]{6}$/i.test(c)?c:""});
  if(!ANGELS_PRINT.sauver(C))throw new Error("Stockage plein.");
 }
-document.addEventListener("submit",ev=>{if(ev.target.id!=="iform")return;ev.preventDefault();(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");const logos=ANGELS_PRINT.cfg();await iEnregistrer(ev.target);const C=ANGELS_PRINT.cfg();ANGELS_PRINT.DIVS.forEach(([k])=>{C.div[k].logo=logos.div[k].logo});ANGELS_PRINT.sauver(C);IMSG={t:"Réglages d'impression enregistrés : tous les documents imprimés les utilisent."}}catch(e){IMSG={er:1,t:e.message}}iView()})()});
-document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset&&t.dataset.ilogo){const f=t.files[0];if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Ce n'est pas une image.");const src=await imgCompress(f,360,0.9,"image/png"),C=ANGELS_PRINT.cfg();C.div[t.dataset.ilogo].logo=src;ANGELS_PRINT.sauver(C);IMSG={t:"Logo importé."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}
- if(t.dataset&&t.dataset.ik==="imp"){const f=t.files[0];if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le PIN d'un administrateur.");const K=await ANGELS_PRINT.cleImporter(await f.text());IMSG={t:"Clé importée : "+K.kid}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
+document.addEventListener("submit",ev=>{if(ev.target.id!=="iform")return;ev.preventDefault();(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");const logos=ANGELS_PRINT.cfg();await iEnregistrer(ev.target);const C=ANGELS_PRINT.cfg();ANGELS_PRINT.DIVS.forEach(([k])=>{C.div[k].logo=logos.div[k].logo});ANGELS_PRINT.sauver(C);IMSG={t:"Réglages d'impression enregistrés : tous les documents imprimés les utilisent."}}catch(e){IMSG={er:1,t:e.message}}iView()})()});
+document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset&&t.dataset.ilogo){const f=t.files[0];if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");if(!/^image\//.test(f.type))throw new Error("Ce n'est pas une image.");const src=await imgCompress(f,360,0.9,"image/png"),C=ANGELS_PRINT.cfg();C.div[t.dataset.ilogo].logo=src;ANGELS_PRINT.sauver(C);IMSG={t:"Logo importé."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}
+ if(t.dataset&&t.dataset.ik==="imp"){const f=t.files[0];if(!f)return;(async()=>{try{if(!pDebloque())throw new Error("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.");const K=await ANGELS_PRINT.cleImporter(await f.text());IMSG={t:"Clé importée : "+K.kid}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-ilogoclr],[data-ik]");if(!b||b.tagName==="INPUT")return;
- if(b.dataset.ilogoclr){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return iView()}const C=ANGELS_PRINT.cfg();C.div[b.dataset.ilogoclr].logo="";ANGELS_PRINT.sauver(C);IMSG={t:"Logo retiré."};return iView()}
+ if(b.dataset.ilogoclr){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return iView()}const C=ANGELS_PRINT.cfg();C.div[b.dataset.ilogoclr].logo="";ANGELS_PRINT.sauver(C);IMSG={t:"Logo retiré."};return iView()}
  const k=b.dataset.ik;if(k==="essai"){ANGELS_PRINT.ouvrir({division:"groupe",titre:"Document d'essai",ref:"ESSAI-"+new Date().getFullYear()+"-0001",montant:125000,corps:"<p>Ce document d'essai vérifie l'en-tête, le pied de page et le QR de sécurité de votre entreprise.</p><table><tr><th>Désignation</th><th>Montant</th></tr><tr><td>Prestation d'essai</td><td>125 000 F</td></tr></table>",signatures:[["Pour l'entreprise","Nom, qualité, signature"],["Le client","Lu et approuvé"]],emetteur:"Paramètres"});return}
- if(k==="exp"){if(!pDebloque())return alert("Déverrouillez d'abord une application avec le PIN d'un administrateur : la clé privée permet de signer de faux documents.");const t=ANGELS_PRINT.cleExporter();if(!t)return;const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"application/json"}));a.download="cle-signature-angels.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return}
- if(k==="gen"){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le PIN d'un administrateur."};return iView()}if(ANGELS_PRINT.cleInfo().existe&&!confirm("Régénérer la clé ? Les documents déjà imprimés ne seront plus confirmés si l'ancienne clé n'est plus publiée."))return;(async()=>{try{const K=await ANGELS_PRINT.cleRegenerer();IMSG={t:"Clé active : "+K.kid+". Republiez le portail pour publier la clé publique."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
+ if(k==="exp"){if(!pDebloque())return alert("Déverrouillez d'abord une application avec le mot de passe d'un administrateur : la clé privée permet de signer de faux documents.");const t=ANGELS_PRINT.cleExporter();if(!t)return;const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"application/json"}));a.download="cle-signature-angels.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return}
+ if(k==="gen"){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return iView()}if(ANGELS_PRINT.cleInfo().existe&&!confirm("Régénérer la clé ? Les documents déjà imprimés ne seront plus confirmés si l'ancienne clé n'est plus publiée."))return;(async()=>{try{const K=await ANGELS_PRINT.cleRegenerer();IMSG={t:"Clé active : "+K.kid+". Republiez le portail pour publier la clé publique."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
 
 const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["impression","🖨️ Impression"],["publication","🚀 Publication"]];
 let PTAB=(()=>{try{const t=sessionStorage.getItem("angels_param_tab");return PTABS.some(x=>x[0]===t)?t:"users"}catch(e){return"users"}})();
