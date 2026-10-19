@@ -562,3 +562,4 @@ Onglet inspiré de la configuration Supabase de ZAHARA : URL du projet et clé *
 - Les profils et le mot de passe de démonstration n'existent plus à l'écran. Le mode démonstration reste disponible pour les tests et présentations en ouvrant l'application avec `?demo=1` (`?demo=0` pour le quitter).
 - **Bouton 👁** « afficher / masquer » dans tous les champs de mot de passe (applications, Paramètres, `livreur.html`).
 - Tests : `tests/production.js` (25 contrôles, sans données de démonstration) ; `sh tests/run-all.sh` lance toutes les suites, les autres avec le drapeau de démonstration (`tests/demo-hook.js`).
+- **Aucun numéro préenregistré** : WhatsApp de l'entreprise, téléphones d'en-tête des documents, comptes Mobile Money et exemples des écrans sont vides ; ils se renseignent dans Paramètres. Seuls restent la signature du développeur (demandée) et les numéros d'urgence publics du SOS (police 110, SAMU 185, pompiers 180).
