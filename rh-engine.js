@@ -87,6 +87,10 @@
   var cnpsTotal = function (c) { return c.cnpsSal + c.cnpsRetPat + c.cnpsAT + c.cnpsPF + c.cmuSal + c.cmuPat; };
   var fdfpTotal = function (c) { return c.fdfpTA + c.fdfpFC + c.fdfpRegul; };
   var empActif = function (e) { return !(e.sortie && e.sortie.date); };
+  /* Comptes utilisateurs de l'application (facultatif : l'hôte fournit H.comptes() → [{id, nom, role, actif, interne}]). Un compte ↔ au plus un employé en poste. */
+  var comptes = function () { try { return H.comptes ? H.comptes() || [] : []; } catch (e) { return []; } };
+  var compteDe = function (e) { return e && e.user_id ? comptes().filter(function (c) { return c.id === e.user_id; })[0] || null : null; };
+  var ficheDe = function (uid_) { return uid_ ? rh().employes.filter(function (e) { return e.user_id === uid_ && empActif(e); })[0] || null : null; };
   var empNom = function (e) { return ((e.nom || "") + " " + (e.prenoms || "")).trim(); };
   var empPresent = function (e, mois) { var me = dernierJour(mois); return (!e.embauche || e.embauche <= me) && (!(e.sortie && e.sortie.date) || e.sortie.date >= premierJour(mois)) && !(e.contrat === "CDD" && e.fin_contrat && e.fin_contrat < premierJour(mois)); };
   function variable(mois, empId) { var r = rh(); return r.variables.filter(function (x) { return x.mois === mois && x.emp_id === empId; })[0] || { mois: mois, emp_id: empId, abs: 0, hs: 0, primes: 0, retenues: 0, avance: null }; }
@@ -217,16 +221,20 @@
     if (f.tel && String(f.tel).replace(/\D/g, "").length < 8) throw new Error("Téléphone invalide.");
     ["sursalaire", "transport", "logement", "primes"].forEach(function (k) { if (f[k] !== "" && f[k] != null && !(+f[k] >= 0)) throw new Error("Montant invalide : " + k + " (positif ou nul)."); });
     if (f.anc_taux !== "" && f.anc_taux != null && !(+f.anc_taux >= 0 && +f.anc_taux <= 25)) throw new Error("Taux d'ancienneté : entre 0 et 25 %.");
+    var cu = String(f.user_id || ""); if (cu) {
+      if (!comptes().some(function (c) { return c.id === cu; })) throw new Error("Compte utilisateur introuvable.");
+      var dej = rh().employes.filter(function (x) { return x.user_id === cu && x.id !== f.id && empActif(x); })[0]; if (dej) throw new Error("Ce compte est déjà lié à la fiche de " + empNom(dej) + " (" + dej.mat + ").");
+    }
     var declare = f.declare !== "non" && f.declare !== false; if (declare && !String(f.cnps_no || "").trim() && f.id === undefined && false) throw new Error("N° CNPS requis.");
     var o = { nom: nom, prenoms: String(f.prenoms || "").trim(), sexe: f.sexe || "", naissance: f.naissance || "", cni: String(f.cni || "").trim(), tel: String(f.tel || "").trim(), adresse: String(f.adresse || "").trim(),
       poste: String(f.poste || "").trim(), categorie: String(f.categorie || "").trim(), dept: String(f.dept || "").trim(), act: String(f.act || ""), embauche: f.embauche, contrat: f.contrat, fin_contrat: f.fin_contrat || "",
       sal_base: sb, sursalaire: R(+f.sursalaire || 0), transport: R(+f.transport || 0), logement: R(+f.logement || 0), primes: R(+f.primes || 0), parts: Math.max(1, +f.parts || 1), cmu_pers: Math.max(1, Math.floor(+f.cmu_pers || 1)),
       cnps_no: String(f.cnps_no || "").trim(), declare: declare, mode_paie: MODES.some(function (m) { return m[0] === f.mode_paie; }) ? f.mode_paie : "banque", compte_paie: String(f.compte_paie || "").trim(),
-      anc_auto: f.anc_auto !== "non" && f.anc_auto !== false, anc_taux: +f.anc_taux || 0, ref_ext: String(f.ref_ext || "") };
+      anc_auto: f.anc_auto !== "non" && f.anc_auto !== false, anc_taux: +f.anc_taux || 0, ref_ext: String(f.ref_ext || ""), user_id: cu };
     if (f.id) {
       var e = by(r.employes, f.id); if (!e) throw new Error("Employé introuvable.");
       if (e.sal_base !== o.sal_base || e.sursalaire !== o.sursalaire) { if (r.paies.some(function (x) { return x.statut !== "brouillon" && x.mois >= moisCle(f.effet || today()); })) { /* historique conservé */ } (e.historique = e.historique || []).push({ from: f.effet || today(), sal_base: o.sal_base, sursalaire: o.sursalaire, motif: f.motif_sal || "Modification", par: H.user(), at: new Date().toISOString() }); }
-      Object.assign(e, o); log("Employé modifié", empNom(e)); return e;
+      var avant = e.user_id || ""; Object.assign(e, o); log("Employé modifié", empNom(e) + (avant !== cu ? " — compte utilisateur : " + (avant ? ((comptes().filter(function (c) { return c.id === avant; })[0] || {}).nom || avant) : "aucun") + " → " + (cu ? ((compteDe(e) || {}).nom || cu) : "aucun") : "")); return e;
     }
     if (r.employes.some(function (x) { return x.nom.toLowerCase() === nom.toLowerCase() && (x.prenoms || "").toLowerCase() === o.prenoms.toLowerCase() && x.naissance === o.naissance && empActif(x); })) throw new Error("Cet employé existe déjà.");
     var e2 = Object.assign({ id: uid("emp"), mat: matricule(r), historique: [{ from: o.embauche, sal_base: o.sal_base, sursalaire: o.sursalaire, motif: "Embauche", par: H.user(), at: new Date().toISOString() }], par: H.user(), t: new Date().toISOString() }, o);
@@ -289,7 +297,12 @@
       if (e.sal_base < p.smig && e.contrat !== "stage" && e.contrat !== "prestataire") A.push({ k: "er", m: n + " : salaire de base inférieur au SMIG." });
       if (e.contrat === "CDD" && e.fin_contrat) { var j = diffJ(e.fin_contrat, t); if (j < 0) A.push({ k: "er", m: n + " : CDD échu depuis le " + fd(e.fin_contrat) + " (renouveler ou clôturer)." }); else if (j <= 30) A.push({ k: "wa", m: n + " : CDD échu dans " + j + " jour(s) (" + fd(e.fin_contrat) + ")." }); }
       if (!e.tel) A.push({ k: "wa", m: n + " : téléphone manquant." });
+      if (e.user_id && H.comptes) { var cp = compteDe(e); if (!cp) A.push({ k: "wa", m: n + " : le compte utilisateur lié n'existe plus." }); else if (!cp.actif) A.push({ k: "wa", m: n + " : compte utilisateur désactivé alors que l'employé est en poste." }); }
     });
+    if (H.comptes) {
+      r.employes.filter(function (e) { return !empActif(e) && e.user_id; }).forEach(function (e) { var cp = compteDe(e); if (cp && cp.actif && !ficheDe(cp.id)) A.push({ k: "er", m: empNom(e) + " est sorti le " + fd(e.sortie.date) + " mais son compte « " + cp.nom + " » est toujours actif : à désactiver." }); });
+      comptes().filter(function (c) { return c.actif && c.interne && !ficheDe(c.id); }).forEach(function (c) { A.push({ k: "wa", m: "Compte « " + c.nom + " » (" + (c.role || "") + ") sans fiche employé : à relier dans Ressources humaines." }); });
+    }
     var pm = paieDe(m); var prev = (function () { var d = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5) - 2, 1)); return d.toISOString().slice(0, 7); })();
     if (r.employes.some(empActif) && (!paieDe(prev) || paieDe(prev).statut === "brouillon") && r.employes.some(function (e) { return empPresent(e, prev); })) A.push({ k: "wa", m: "Paie de " + libMois(prev) + " non validée." });
     r.paies.filter(function (x) { return x.statut !== "brouillon"; }).forEach(function (x) {
@@ -326,16 +339,16 @@
   function vEmployes() {
     var r = rh(), q = (UIS.q || "").toLowerCase(), L = r.employes.filter(function (e) { return (UIS.inactifs || empActif(e)) && (!q || (empNom(e) + " " + e.mat + " " + e.poste).toLowerCase().indexOf(q) >= 0); });
     return '<div class="rh-w" style="margin-bottom:8px"><input data-rh-q="1" placeholder="Rechercher…" value="' + esc(UIS.q) + '" style="padding:7px;border:1px solid var(--bd,#d5dbe3);border-radius:8px;background:var(--bg,#fff);color:var(--tx,#1c2430)"> <label style="font-size:13px"><input type="checkbox" data-rh-inact="1" ' + (UIS.inactifs ? "checked" : "") + "> Afficher les sortis</label> " + (H.can("c") ? btn("emp.add", "", "+ Employé", "p") : "") + (H.can("p") ? btn("csv", "employes", "CSV") : "") + "</div>" +
-      tbl(["Matricule", "Nom", "Poste", "Contrat", "Embauche", "Salaire de base", "CNPS", "Avance due", "Statut", ""], L.map(function (e) {
-        return [esc(e.mat), "<b>" + esc(empNom(e)) + "</b>", esc(e.poste || "—"), esc(e.contrat) + (e.fin_contrat ? "<br><small>fin " + fd(e.fin_contrat) + "</small>" : ""), fd(e.embauche), fcfa(e.sal_base + (e.sursalaire || 0)), e.declare === false ? bd("non déclaré", "wa") : (e.cnps_no ? esc(e.cnps_no) : bd("n° manquant", "wa")), avanceDue(e.id) ? fcfa(avanceDue(e.id)) : "—", empActif(e) ? bd("actif", "ok") : bd("sorti " + fd(e.sortie.date)),
-          btn("emp.fiche", e.id, "Fiche") + (H.can("e") && empActif(e) ? btn("emp.edit", e.id, "Modifier") : "")];
+      tbl(["Matricule", "Nom", "Poste", "Contrat", "Embauche", "Salaire de base", "CNPS", "Avance due"].concat(H.comptes ? ["Compte"] : [], ["Statut", ""]), L.map(function (e) {
+        return [esc(e.mat), "<b>" + esc(empNom(e)) + "</b>", esc(e.poste || "—"), esc(e.contrat) + (e.fin_contrat ? "<br><small>fin " + fd(e.fin_contrat) + "</small>" : ""), fd(e.embauche), fcfa(e.sal_base + (e.sursalaire || 0)), e.declare === false ? bd("non déclaré", "wa") : (e.cnps_no ? esc(e.cnps_no) : bd("n° manquant", "wa")), avanceDue(e.id) ? fcfa(avanceDue(e.id)) : "—"].concat(H.comptes ? [e.user_id ? (compteDe(e) ? esc(compteDe(e).nom) + (compteDe(e).actif ? "" : " " + bd("désactivé", "wa")) : bd("compte supprimé", "wa")) : "—"] : [], [empActif(e) ? bd("actif", "ok") : bd("sorti " + fd(e.sortie.date)),
+          btn("emp.fiche", e.id, "Fiche") + (H.can("e") && empActif(e) ? btn("emp.edit", e.id, "Modifier") : "")]);
       }), "Aucun employé : créez la première fiche.");
   }
   function vFiche(e) {
     var sc = soldeConges(e), h = (e.historique || []).slice().reverse();
     return '<div class="rh-w" style="margin:8px 0">' + btn("back", "", "← Employés") + btn("doc.contrat", e.id, "Contrat de travail") + btn("doc.attestation", e.id, "Attestation de travail") + (empActif(e) ? "" : btn("doc.certificat", e.id, "Certificat de travail")) + (H.can("c") && empActif(e) ? btn("av.add", e.id, "Avance sur salaire") : "") + (H.can("e") && empActif(e) ? btn("emp.sortie", e.id, "Enregistrer la sortie", "er") : "") + (H.can("a") && !empActif(e) ? btn("emp.reint", e.id, "Réintégrer") : "") + "</div>" +
       "<h3>" + esc(empNom(e)) + " — " + esc(e.mat) + "</h3><div class=\"rh-k\">" + kpi(fcfa(e.sal_base + (e.sursalaire || 0)), "Salaire (base + sursalaire)") + kpi(sc.reste + " j", "Congés disponibles (" + sc.acquis + " acquis, " + sc.pris + " pris)") + kpi(avanceDue(e.id) ? fcfa(avanceDue(e.id)) : "0 F", "Avances à récupérer") + kpi(e.parts, "Parts fiscales") + "</div>" +
-      "<p>" + esc(e.poste || "") + " · " + esc(e.contrat) + " depuis le " + fd(e.embauche) + (e.fin_contrat ? " jusqu'au " + fd(e.fin_contrat) : "") + " · " + esc(e.tel || "pas de téléphone") + (e.cni ? " · CNI " + esc(e.cni) : "") + "</p>" +
+      "<p>" + esc(e.poste || "") + " · " + esc(e.contrat) + " depuis le " + fd(e.embauche) + (e.fin_contrat ? " jusqu'au " + fd(e.fin_contrat) : "") + " · " + esc(e.tel || "pas de téléphone") + (e.cni ? " · CNI " + esc(e.cni) : "") + (H.comptes ? " · compte : " + (compteDe(e) ? "<b>" + esc(compteDe(e).nom) + "</b> (" + esc(compteDe(e).role || "") + (compteDe(e).actif ? "" : ", désactivé") + ")" : "aucun") : "") + "</p>" +
       "<h3>Historique de rémunération</h3>" + tbl(["Effet", "Base", "Sursalaire", "Motif", "Par"], h.map(function (x) { return [fd(x.from), fcfa(x.sal_base), fcfa(x.sursalaire), esc(x.motif), esc(x.par)]; })) +
       "<h3>Bulletins</h3>" + tbl(["Mois", "N°", "Brut", "Retenues", "Net", "Payé", ""], rh().paies.filter(function (p) { return p.statut !== "brouillon"; }).sort(function (a, b) { return b.mois.localeCompare(a.mois); }).map(function (p) { var b = p.bulletins.filter(function (x) { return x.emp_id === e.id; })[0]; return b ? [esc(libMois(p.mois)), esc(b.no), fcfa(b.calc.brut), fcfa(b.calc.totalRetenues), "<b>" + fcfa(b.calc.net) + "</b>", b.paye ? bd("payé " + fd(b.paye_le), "ok") : bd("à payer", "wa"), btn("bul", p.mois + "|" + e.id, "Bulletin")] : null; }).filter(Boolean), "Aucun bulletin.");
   }
@@ -410,7 +423,8 @@
       { k: "sal_base", l: "Salaire de base mensuel (F)", t: "number", req: 1, sec: "Rémunération mensuelle" }, { k: "sursalaire", l: "Sursalaire (F)", t: "number" }, { k: "primes", l: "Primes fixes imposables (F)", t: "number" }, { k: "logement", l: "Indemnité de logement (F)", t: "number" }, { k: "transport", l: "Prime de transport (F)", t: "number", h: "Exonérée jusqu'au plafond paramétré." },
       { k: "anc_auto", l: "Prime d'ancienneté automatique", t: "select", o: OUINON, h: "2 % après 2 ans, +1 % par an, 25 % maximum." }, { k: "anc_taux", l: "Taux d'ancienneté manuel (%)", t: "number" },
       { k: "parts", l: "Parts fiscales (ITS)", t: "number", sec: "Fiscal et social" }, { k: "cmu_pers", l: "Personnes couvertes CMU", t: "number" }, { k: "declare", l: "Déclaré à la CNPS", t: "select", o: OUINON, h: "Non : aucune cotisation sociale ni CMU (à régulariser)." }, { k: "cnps_no", l: "N° CNPS" },
-      { k: "mode_paie", l: "Mode de paiement du salaire", t: "select", o: MODES, sec: "Paiement" }, { k: "compte_paie", l: "Compte bancaire / n° Mobile Money" }]);
+      { k: "mode_paie", l: "Mode de paiement du salaire", t: "select", o: MODES, sec: "Paiement" }, { k: "compte_paie", l: "Compte bancaire / n° Mobile Money" }]).concat(H.comptes ? [{ k: "user_id", l: "Compte utilisateur (facultatif)", t: "select", sec: "Accès à l'application", h: "Relie la fiche au compte de connexion de cette personne. Un compte ne peut être lié qu'à un seul employé en poste.",
+      o: [["", "— aucun —"]].concat(comptes().filter(function (c) { return !ficheDe(c.id) || (e && ficheDe(c.id).id === e.id); }).map(function (c) { return [c.id, c.nom + " (" + (c.role || "") + ")" + (c.actif ? "" : " — désactivé")]; })) }] : []);
     if (e) F.push({ k: "effet", l: "Date d'effet du changement de salaire", t: "date", sec: "Modification" }, { k: "motif_sal", l: "Motif du changement de salaire" });
     var init = e ? Object.assign({}, e, { anc_auto: e.anc_auto === false ? "non" : "oui", declare: e.declare === false ? "non" : "oui", effet: today() }) : { contrat: "CDI", embauche: today(), anc_auto: "oui", declare: "oui", parts: 1, cmu_pers: 1, mode_paie: "banque", act: acts ? (H.actDefaut || acts[0][0]) : "" };
     form(e ? "Modifier " + empNom(e) : "Nouvel employé", F, init, function (o) { saveEmploye(Object.assign({}, o, { id: e && e.id, derog_smig: o.sal_base < P().smig && confirm("Le salaire de base est inférieur au SMIG (" + fcfa(P().smig) + "). Confirmer la dérogation ?") })); }, e ? "Enregistrer" : "Créer la fiche");
@@ -493,7 +507,7 @@
   document.addEventListener("input", function (e) { var t = e.target; if (t.dataset && t.dataset.rhQ) { UIS.q = t.value; var pos = t.selectionStart; H.render(); var n = document.querySelector("[data-rh-q]"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) { } } } });
   document.addEventListener("change", function (e) { var t = e.target; if (!H) return; if (t.dataset && t.dataset.rhMois) { UIS.mois = t.value; H.render(); } if (t.dataset && t.dataset.rhInact) { UIS.inactifs = t.checked; H.render(); } });
 
-  G.ANGELS_RH = { host: null, view: view, P: P, calcul: calcul, itsBrut: itsBrut, ricf: ricf, tauxAnc: tauxAnc, joursPayes: joursPayes, resume: function (h) { H = h || H; return resume(); }, publier: function (h) { H = h || H; publier(); }, alertes: function (h) { H = h || H; return alertes(); }, PAIE_DEF: PAIE_DEF, UI: UIS,
+  G.ANGELS_RH = { host: null, view: view, P: P, calcul: calcul, itsBrut: itsBrut, ricf: ricf, tauxAnc: tauxAnc, joursPayes: joursPayes, ficheDe: function (id, h) { H = h || H; return ficheDe(id); }, resume: function (h) { H = h || H; return resume(); }, publier: function (h) { H = h || H; publier(); }, alertes: function (h) { H = h || H; return alertes(); }, PAIE_DEF: PAIE_DEF, UI: UIS,
     ops: { saveEmploye: saveEmploye, sortie: sortieEmploye, reintegrer: reintegrer, calculerMois: calculerMois, validerMois: validerMois, annulerValidation: annulerValidation, annulerPaiement: annulerPaiement, annulerReversement: annulerReversement, payerSalaires: payerSalaires, reverser: reverse, avance: octroyerAvance, conge: demandeConge, decideConge: decideConge, variable: setVariable, soldeConges: soldeConges, paieDe: paieDe, dus: dus, state: rh },
     use: function (h) { H = h; this.host = h; } };
 })(window);
