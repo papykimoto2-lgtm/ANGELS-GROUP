@@ -68,5 +68,15 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
  const rt=await P.traiterSync(db,cfg,{action:"publier",missions:[],retirer:["L1","L4"]},cfg.adminKey,NOW);
  chk("PG-13","retrait des missions : projection et empreinte de code supprimées",rt.body.retirees===2&&!db.D.mis.some(m=>m.livraison_ref==="L1")&&!db.D.codes.L1,JSON.stringify(rt.body));
  chk("PG-14","identifiant → e-mail technique, mots de passe générés conformes",P.emailDe("Awa Test")==="awatest@users.angels-erp.app"&&P.emailDe("A@B.com")==="a@b.com"&&/^[A-Za-z0-9@#_%+-]{14}$/.test(P.genererMdp())&&P.genererMdp()!==P.genererMdp(),"");
+ /* arrivée et client injoignable */
+ await P.traiterSync(db,cfg,{action:"publier",missions:[Object.assign(mission("L5"),{statut:"acceptee"}),Object.assign(mission("L6"),{statut:"en_cours"})]},cfg.adminKey,NOW);
+ const ar0=await act("L5","arrive",{},U,NOW),ar1=await act("L6","arrive",{},U,NOW),ar2=await act("L6","arrive",{},U,NOW+60000),nAr=db.D.ev.filter(e=>e.livraison_ref==="L6"&&e.type==="arrive").length;
+ const mi6=db.D.mis.find(m=>m.livraison_ref==="L6");
+ chk("PG-15","arrivée à destination : refusée hors livraison en cours ; horodatée sur la mission ; un second signalement est sans effet (un seul événement pour le bureau)",ar0.status===409&&ar1.status===200&&ar2.status===200&&nAr===1&&mi6.payload.contact&&mi6.payload.contact.arrive_at===new Date(NOW).toISOString(),JSON.stringify([ar0.status,ar1.status,ar2.status,nAr,mi6.payload.contact]));
+ const rc0=await act("L5","rappel_client",{},U,NOW),rc1=await act("L6","rappel_client",{motif:"Je suis arrivé : le client ne répond pas"},U,NOW+30000),rc2=await act("L6","rappel_client",{},U,NOW+60000),rc3=await act("L6","rappel_client",{},U,NOW+30000+130000),nRc=db.D.ev.filter(e=>e.livraison_ref==="L6"&&e.type==="rappel_client").length;
+ const evi6=db.D.ev.filter(e=>e.livraison_ref==="L6"&&e.type==="rappel_client")[0];
+ chk("PG-16","client injoignable : demande de rappel refusée hors livraison ; transmise au centre avec le motif ; doublon dans les 2 minutes ignoré, nouvelle demande ensuite possible",rc0.status===409&&rc1.status===200&&rc2.status===200&&rc3.status===200&&nRc===2&&evi6.donnees.motif==="Je suis arrivé : le client ne répond pas"&&mi6.payload.contact.statut==="attente",JSON.stringify([rc0.status,rc1.status,rc2.status,rc3.status,nRc,mi6.payload.contact]));
+ const zz0=await act("L6","rappel_client",{},"u-autre",NOW+400000);
+ chk("PG-17","arrivée et rappel : réservés au livreur de la mission",zz0.status===403||zz0.status===401,JSON.stringify(zz0));
  console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");process.exit(ko?1:0);
 })();

@@ -25,7 +25,7 @@ export function genererMdp() {
 export const empreinteCode = (livraison_ref, code) => sha256hex("code|" + livraison_ref + "|" + String(code).trim());
 
 const STATUTS_ACTIFS = ["affectee", "acceptee", "en_cours"];
-const TYPES = ["accepter", "refuser", "prise_en_charge", "demarrer", "confirmer", "echec", "position", "incident"];
+const TYPES = ["accepter", "refuser", "prise_en_charge", "demarrer", "confirmer", "echec", "position", "incident", "arrive", "rappel_client"];
 const txt = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
 const nombre = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
 
@@ -127,9 +127,21 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     await db.majPosition(ref, { lat, lng, precision: ev.precision, ts: new Date(now).toISOString() });
     if (now - dernier < 20000) return rep(200, { ok: true, statut: st });   // le bureau est informé au plus une fois toutes les 20 s
   }
+  else if (type === "arrive") {   // « Je suis arrivé » : horodate l'arrivée à destination (début de l'attente)
+    if (st !== "en_cours") return refuse(409, "Vous n'êtes pas en course : démarrez d'abord la livraison");
+    if (p.contact && p.contact.arrive_at) return rep(200, { ok: true, statut: st });   // déjà signalé : rien à refaire
+    p.contact = Object.assign({}, p.contact, { arrive_at: new Date(now).toISOString() }); ev.at = p.contact.arrive_at;
+  }
+  else if (type === "rappel_client") {   // « Le client ne répond pas » : demande au centre de rappeler le client
+    if (st !== "en_cours") return refuse(409, "Cette demande se fait pendant la livraison");
+    const dem = p.contact && p.contact.demande_le ? Date.parse(p.contact.demande_le) : 0;
+    if (p.contact && p.contact.statut === "attente" && now - dem < 120000) return rep(200, { ok: true, statut: st });   // déjà transmise
+    p.contact = Object.assign({}, p.contact, { statut: "attente", demande_le: new Date(now).toISOString() }); if (!p.contact.arrive_at) p.contact.arrive_at = p.contact.demande_le;
+    ev.motif = txt(d.motif, 120) || "Je suis arrivé : le client ne répond pas";
+  }
   else if (type === "incident") { ev.nature = txt(d.nature, 60); ev.description = txt(d.description, 300); if (!ev.description) return refuse(400, "Décrivez l'incident"); }
 
-  if (maj.statut !== st || type === "prise_en_charge") await db.majMission(ref, { statut: maj.statut, payload: p, maj_le: new Date(now).toISOString() });
+  if (maj.statut !== st || type === "prise_en_charge" || type === "arrive" || type === "rappel_client") await db.majMission(ref, { statut: maj.statut, payload: p, maj_le: new Date(now).toISOString() });
   await db.ajouterEvenement({ livraison_ref: ref, livreur_ref: c.livreur_ref, type, donnees: ev });
   return rep(200, { ok: true, statut: maj.statut });
 }

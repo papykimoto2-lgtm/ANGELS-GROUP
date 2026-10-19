@@ -1,5 +1,5 @@
 // POST /mission-action (jeton du livreur, vérifié par Supabase) : le livreur envoie une action sur SA mission (accepter, refuser, prise_en_charge,
-// demarrer, confirmer avec le code du client, echec, position, incident). Le serveur valide puis met l'événement en file pour le bureau.
+// demarrer, confirmer avec le code du client, echec, position, incident, arrive, rappel_client). Le serveur valide puis met l'événement en file pour le bureau.
 import { CORS, traiterAction } from "../_shared/passerelle.js";
 import { client, dbPasserelle, cfgPasserelle } from "../_shared/serveur-passerelle.js";
 
