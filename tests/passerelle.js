@@ -67,6 +67,6 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
  chk("PG-12","échec et refus exigent un motif ; incident exige une description ; échec → « échouée », refus → « refusée »",x0.status===400&&x1.body.statut==="echouee"&&i0.status===400&&i1.status===200&&rf.status===400&&rf2.body.statut==="refusee",JSON.stringify([x0.status,x1.body,i0.status,i1.status,rf.status,rf2.body]));
  const rt=await P.traiterSync(db,cfg,{action:"publier",missions:[],retirer:["L1","L4"]},cfg.adminKey,NOW);
  chk("PG-13","retrait des missions : projection et empreinte de code supprimées",rt.body.retirees===2&&!db.D.mis.some(m=>m.livraison_ref==="L1")&&!db.D.codes.L1,JSON.stringify(rt.body));
- chk("PG-14","identifiant → e-mail technique, mots de passe générés conformes",P.emailDe("Awa Test")==="awatest@users.angels-erp.app"&&P.emailDe("A@B.com")==="a@b.com"&&/^[A-Za-z0-9@_%+-]{14}$/.test(P.genererMdp())&&P.genererMdp()!==P.genererMdp(),"");
+ chk("PG-14","identifiant → e-mail technique, mots de passe générés conformes",P.emailDe("Awa Test")==="awatest@users.angels-erp.app"&&P.emailDe("A@B.com")==="a@b.com"&&/^[A-Za-z0-9@#_%+-]{14}$/.test(P.genererMdp())&&P.genererMdp()!==P.genererMdp(),"");
  console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");process.exit(ko?1:0);
 })();

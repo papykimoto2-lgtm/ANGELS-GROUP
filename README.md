@@ -536,3 +536,19 @@ Les codes PIN sont supprimés. Chaque compte de **Transport, Agro et Distributio
 - Mode serveur de Distributions (Supabase) : le mot de passe temporaire est aussi généré et transmis au serveur ; le changement obligatoire à la première connexion sera appliqué côté serveur au raccordement du backend.
 
 Tests : `node tests/mots-de-passe.js` (19) et `node tests/hub-users.js` (23).
+
+## Passerelle livreur (option) — les numéros des clients ne quittent plus le bureau
+
+Étape qui rend la protection des numéros **réelle** : sans passerelle, les données du livreur vivent sur son téléphone (y compris le numéro du client) ; avec elle, elles restent sur le serveur **sans** numéro ni code.
+
+| Élément | Rôle |
+|---|---|
+| **Paramètres → Passerelle livreur** (Distributions) | Case « Activer la passerelle livreur » (désactivée par défaut, l'ancien système reste intact). Utilise l'adresse des fonctions et la clé d'administration du pont. |
+| **Bureau** (`distribution.html`) | Reste la source de vérité. Toutes les 15 s : récupère les actions des livreurs, les applique avec les fonctions habituelles (accepter, prise en charge, départ, confirmation, échec, position, incident), les acquitte, puis publie les missions **sans téléphone** (repère, instructions et observations sont masqués) ; le code n'est envoyé qu'une fois, le serveur n'en garde que l'empreinte. |
+| **Comptes livreurs** | Créés / réinitialisés / désactivés par le serveur : mot de passe temporaire généré côté serveur, montré une seule fois au bureau, à changer à la première connexion. Plus de mot de passe local pour un livreur en mode passerelle. |
+| **`livreur.html`** (`/livreur`) | Application du livreur : connexion Supabase Auth, changement obligatoire du mot de passe, missions (lecture seule via RLS), actions envoyées à `mission-action`, appel du client par le pont (numéro masqué), position pendant une course. Configuration publique dans `passerelle-config.js` (adresse + clé « anon »). |
+| **Serveur** (`supabase/`) | Migration `005_passerelle_livreur.sql` (tables `pg_*`, RLS, droits par colonne) et fonctions `mission-sync` (clé d'administration) et `mission-action` (jeton du livreur vérifié). Le code est contrôlé côté serveur (empreinte, 5 essais puis verrou 15 min). |
+
+Limites assumées : le scan des colis et la signature ne sont pas disponibles sur ce canal (la confirmation est tracée « via passerelle » dans l'audit) ; seul le flux Distributions est branché ; si le bureau est hors ligne, les actions attendent sur le serveur et sont appliquées à sa reconnexion.
+
+Tests : `node tests/passerelle.js` (14 contrôles serveur), `node tests/passerelle-appli.js` (17 contrôles bureau + application livreur, serveur simulé).
