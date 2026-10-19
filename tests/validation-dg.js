@@ -1,0 +1,62 @@
+/* Validation par le DG (Distributions) : bons, remises de fonds, réapprovisionnements, écarts de caisse, règlements fournisseurs, visa final des pièces.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/validation-dg.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ await p.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};
+  window.__err=f=>{try{f();return""}catch(e){return e.message}};
+  window.__dg=(o)=>{S.config.dg=Object.assign({actif:true,seuil:200000,titulaire:"",suppleant:"",visa:true,ecarts:true,reglements:true},o||{})};
+  window.__nc=(nom,apport)=>{S.config.dg={actif:false};__as("admin");cxCreerLocal(nom,"572");const c=S.caisses.find(x=>x.nom===nom);__as("caissier");cxOuvrirLocal(c,0,"");__as("admin");if(apport)cxBonLocal(c,"entree",apport,"Apport","Associé","","Apport");return c};
+  window.__dir2=()=>{let u=S.users.find(x=>x.id==="u_dir2");if(!u){const d=S.users.find(x=>x.role==="direction"&&x.actif);u=Object.assign({},d,{id:"u_dir2",nom:"Suppléant Test"});S.users.push(u)}return u}});
+ let ok=0,ko=0;const t=async(id,label,fn)=>{let r;try{r=await p.evaluate(fn)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
+
+ await t("DG-1","désactivée par défaut : un bon de l'administrateur de 500 000 F est validé d'office, comme avant",()=>{const c=__nc("DG1",0);delete S.config.dg;__as("admin");const m=cxBonLocal(c,"entree",500000,"Gros apport","Associé","","Apport");return(m.statut==="valide"&&!m.dg_requis)||m.statut});
+ await t("DG-2","activée (seuil 200 000) : un bon de l'administrateur au-dessus du seuil attend le DG ; en dessous, validé d'office",()=>{const c=__nc("DG2",0);__dg();__as("admin");const a=cxBonLocal(c,"entree",250000,"Apport","Associé","","Apport"),d=cxBonLocal(c,"entree",50000,"Petit","Associé","","Apport");
+  return(a.statut==="en_attente"&&a.dg_requis===true&&d.statut==="valide")||(a.statut+"/"+d.statut)});
+ await t("DG-3","l'administrateur ne peut plus valider un bon du DG ; la direction le valide et la décision est tracée",()=>{const c=__nc("DG3",0);__dg();__as("caissier");const m=cxBonLocal(c,"entree",300000,"Vente","Client","","Apport");const E=[];
+  __as("admin");if(!/DG/.test(__err(()=>cxValiderLocal(m.id,"valider"))))E.push("admin a pu valider");if(m.statut!=="en_attente")E.push("statut "+m.statut);
+  __as("direction");const e=__err(()=>cxValiderLocal(m.id,"valider"));if(e)E.push("direction : "+e);if(m.statut!=="valide"||m.dg_decide_par!==ME.nom)E.push("trace "+m.statut+"/"+m.dg_decide_par);return E.length?E.join(" ; "):true});
+ await t("DG-4","un bon sous le seuil saisi par le caissier reste validé par l'administrateur (circuit habituel)",()=>{const c=__nc("DG4",0);__dg();__as("caissier");const m=cxBonLocal(c,"entree",80000,"Vente","Client","","Apport");__as("admin");const e=__err(()=>cxValiderLocal(m.id,"valider"));return(!e&&m.statut==="valide"&&!m.dg_requis)||e+m.statut});
+ await t("DG-5","titulaire et suppléant désignés : un autre profil direction ne valide pas ; le suppléant valide",()=>{const c=__nc("DG5",0);const d1=S.users.find(x=>x.role==="direction"&&x.actif),d2=__dir2();__dg({titulaire:d1.id,suppleant:d2.id});
+  __as("caissier");const m=cxBonLocal(c,"entree",400000,"Vente","Client","","Apport");const E=[];const d3=Object.assign({},d1,{id:"u_dir3",nom:"Autre direction"});S.users.push(d3);ME=d3;if(!/DG/.test(__err(()=>cxValiderLocal(m.id,"valider"))))E.push("tiers a validé");
+  ME=d2;const e=__err(()=>cxValiderLocal(m.id,"valider"));if(e||m.statut!=="valide")E.push("suppléant : "+e);S.users=S.users.filter(u=>u.id!=="u_dir3");return E.length?E.join(" ; "):true});
+ await t("DG-6","remise de fonds au-dessus du seuil : réception confirmée par le DG seulement",()=>{const c=__nc("DG6",600000);__as("caissier");__dg();const r=cxRemiseLocal(c,"banque",300000,"BV-DG6","");const E=[];
+  __as("admin");if(!/DG/.test(__err(()=>cxRemiseConfirmLocal(r.id,300000,""))))E.push("admin a confirmé");__as("direction");const e=__err(()=>cxRemiseConfirmLocal(r.id,300000,""));if(e||r.statut!=="confirmee")E.push("DG : "+e+r.statut);return E.length?E.join(" ; "):true});
+ await t("DG-7","réapprovisionnement au-dessus du seuil : décision du DG seulement ; en dessous, administrateur ou direction",()=>{const c=__nc("DG7",0);__as("caissier");__dg();const grand=cxReapproLocal(c,500000,"VIR-DG7A","Fonds"),petit=cxReapproLocal(c,50000,"VIR-DG7B","Fonds");const E=[];
+  __as("admin");if(!/DG/.test(__err(()=>cxReapproDecider(grand.id,"valider"))))E.push("admin a validé le grand");const e1=__err(()=>cxReapproDecider(petit.id,"valider"));if(e1)E.push("petit : "+e1);
+  __as("direction");const e2=__err(()=>cxReapproDecider(grand.id,"valider"));if(e2||grand.statut!=="validee")E.push("DG : "+e2);return E.length?E.join(" ; "):true});
+ await t("DG-8","écart de caisse : régularisation réservée au DG ; désactivable ; inchangée quand la validation DG est éteinte",()=>{const c=__nc("DG8",50000);__as("caissier");const s=cxOpen(c);cxCloturerLocal(s.id,40000,"Billets déchirés",{aveugle:false});const E=[];
+  __dg();__as("admin");if(!/DG/.test(__err(()=>cxRegulLocal(s.id,"Manquant imputé au caissier"))))E.push("admin a régularisé");
+  __dg({ecarts:false});const e0=__err(()=>cxRegulLocal(s.id,"Manquant imputé au caissier"));if(e0||!S.caisse_sessions.find(x=>x.id===s.id).ecart_regularise)E.push("option désactivée : "+e0);return E.length?E.join(" ; "):true});
+ await t("DG-9","écart de caisse : le DG régularise",()=>{const c=__nc("DG9",50000);__as("caissier");const s=cxOpen(c);cxCloturerLocal(s.id,45000,"Erreur de rendu",{aveugle:false});__dg();__as("direction");const e=__err(()=>cxRegulLocal(s.id,"Erreur de rendu confirmée"));return(!e&&S.caisse_sessions.find(x=>x.id===s.id).ecart_regularise)||e});
+ await t("DG-10","règlement fournisseur au-dessus du seuil : demande au DG (pas d'argent sorti), validation par le DG exécute le règlement et la sortie de caisse",()=>{const c=__nc("DG10",900000);S.caisses.forEach(x=>{x.actif=x.id===c.id});const v=S.vendeurs[0];const old=vendDue;vendDue=()=>({acquis:900000,regle:S.reglements.filter(r=>r.vendeur_id===v.id).reduce((a,r)=>a+r.montant,0),restant:900000,attente:0,elig:[],net:()=>0});
+  try{__dg();__as("caissier");const avant=cxSolde(c),nr=S.reglements.length;S.config.modes=S.config.modes||["Espèces"];const r=reglerVendeur(v,500000,"Espèces","DG10");const E=[];
+   if(r!==true)E.push("retour "+r);if(S.reglements.length!==nr||cxSolde(c)!==avant)E.push("argent sorti avant décision");const d=dgDemAtt()[0];if(!d||d.montant!==500000)E.push("pas de demande");
+   if(!/déjà en attente/.test((reglerVendeur(v,500000,"Espèces","DG10"),__T[__T.length-1])))E.push("anti-doublon");
+   __as("admin");if(!/DG/.test(__err(()=>dgDecider(d.id,"valider"))))E.push("admin a décidé");
+   __as("direction");const e=__err(()=>dgDecider(d.id,"valider"));if(e)E.push("DG : "+e);if(S.reglements.length!==nr+1||cxSolde(c)!==avant-500000)E.push("règlement non exécuté "+S.reglements.length+"/"+cxSolde(c));if(d.statut!=="validee")E.push("statut "+d.statut);
+   return E.length?E.join(" ; "):true}finally{vendDue=old}});
+ await t("DG-11","règlement fournisseur : en dessous du seuil ou rejeté par le DG (motif obligatoire)",()=>{const c=__nc("DG11",900000);S.caisses.forEach(x=>{x.actif=x.id===c.id});const v=S.vendeurs[0];const old=vendDue;vendDue=()=>({acquis:900000,regle:0,restant:900000,attente:0,elig:[],net:()=>0});
+  try{__dg();__as("caissier");const nr=S.reglements.length;reglerVendeur(v,100000,"Espèces","petit");const E=[];if(S.reglements.length!==nr+1)E.push("petit règlement non exécuté");
+   reglerVendeur(v,600000,"Espèces","grand");const d=dgDemAtt().pop();__as("direction");if(!/Motif/.test(__err(()=>dgDecider(d.id,"rejeter",""))))E.push("rejet sans motif accepté");const e=__err(()=>dgDecider(d.id,"rejeter","Trop élevé"));if(e||d.statut!=="rejetee"||S.reglements.length!==nr+1)E.push("rejet : "+e+d.statut);return E.length?E.join(" ; "):true}finally{vendDue=old}});
+ await t("DG-12","visa final : pièces validées à viser, seul le DG vise (une pièce ou toutes), tracé et imprimé sur le bon",()=>{const c=__nc("DG12",0);__dg();__as("admin");const a=cxBonLocal(c,"entree",50000,"Vente A","X","","Apport"),b2=cxBonLocal(c,"sortie",10000,"Achat B","Y","","Fournitures");const E=[];
+  if(dgVisas().length<2)E.push("pièces à viser "+dgVisas().length);if(!/réservé au DG/.test(__err(()=>dgVisaLocal([a.id]))))E.push("admin a visé");
+  __as("direction");const e1=__err(()=>dgVisaLocal([a.id]));if(e1||!a.visa_dg||a.visa_dg.par!==ME.nom)E.push("visa unitaire "+e1);const e2=__err(()=>dgVisaLocal("tout"));if(e2||!b2.visa_dg)E.push("visa tout "+e2);if(dgVisas().length)E.push("reste "+dgVisas().length);
+  let pr="";const old=window.rapport;window.rapport=(t,x)=>{pr=x};try{cxPrintBon(a.id)}finally{window.rapport=old}if(!/Visa du DG : /.test(pr)||!pr.includes(ME.nom))E.push("impression");return E.length?E.join(" ; "):true});
+ await t("DG-13","visa désactivable ; validation éteinte = plus de visa à donner",()=>{const c=__nc("DG13",0);__dg({visa:false});__as("admin");cxBonLocal(c,"entree",50000,"A","X","","Apport");const E=[];if(dgVisas().length)E.push("visa actif");S.config.dg.actif=false;if(dgAFaire()!==0)E.push("travail DG");return E.length?E.join(" ; "):true});
+ await t("DG-14","écran Caisse : encart DG, bons « 👔 DG » en attente, boutons réservés au DG, badge de menu pour le DG",()=>{const c=__nc("DG14",0);__dg();__as("caissier");cxBonLocal(c,"entree",500000,"Vente","Client","","Apport");__as("admin");const E=[];
+  const hA=VIEWS.caisse();if(!/Validation par le DG/.test(hA)||!/👔 DG/.test(hA)||!/en attente du DG/.test(hA))E.push("admin");if(/data-act="cxVal" data-id="[^"]+">✅ Valider[^<]*<\/button>[^]*?DG14/.test(hA)&&false)E.push("x");
+  const att=cxAttente().filter(m=>m.dg_requis).pop();if(new RegExp('data-act="cxVal" data-id="'+att.id+'"').test(hA))E.push("bouton valider visible à l'admin");
+  __as("direction");const hD=VIEWS.caisse();if(!new RegExp('data-act="cxVal" data-id="'+att.id+'"').test(hD))E.push("bouton absent pour le DG");if(!(navN("caisse")>=1))E.push("badge DG");return E.length?E.join(" ; "):true});
+ await t("DG-15","Paramètres : bloc « Validation par le DG » présent (case d'activation, seuil, titulaire, suppléant)",()=>{__as("admin");S.config.dg={actif:false};const html=VIEWS.params();const E=[];if(!/id="p_dga"/.test(html))E.push("bloc absent");
+  if(!/id="p_dgs"/.test(html)||!/id="p_dgt"/.test(html)||!/id="p_dgp"/.test(html))E.push("champs");return E.length?E.join(" ; "):true});
+ await t("DG-16","mode serveur : bons et décisions soumis au DG refusés proprement (pas de contournement)",()=>{const c=__nc("DG16",0);__dg();__as("admin");const cl=CL.on;CL.on=true;try{const r=cxRun(()=>{},"caisse_valider",{},"x");return(r===false&&/mode serveur/.test(__T[__T.length-1]))||__T[__T.length-1]}finally{CL.on=cl}});
+
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
