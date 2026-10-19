@@ -518,3 +518,5 @@ Le code serveur (fonctions Supabase pour Africa's Talking) est dans `supabase/` 
 Tests : `node tests/appel-pont.js` (9, logique serveur) et `node tests/masque-tel.js` (8).
 
 **Menu du portail sur mobile** : sous 700 px, le menu est replié derrière une barre « ☰ MENU · page en cours » ; le contenu de la page est visible dès l'ouverture, le menu s'ouvre au toucher (défilable) et se referme après le choix d'une page ou un toucher à l'extérieur. Sur ordinateur et tablette large, le menu reste affiché. Tests : `tests/revue-qualite.js` (RQ-12, RQ-13) et `tests/portail-livraison.js` (PL-13).
+
+**Déploiement Vercel** : seules les fusions dans `main` déclenchent une construction (`ignoreCommand` dans `vercel.json`) ; les branches de travail ne consomment plus le quota de déploiements du plan gratuit (message « Deployment rate limited — retry in 24 hours » quand la limite est atteinte).
