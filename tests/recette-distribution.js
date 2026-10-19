@@ -91,7 +91,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await t("DIS-19","paramètres : entreprise, indicatif, PIN, blocage et essais de code lus dans les paramètres",()=>{const E=[];__as("admin");const c=S.config,sv=JSON.stringify(c);
   c.org="LIVRAISON TEST";c.org_sous="Express";render();const br=document.querySelector("aside .brand").textContent;if(!/LIVRAISON TEST/.test(br)||!/Express/.test(br))E.push("marque : "+br);
   c.tel_indicatif="229";if(telWA("0584163232")!=="2290584163232")E.push("indicatif");c.tel_indicatif="225";if(telWA("+225 0584163232")!=="2250584163232")E.push("numéro international");
-  c.pin_len=6;ensureConfig();if(PINMIN!==6)E.push("PINMIN");c.pin_len=4;ensureConfig();
+  c.mdp_min=12;ensureConfig();if(mdpMin()!==12)E.push("mdpMin");c.mdp_min=10;ensureConfig();
   Object.keys(c).forEach(k=>delete c[k]);Object.assign(c,JSON.parse(sv));ensureConfig();render();
   return E.length?E.join(" ; "):true});
  // ---- NIVEAU MENKO : caisse (comptage à l'aveugle, clôture encadrée, remises, réappro, rapprochement, garde-fous) et comptabilité (lettrage, rapprochement bancaire, exercice, FEC, grand livre, TVA)

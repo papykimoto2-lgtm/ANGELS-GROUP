@@ -31,7 +31,7 @@ alter table public.appel_journal enable row level security;
 revoke all on public.appel_tickets, public.appel_journal from anon, authenticated;
 
 -- Conservation limitée : les numéros disparaissent 7 jours après l'expiration du ticket (le journal garde seulement l'historique des appels sans numéro).
-create or replace function public.appel_purger() returns void language sql security definer as $$
+create or replace function public.appel_purger() returns void language sql security definer set search_path = public as $$
   delete from public.appel_tickets where expire_at < now() - interval '7 days';
 $$;
 revoke all on function public.appel_purger() from public, anon, authenticated;

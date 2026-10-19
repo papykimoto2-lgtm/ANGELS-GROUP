@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0e7490">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Livreur ANGEL'S">
+<title>Livreur — ANGEL'S GROUP</title>
+<style>
+:root{--b:#0e7490;--b2:#0b3b4c;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:12px 16px 40px}
+.hd{background:var(--b2);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hd small{opacity:.75;display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+.mc.urg{border-color:var(--er)}
+label{display:block;font-weight:600;margin:10px 0 0}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:#fff;margin-top:4px}
+.btn{display:block;width:100%;padding:13px;border:0;border-radius:11px;background:var(--b);color:#fff;font-weight:700;margin-top:8px;cursor:pointer}
+.btn.ok{background:var(--ok)}.btn.er{background:var(--er)}.btn.ghost{background:#fff;color:var(--b);border:1px solid var(--b)}.btn.wa{background:var(--wa)}
+.btn:disabled{opacity:.5}
+.mu{color:var(--mu)}.sm{font-size:13px}
+.between{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.pill{background:#eef5f8;border-radius:10px;padding:8px 10px;margin-top:8px}
+.al{border-radius:10px;padding:10px;margin:10px 0;background:#fff1d6;color:#7a4a00}.al.er{background:#fde5e5;color:var(--er)}
+.bd{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:700;background:#e3eef3;color:var(--b2)}
+.ov{position:fixed;inset:0;background:rgba(10,20,30,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.ov>div{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px}
+.hide{display:none!important}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--b2);color:#fff;padding:10px 16px;border-radius:99px;z-index:40;max-width:90%}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="hide"></div>
+<script src="passerelle-config.js"></script>
+<script>
+/* Application LIVREUR (mode serveur). Le livreur s'identifie avec un compte Supabase : le mot de passe est vérifié par le serveur.
+   Il ne reçoit JAMAIS le téléphone du client ni le code de confirmation : il demande l'appel au serveur (pont téléphonique) et saisit le code que le client lui communique. */
+"use strict";
+const CFG=(()=>{const d=window.ANGELS_PASSERELLE||{};try{const o=JSON.parse(localStorage.getItem("angels_supabase")||"null");if(o&&o.off)return{};if(o&&o.url&&o.key)return{url:o.url,key:o.key}}catch(e){}return d})(),FN=String(CFG.url||"").replace(/\/+$/,"")+"/functions/v1/";
+const SB_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",SB_SRI="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o";
+const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():i.toLowerCase().replace(/[^a-z0-9._-]/g,"")+"@users.angels-erp.app"};
+const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",livree:"Livrée",echouee:"Échec",refusee:"Refusée"};
+const ACTIFS=["affectee","acceptee","en_cours"];
+let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null;
+function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
+function loadSb(){return new Promise((ok,ko)=>{if(window.supabase)return ok();const sc=document.createElement("script");sc.src=SB_LIB;sc.integrity=SB_SRI;sc.crossOrigin="anonymous";sc.onload=ok;sc.onerror=()=>ko(new Error("Connexion Internet requise pour se connecter"));document.head.appendChild(sc)})}
+async function api(fn,body){const{data}=await sb.auth.getSession(),t=data&&data.session&&data.session.access_token;if(!t)throw new Error("Session expirée : reconnectez-vous");
+ const r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.erreur||("Erreur "+r.status));return j}
+const ferme=()=>{const o=$(".ov");if(o)o.remove()};
+function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
+
+/* ---------- Connexion ---------- */
+function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label>Identifiant<input id="li" autocapitalize="none" autocomplete="username" required></label><label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div></div>`;
+ $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button");b.disabled=true;try{await loadSb();sb=sb||window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});const{error}=await sb.auth.signInWithPassword({email:emailDe($("#li").value),password:$("#lp").value});if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect":error.message);await demarrer()}catch(x){vueLogin(x.message);}}}
+const mdpValide=m=>m.length>=10&&[/[a-z]/,/[A-Z]/,/\d/,/[^A-Za-z0-9]/].filter(r=>r.test(m)).length>=3;
+function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mot de passe</b><small>Obligatoire à la première connexion</small></div></div><div class="wrap"><div class="card"><form id="fc"><div class="sm mu">10 caractères minimum, avec au moins 3 types parmi : majuscule, minuscule, chiffre, symbole. Ne reprenez pas votre nom.</div><label>Nouveau mot de passe<input id="n1" type="password" autocomplete="new-password" required></label><label>Confirmer<input id="n2" type="password" autocomplete="new-password" required></label><div id="cm" class="al er hide"></div><button class="btn" type="submit">Enregistrer</button></form></div></div>`;
+ $("#fc").onsubmit=async e=>{e.preventDefault();const a=$("#n1").value,b=$("#n2").value,m=$("#cm");const bad=a!==b?"Les deux mots de passe diffèrent":!mdpValide(a)?"Mot de passe trop faible : 10 caractères minimum, 3 types de caractères":(moi&&a.toLowerCase().includes(String(moi.nom||"").toLowerCase().split(/\s+/).filter(x=>x.length>2)[0]||"\u0000"))?"Le mot de passe ne doit pas contenir votre nom":"";
+  if(bad){m.textContent=bad;m.classList.remove("hide");return}
+  try{const{error}=await sb.auth.updateUser({password:a,data:{chg:false}});if(error)throw error;toast("Mot de passe modifié","ok");await demarrer()}catch(x){m.textContent=x.message;m.classList.remove("hide")}}}
+
+/* ---------- Missions ---------- */
+async function charger(){try{const{data,error}=await sb.from("pg_missions").select("livraison_ref,livreur_ref,commande_ref,statut,payload,position,maj_le").order("maj_le",{ascending:false});if(error)throw error;missions=data||[];erreur=""}catch(x){erreur=navigator.onLine?x.message:"Hors connexion : les missions affichées peuvent être anciennes"}
+ if(!ouvert)vueMissions()}
+const adrTxt=a=>[a.zone,a.quartier].filter(Boolean).map(esc).join(" · ");
+function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
+ if(m.statut==="affectee")b=`<button class="btn ok" data-a="accepter" data-r="${esc(m.livraison_ref)}">✔ Accepter</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`;
+ else if(m.statut==="acceptee")b=!p.collecte_at?`<button class="btn" data-a="prise" data-r="${esc(m.livraison_ref)}">📦 Colis pris en charge</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`:`<button class="btn ok" data-a="demarrer" data-r="${esc(m.livraison_ref)}">🏍 Démarrer la course</button>`;
+ else if(m.statut==="en_cours")b=`<button class="btn ok" data-a="confirmer" data-r="${esc(m.livraison_ref)}">✔ Confirmer la livraison</button><button class="btn wa" data-a="echec" data-r="${esc(m.livraison_ref)}">Livraison impossible</button>`;
+ const act=ACTIFS.includes(m.statut);
+ return`<div class="card mc ${p.priorite==="urgente"?"urg":""}"><div class="between"><b>${esc(m.commande_ref)}</b><span>${p.priorite==="urgente"?'<span class="bd" style="background:#fde5e5;color:#c62828">URGENT</span> ':""}<span class="bd">${esc(STATUTS[m.statut]||m.statut)}</span></span></div>
+ <div style="margin-top:6px"><b>${esc(p.client_nom)}</b><br>📍 ${adrTxt(a)}${a.repere?`<br><span class="mu">${esc(a.repere)}</span>`:""}${a.instructions?`<br><i>${esc(a.instructions)}</i>`:""}${p.obs?`<br><span class="sm mu">${esc(p.obs)}</span>`:""}</div>
+ ${act?`<div class="pill sm">${(p.lignes||[]).map(l=>esc(l.qte+" × "+l.desig)).join("<br>")}</div>`:""}
+ <div class="pill between"><span>${(p.lignes||[]).reduce((s,x)=>s+(+x.qte||0),0)} article(s)${p.nb_colis?" · "+p.nb_colis+" colis":""}</span><b>${p.montant_attendu>0?fcfa(p.montant_attendu):"Déjà payé"}</b></div>
+ ${p.paye_vendeur>0?`<div class="sm mu">💳 ${fcfa(p.paye_vendeur)} déjà payés chez le fournisseur — vous n'encaissez que le reste.</div>`:""}
+ ${act?`<a class="btn ghost" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${dest}">🗺 Itinéraire</a>${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
+ ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
+function vueMissions(){if(!user)return;const act=missions.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=missions.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
+ const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
+ $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost" style="width:auto;margin:0;padding:8px 12px" data-a="quitter">Déconnexion</button></div><div class="wrap">${erreur?`<div class="al">${esc(erreur)}</div>`:""}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}
+ ${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}
+ <button class="btn ghost" data-a="incident">⚠ Signaler un incident</button><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button>
+ ${fin.length?`<h3>Terminées récemment</h3>${fin.map(carte).join("")}`:""}</div>`}
+function mission(r){return missions.find(m=>m.livraison_ref===r)}
+async function envoyer(r,type,donnees,ok){try{const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{}});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}catch(x){toast(x.message,"err")}}
+const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse introuvable","Client absent"]).map(x=>`<option>${esc(x)}</option>`).join("");
+const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
+const ACT={
+ accepter:r=>envoyer(r,"accepter",{},"Mission acceptée"),
+ demarrer:r=>envoyer(r,"demarrer",{},"Course démarrée"),
+ refuser:r=>formModal("Mission impossible",`<label>Motif<select name="motif">${motifsOpt(mission(r))}</select></label><label>Précision (facultatif)<input name="p"></label>`,"Refuser",d=>envoyer(r,"refuser",{motif:d.motif+(d.p?" — "+d.p:"")},"Mission refusée")),
+ prise:r=>formModal("Colis pris en charge",`<label>Nombre de colis<input type="number" name="nb" min="1" max="99" value="${((mission(r)||{}).payload||{}).nb_colis||1}" required></label><label>État des colis<select name="etat"><option>Conforme</option><option>Endommagé</option><option>Incomplet</option></select></label>`,"Valider",d=>envoyer(r,"prise_en_charge",{nb_colis:+d.nb,etat:d.etat},"Colis pris en charge")),
+ echec:r=>formModal("Livraison impossible",`<label>Motif<select name="motif">${motifsOpt(mission(r))}</select></label><label>Observation<textarea name="obs" rows="2"></textarea></label>`,"Déclarer l'échec",d=>envoyer(r,"echec",{motif:d.motif,obs:d.obs},"Échec enregistré")),
+ confirmer:r=>{const m=mission(r),p=m.payload||{};formModal("Confirmer la livraison",`<div class="pill">À encaisser : <b>${fcfa(p.montant_attendu)}</b></div><label>Code donné par le client<input name="code" inputmode="numeric" autocomplete="off" required></label>${p.montant_attendu>0?`<label>Montant encaissé (F)<input type="number" name="montant" min="0" value="${+p.montant_attendu||0}" required></label><label>Mode de paiement<select name="mode">${(p.modes||["Espèces"]).map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>Référence de la transaction Mobile Money (si applicable)<input name="ref" autocomplete="off"></label><label>Explication si le montant diffère<input name="ecart_note"></label>`:`<input type="hidden" name="montant" value="0">`}<label>Nom de la personne ayant reçu<input name="recu_par" required></label><label>Observation<input name="obs"></label>${p.exige_colis||p.exige_signature?`<div class="al sm">Le scan des colis et la signature ne sont pas disponibles dans cette version : le bureau contrôlera la livraison.</div>`:""}`,"Confirmer",d=>envoyer(r,"confirmer",{code:d.code,montant:d.montant,mode:d.mode||"",ref:d.ref||"",recu_par:d.recu_par,obs:d.obs||"",ecart_note:d.ecart_note||""},"Livraison confirmée"))},
+ incident:()=>formModal("Signaler un incident",`<label>Nature<select name="nature"><option>Accident</option><option>Panne</option><option>Litige client</option><option>Sécurité</option><option>Autre</option></select></label><label>Mission concernée<select name="r"><option value="">—</option>${missions.filter(m=>ACTIFS.includes(m.statut)).map(m=>`<option value="${esc(m.livraison_ref)}">${esc(m.commande_ref)}</option>`).join("")}</select></label><label>Description<textarea name="description" rows="3" required></textarea></label>`,"Envoyer",d=>{const r=d.r||(missions.find(m=>ACTIFS.includes(m.statut))||{}).livraison_ref;if(!r){toast("Aucune mission active à rattacher","err");return}return envoyer(r,"incident",{nature:d.nature,description:d.description},"Incident transmis au bureau")}),
+ appeler:async r=>{const m=mission(r),p=(m||{}).payload||{};try{const t=(await sb.auth.getSession()).data.session.access_token;const x=await fetch(FN+"appel-pont",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify({commande:m.commande_ref,livreur_id:m.livreur_ref,cle:p.cle_appel})});const j=await x.json().catch(()=>({}));if(x.ok&&j.ok)toast(j.message||"Votre téléphone va sonner","ok");else toast(j.erreur||"Appel impossible : contactez le bureau","err")}catch(e){toast("Appel impossible : "+e.message,"err")}},
+ mdp:()=>vueChangement(),
+ quitter:async()=>{arreter();await sb.auth.signOut();user=null;vueLogin()}
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const f=ACT[b.dataset.a];if(f)f(b.dataset.r)});
+
+/* ---------- Position (uniquement pendant une course en cours) ---------- */
+function suivi(){const enCours=missions.find(m=>m.statut==="en_cours");if(!enCours||!navigator.geolocation){if(watch!=null){navigator.geolocation.clearWatch(watch);watch=null}return}
+ if(watch!=null)return;watch=navigator.geolocation.watchPosition(p=>{if(Date.now()-derPos<30000)return;const m=missions.find(x=>x.statut==="en_cours");if(!m)return;derPos=Date.now();api("mission-action",{livraison_ref:m.livraison_ref,type:"position",donnees:{lat:p.coords.latitude,lng:p.coords.longitude,precision:p.coords.accuracy}}).catch(()=>{})},()=>{},{enableHighAccuracy:true,maximumAge:15000})}
+function arreter(){clearInterval(timer);timer=null;if(watch!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watch);watch=null}
+
+async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
+ if(user.user_metadata&&user.user_metadata.chg){const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;return vueChangement()}
+ const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;if(!moi){await sb.auth.signOut();user=null;return vueLogin("Compte livreur inactif ou introuvable. Contactez le bureau.")}
+ await charger();suivi();clearInterval(timer);timer=setInterval(async()=>{await charger();suivi()},20000)}
+(async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}
+ try{await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});await demarrer()}catch(e){vueLogin(navigator.onLine?e.message:"Connexion Internet requise pour se connecter")}})();
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>

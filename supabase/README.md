@@ -49,3 +49,13 @@ Mise en service :
 6. Distributions → Paramètres → « Appel du client par la plateforme » : adresse `https://<projet>.supabase.co/functions/v1`, clé d'administration = `ADMIN_KEY`, cocher « Activer ».
 
 Limites à connaître : l'application Distributions fonctionne encore sur le stockage local ; la clé d'administration réside dans les réglages de l'appareil du bureau (à remplacer par une session Supabase Auth lors du passage en mode serveur) ; tant que les données des clients sont présentes sur l'appareil du livreur, le masquage de l'écran n'est pas une barrière technique — il faudra ne plus envoyer les numéros aux appareils livreurs (règles d'accès par rôle côté base).
+
+### État du déploiement (projet `ANGELS-GROUP`, `gfzqxoolorbejxnxrlji`, eu-west-3)
+- Migration `004_appel_pont.sql` appliquée (tables `appel_tickets` et `appel_journal`, RLS sans politique : seules les fonctions serveur y accèdent ; la fonction de purge fixe son `search_path`).
+- Fonctions déployées sans vérification JWT : `appel-ticket`, `appel-pont`, `appel-voix` (adresse : `https://gfzqxoolorbejxnxrlji.supabase.co/functions/v1`).
+- **Secrets à saisir dans le tableau de bord** (Edge Functions → Secrets) : `ADMIN_KEY`, `VOIX_SECRET`, `AT_USERNAME`, `AT_API_KEY`, `AT_NUMERO`. Tant que `ADMIN_KEY` et `VOIX_SECRET` ne sont pas définis, toutes les fonctions refusent les appels.
+- Les fonctions déployées sont des copies autonomes (`index.js`, `pont.js`, `serveur.js` dans le même dossier) ; le dépôt garde `_shared/` pour le déploiement par la CLI.
+
+## Passerelle livreur
+
+Migration `migrations/005_passerelle_livreur.sql`, fonctions `mission-sync` (déployée **sans** vérification JWT : protégée par `ADMIN_KEY`) et `mission-action` (déployée **avec** vérification JWT). Secret requis : `ADMIN_KEY` (le même que le pont). Dans Authentication → Providers → Email, désactiver « Confirm email » est inutile (les comptes sont créés confirmés par le serveur) ; relever la longueur minimale du mot de passe à 10.

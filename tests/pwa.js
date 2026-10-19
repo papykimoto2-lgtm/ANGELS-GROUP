@@ -40,7 +40,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  let nav=true;try{await p.click('a[href="transport.html"]');await p.waitForLoadState("domcontentloaded");nav=(await p.title()).includes("Transport")||("titre: "+await p.title())}catch(e){nav=e.message.slice(0,80)}
  t("PWA-6","navigation hub → Transport hors ligne",nav);
  // fonctionnement de l'app hors ligne : connexion + saisie
- let fonc=true;try{await p.waitForSelector("#lf",{state:"attached"});await p.evaluate(()=>{const d=document.querySelector("#lf").closest("details");if(d)d.open=true});const o=await p.$$eval('select[name=u] option',a=>a.map(x=>[x.value,x.textContent]));await p.selectOption('select[name=u]',o.find(x=>x[1].startsWith("Caissier"))[0]);await p.fill('input[name=p]',"2222");await p.click("#lf button");await p.waitForSelector("main h1");
+ let fonc=true;try{await p.waitForSelector("#lf",{state:"attached"});await p.evaluate(()=>{const d=document.querySelector("#lf").closest("details");if(d)d.open=true});const o=await p.$$eval('select[name=u] option',a=>a.map(x=>[x.value,x.textContent]));await p.selectOption('select[name=u]',o.find(x=>x[1].startsWith("Caissier"))[0]);await p.fill('input[name=p]',"Demo@Angels2026");await p.click("#lf button");await p.waitForSelector("main h1");
   const bar=await p.$eval("#pwaBar",e=>e.textContent).catch(()=>"");if(!/hors ligne/i.test(bar))fonc="bandeau hors ligne absent"}catch(e){fonc=e.message.slice(0,80)}
  t("PWA-7","Transport utilisable hors ligne avec bandeau « Mode hors ligne »",fonc);await ctx.setOffline(false);
  // bouton d'installation
@@ -64,10 +64,10 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   t("PWA-V4","connexion limitée aux vendeurs (aucun profil admin/livreur proposé)",info.cartes.length===1&&info.opts.length>=1&&info.opts.every(o=>/vendeur/i.test(o))?true:JSON.stringify(info));
   const cdp=await ctx.newCDPSession(vp);const er=(await cdp.send("Page.getInstallabilityErrors")).installabilityErrors.map(e=>e.errorId).filter(x=>x!=="in-incognito");
   t("PWA-V5","l'espace vendeur est installable (Chromium)",er.length===0?true:JSON.stringify(er));
-  const refus=await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="admin"),f=document.getElementById("lf");f.u.innerHTML='<option value="'+u.id+'">a</option>';f.u.value=u.id;(f.pin||f.p).value="1234";f.requestSubmit();return new Promise(r=>setTimeout(()=>r({me:typeof ME!=="undefined"&&ME?ME.role:null}),300))});
+  const refus=await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="admin"),f=document.getElementById("lf");f.u.innerHTML='<option value="'+u.id+'">a</option>';f.u.value=u.id;(f.pin||f.p).value="Demo@Angels2026";f.requestSubmit();return new Promise(r=>setTimeout(()=>r({me:typeof ME!=="undefined"&&ME?ME.role:null}),300))});
   t("PWA-V6","un compte non vendeur est refusé dans l'espace vendeur",refus.me===null?true:JSON.stringify(refus));
   await vp.reload();await vp.waitForSelector("#lf",{state:"attached"});
- await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="vendeur"),f=document.getElementById("lf");f.u.value=u.id;(f.pin||f.p).value="5555";f.requestSubmit()});await vp.waitForTimeout(400);
+ await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="vendeur"),f=document.getElementById("lf");f.u.value=u.id;(f.pin||f.p).value="Demo@Angels2026";f.requestSubmit()});await vp.waitForTimeout(1500);
   const ok2=await vp.evaluate(()=>({role:ME&&ME.role,txt:document.body.innerText.includes("Mes commandes")}));
   t("PWA-V7","le vendeur se connecte et arrive sur ses commandes",ok2.role==="vendeur"&&ok2.txt?true:JSON.stringify(ok2));
   const lien=await vp.evaluate(()=>document.body.innerText.includes("Accueil groupe"));

@@ -21,7 +21,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
  const vis=()=>ps.evaluate(()=>({tabs:[...document.querySelectorAll("#ptabs .tab")].map(b=>b.dataset.pt),on:[...document.querySelectorAll("#ptabs .tab.on")].map(b=>b.dataset.pt),users:!document.getElementById("s-users").hidden,ptl:!document.getElementById("s-ptl").hidden,med:!document.getElementById("s-med").hidden,panels:[...document.querySelectorAll("#ptl .pp")].filter(p=>!p.hidden&&p.offsetParent!==null).map(p=>p.dataset.pp).filter((x,i,a)=>a.indexOf(x)===i)}));
  const v0=await vis();
- chk("ONG-1","10 onglets ; ouverture sur « Utilisateurs et rôles » : seul ce contenu est affiché",v0.tabs.join()==="users,identite,accueil,boutique,contact,medias,stats,acces,impression,publication"&&v0.on.join()==="users"&&v0.users&&!v0.ptl&&!v0.med,JSON.stringify(v0));
+ chk("ONG-1","11 onglets ; ouverture sur « Utilisateurs et rôles » : seul ce contenu est affiché",v0.tabs.join()==="users,identite,accueil,boutique,contact,medias,stats,acces,impression,cloud,publication"&&v0.on.join()==="users"&&v0.users&&!v0.ptl&&!v0.med,JSON.stringify(v0));
  const res={};
  for(const t of ["identite","accueil","boutique","contact","medias","stats","acces","publication"]){await ps.click('#ptabs [data-pt="'+t+'"]');res[t]=await vis()}
  const want={identite:["identite"],accueil:["accueil"],boutique:["boutique"],contact:["contact"],publication:["publication"]};
@@ -46,5 +46,27 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const mob=await ctx.newPage();await mob.setViewportSize({width:375,height:700});await mob.goto(base+"/parametres.html");await mob.waitForTimeout(300);
  const ov=await mob.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2);
  chk("ONG-8","téléphone (375 px) : pas de défilement horizontal de la page",ov);
+ /* Cloud / Supabase */
+ {await ps.click('#ptabs [data-pt="cloud"]');
+ const c0=await ps.evaluate(()=>({vis:!document.getElementById("s-cloud").hidden,ptl:document.getElementById("s-ptl").hidden,users:document.getElementById("s-users").hidden,url:document.getElementById("cl-url").value,badge:document.getElementById("cl-badge").innerText,apps:document.getElementById("cl-apps").innerText}));
+ chk("CLD-1","onglet Cloud / Supabase : projet par défaut affiché (URL, clé, état connecté) et état des applications branchées",c0.vis&&c0.ptl&&c0.users&&/gfzqxoolorbejxnxrlji\.supabase\.co/.test(c0.url)&&/Connecté/.test(c0.badge)&&/Passerelle livreur/.test(c0.apps),JSON.stringify(c0));
+ await ps.evaluate(()=>{Object.keys(AUTH).forEach(k=>delete AUTH[k]);localStorage.removeItem("angels_supabase")});
+ await ps.click('[data-cl="save"]');const lock=await ps.innerText("#cl-res");
+ chk("CLD-2","enregistrer sans application déverrouillée : refusé",/Déverrouillez/.test(lock),lock);
+ await ps.evaluate(()=>{AUTH.test={exp:Date.now()+6e5}});
+ const val=await ps.evaluate(()=>{const r={};const t=(u,k)=>{try{clValide(u,k);return"ok"}catch(e){return e.message}};
+  const J=r2=>"eyJhbGciOiJIUzI1NiJ9."+btoa(JSON.stringify({role:r2}))+".sig";
+  r.service=t("https://abc.supabase.co",J("service_role"));r.secret=t("https://abc.supabase.co","sb_secret_xyz");r.url=t("http://abc.supabase.co",J("anon"));r.bad=t("https://abc.supabase.co","pas-une-cle");r.ok=t("https://abc.supabase.co/rest/v1/",J("anon"));r.pub=t("https://abc.supabase.co","sb_publishable_abc123");return r});
+ chk("CLD-3","validation : clé service_role / secrète refusées, URL non https refusée, clé anonyme et clé publishable acceptées",/service_role/.test(val.service)&&/SECRÈTE/.test(val.secret)&&/URL invalide/.test(val.url)&&/invalide/.test(val.bad)&&val.ok==="ok"&&val.pub==="ok",JSON.stringify(val));
+ const keyOk="eyJhbGciOiJIUzI1NiJ9."+Buffer.from(JSON.stringify({role:"anon"})).toString("base64url")+".sig";
+ await ps.fill("#cl-url","https://nouveau.supabase.co/");await ps.fill("#cl-key",keyOk);await ps.click('[data-cl="save"]');
+ const sv=await ps.evaluate(()=>({o:JSON.parse(localStorage.getItem("angels_supabase")),eff:clEff()}));
+ chk("CLD-4","enregistrement : configuration partagée stockée (URL normalisée) et prise comme configuration effective",sv.o&&sv.o.url==="https://nouveau.supabase.co"&&sv.eff.perso&&sv.eff.url===sv.o.url,JSON.stringify(sv));
+ await ps.route("https://nouveau.supabase.co/**",r=>{const u=r.request().url();r.fulfill({status:/pg_livreurs/.test(u)?404:200,headers:{"access-control-allow-origin":"*"},contentType:"application/json",body:"{}"})});
+ await ps.click('[data-cl="test"]');await ps.waitForTimeout(600);const tr=await ps.innerText("#cl-res");
+ chk("CLD-5","test de connexion : projet joignable, et migration de la passerelle signalée comme non installée quand les tables manquent",/Projet joignable/.test(tr)&&/tables non installées/.test(tr),tr);
+ await ps.click('[data-cl="clear"]');const cl=await ps.evaluate(()=>({o:JSON.parse(localStorage.getItem("angels_supabase")),b:document.getElementById("cl-badge").innerText}));
+ await ps.click('[data-cl="def"]');const df=await ps.evaluate(()=>localStorage.getItem("angels_supabase"));
+ chk("CLD-6","effacer : mode local ; projet par défaut rétabli ensuite",cl.o.off===true&&/Mode local/.test(cl.b)&&df===null,JSON.stringify([cl,df]));}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();
