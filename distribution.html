@@ -1195,7 +1195,7 @@ VIEWS.carte=()=>{
  const wait=S.commandes.filter(c=>c.statut==="prete").length;
  return`<div class="between"><h1>Carte en direct</h1><div class="flex"><select data-f="cz" style="width:auto"><option value="">Toutes zones</option>${opts(S.config.zones.map(z=>z.nom),fz)}</select><select data-f="cs" style="width:auto"><option value="">Tous les livreurs</option>${opts([{v:"mission",t:"En mission"},{v:"libre",t:"Libres"},{v:"indispo",t:"Indisponibles"}],fs)}</select><button class="btn ghost" data-act="carteFit">⤢ Tout voir</button></div></div>
  <div class="grid"><div class="kpi o"><div class="v">${rows.length}</div><div class="l">Livreurs affichés</div></div>${kpi("En mission",nM)}${kpi("Libres",nL,"o")}${kpi("Indisponibles",nI)}${kpi("Sans position",nS,nS?"w":"")}${kpi("Commandes à affecter",wait,wait?"w":"")}</div>
- <div class="lgd"><span><i class="dot libre"></i>Libre</span><span><i class="dot mission"></i>En mission</span><span><i class="dot indispo"></i>Indisponible</span><span>🏍️ position partagée · bordure orange pointillée = position ancienne</span><span>📍 destination · ⏳ commande à affecter</span>${CL.on?"":'<span style="color:var(--wa)">Démo : les livreurs en course avancent de façon simulée</span>'}</div>
+ <div class="lgd"><span><i class="dot libre"></i>Libre</span><span><i class="dot mission"></i>En mission</span><span><i class="dot indispo"></i>Indisponible</span><span>🏍️ position partagée · bordure orange pointillée = position ancienne</span><span>📍 destination · ⏳ commande à affecter</span>${SIM_POS()?'<span style="color:var(--wa)">Démo : les livreurs en course avancent de façon simulée</span>':""}</div>
  <div class="cm"><div id="cm_map"><div class="al sm" style="margin:10px">Chargement de la carte…</div></div>
  <div class="cmside" id="cm_list">${rows.length?rows.sort((a,b)=>({mission:0,libre:1,indispo:2})[a.k]-({mission:0,libre:1,indispo:2})[b.k]).map(x=>{const f=fraicheur(x.p),c=x.act[0]&&cmd(x.act[0].commande_id);return`<div class="it" data-act="carteFocus" data-id="${x.l.id}"><i class="dot ${x.k}"></i><div><b>${esc(x.l.nom)}</b><br><span class="sm mu">${x.k==="mission"?"En mission"+(c?" · "+c.numero+" · "+esc(c.adr.zone):""):x.k==="libre"?"Libre":"Indisponible"} · ${esc(x.l.zone||"")}</span><br><span class="sm ${x.p?"":"mu"}">${x.p?"📍 "+f.t:"Aucune position partagée"}</span></div></div>`}).join(""):'<div class="mu" style="padding:12px">Aucun livreur.</div>'}</div></div>
  <p class="mu sm">La position n'est partagée que pendant une course, avec l'accord du livreur. Une position ancienne ne prouve pas que le livreur est arrêté.</p>`};
@@ -1223,9 +1223,10 @@ function carteHook(){
    if(view!=="carte"||!CARTE.map){clearInterval(CARTE.timer);return}
    const tick=()=>{carteMarkers();const q=document.getElementById("cm_list");if(q&&!$("#modal").innerHTML){/* liste mise à jour sans détruire la carte */const tmp=document.createElement("div");tmp.innerHTML=VIEWS.carte();const n=tmp.querySelector("#cm_list");if(n)q.innerHTML=n.innerHTML}};
    if(CL.on)refresh().then(tick).catch(()=>{});
-   else{simulerPos();tick()}},CL.on?15000:3000)})
+   else{if(SIM_POS())simulerPos();tick()}},CL.on?15000:3000)})
  .catch(()=>{const el=document.getElementById("cm_map");if(el)el.innerHTML='<div class="al warn" style="margin:10px">Carte indisponible (pas de connexion Internet). La liste à droite donne l\'état de chaque livreur.</div>'})}
-/* Démonstration : les livreurs en course avancent vers leur destination (en mémoire seulement, rien n'est enregistré). */
+/* Démonstration : les livreurs en course avancent vers leur destination (en mémoire seulement, rien n'est enregistré). Jamais en production ni en mode serveur. */
+const SIM_POS=()=>!CL.on&&ANGELS_AUTH.demoOn();
 function simulerPos(){const t0=new Date().toISOString();S.livreurs.forEach(l=>{if(S.pos[l.id]&&S.pos[l.id].ts&&Date.now()-new Date(S.pos[l.id].ts)<3600000)S.pos[l.id]=Object.assign({},S.pos[l.id],{ts:t0})});S.livraisons.filter(l=>l.statut==="en_cours").forEach(l=>{const c=cmd(l.commande_id),g=c&&c.adr.gps,p=S.pos[l.livreur_id];if(!g||!p)return;
  const d=Math.hypot(g.lat-p.lat,g.lng-p.lng);if(d<.0004)return;const k=.0006/d;S.pos[l.livreur_id]=Object.assign({},p,{lat:p.lat+(g.lat-p.lat)*Math.min(1,k),lng:p.lng+(g.lng-p.lng)*Math.min(1,k),ts:new Date().toISOString()})})}
 /* ---------- Tableau de bord ---------- */
