@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icons/transport-192.png">
 <link rel="apple-touch-icon" href="icons/transport-apple-180.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Angel's Transport"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://unpkg.com; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://*.supabase.co; base-uri 'none'; form-action 'none'">
 <title>ANGEL'S &amp; CO Transport</title>
 <script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="orange")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <style>
@@ -94,7 +94,9 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <body>
 <div id="app"></div>
 <script src="qrcode.js"></script>
+<script src="passerelle-config.js"></script>
 <script src="auth-engine.js"></script>
+<script src="sync-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
@@ -142,7 +144,7 @@ const needAny=(m,acts,msg)=>{if(!acts.some(a=>can(m,a)))throw new Error(msg||"Dr
 const need=(m,a,msg)=>{if(!can(m,a))throw new Error(msg||"Droits insuffisants ("+MODS[m]+" : "+ACT[a]+").")};
 
 /* ---------- Persistance, audit, transactions ---------- */
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend est requis.")}try{localStorage.setItem("angels_compta_transport",JSON.stringify(comptaResume()))}catch(e){}try{if(typeof majPortailVehicules==="function")majPortailVehicules().catch(()=>{})}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend est requis.")}try{ANGELS_SYNC.signal()}catch(e){}try{localStorage.setItem("angels_compta_transport",JSON.stringify(comptaResume()))}catch(e){}try{if(typeof majPortailVehicules==="function")majPortailVehicules().catch(()=>{})}catch(e){}};
 const audit=(a,d)=>{S.audit.unshift({t:now(),u:ME?ME.nom:"système",r:ME?ME.role:"",a,d:d||""});if(S.audit.length>2000)S.audit.length=2000};
 function atomic(fn,quiet){
  const snap=JSON.stringify(S),me=ME&&ME.id;
@@ -1799,7 +1801,7 @@ function seed(){
  S.perms.seed=Object.fromEntries(Object.keys(MODS).map(m=>[m,"vceaxp".split("")]));
  ME={id:"seed",nom:"Initialisation",role:"seed"};
  const mkU=(nom,role,pin,x)=>{const u={id:uid("u"),nom,role,actif:true,...x};u.pwd=Object.assign({},ANGELS_AUTH.DEMO);S.users.push(u);return u};
- if(!ANGELS_AUTH.demoOn()){S.users.push(ANGELS_AUTH.adminProd(uid("u")));migrerAtelier();S.settings.acces_demo=false;delete S.perms.seed;ME=null;save();return}
+ if(!ANGELS_AUTH.demoOn()){S.users.push(ANGELS_AUTH.adminProd("u_kessie"));migrerAtelier();S.settings.acces_demo=false;delete S.perms.seed;ME=null;save();return}
  mkU("Administrateur","admin","1234");mkU("Directeur","directeur","0000");mkU("Gestionnaire de flotte","flotte","1111");mkU("Caissier","caissier","2222");mkU("Comptable","comptable","3333");mkU("Contrôleur","controleur","4444");mkU("Transitaire (démo)","transitaire","5555");mkU("Responsable importation","importateur","6666");mkU("Gestionnaire de stock","stock_auto","7777");mkU("Commercial automobile","commercial_auto","8888");
  const mkD=(nom,tel,pin,n)=>{const id=uid("d"),t={id:uid("t"),type:"chauffeur",nom,aux:cdef("client")+String(n).padStart(4,"0"),ref:id};S.tiers.push(t);const u=mkU(nom,"chauffeur",pin,{driver_id:id});const x={id,user_id:u.id,nom,tel,adresse:"Yopougon",cni:"CI00"+n,permis_no:"P"+pin,permis_fin:d(300+n*20),tiers_id:t.id};S.drivers.push(x);return x};
  const c1=mkD("Moussa Koné","0707000001","0001",1),c2=mkD("Yao Kouassi","0707000002","0002",2),c3=mkD("Issouf Traoré","0707000003","0003",3),c4=mkD("Alain Brou","0707000004","0004",4);
@@ -3844,6 +3846,7 @@ barre();
 load();
 try{const id=sessionStorage.getItem("tr_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
 render();
+ANGELS_SYNC.init({app:"transport",nom:"Transport",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries","gps_pos","gps_alerts","alertes_etat"],qui:()=>ME?ME.nom:"poste"});
 fichiersCharger().then(()=>{if(S&&S.attachments.length&&!document.querySelector(".md"))render();try{majPortailVehicules()}catch(e){}});
 </script>
 </body>
