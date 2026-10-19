@@ -1187,29 +1187,46 @@ VIEWS.etats=()=>{
 /* ---------- Carte centrale : tous les livreurs en direct ---------- */
 const CARTE={map:null,lg:null,mk:{},fitted:false,timer:null,view:null,sim:null};
 const ini=n=>(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+/* Position affichable sur la carte : un livreur en mission garde sa dernière position (signalée « ancienne » ou « obsolète ») ; un livreur libre ou indisponible
+   n'est plus localisé dès que sa position dépasse le seuil « ancienne » (la position n'est partagée que pendant une course). */
+function cartePos(l,k){const p=S.pos[l.id];if(!p||!isFinite(+p.lat)||!isFinite(+p.lng))return null;if(k!=="mission"&&(Date.now()-new Date(p.ts))/60000>S.config.gps_stale_warn)return null;return p}
+function carteDest(a){const c=cmd(a.commande_id),g=c&&c.adr&&c.adr.gps;return g&&isFinite(+g.lat)&&isFinite(+g.lng)?g:null}
+function carteTrace(l){const lim=Date.now()-30*60000,L=(S.gps_hist||[]).filter(x=>x.livreur_id===l.id&&new Date(x.ts).getTime()>=lim).sort((a,b)=>new Date(a.ts)-new Date(b.ts)).slice(-40);return L.map(x=>[x.lat,x.lng])}
 function etatLiv(l){const act=S.livraisons.filter(x=>x.livreur_id===l.id&&isActive(x));return{act,k:l.statut==="indisponible"?"indispo":act.length?"mission":"libre"}}
 VIEWS.carte=()=>{
  const fz=ui.cz||"",fs=ui.cs||"";
- const rows=S.livreurs.filter(l=>!fz||l.zone===fz).map(l=>Object.assign({l},etatLiv(l),{p:S.pos[l.id]})).filter(x=>!fs||x.k===fs);
- const nM=rows.filter(x=>x.k==="mission").length,nL=rows.filter(x=>x.k==="libre").length,nI=rows.filter(x=>x.k==="indispo").length,nS=rows.filter(x=>!x.p).length;
+ const rows=S.livreurs.filter(l=>!fz||l.zone===fz).map(l=>{const e=etatLiv(l);return Object.assign({l},e,{p:cartePos(l,e.k),dern:S.pos[l.id]})}).filter(x=>!fs||x.k===fs);
+ const nM=rows.filter(x=>x.k==="mission").length,nL=rows.filter(x=>x.k==="libre").length,nI=rows.filter(x=>x.k==="indispo").length,nS=rows.filter(x=>x.k==="mission"&&(!x.p||fraicheur(x.p).k!=="ok")).length;
  const wait=S.commandes.filter(c=>c.statut==="prete").length;
  return`<div class="between"><h1>Carte en direct</h1><div class="flex"><select data-f="cz" style="width:auto"><option value="">Toutes zones</option>${opts(S.config.zones.map(z=>z.nom),fz)}</select><select data-f="cs" style="width:auto"><option value="">Tous les livreurs</option>${opts([{v:"mission",t:"En mission"},{v:"libre",t:"Libres"},{v:"indispo",t:"Indisponibles"}],fs)}</select><button class="btn ghost" data-act="carteFit">⤢ Tout voir</button></div></div>
- <div class="grid"><div class="kpi o"><div class="v">${rows.length}</div><div class="l">Livreurs affichés</div></div>${kpi("En mission",nM)}${kpi("Libres",nL,"o")}${kpi("Indisponibles",nI)}${kpi("Sans position",nS,nS?"w":"")}${kpi("Commandes à affecter",wait,wait?"w":"")}</div>
- <div class="lgd"><span><i class="dot libre"></i>Libre</span><span><i class="dot mission"></i>En mission</span><span><i class="dot indispo"></i>Indisponible</span><span>🏍️ position partagée · bordure orange pointillée = position ancienne</span><span>📍 destination · ⏳ commande à affecter</span>${SIM_POS()?'<span style="color:var(--wa)">Démo : les livreurs en course avancent de façon simulée</span>':""}</div>
+ <div class="grid" id="cm_kpi"><div class="kpi o"><div class="v">${rows.length}</div><div class="l">Livreurs affichés</div></div>${kpi("En mission",nM)}${kpi("Libres",nL,"o")}${kpi("Indisponibles",nI)}${kpi("Missions sans GPS récent",nS,nS?"w":"")}${kpi("Commandes à affecter",wait,wait?"w":"")}</div>
+ <div class="lgd"><span><i class="dot libre"></i>Libre</span><span><i class="dot mission"></i>En mission</span><span><i class="dot indispo"></i>Indisponible</span><span>🏍️ position partagée · bordure orange pointillée = position ancienne · trait fin = trajet des 30 dernières minutes · cercle = marge d'erreur du GPS</span><span>📍 destination · ⏳ commande à affecter</span>${SIM_POS()?'<span style="color:var(--wa)">Démo : les livreurs en course avancent de façon simulée</span>':""}</div>
  <div class="cm"><div id="cm_map"><div class="al sm" style="margin:10px">Chargement de la carte…</div></div>
- <div class="cmside" id="cm_list">${rows.length?rows.sort((a,b)=>({mission:0,libre:1,indispo:2})[a.k]-({mission:0,libre:1,indispo:2})[b.k]).map(x=>{const f=fraicheur(x.p),c=x.act[0]&&cmd(x.act[0].commande_id);return`<div class="it" data-act="carteFocus" data-id="${x.l.id}"><i class="dot ${x.k}"></i><div><b>${esc(x.l.nom)}</b><br><span class="sm mu">${x.k==="mission"?"En mission"+(c?" · "+c.numero+" · "+esc(c.adr.zone):""):x.k==="libre"?"Libre":"Indisponible"} · ${esc(x.l.zone||"")}</span><br><span class="sm ${x.p?"":"mu"}">${x.p?"📍 "+f.t:"Aucune position partagée"}</span></div></div>`}).join(""):'<div class="mu" style="padding:12px">Aucun livreur.</div>'}</div></div>
+ <div class="cmside" id="cm_list">${rows.length?rows.sort((a,b)=>({mission:0,libre:1,indispo:2})[a.k]-({mission:0,libre:1,indispo:2})[b.k]).map(x=>{const f=fraicheur(x.p||x.dern),c=x.act[0]&&cmd(x.act[0].commande_id),g=x.p&&x.act[0]&&x.act[0].statut==="en_cours"&&carteDest(x.act[0]),dk=g?haversine(x.p,g):null,col=f.k==="ok"?"var(--ok)":f.k==="wa"?"var(--wa)":f.k==="er"?"var(--er)":"";
+  return`<div class="it" data-act="carteFocus" data-id="${x.l.id}"><i class="dot ${x.k}"></i><div><b>${esc(x.l.nom)}</b><br><span class="sm mu">${x.k==="mission"?"En mission"+(c?" · "+c.numero+" · "+esc(c.adr.zone):""):x.k==="libre"?"Libre":"Indisponible"} · ${esc(x.l.zone||"")}</span><br><span class="sm ${x.p||x.dern?"":"mu"}" style="${x.p?"color:"+col:""}">${x.p?"📍 "+f.t:x.dern?"Dernière position : "+ago(x.dern.ts)+" (masquée)":x.k==="mission"?"⚠ Aucune position reçue":"Aucune position partagée"}</span>${dk!=null?`<br><span class="sm">➜ à ${kmTxt(dk)} de la destination</span>`:""}</div></div>`}).join(""):'<div class="mu" style="padding:12px">Aucun livreur.</div>'}</div></div>
  <p class="mu sm">La position n'est partagée que pendant une course, avec l'accord du livreur. Une position ancienne ne prouve pas que le livreur est arrêté.</p>`};
+/* Mise à jour incrémentale : les repères existants sont déplacés (jamais détruits puis recréés), donc une fenêtre d'information ouverte ne se referme pas toutes les 3 s. */
 function carteMarkers(){
  if(!CARTE.map||!window.L)return;
- const fz=ui.cz||"",fs=ui.cs||"";CARTE.lg.clearLayers();CARTE.mk={};
- S.livreurs.filter(l=>!fz||l.zone===fz).forEach(l=>{const e=etatLiv(l);if(fs&&e.k!==fs)return;
-  e.act.forEach(a=>{const c=cmd(a.commande_id),g=c&&c.adr.gps;if(g){L.marker([g.lat,g.lng],{icon:L.divIcon({html:'<div class="mkd">📍</div>',className:"",iconSize:[0,0]})}).bindPopup(`<b>${esc(c.numero)}</b><br>${esc(c.adr.zone)} · ${esc(c.adr.quartier||"")}<br>Livreur : ${esc(l.nom)}`).addTo(CARTE.lg);
-    const p=S.pos[l.id];if(p&&a.statut==="en_cours")L.polyline([[p.lat,p.lng],[g.lat,g.lng]],{color:"#0e7490",weight:3,dashArray:"6 8",opacity:.8}).addTo(CARTE.lg)}});
-  const p=S.pos[l.id];if(!p)return;const f=fraicheur(p);
-  const m=L.marker([p.lat,p.lng],{icon:L.divIcon({html:`<div class="mk ${e.k}${f.k==="ok"?"":" old"}">${esc(ini(l.nom))}</div>`,className:"",iconSize:[0,0]}),zIndexOffset:500}).addTo(CARTE.lg);
-  m.bindPopup(`<b>${esc(l.nom)}</b><br>${e.k==="mission"?"En mission":e.k==="libre"?"Libre":"Indisponible"}${e.act[0]?" · "+esc(cmd(e.act[0].commande_id).numero):""}<br><span style="color:#666">📍 ${esc(f.t)}</span>${l.tel?`<br><a href="tel:${esc(l.tel)}">📞 ${esc(l.tel)}</a>`:""}`);CARTE.mk[l.id]=m});
- if(!fs||fs==="libre"||fs==="mission")S.commandes.filter(c=>c.statut==="prete"&&c.adr.gps&&(!fz||c.adr.zone===fz)&&!fs).forEach(c=>L.marker([c.adr.gps.lat,c.adr.gps.lng],{icon:L.divIcon({html:'<div class="mkd">⏳</div>',className:"",iconSize:[0,0]})}).bindPopup(`<b>${esc(c.numero)}</b> · à affecter<br>${esc(c.adr.zone)} · ${esc(c.adr.quartier||"")}<br><a data-act="assign" data-id="${c.id}" href="#">Affecter un livreur</a>`).addTo(CARTE.lg))}
-function carteFit(){if(!CARTE.map)return;const pts=[];Object.values(CARTE.mk).forEach(m=>pts.push(m.getLatLng()));CARTE.lg.eachLayer(l=>{if(l.getLatLng&&!CARTE.mk[l._leaflet_id])pts.push(l.getLatLng())});
+ const fz=ui.cz||"",fs=ui.cs||"",want=new Set();CARTE.reg=CARTE.reg||{};CARTE.mk=CARTE.mk||{};
+ const put=(key,sig,mk,maj)=>{want.add(key);const r=CARTE.reg[key];if(r&&r.sig===sig){if(maj)maj(r.layer);return r.layer}if(r)CARTE.lg.removeLayer(r.layer);const ly=mk().addTo(CARTE.lg);CARTE.reg[key]={layer:ly,sig};return ly};
+ S.livreurs.filter(l=>!fz||l.zone===fz).forEach(l=>{const e=etatLiv(l);if(fs&&e.k!==fs)return;const p=cartePos(l,e.k);
+  e.act.forEach(a=>{const g=carteDest(a);if(!g)return;const c=cmd(a.commande_id);
+   put("d:"+a.id,[g.lat,g.lng,c.numero,l.nom].join("|"),()=>L.marker([g.lat,g.lng],{icon:L.divIcon({html:'<div class="mkd">📍</div>',className:"",iconSize:[0,0]})}).bindPopup(`<b>${esc(c.numero)}</b><br>${esc(c.adr.zone)} · ${esc(c.adr.quartier||"")}<br>Livreur : ${esc(l.nom)}`));
+   if(p&&a.statut==="en_cours")put("r:"+a.id,"r",()=>L.polyline([[p.lat,p.lng],[g.lat,g.lng]],{color:"#0e7490",weight:3,dashArray:"6 8",opacity:.8,interactive:false}),ly=>ly.setLatLngs([[p.lat,p.lng],[g.lat,g.lng]]))});
+  if(!p)return;const f=fraicheur(p),old=f.k!=="ok";
+  if(e.k==="mission"){const tr=carteTrace(l);if(tr.length>1)put("t:"+l.id,"t",()=>L.polyline(tr,{color:"#6d28d9",weight:2,opacity:.55,interactive:false}),ly=>ly.setLatLngs(tr))}
+  if(p.acc>40)put("a:"+l.id,"a",()=>L.circle([p.lat,p.lng],{radius:Math.min(+p.acc,1000),color:"#6d28d9",weight:1,fillOpacity:.08,interactive:false}),ly=>{ly.setLatLng([p.lat,p.lng]);ly.setRadius(Math.min(+p.acc,1000))});
+  const act=e.act.find(a=>a.statut==="en_cours")||e.act[0],g=act&&e.k==="mission"?carteDest(act):null,dk=g&&act.statut==="en_cours"?haversine(p,g):null;
+  const pop=`<b>${esc(l.nom)}</b><br>${e.k==="mission"?"En mission":e.k==="libre"?"Libre":"Indisponible"}${act?" · "+esc(cmd(act.commande_id).numero):""}<br><span style="color:#666">📍 ${esc(f.t)}${p.acc?" · marge ±"+Math.round(p.acc)+" m":""}</span>${dk!=null?`<br>➜ à ${kmTxt(dk)} de la destination`:""}${l.tel?`<br><a href="tel:${esc(l.tel)}">📞 ${esc(l.tel)}</a>`:""}`;
+  const m=put("m:"+l.id,e.k+"|"+(old?"o":"n")+"|"+ini(l.nom),()=>L.marker([p.lat,p.lng],{icon:L.divIcon({html:`<div class="mk ${e.k}${old?" old":""}">${esc(ini(l.nom))}</div>`,className:"",iconSize:[0,0]}),zIndexOffset:500}).bindPopup(pop),ly=>ly.setLatLng([p.lat,p.lng]));
+  m.setPopupContent(pop);CARTE.mk[l.id]=m});
+ if(!fs)S.commandes.filter(c=>c.statut==="prete"&&c.adr.gps&&(!fz||c.adr.zone===fz)).forEach(c=>put("w:"+c.id,[c.adr.gps.lat,c.adr.gps.lng,c.numero].join("|"),()=>L.marker([c.adr.gps.lat,c.adr.gps.lng],{icon:L.divIcon({html:'<div class="mkd">⏳</div>',className:"",iconSize:[0,0]})}).bindPopup(`<b>${esc(c.numero)}</b> · à affecter<br>${esc(c.adr.zone)} · ${esc(c.adr.quartier||"")}<br><a data-act="assign" data-id="${c.id}" href="#">Affecter un livreur</a>`)));
+ Object.keys(CARTE.reg).forEach(k=>{if(!want.has(k)){CARTE.lg.removeLayer(CARTE.reg[k].layer);delete CARTE.reg[k];if(k[0]==="m")delete CARTE.mk[k.slice(2)]}})}
+/* Rafraîchit la carte, les compteurs et la liste sans détruire la carte (les fenêtres ouvertes restent ouvertes). */
+function carteTick(){if(view!=="carte"||!CARTE.map)return;carteMarkers();if($("#modal").innerHTML)return;const tmp=document.createElement("div");tmp.innerHTML=VIEWS.carte();
+ [["cm_list"],["cm_kpi"]].forEach(([id])=>{const q=document.getElementById(id),n=tmp.querySelector("#"+id);if(q&&n)q.innerHTML=n.innerHTML})}
+function carteFit(){if(!CARTE.map)return;const pts=[];Object.keys(CARTE.reg||{}).forEach(k=>{if("mdw".includes(k[0])&&CARTE.reg[k].layer.getLatLng)pts.push(CARTE.reg[k].layer.getLatLng())});
  if(pts.length)CARTE.map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:16})}
 function carteHook(){
  if(CARTE.timer){clearInterval(CARTE.timer);CARTE.timer=null}
@@ -1217,11 +1234,11 @@ function carteHook(){
  if(!ME||view!=="carte"||!document.getElementById("cm_map"))return;
  loadLeaflet().then(()=>{const el=document.getElementById("cm_map");if(!el||view!=="carte")return;el.innerHTML="";
   CARTE.map=L.map(el).setView(CARTE.view?[CARTE.view.c.lat,CARTE.view.c.lng]:[5.345,-4.02],CARTE.view?CARTE.view.z:12);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(CARTE.map);CARTE.lg=L.layerGroup().addTo(CARTE.map);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(CARTE.map);CARTE.lg=L.layerGroup().addTo(CARTE.map);CARTE.reg={};CARTE.mk={};
   carteMarkers();if(!CARTE.view)carteFit();setTimeout(()=>CARTE.map&&CARTE.map.invalidateSize(),150);
   CARTE.timer=setInterval(()=>{
    if(view!=="carte"||!CARTE.map){clearInterval(CARTE.timer);return}
-   const tick=()=>{carteMarkers();const q=document.getElementById("cm_list");if(q&&!$("#modal").innerHTML){/* liste mise à jour sans détruire la carte */const tmp=document.createElement("div");tmp.innerHTML=VIEWS.carte();const n=tmp.querySelector("#cm_list");if(n)q.innerHTML=n.innerHTML}};
+   const tick=carteTick;
    if(CL.on)refresh().then(tick).catch(()=>{});
    else{if(SIM_POS())simulerPos();tick()}},CL.on?15000:3000)})
  .catch(()=>{const el=document.getElementById("cm_map");if(el)el.innerHTML='<div class="al warn" style="margin:10px">Carte indisponible (pas de connexion Internet). La liste à droite donne l\'état de chaque livreur.</div>'})}
@@ -1828,7 +1845,7 @@ async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localSt
  try{
   /* 1. actions des livreurs d'abord (le serveur a déjà validé droits, transitions et code) */
   const E=(await passPost(P,"mission-sync",{action:"evenements"})).evenements||[];
-  if(E.length){const ids=[];for(const ev of E){const r=passAppliquer(ev);if(r){audit("Action livreur non appliquée",`${ev.type} — ${r}`);toast("Action d'un livreur non appliquée : "+r,"err")}ids.push(ev.id)}chg=true;save();await passPost(P,"mission-sync",{action:"acquitter",ids});if(ME)render()}
+  if(E.length){const ids=[];for(const ev of E){const r=passAppliquer(ev);if(r){audit("Action livreur non appliquée",`${ev.type} — ${r}`);toast("Action d'un livreur non appliquée : "+r,"err")}ids.push(ev.id)}chg=true;save();await passPost(P,"mission-sync",{action:"acquitter",ids});if(ME){if(view==="carte"&&CARTE.map&&!$("#modal").innerHTML&&E.every(x=>x.type==="position"))carteTick();else render()}}
   /* 2. publication de la projection sans numéros */
   const lim=Date.now()-2*864e5,L=S.livraisons.filter(l=>liv(l.livreur_id)&&cmd(l.commande_id)&&(isActive(l)||(l.fin_at&&new Date(l.fin_at).getTime()>lim))).slice(-300),M=L.map(passProjection),sig=JSON.stringify(M.map(m=>[m.livraison_ref,m.statut,m.payload,m.code]));
   S.pass=S.pass||{refs:[]};const refs=M.map(m=>m.livraison_ref),retirer=S.pass.refs.filter(x=>!refs.includes(x));
@@ -1949,7 +1966,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
    i.statut="annule";i.clos_le=now();i.clos_par_nom=ME.nom;i.motif_annulation=m;audit("Inventaire annulé",i.numero+" — "+m);save();render()},{cls:"er"})},
 
  installApp:async()=>{if(!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(e){}IPROMPT=null;refreshInstall()},
- carteFit:()=>carteFit(),carteFocus:id=>{const m=CARTE.mk[id];if(m&&CARTE.map){CARTE.map.setView(m.getLatLng(),16);m.openPopup()}else toast("Ce livreur n'a pas partagé sa position","err")},
+ carteFit:()=>carteFit(),carteFocus:id=>{const m=CARTE.mk[id];if(m&&CARTE.map){CARTE.map.setView(m.getLatLng(),16);m.openPopup()}else toast("Ce livreur n'a pas de position récente à afficher","err")},
  suiviLien:async id=>{const c=cmd(id);let link;if(CL.on){const t=await CL.rpc("creer_lien_suivi",{p_commande:id});link=location.href.split("#")[0].split("?")[0]+"#suivi="+t}else link=await suiviLienPortail(c);suiviModal(c,link)},
  cliLien:id=>{const c=cli(id);if(c)cliLienModal(c)},
  cpTxt:t=>{(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Lien copié","ok"),()=>prompt("Copiez ce lien :",t))},
