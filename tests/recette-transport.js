@@ -1,13 +1,17 @@
 /* Recette automatisée — ANGEL'S & CO Transport (cahier des charges §7).
    Usage : PLAYWRIGHT=/chemin/vers/playwright node tests/recette-transport.js */
-const path=require("path");
+const path=require("path"),http=require("http"),fs=require("fs");const root=path.resolve(__dirname,"..");
+/* Servie en HTTP (comme les autres suites) : en file://, Chromium écrit le stockage local de façon différée et peut perdre l'état au rechargement. */
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
 const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
 (async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
  const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});
  const p=await b.newPage(),errs=[];
  p.on("pageerror",e=>errs.push("PAGEERR "+e.message));
  p.on("dialog",d=>d.accept());
- await p.goto("file://"+path.resolve(__dirname,"../transport.html"));
+ await p.goto(base+"/transport.html");
  await p.evaluate(()=>{window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};
   window.__try=fn=>{const snap=JSON.stringify(S),me=ME&&ME.id;try{fn();recomputeLettrage();return null}catch(e){S=JSON.parse(snap);ME=me?by(S.users,me):null;return e.message}};
   window.__iso=fn=>{const sn=JSON.stringify(S),me=ME&&ME.id;try{return fn()}finally{S=JSON.parse(sn);ME=me?by(S.users,me):null}}});
