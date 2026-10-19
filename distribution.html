@@ -2643,7 +2643,7 @@ const cxCan=()=>can("admin","caissier"),cxVal=()=>can("admin","direction");
 const dgCfg=()=>Object.assign({actif:false,seuil:200000,titulaire:"",suppleant:"",visa:true,ecarts:true,reglements:true},S.config.dg||{});
 const dgActif=()=>!!dgCfg().actif;
 const dgRequis=m=>dgActif()&&(+m||0)>=(+dgCfg().seuil||0);
-const dgPeut=()=>{if(!ME||!can("direction"))return false;const c=dgCfg(),ids=[c.titulaire,c.suppleant].filter(Boolean);return!ids.length||ids.includes(ME.id)};
+const dgPeut=()=>{if(!ME||ME.role!=="direction")return false;const c=dgCfg(),ids=[c.titulaire,c.suppleant].filter(Boolean);return!ids.length||ids.includes(ME.id)};
 const dgOk=m=>!dgRequis(m)||dgPeut();
 const dgBonOk=m=>!(m.dg_requis&&dgActif())||dgPeut();
 const dgEcOk=()=>!(dgActif()&&dgCfg().ecarts)||dgPeut();
