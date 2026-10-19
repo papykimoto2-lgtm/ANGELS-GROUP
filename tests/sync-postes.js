@@ -90,6 +90,10 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const G2=await poste("G2",false,cfg.syncKey);await G2.p.goto(base+"/agro.html");await att(G2.p,()=>ANGELS_SYNC.etat().etat==="ok",15000);
  const ag=await Promise.all([G1.p,G2.p].map(p=>p.evaluate(()=>({lots:S.lots.length,mv:S.mvts.length,cl:S.clients.length,acc:S.accounts.length}))));
  chk("SYP-12","Agro : un second poste récupère lots, mouvements de stock, clients et plan comptable du premier",ag[0].lots>0&&JSON.stringify(ag[0])===JSON.stringify(ag[1]),JSON.stringify(ag));
+ /* Rôles personnalisés : créés sur un poste, disponibles sur l'autre */
+ await P1.p.evaluate(()=>{const r=ANGELS_ROLES.creer("transport",S,{nom:"Agent terrain",droits:["vehicules.v","chauffeurs.v"]});window.__rid=r.id;save()});await P1.p.waitForTimeout(2300);await cyc(P1.p);await cyc(P2.p);
+ const rl=await P2.p.evaluate(()=>{render();return{n:(S.roles_perso||[]).map(r=>r.nom),perm:S.perms&&S.perms[(S.roles_perso[0]||{}).id],lib:Object.values(ROLES).includes("Agent terrain"),can:(()=>{const u={id:"u_x",nom:"X",role:(S.roles_perso[0]||{}).id,actif:true};const m=ME;ME=u;const v=can("vehicules","v"),c=can("vehicules","c");ME=m;return[v,c]})()}});
+ chk("SYP-13","rôle personnalisé créé sur le poste 1 : le poste 2 le reçoit (libellé, matrice de droits) et l'applique",rl.n.join()==="Agent terrain"&&rl.lib&&rl.can.join()==="true,false"&&rl.perm&&rl.perm.vehicules.join()==="v",JSON.stringify(rl));
  await P1.ctx.close();await P2.ctx.close();await G1.ctx.close();await G2.ctx.close();
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.slice(0,5).join(" | "):""));process.exit(ko||errs.length?1:0);
 })();

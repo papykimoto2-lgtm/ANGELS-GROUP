@@ -1,8 +1,8 @@
 /* Service worker ANGEL'S GROUP — installation (PWA) et usage hors ligne pour Livraison, Transport, Agro et le hub.
    Les pages sont servies réseau d'abord (mises à jour immédiates), cache en secours ; icônes et manifestes : cache d'abord.
    Aucune donnée métier n'est mise en cache ici : elles vivent dans le stockage local de chaque application. */
-const V = "angels-v18";
-const COQUE = ["./", "index.html", "parametres.html", "compta-groupe.html", "portail.html", "distribution.html", "transport.html", "agro.html", "hub.html", "verifier.html", "livreur.html", "passerelle-config.js", "print-engine.js", "auth-engine.js", "sync-engine.js", "qrcode.js", "rh-engine.js",
+const V = "angels-v20";
+const COQUE = ["./", "index.html", "parametres.html", "compta-groupe.html", "portail.html", "distribution.html", "transport.html", "agro.html", "hub.html", "verifier.html", "livreur.html", "passerelle-config.js", "print-engine.js", "auth-engine.js", "sync-engine.js", "roles-engine.js", "qrcode.js", "rh-engine.js",
   "manifest.webmanifest", "manifest-hub.webmanifest", "manifest-transport.webmanifest", "manifest-agro.webmanifest", "manifest-vendeur.webmanifest", "manifest-portail.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "icons/hub-192.png", "icons/hub-512.png", "icons/hub-maskable-512.png", "icons/hub-apple-180.png",
@@ -35,6 +35,10 @@ self.addEventListener("fetch", e => {
       } catch (x) { /* on ouvre quand même l'application */ }
       return Response.redirect(u.href, 303);   // GET de la même adresse (Livraison ou Espace vendeur)
     })());
+    return;
+  }
+  if (r.method === "GET" && u.href.startsWith("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/")) {   // bibliothèque de connexion de l'application livreur : gardée pour ouvrir hors ligne
+    e.respondWith(caches.match(r).then(m => m || fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); } return res; })));
     return;
   }
   if (r.method !== "GET" || u.origin !== location.origin) return;           // API, cartes, bibliothèques externes : réseau seulement

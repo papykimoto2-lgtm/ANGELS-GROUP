@@ -84,6 +84,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <footer>© ANGEL'S GROUP · Paramètres · <a href="index.html">Retour au hub</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
 <script src="passerelle-config.js"></script>
 <script src="sync-engine.js"></script>
+<script src="roles-engine.js"></script>
 <script src="qrcode.js"></script>
 <script src="auth-engine.js"></script>
 <script src="print-engine.js"></script>
@@ -111,10 +112,12 @@ let UM=(()=>{try{return sessionStorage.getItem("hub_umod")||"dist"}catch(e){retu
 const AUTH={},TRY={},DUREE=10*60*1000;
 const uEtat=m=>{const G=lire(RL[m].key);return G&&RL[m].ok(G)?G:null};
 const uSess=m=>{const a=AUTH[m];if(a&&a.exp>Date.now())return a;delete AUTH[m];return null};
+const rlSync=(R,G)=>{Object.keys(R.roles).filter(k=>k.indexOf("r_")===0).forEach(k=>delete R.roles[k]);(G.roles_perso||[]).forEach(r=>{R.roles[r.id]=r.nom})};
 const admins=(G,m)=>G.users.filter(u=>u.role==="admin"&&u.actif!==false);
 function uView(){
  $("utabs").innerHTML=MODS.map(x=>`<button class="tab${x.id===UM?" on":""}" data-um="${x.id}" style="--c:${x.c}">${x.ic} ${x.nom}</button>`).join("");
  const m=UM,R=RL[m],G=uEtat(m),box=$("usr"),mod=MODS.find(x=>x.id===m),msg=UMSG?`<div class="umsg${UMSG.er?" er":""}" role="status">${E(UMSG.t)}</div>`:"";
+ if(G)rlSync(R,G);
  if(!G){box.innerHTML=`<p class="note">${mod.nom} : application pas encore utilisée sur cet appareil — ouvrez-la une première fois pour créer ses comptes. <a href="${mod.href}">Ouvrir l'ERP</a></p>`;return}
  const au=uSess(m);
  if(!au){
@@ -129,7 +132,7 @@ function uView(){
   const ed="";
   return`<tr class="${act?"":"off"}"><td><b>${E(u.nom)}</b>${last?' <span class="note">(dernier administrateur)</span>':""}</td><td>${role}</td><td>${act?'<span class="ok">Actif</span>':'<span class="er">Désactivé</span>'}</td>
    <td><button class="sb g" data-up="${E(u.id)}">🔑 Mot de passe</button> <button class="sb g" data-ut="${E(u.id)}">${act?"Désactiver":"Réactiver"}</button>${ed}</td></tr>`}).join("");
- box.innerHTML=msg+`<p class="note" style="margin:0 0 8px">Autorisé par <b>${E(au.nom)}</b> (administrateur ${E(mod.nom)}) · <a href="#" data-ulock="1">Verrouiller</a></p>
+ box.innerHTML=msg+`<p class="note" style="margin:0 0 8px">Autorisé par <b>${E(au.nom)}</b> (administrateur ${E(mod.nom)}) · <a href="#" data-ulock="1">Verrouiller</a> · <button type="button" class="sb g" data-rl="1">🛡️ Rôles et droits</button></p>
   <div class="tw"><table class="ut"><thead><tr><th>Utilisateur</th><th>Rôle</th><th>État</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
   <form class="uf" id="uadd"><label>Nom<input name="nom" required maxlength="60"></label>
    <label>Rôle<select name="role">${Object.entries(R.roles).filter(([k])=>!R.lie.includes(k)).map(([k,v])=>`<option value="${k}">${E(v)}</option>`).join("")}</select></label>
@@ -138,9 +141,11 @@ function uView(){
   <p class="note">Les changements s'appliquent aussitôt dans l'application, y compris si elle est ouverte. Les droits et les mots de passe (hachés) sont stockés sur cet appareil (pas de serveur) : voir « Limites assumées ».</p>`;
 }
 /* écrit dans l'application : relit l'état, revérifie l'autorisation, applique, journalise, enregistre */
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-rl]");if(!b)return;const m=UM,R=RL[m],au=uSess(m);if(!au)return;const G=uEtat(m),me=G&&G.users.find(u=>u.id===au.id);if(!me||me.role!=="admin"||me.actif===false)return;
+ ANGELS_ROLES.ouvrir({app:{dist:"distribution",trans:"transport",agro:"agro"}[m],nomApp:MODS.find(x=>x.id===m).nom,get:()=>G,persister:()=>{localStorage.setItem(R.key,JSON.stringify(G))},audit:(a,d)=>R.aud(G,a+" (via Hub)",d,me),apres:()=>{rlSync(R,G);uView()}})});
 function uAgir(m,fn){
  const au=uSess(m);if(!au){UMSG={er:1,t:"Autorisation expirée : déverrouillez à nouveau."};return uView()}
- const R=RL[m],G=uEtat(m);if(!G){UMSG={er:1,t:"Application introuvable."};return uView()}
+ const R=RL[m],G=uEtat(m);if(!G){UMSG={er:1,t:"Application introuvable."};return uView()}rlSync(R,G);
  const me=G.users.find(u=>u.id===au.id);if(!me||me.role!=="admin"||me.actif===false){delete AUTH[m];UMSG={er:1,t:"Ce compte n'est plus administrateur actif."};return uView()}
  try{const t=fn(G,R,me);try{localStorage.setItem(R.key,JSON.stringify(G))}catch(e){throw new Error("Stockage plein : changement non enregistré.")}UMSG={t};UEDIT=null}catch(e){UMSG={er:1,t:e.message}}
  uView()
@@ -503,7 +508,7 @@ function clValide(url,key){url=String(url||"").trim().replace(/\/+$/,"").replace
 function clView(){csView();if(!ssView._n){ssView._n=1;ssRender()}const e=clEff(),u=$("cl-url"),k=$("cl-key");if(!u)return;if(document.activeElement!==u&&document.activeElement!==k){u.value=e.url;k.value=e.key}
  $("cl-badge").innerHTML=e.off?'<b style="color:#c62828">● Mode local — aucune connexion Supabase</b>':`<b style="color:#118a4b">● Connecté — ${esc(e.url)}${e.defaut?" (projet par défaut)":""}</b>`;
  const A=(()=>{try{return JSON.parse(localStorage.getItem("angels_erp_v1")||"null")}catch(x){return null}})(),c=(A&&A.config)||{};
- $("cl-apps").innerHTML=[["Passerelle livreur (Distributions)",c.passerelle_actif===true],["Pont téléphonique (Distributions)",!!(c.appel_pont&&c.appel_pont.actif)],["Application des livreurs (livreur.html)",!e.off&&!!e.url]].map(x=>`<li><span>${x[0]}</span><b style="color:${x[1]?"#118a4b":"#6b7390"}">${x[1]?"● Actif":"○ Inactif"}</b></li>`).join("")}
+ $("cl-apps").innerHTML=[["Synchronisation entre postes (cet appareil)",ANGELS_SYNC.actif()],["Passerelle livreur (Distributions)",c.passerelle_actif===true],["Pont téléphonique (Distributions)",!!(c.appel_pont&&c.appel_pont.actif)],["Application des livreurs (livreur.html)",!e.off&&!!e.url]].map(x=>`<li><span>${x[0]}</span><b style="color:${x[1]?"#118a4b":"#6b7390"}">${x[1]?"● Actif":"○ Inactif"}</b></li>`).join("")}
 /* État de la synchronisation (envoi ↔ réception) : lecture et actions sur les trois applications. */
 const SS_APPS=[["distribution","Distributions"],["transport","Transport"],["agro","Agro"]];
 const ssSel=()=>{const v=$("ss-app").value;return v==="tous"?SS_APPS:SS_APPS.filter(a=>a[0]===v)};
@@ -565,7 +570,7 @@ async function clTester(){const r=$("cl-res");r.innerHTML="Test en cours…";let
  r.innerHTML=L.map(x=>`<div class="umsg${/^❌/.test(x)?" er":""}">${esc(x)}</div>`).join("")}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-cl]");if(!b)return;const k=b.dataset.cl;
  if(k==="test")return clTester();if(k==="sync-test")return csTester();
- if(k==="sync-save"){if(!pDebloque())return csMsg("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.",1);const cle=$("cs-key").value.trim(),on=$("cs-on").checked;if(on&&cle.length<16)return csMsg("Clé trop courte : collez la valeur du secret SYNC_KEY (16 caractères minimum).",1);localStorage.setItem(CS_K,JSON.stringify({actif:on&&!!cle,cle}));csView();return csMsg(on?"Synchronisation activée : ouvrez les applications, la première synchronisation démarre toute seule.":"Synchronisation désactivée sur cet appareil.")}
+ if(k==="sync-save"){if(!pDebloque())return csMsg("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.",1);const cle=$("cs-key").value.trim(),on=$("cs-on").checked;if(on&&cle.length<16)return csMsg("Clé trop courte : collez la valeur du secret SYNC_KEY (16 caractères minimum).",1);localStorage.setItem(CS_K,JSON.stringify({actif:on&&!!cle,cle}));clView();return csMsg(on?"Synchronisation activée : ouvrez les applications, la première synchronisation démarre toute seule.":"Synchronisation désactivée sur cet appareil.")}
  if(!pDebloque())return clMsg("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.",1);
  if(k==="save"){try{const c=clValide($("cl-url").value,$("cl-key").value);localStorage.setItem(CL_K,JSON.stringify(c));clView();clMsg("Configuration Supabase enregistrée.")}catch(e){clMsg(e.message,1)}}
  else if(k==="clear"){if(!confirm("Effacer la configuration Supabase ? Les applications passeront en mode local."))return;localStorage.setItem(CL_K,JSON.stringify({off:true}));$("cl-url").value=$("cl-key").value="";clView();clMsg("Configuration effacée : mode local activé.")}
