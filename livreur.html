@@ -51,10 +51,21 @@ const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():
 const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",livree:"Livrée",echouee:"Échec",refusee:"Refusée"};
 const ACTIFS=["affectee","acceptee","en_cours"];
 let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null;
+/* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
+const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej"},DUREE_CACHE=48*36e5;
+const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const cache=()=>{const c=lsGet(LS.c,null);return c&&c.t&&c.uid&&Date.now()-c.t<DUREE_CACHE?c:null};
+const file=()=>lsGet(LS.f,[]),rejets=()=>lsGet(LS.r,[]),enFile=ref=>file().filter(f=>f.ref===ref),enLigne=()=>navigator.onLine!==false;
+const heureC=t=>new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+function surcouche(m){const q=enFile(m.livraison_ref);if(!q.length)return m;const c=JSON.parse(JSON.stringify(m));q.forEach(f=>{const t=f.type;if(t==="accepter")c.statut="acceptee";else if(t==="refuser")c.statut="refusee";else if(t==="prise_en_charge"){c.payload.collecte_at=new Date(f.t).toISOString();c.payload.nb_colis=+(f.donnees||{}).nb_colis||c.payload.nb_colis}else if(t==="demarrer")c.statut="en_cours";else if(t==="echec")c.statut="echouee";else if(t==="confirmer")c.attente=true});return c}
+function mettreEnFile(ref,type,donnees){let f=file();if(type==="position")f=f.filter(x=>!(x.ref===ref&&x.type==="position"));else if(type!=="incident"&&f.some(x=>x.ref===ref&&x.type===type))return;
+ f.push({id:"a"+Date.now()+Math.random().toString(36).slice(2,6),ref,type,donnees:donnees||{},t:Date.now(),cmd:((missions.find(m=>m.livraison_ref===ref))||{}).commande_ref||ref});lsSet(LS.f,f)}
 function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
 function loadSb(){return new Promise((ok,ko)=>{if(window.supabase)return ok();const sc=document.createElement("script");sc.src=SB_LIB;sc.integrity=SB_SRI;sc.crossOrigin="anonymous";sc.onload=ok;sc.onerror=()=>ko(new Error("Connexion Internet requise pour se connecter"));document.head.appendChild(sc)})}
-async function api(fn,body){const{data}=await sb.auth.getSession(),t=data&&data.session&&data.session.access_token;if(!t)throw new Error("Session expirée : reconnectez-vous");
- const r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.erreur||("Erreur "+r.status));return j}
+async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession();t=data&&data.session&&data.session.access_token}catch(e){}
+ if(!t){const e=new Error("Session expirée : reconnectez-vous");e.status=401;e.reseau=!enLigne();throw e}
+ let r;try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)})}catch(x){const e=new Error("Réseau indisponible");e.reseau=true;throw e}
+ const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false){const e=new Error(j.erreur||("Erreur "+r.status));e.status=r.status;throw e}return j}
 const ferme=()=>{const o=$(".ov");if(o)o.remove()};
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
 
@@ -68,14 +79,15 @@ function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mo
   try{const{error}=await sb.auth.updateUser({password:a,data:{chg:false}});if(error)throw error;toast("Mot de passe modifié","ok");await demarrer()}catch(x){m.textContent=x.message;m.classList.remove("hide")}}}
 
 /* ---------- Missions ---------- */
-async function charger(){try{const{data,error}=await sb.from("pg_missions").select("livraison_ref,livreur_ref,commande_ref,statut,payload,position,maj_le").order("maj_le",{ascending:false});if(error)throw error;missions=data||[];erreur=""}catch(x){erreur=navigator.onLine?x.message:"Hors connexion : les missions affichées peuvent être anciennes"}
+async function charger(){try{const{data,error}=await sb.from("pg_missions").select("livraison_ref,livreur_ref,commande_ref,statut,payload,position,maj_le").order("maj_le",{ascending:false});if(error)throw error;missions=data||[];erreur="";lsSet(LS.c,{t:Date.now(),uid:user&&user.id,moi,missions})}catch(x){erreur=enLigne()?x.message:""}
  if(!ouvert)vueMissions()}
 const adrTxt=a=>[a.zone,a.quartier].filter(Boolean).map(esc).join(" · ");
 function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
  if(m.statut==="affectee")b=`<button class="btn ok" data-a="accepter" data-r="${esc(m.livraison_ref)}">✔ Accepter</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`;
  else if(m.statut==="acceptee")b=!p.collecte_at?`<button class="btn" data-a="prise" data-r="${esc(m.livraison_ref)}">📦 Colis pris en charge</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`:`<button class="btn ok" data-a="demarrer" data-r="${esc(m.livraison_ref)}">🏍 Démarrer la course</button>`;
  else if(m.statut==="en_cours")b=`<button class="btn ok" data-a="confirmer" data-r="${esc(m.livraison_ref)}">✔ Confirmer la livraison</button><button class="btn wa" data-a="echec" data-r="${esc(m.livraison_ref)}">Livraison impossible</button>`;
- const act=ACTIFS.includes(m.statut);
+ const act=ACTIFS.includes(m.statut),nq=enFile(m.livraison_ref).length;
+ if(m.attente)b=`<div class="al">⏳ <b>Confirmation en attente d'envoi</b> : le serveur vérifiera le code dès le retour du réseau. Ne la refaites pas.</div>`;else if(nq)b=(b||"")+`<div class="sm" style="color:#b86e00;margin-top:6px">⏳ ${nq} action(s) en attente d'envoi</div>`;
  return`<div class="card mc ${p.priorite==="urgente"?"urg":""}"><div class="between"><b>${esc(m.commande_ref)}</b><span>${p.priorite==="urgente"?'<span class="bd" style="background:#fde5e5;color:#c62828">URGENT</span> ':""}<span class="bd">${esc(STATUTS[m.statut]||m.statut)}</span></span></div>
  <div style="margin-top:6px"><b>${esc(p.client_nom)}</b><br>📍 ${adrTxt(a)}${a.repere?`<br><span class="mu">${esc(a.repere)}</span>`:""}${a.instructions?`<br><i>${esc(a.instructions)}</i>`:""}${p.obs?`<br><span class="sm mu">${esc(p.obs)}</span>`:""}</div>
  ${act?`<div class="pill sm">${(p.lignes||[]).map(l=>esc(l.qte+" × "+l.desig)).join("<br>")}</div>`:""}
@@ -83,14 +95,24 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  ${p.paye_vendeur>0?`<div class="sm mu">💳 ${fcfa(p.paye_vendeur)} déjà payés chez le fournisseur — vous n'encaissez que le reste.</div>`:""}
  ${act?`<a class="btn ghost" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${dest}">🗺 Itinéraire</a>${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
  ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
-function vueMissions(){if(!user)return;const act=missions.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=missions.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
+function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
- $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost" style="width:auto;margin:0;padding:8px 12px" data-a="quitter">Déconnexion</button></div><div class="wrap">${erreur?`<div class="al">${esc(erreur)}</div>`:""}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}
+ $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost" style="width:auto;margin:0;padding:8px 12px" data-a="quitter">Déconnexion</button></div><div class="wrap">${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}
  ${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}
  <button class="btn ghost" data-a="incident">⚠ Signaler un incident</button><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button>
  ${fin.length?`<h3>Terminées récemment</h3>${fin.map(carte).join("")}`:""}</div>`}
 function mission(r){return missions.find(m=>m.livraison_ref===r)}
-async function envoyer(r,type,donnees,ok){try{const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{}});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}catch(x){toast(x.message,"err")}}
+async function envoyer(r,type,donnees,ok){
+ try{if(!sb||!enLigne()){const e=new Error("hors ligne");e.reseau=true;throw e}
+  const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{}});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}
+ catch(x){if(x.reseau){mettreEnFile(r,type,donnees);ferme();ouvert=null;toast("📡 Hors ligne : action gardée sur le téléphone, elle partira au retour du réseau","ok");vueMissions();return null}toast(x.message,"err")}}
+let vidage=false;
+async function vider(){if(vidage||!sb||!enLigne()||!file().length)return;vidage=true;let n=0;
+ try{for(;;){const f=file()[0];if(!f)break;
+  try{await api("mission-action",{livraison_ref:f.ref,type:f.type,donnees:f.donnees});lsSet(LS.f,file().slice(1));n++}
+  catch(x){if(x.reseau||x.status===401)break;lsSet(LS.f,file().slice(1));if(f.type!=="position"){const R=rejets();R.push({id:f.id,msg:f.type+" — "+f.cmd+" : "+x.message});lsSet(LS.r,R.slice(-20))}}}}
+ finally{vidage=false}
+ if(n)toast(n+" action(s) envoyée(s)","ok");await charger()}
 const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse introuvable","Client absent"]).map(x=>`<option>${esc(x)}</option>`).join("");
 const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
 const ACT={
@@ -103,21 +125,27 @@ const ACT={
  incident:()=>formModal("Signaler un incident",`<label>Nature<select name="nature"><option>Accident</option><option>Panne</option><option>Litige client</option><option>Sécurité</option><option>Autre</option></select></label><label>Mission concernée<select name="r"><option value="">—</option>${missions.filter(m=>ACTIFS.includes(m.statut)).map(m=>`<option value="${esc(m.livraison_ref)}">${esc(m.commande_ref)}</option>`).join("")}</select></label><label>Description<textarea name="description" rows="3" required></textarea></label>`,"Envoyer",d=>{const r=d.r||(missions.find(m=>ACTIFS.includes(m.statut))||{}).livraison_ref;if(!r){toast("Aucune mission active à rattacher","err");return}return envoyer(r,"incident",{nature:d.nature,description:d.description},"Incident transmis au bureau")}),
  appeler:async r=>{const m=mission(r),p=(m||{}).payload||{};try{const t=(await sb.auth.getSession()).data.session.access_token;const x=await fetch(FN+"appel-pont",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify({commande:m.commande_ref,livreur_id:m.livreur_ref,cle:p.cle_appel})});const j=await x.json().catch(()=>({}));if(x.ok&&j.ok)toast(j.message||"Votre téléphone va sonner","ok");else toast(j.erreur||"Appel impossible : contactez le bureau","err")}catch(e){toast("Appel impossible : "+e.message,"err")}},
  mdp:()=>vueChangement(),
- quitter:async()=>{arreter();await sb.auth.signOut();user=null;vueLogin()}
+ rejOk:id=>{lsSet(LS.r,rejets().filter(x=>x.id!==id));vueMissions()},
+ quitter:async()=>{if(file().length&&!confirm(file().length+" action(s) n'ont pas encore été envoyées au serveur. Se déconnecter les PERDRA. Continuer ?"))return;arreter();try{if(sb)await sb.auth.signOut()}catch(e){}[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});user=null;vueLogin()}
 };
 document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const f=ACT[b.dataset.a];if(f)f(b.dataset.r)});
 
 /* ---------- Position (uniquement pendant une course en cours) ---------- */
 function suivi(){const enCours=missions.find(m=>m.statut==="en_cours");if(!enCours||!navigator.geolocation){if(watch!=null){navigator.geolocation.clearWatch(watch);watch=null}return}
- if(watch!=null)return;watch=navigator.geolocation.watchPosition(p=>{if(Date.now()-derPos<30000)return;const m=missions.find(x=>x.statut==="en_cours");if(!m)return;derPos=Date.now();api("mission-action",{livraison_ref:m.livraison_ref,type:"position",donnees:{lat:p.coords.latitude,lng:p.coords.longitude,precision:p.coords.accuracy}}).catch(()=>{})},()=>{},{enableHighAccuracy:true,maximumAge:15000})}
+ if(watch!=null)return;watch=navigator.geolocation.watchPosition(p=>{if(Date.now()-derPos<30000)return;const m=missions.find(x=>x.statut==="en_cours");if(!m)return;derPos=Date.now();(enLigne()&&sb?api("mission-action",{livraison_ref:m.livraison_ref,type:"position",donnees:{lat:p.coords.latitude,lng:p.coords.longitude,precision:p.coords.accuracy}}):Promise.reject({reseau:true})).catch(x=>{if(x&&x.reseau)mettreEnFile(m.livraison_ref,"position",{lat:p.coords.latitude,lng:p.coords.longitude,precision:p.coords.accuracy})})},()=>{},{enableHighAccuracy:true,maximumAge:15000})}
 function arreter(){clearInterval(timer);timer=null;if(watch!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watch);watch=null}
 
 async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
  if(user.user_metadata&&user.user_metadata.chg){const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;return vueChangement()}
  const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;if(!moi){await sb.auth.signOut();user=null;return vueLogin("Compte livreur inactif ou introuvable. Contactez le bureau.")}
- await charger();suivi();clearInterval(timer);timer=setInterval(async()=>{await charger();suivi()},20000)}
+ {const c0=lsGet(LS.c,null);if(c0&&c0.uid&&c0.uid!==user.id){[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}})}}
+ await vider();await charger();suivi();clearInterval(timer);timer=setInterval(async()=>{await vider();await charger();suivi()},20000)}
+function hors(c){user={id:c.uid};moi=c.moi;missions=c.missions||[];erreur="";vueMissions();clearInterval(timer);timer=setInterval(()=>{if(enLigne())reprendre();else vueMissions()},20000)}
+async function reprendre(){try{if(!sb){await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}})}await demarrer()}catch(e){}}
+addEventListener("online",()=>{reprendre()});addEventListener("offline",()=>{if(user)vueMissions()});
 (async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}
- try{await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});await demarrer()}catch(e){vueLogin(navigator.onLine?e.message:"Connexion Internet requise pour se connecter")}})();
+ const c=cache();if(!enLigne()&&c)return hors(c);
+ try{await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});await demarrer()}catch(e){if(c&&(!enLigne()||/Connexion Internet/.test(e.message)))return hors(c);vueLogin(enLigne()?e.message:"Connexion Internet requise pour se connecter")}})();
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
