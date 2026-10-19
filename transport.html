@@ -2749,7 +2749,7 @@ A["rq.no"]=id=>form("Rejeter la demande",[{k:"rep",l:"Motif",t:"area",req:1,full
 V.users=()=>{
  const f=UI.f.pm||(UI.f.pm={role:"flotte"}),mods=f.role==="chauffeur"?["portail"]:Object.keys(MODS).filter(m=>m!=="portail");
  return head("Utilisateurs et droits",(can("users","c")?`<button class="btn ghost" data-a="rl.ouvrir">🛡️ Rôles et droits</button><button class="btn" data-a="us.add">+ Utilisateur</button>`:""))+
- tbl(["Nom","Rôle","État","Dernière activité",""],S.users.map(u=>{const la=S.audit.find(a=>a.u===u.nom);return tr([esc(u.nom),esc(ROLES[u.role]||u.role),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),la?fdt(la.t):"—",`<div class="flex">${can("users","e")?btn("us.pin",u.id,"Réinitialiser le mot de passe","ghost"):""}${can("users","x")&&u.id!==ME.id?btn("us.tg",u.id,u.actif?"Désactiver":"Activer","ghost"):""}</div>`])}))+
+ tbl(["Nom","Rôle","État","Dernière activité",""],S.users.map(u=>{const la=S.audit.find(a=>a.u===u.nom);const fr=ANGELS_RH.ficheDe(u.id,RH_HOST);return tr([esc(u.nom)+(fr?" "+badge("RH · "+fr.mat,"ok"):""),esc(ROLES[u.role]||u.role),badge(u.actif?"Actif":"Désactivé",u.actif?"ok":"er"),la?fdt(la.t):"—",`<div class="flex">${can("users","e")?btn("us.pin",u.id,"Réinitialiser le mot de passe","ghost"):""}${can("users","x")&&u.id!==ME.id?btn("us.tg",u.id,u.actif?"Désactiver":"Activer","ghost"):""}</div>`])}))+
  `<h2>Matrice des droits</h2><div class="card flex"><label style="margin:0">Rôle</label><select data-f="pm:role" style="width:auto">${opt(Object.entries(ROLES),f.role)}</select></div>`+
  tbl(["Module",...Object.values(ACT)],mods.map(m=>tr([esc(MODS[m]),...Object.keys(ACT).map(a=>`<input type="checkbox" data-a="pm.tg" data-id="${f.role}:${m}:${a}" ${(S.perms[f.role][m]||[]).includes(a)?"checked":""} ${can("users","e")&&!(f.role==="admin"&&m==="users")?"":"disabled"}>`)])));
 };
@@ -3747,7 +3747,7 @@ A["xp.ann"]=id=>motifForm("Annuler la commande",motif=>xpAnnuler(id,motif));
 
 /* ---------- Ressources humaines et paie (moteur rh-engine.js) : branché sur la comptabilité de Transport ---------- */
 const RH_CPT=["paie_charge","paie_charge_pat","paie_du","paie_cnps","paie_its","paie_fdfp","paie_avances","paie_retenues"];
-const RH_HOST={division:"transport",matPrefixe:"TRA",actDefaut:"admin",state:()=>S,user:()=>ME?ME.nom:"système",can:a=>!!ME&&can("rh",a),audit:(a,d)=>audit("RH — "+a,d),run:fn=>atomic(fn),render:()=>render(),util:{fcfa},identite:()=>prtFb(),acts:()=>ACTS,
+const RH_HOST={division:"transport",matPrefixe:"TRA",actDefaut:"admin",state:()=>S,comptes:()=>S.users.map(u=>({id:u.id,nom:u.nom,role:ROLES[u.role]||u.role,actif:!!u.actif,interne:u.role!=="transitaire"})),user:()=>ME?ME.nom:"système",can:a=>!!ME&&can("rh",a),audit:(a,d)=>audit("RH — "+a,d),run:fn=>atomic(fn),render:()=>render(),util:{fcfa},identite:()=>prtFb(),acts:()=>ACTS,
  compta:{analytique:true,comptes:()=>Object.fromEntries(RH_CPT.map(k=>[k,cdef(k)])),
   poster:o=>postEntry({journal:o.journal==="PAIE"?"OD":o.journal,date:o.date,libelle:o.libelle,piece:o.piece,source:o.source,lines:o.lines.map(l=>({compte:l.compte,debit:l.debit||0,credit:l.credit||0,act:l.act}))}).id,
   extourner:(id,motif)=>{const e=by(S.entries,id);if(!e)throw new Error("Écriture de paie introuvable.");extourner(e,motif)},
