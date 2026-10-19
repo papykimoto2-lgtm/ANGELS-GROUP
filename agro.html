@@ -99,6 +99,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="roles-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
+<script src="tiers-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
@@ -1354,6 +1355,12 @@ const RH_HOST={division:"agro",matPrefixe:"AGR",state:()=>S,comptes:()=>S.users.
   extourner:(id,motif)=>{const e=by(S.entries,id);if(!e)throw new Error("Écriture de paie introuvable.");extournerSource(e.source.type,e.source.id,motif)},
   treso:(mode,m,sens,motif,src)=>({compte:trCompteSrc(mode==="caisse"?"especes":"banque",sens,m,motif,src,"Personnel et paie"),journal:"TR"})}};
 ANGELS_RH.use(RH_HOST);
+/* ---------- Comptes de tiers : relevé de compte individuel et ancienneté par pièce (moteur tiers-engine.js) ---------- */
+const TIERS_HOST={division:"agro",can:()=>can("compta"),user:()=>ME?ME.nom:"système",render:()=>render(),util:{fcfa},audit:(a,d)=>audit(a,d),identite:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),aller:()=>{view="compta";UI.tab.compta="rel";render()},
+ comptes:()=>[...cptsTiers()].sort().map(c=>({compte:c,lib:cptNom(c)||c,nature:c.slice(0,2)==="41"?"D":"C"})),
+ lignes:compte=>lignesTiers().filter(x=>x.compte===compte).map(x=>{const src=x.e.source||{},ech=(()=>{if(src.type==="vente"&&(x.l.debit||0)>0){const v=by(S.ventes,src.id);return v?(v.echeance||v.date):""}if(src.type==="achat"&&(x.l.credit||0)>0){const a=by(S.achats,src.id);return a?addDays(a.recu_le||a.date,+S.settings.delai_fournisseur||30):""}return""})();
+  return{k:x.k,date:x.e.date,piece:x.e.piece||x.e.numero||"",libelle:x.e.libelle||"",journal:x.e.journal||"",debit:x.l.debit||0,credit:x.l.credit||0,tiers:x.tiers,tn:tiersNom(x.tiers),lettre:x.l.lettre||"",echeance:ech}})};
+ANGELS_TIERS.use(TIERS_HOST);
 V.rh=()=>head("Ressources humaines et paie")+ANGELS_RH.view(RH_HOST);
 const VB={};
 const CR={};
@@ -1677,8 +1684,8 @@ function ageData(){const T=["Non échu","1-30 j","31-60 j","61-90 j","> 90 j"],i
 V.compta=()=>{
  const t=tabOf("compta","syn"),f=UI.f.cp||(UI.f.cp={j:"",p:today().slice(0,7),o:"",from:today().slice(0,4)+"-01-01",to:today(),cpt:"",cfrom:"",cto:"",jc:"",q:"",rbd:today(),rbs:"",lc:"",exa:""});
  const ins=e=>e.date>=f.from&&e.date<=f.to,ok=m=>`<div class="al" style="background:var(--okbg);color:var(--ok)">${m}</div>`,w=can("compta"),wa=can("periode");let ex=null,h="";
- const flt=t==="age"||t==="bro"||t==="bud"||t==="cd"||t==="plan"||t==="rg"||t==="per"||t==="ecr"||t==="let"||t==="rb"||t==="exo"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="cp:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="cp:to" value="${f.to}"></div></div>`;
- const hd=head("Comptabilité SYSCOHADA",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="cp.csv">⬇ CSV</button>`)+`<div class="note">Comptabilité automatique : écritures déduites des ventes, achats, encaissements, charges, salaires, trésorerie, immobilisations et TVA. Plan, TVA et durées à valider par le comptable (SYSCOHADA révisé).</div>`+tabs("compta",[["syn","📊 Synthèse"],["ecr","Écritures"],["bro","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["jr","Journaux"],["gl","📖 Grand livre"],["let","🔗 Lettrage"],["rb","🏦 Rapprochement bancaire"],["bal","⚖️ Balance"],["age","⏳ Balance âgée"],["tva","🧮 TVA"],["res","📈 Résultat & bilan"],["bud","💰 Budgets"],["cd","⚙️ Comptes par défaut"],["plan","📚 Plan comptable"],["rg","⚙ Règles de comptabilisation"],["per","Périodes"],["exo","🔒 Clôture & FEC"],["ctl","🔎 Contrôles"]])+flt;
+ const flt=t==="age"||t==="rel"||t==="bro"||t==="bud"||t==="cd"||t==="plan"||t==="rg"||t==="per"||t==="ecr"||t==="let"||t==="rb"||t==="exo"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="cp:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="cp:to" value="${f.to}"></div></div>`;
+ const hd=head("Comptabilité SYSCOHADA",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="cp.csv">⬇ CSV</button>`)+`<div class="note">Comptabilité automatique : écritures déduites des ventes, achats, encaissements, charges, salaires, trésorerie, immobilisations et TVA. Plan, TVA et durées à valider par le comptable (SYSCOHADA révisé).</div>`+tabs("compta",[["syn","📊 Synthèse"],["ecr","Écritures"],["bro","📝 Saisie & visa"+(S.brouillard.length?" ("+S.brouillard.length+")":"")],["jr","Journaux"],["gl","📖 Grand livre"],["let","🔗 Lettrage"],["rb","🏦 Rapprochement bancaire"],["bal","⚖️ Balance"],["age","⏳ Balance âgée"],["rel","👤 Relevé de compte"],["tva","🧮 TVA"],["res","📈 Résultat & bilan"],["bud","💰 Budgets"],["cd","⚙️ Comptes par défaut"],["plan","📚 Plan comptable"],["rg","⚙ Règles de comptabilisation"],["per","Périodes"],["exo","🔒 Clôture & FEC"],["ctl","🔎 Contrôles"]])+flt;
  if(t==="syn"){const r=sum(entP().filter(ins).flatMap(e=>e.lignes),l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):l.compte[0]==="6"?-((l.debit||0)-(l.credit||0)):0),prod=sum(entP().filter(ins).flatMap(e=>e.lignes),l=>l.compte[0]==="7"?(l.credit||0)-(l.debit||0):0),
    tre=sum([...new Set([cdef("caisse"),cdef("banque")])],n=>soldeA(n,f.to)),cl=sum(S.clients,c=>soldeClient(c.id)),dt=sum(S.achats.filter(a=>a.statut==="recu"),a=>a.total-a.paye),R=integrite(),ba=budgetAlertes();
   h=`<div class="grid">${kpi(fcfa(prod),"Produits","o")}${kpi(fcfa(prod-r),"Charges","w")}${kpi(fcfa(r),"Résultat",r>=0?"o":"e")}${kpi(fcfa(tre),"Trésorerie (classe 5)")}${kpi(fcfa(cl),"Créances clients (411)","w")}${kpi(fcfa(dt),"Dettes fournisseurs (401)")}</div>`+
@@ -1720,6 +1727,7 @@ V.compta=()=>{
  if(t==="plan")h+=planUI();
  if(t==="rg")h+=rgUI();
  if(t==="per"){const c=today().slice(0,7);if(!by(S.periods,c))S.periods.push({id:c,statut:"ouverte"});h+=tbl(["Période","État",""],S.periods.slice().sort((x,y)=>y.id.localeCompare(x.id)).map(p=>tr([p.id,badge(p.statut==="ouverte"?"Ouverte":"Clôturée",p.statut==="ouverte"?"ok":"mu"),can("periode")?btn("per.tg",p.id,p.statut==="ouverte"?"Clôturer":"Rouvrir",p.statut==="ouverte"?"er":"ghost"):""])))}
+ if(t==="rel")h+=ANGELS_TIERS.view(TIERS_HOST);
  if(t==="let"){const NL=nonLettres().filter(g=>!f.lc||g.compte===f.lc),LT=lignesTiers(),done=LT.filter(x=>x.l.lettre),codes={};done.forEach(x=>{(codes[x.l.lettre]=codes[x.l.lettre]||[]).push(x)});
   h+=`<div class="card flex noprint"><select data-f="cp:lc" style="width:auto">${opt([...cptsTiers()].map(c=>[c,c+" "+cptNom(c)]),f.lc,"Tous les comptes tiers")}</select>${w?`<button class="btn" data-a="lt.auto">⚙ Lettrage automatique</button><button class="btn ok" data-a="lt.man">🔗 Lettrer la sélection</button>`:""}<span class="sm mu">${LT.length-done.length} ligne(s) non lettrée(s) · ${Object.keys(codes).length} lettre(s)</span></div><div class="sm mu">Cocher des lignes d'un même compte et d'un même tiers dont la somme débit − crédit est nulle, puis « Lettrer la sélection ». Le lettrage automatique rapproche les montants identiques (débit / crédit) puis les groupes soldés d'un tiers.</div>`+
   (NL.length?NL.map(g=>`<h3 style="margin:14px 0 4px">${esc(g.compte)} — ${esc(g.nom)} <span class="sm mu">solde non lettré ${fcfa(Math.abs(g.solde))}${g.solde<0?" C":g.solde>0?" D":""}</span></h3>`+tbl(["","Date","Écriture","Libellé","Débit","Crédit"],g.lignes.map(x=>tr([w?`<input type="checkbox" data-lt="${esc(x.k)}">`:"",fd(x.e.date),esc(x.e.numero),esc(x.e.libelle),dc(x.l,"debit"),dc(x.l,"credit")])))).join(""):`<div class="card">Aucune ligne non lettrée.</div>`)+
