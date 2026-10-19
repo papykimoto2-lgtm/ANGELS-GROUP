@@ -499,7 +499,7 @@ function loginHTMLLocal(){
  <details><summary class="mu sm" style="cursor:pointer">Connexion avec un mot de passe</summary><form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${ROLES[u.role]}</option>`).join("")}</select></label>
  <label style="margin-top:10px">Mot de passe<input name="pin" type="password" autocomplete="current-password" required></label>
  <button class="btn" style="width:100%;margin-top:12px">Se connecter</button></form>
- <div class="al warn sm" style="margin-top:10px">Mot de passe de démonstration (tous les profils) : <b>Demo@Angels2026</b>.</div></details>
+ <div class="al warn sm" style="margin-top:10px">Mot de passe de démonstration (tous les profils) : <b>Demo@Angels2026</b>.<br><span class="sm">Données créées avant le passage aux mots de passe ? Saisissez <b>une dernière fois l'ancien code PIN</b> du compte : le logiciel vous demandera aussitôt de créer votre mot de passe.</span></div></details>
  <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
