@@ -1282,12 +1282,15 @@ function resoudreClient(d,vd,cur){let cl,ad,neuf=false;
  else if(d.client==="__div"){cl={id:uid("cl"),nom:(d.n_nom||"").trim()||"Client divers",tel:(d.n_tel||"").trim(),tel2:"",adresses:[],note:"",divers:true};if(vd)cl.vendeur_id=vd.id;neuf=true}
  else cl=cli(d.client);
  if(!cl)throw new Error("Choisissez un client");
- if(neuf||d.adresse==="__new"){if(!(d.a_q||"").trim()&&!(d.a_rep||"").trim())throw new Error("Renseignez le quartier ou un point de repère");
-  ad={id:uid("a"),libelle:"Livraison",zone:d.a_zone,quartier:d.a_q.trim(),repere:d.a_rep.trim(),gps:null,instructions:(d.a_ins||"").trim(),defaut:!cl.adresses.length};cl.adresses.push(ad)}
+ let adNeuve=false;
+ if(neuf||d.adresse==="__new"){if(!(d.a_q||"").trim()&&!(d.a_rep||"").trim())throw new Error("Renseignez le quartier ou un point de repère : le livreur en a besoin pour trouver le client");
+  if(!d.a_zone||!zone(d.a_zone))throw new Error("Choisissez la zone de livraison");
+  const q=d.a_q.trim(),rp=d.a_rep.trim(),dup=cl.adresses.find(a=>a.zone===d.a_zone&&normTxt(a.quartier)===normTxt(q)&&normTxt(a.repere)===normTxt(rp));
+  if(dup)ad=dup;else{ad={id:uid("a"),libelle:(d.a_lib||"").trim()||"Livraison",zone:d.a_zone,quartier:q,repere:rp,gps:null,instructions:(d.a_ins||"").trim(),defaut:!cl.adresses.length};adNeuve=true;if(neuf)cl.adresses.push(ad)}}
  else if(cur&&(d.adresse==="__cur"||(cl.id===cur.client_id&&d.adresse===cur.adr.id)))ad=Object.assign({},cur.adr);
  else ad=cl.adresses.find(a=>a.id===d.adresse);
  if(!ad)throw new Error("Choisissez une adresse");
- return{cl,ad,neuf}}
+ return{cl,ad,neuf,adNeuve:adNeuve&&!neuf}}
 function formCmd(edit){
  EDIT_CMD=edit||null;const niv=edit?cmdNiveau(edit):"full",vm=can("vendeur"),vm0=vm&&vend()?vend():null,vid0=edit?(edit.vendeur_id||""):"";
  if(edit&&!niv){toast("Cette commande ne peut plus être modifiée","err");return}
@@ -1296,7 +1299,8 @@ function formCmd(edit){
  <div class="g2"><label>Client<select name="client" id="f_client">${clientOpts(edit?vid0:(vm0?vm0.id:""))}</select></label>
  <label>Adresse de livraison<select name="adresse" id="f_adr"></select></label></div>
  <div class="g2 hide" id="newcl"><label>Nom du client <span class="mu sm" id="f_nomopt"></span><input name="n_nom"></label><label>Téléphone <span class="mu sm" id="f_telopt"></span><input name="n_tel" inputmode="tel"></label></div>
- <div class="hide" id="newadr"><div class="g3"><label>Zone<select name="a_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier<input name="a_q"></label><label>Point de repère<input name="a_rep"></label></div><label>Instructions d'accès<input name="a_ins"></label></div>
+ <div class="hide" id="newadr"><div class="g3"><label>Zone de livraison *<select name="a_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier <span class="mu sm">(ou repère)</span><input name="a_q" autocomplete="off"></label><label>Point de repère <span class="mu sm">(ou quartier)</span><input name="a_rep" autocomplete="off" placeholder="Ex. face à la pharmacie"></label></div><div class="g2"><label>Instructions d'accès<input name="a_ins" placeholder="Ex. portail bleu, 2e étage"></label><label>Nom de l'adresse<input name="a_lib" maxlength="40" placeholder="Domicile, bureau, boutique… (facultatif)"></label></div><div class="sm mu" style="margin-top:-4px">Indiquez au moins le quartier <b>ou</b> un point de repère : le livreur s'en sert pour trouver le client. La position GPS peut être demandée ensuite au client (lien du portail).</div></div>
+ <div class="pill sm hide" id="f_adrinfo"></div>
  <div id="f_lourd" class="${full?"":"hide"}"><div class="sec">Produits et prestations</div><div id="lignes"></div><button type="button" class="btn sm ghost" data-act="addLigne">+ Ajouter une ligne</button>
  <div class="g3"><label>Frais de livraison <span id="f_eta" class="mu sm"></span><input type="number" name="frais" id="f_frais" min="0" value="${edit?edit.frais:0}" ${vm?"readonly":""}></label><label>Remise<input type="number" name="remise" id="f_remise" min="0" value="${edit?edit.remise:0}" ${vm?"readonly":""}></label><label>Priorité<select name="priorite"><option value="normale">Normale</option><option value="urgente" ${edit&&edit.priorite==="urgente"?"selected":""}>Urgente</option><option value="programmee" ${edit&&edit.priorite==="programmee"?"selected":""}>Programmée</option></select></label></div>
  <div class="g3 ${edit?"hide":""}" id="f_payrow"><label>Paiement<select name="paiement" id="f_pay"><option value="livraison">À la livraison</option><option value="avance">Payé d'avance</option><option value="partiel">Paiement partiel</option></select></label>
@@ -1317,7 +1321,7 @@ function formCmd(edit){
     if(v.startsWith("svc:")){const sv=presta(v.slice(4));return{produit_id:null,prestation_id:sv?sv.id:null,desig:sv?sv.nom:"Prestation",qte,pu}}return{produit_id:v,qte,pu}}).filter(l=>(l.produit_id||l.prestation_id)&&l.qte>0);
    if(!lignes.length)throw new Error(vd?"Ajoutez au moins un article du vendeur (désignation, quantité, prix)":"Ajoutez au moins un produit ou une prestation")}
   if(edit){
-   if(R.neuf)S.clients.push(cl);
+   if(R.neuf)S.clients.push(cl);if(R.adNeuve)cl.adresses.push(ad);
    const frais=vm?(zone(ad.zone)||{}).frais||0:d.frais;
    const r=modifierCmd(edit,{client_id:cl.id,adr:ad,lignes,frais:full?frais:undefined,remise:full?d.remise:undefined,priorite:full?d.priorite:undefined,canal:full?d.canal:undefined,obs:d.obs,date:dt||undefined,vendeur_id:orig?(d.vendeur||null):undefined});
    save();toast("Commande "+edit.numero+" modifiée"+(r.length?" ("+r.length+" changement(s))":" — aucun changement"),"ok");render();return true}
@@ -1325,7 +1329,7 @@ function formCmd(edit){
   if(vd){const prods=lignes.reduce((a,l)=>a+l.qte*l.pu,0),pv=d.vpay==="paye"?prods:d.vpay==="partiel"?Math.floor(+d.vmontant||0):0;
    if(pv<0||pv>prods)throw new Error("Le montant payé au vendeur doit être compris entre 0 et le prix des articles ("+fcfa(prods)+")");if(d.vpay==="partiel"&&pv===0)throw new Error("Indiquez le montant déjà payé au vendeur");
    vp={vendeur_id:vd.id,vendeur_encaisse:prods>0&&pv>=prods,paye_vendeur:pv}}
-  if(R.neuf)S.clients.push(cl);
+  if(R.neuf)S.clients.push(cl);if(R.adNeuve)cl.adresses.push(ad);
   const c=creerCmd(vd?Object.assign({client_id:cl.id,adr:Object.assign({},ad),lignes,frais:d.frais,remise:d.remise,paiement:vp.paye_vendeur>0?"partiel":"livraison",acompte:vp.paye_vendeur,mode:vp.paye_vendeur>0?"Payé au vendeur":"Espèces",priorite:d.priorite,canal:d.canal,obs:d.obs,date:dt,confirmer:!!d.confirmer},vp):{client_id:cl.id,adr:Object.assign({},ad),lignes,frais:d.frais,remise:d.remise,paiement:d.paiement,acompte:d.acompte,mode:d.mode,priorite:d.priorite,canal:d.canal,obs:d.obs,date:dt,confirmer:!!d.confirmer});
   save();toast("Commande "+c.numero+" créée"+(vd?" · rattachée à "+vd.nom:""),"ok");render();return true
   }catch(e){toast(fixErr(e),"err");return false}}});
@@ -1345,8 +1349,12 @@ function fillAdr(){const v=$("#f_client").value,cl=cli(v),sel=$("#f_adr"),isNew=
  sel.innerHTML=h;if(meme)sel.value=cl.adresses.some(a=>a.id===e.adr.id)?e.adr.id:"__cur";
  $("#newcl").classList.toggle("hide",!isNew);$("#f_nomopt").textContent=v==="__div"?"(facultatif)":"";$("#f_telopt").textContent=v==="__div"?"(facultatif)":"";
  $("#newadr").classList.toggle("hide",!(isNew||sel.value==="__new"));
- autoFrais()}
-function adrChange(){const v=$("#f_client").value;$("#newadr").classList.toggle("hide",!(v==="__new"||v==="__div"||$("#f_adr").value==="__new"));autoFrais()}
+ autoFrais();adrInfo()}
+function adrInfo(){const e=$("#f_adrinfo");if(!e)return;const v=$("#f_client").value,cl=cli(v),sv=$("#f_adr").value,ed=EDIT_CMD;
+ let a=null;if(cl&&sv&&sv!=="__new")a=sv==="__cur"&&ed?ed.adr:cl.adresses.find(x=>x.id===sv);
+ if(!a){e.classList.add("hide");return}
+ e.classList.remove("hide");e.innerHTML="📍 <b>"+esc([a.zone,a.quartier].filter(Boolean).join(" · "))+"</b>"+(a.repere?" · repère : "+esc(a.repere):"")+(a.instructions?" · "+esc(a.instructions):"")+" · "+(a.gps?"position GPS enregistrée":"<span style='color:var(--wa)'>sans position GPS</span>")}
+function adrChange(){const v=$("#f_client").value;$("#newadr").classList.toggle("hide",!(v==="__new"||v==="__div"||$("#f_adr").value==="__new"));autoFrais();adrInfo()}
 function autoFrais(){const cl=cli($("#f_client").value),a=cl&&cl.adresses.find(x=>x.id===$("#f_adr").value);let zn=a?a.zone:null;
  if(!a&&$("#newadr:not(.hide) select"))zn=$("#newadr select").value;if(FRAIS_AUTO&&zn&&zone(zn)&&!(EDIT_CMD&&zn===EDIT_CMD.adr.zone))$("#f_frais").value=zone(zn).frais;const eta=$("#f_eta");if(eta)eta.textContent=zn&&zone(zn)?"· ⏱ estimé "+zone(zn).delai_min+" min":"";recalc()}
 function addLigne(pre){if(pre&&pre.target)pre=null;const d=document.createElement("div");d.className="lrow flex";d.style.marginBottom="6px";
