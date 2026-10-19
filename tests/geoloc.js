@@ -48,5 +48,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   return document.getElementById("pt_ok").disabled===true||"confirmation possible sans action"});
  await t("GE-11","bureau : position douteuse signalée et bouton « Effacer la position » (audit)",async()=>{__as("admin");const [c,a]=__adr(),E=[];a.gps={lat:5.34,lng:-4.0199};a.gps_src="saisie par le personnel";delete a.gps_acc;geoPickModal(c.id,a.id);await __wait(300);
   if(!/n'est pas fiable/.test(document.getElementById("pm_w").innerText))E.push("avertissement absent");const d=document.getElementById("pm_del");if(!d)return"bouton absent";d.click();if(a.gps)E.push("non effacée");if(!S.audit.some(x=>x.action==="Position effacée"))E.push("audit");return E.length?E.join(" ; "):true});
+ {const q=await ctx.newPage();q.on("pageerror",e=>errs.push("portail: "+e.message));await q.goto(base+"/portail.html#/suivi");await q.waitForTimeout(900);
+  let r;try{r=await q.evaluate(()=>{const z=document.getElementById("sv_zone");if(!z)return"carte de zone absente";const E=[],im=[...z.querySelectorAll("img.t")];if(!im.length)E.push("aucune tuile");if(im.some(i=>i.getAttribute("referrerpolicy")==="no-referrer"))E.push("tuiles sans référent (bloquées par OpenStreetMap)");
+   if(z.querySelector(".pin"))E.push("faux repère « Zone de livraison »");if(!z.querySelector(".zl"))E.push("étiquette de zone absente");return E.length?E.join(" ; "):true})}catch(e){r="EXC "+e.message}
+  if(r===true){ok++;console.log("PASS GE-12 portail : carte de zone sans faux repère, tuiles avec référent (OpenStreetMap ne les bloque plus)")}else{ko++;console.log("FAIL GE-12 →",r)}}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();

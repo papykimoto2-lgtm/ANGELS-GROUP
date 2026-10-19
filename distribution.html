@@ -2524,7 +2524,7 @@ const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g
 const unb64=t=>JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g,"+").replace(/_/g,"/")))));
 const portalLink=(c,a,ref)=>location.href.split("#")[0]+"#portail="+b64({cid:c.id,aid:a.id,n:c.nom,r:ref||"",a:[a.libelle,a.zone,a.quartier,a.repere].filter(Boolean).join(" · "),w:S.config.whatsapp,g:geoFiable(a)?a.gps:null,q:[a.repere,a.quartier,a.zone].filter(Boolean),org:S.config.org});
 /* Position jugée fiable : donnée par le client, mesurée au GPS (≤ 60 m) ou placée à la main sur la carte. Les anciennes positions « Ma position » du bureau (sans précision) ne le sont pas. */
-const geoFiable=a=>!!(a&&a.gps&&(a.gps_src==="client"||(a.gps_acc&&a.gps_acc<=GEO_OK)||/placé à la main/.test(a.gps_src||"")));
+const geoFiable=a=>!!(a&&a.gps&&!(a.gps_acc>GEO_MAX)&&!(a.gps_src==="saisie par le personnel"&&!a.gps_acc));
 const geoBadge=a=>a.gps?badge(a.gps_src==="client"?"📍 Position confirmée par le client":"📍 Position enregistrée"+(a.gps_src?" ("+a.gps_src+")":""),"ok"):badge("Pas de position GPS","wa");
 const geoBtns=(cid,aid)=>`<div class="flex noprint" style="margin-top:6px"><button type="button" class="btn sm ghost" data-act="geoLink" data-id="${cid}|${aid}">🔗 Lien portail client</button><button type="button" class="btn sm ghost" data-act="geoPick" data-id="${cid}|${aid}">📌 Placer sur la carte</button><button type="button" class="btn sm ghost" data-act="geoPaste" data-id="${cid}|${aid}">📋 Coller une position reçue</button></div>`;
 function applyGeo(cid,aid,lat,lng,src,acc,note){
@@ -2799,7 +2799,7 @@ function suiviLocal(c){
  return{org:S.config.org||"",w:S.config.whatsapp||"",numero:c.numero,statut:c.statut,lieu:[c.adr.zone,c.adr.quartier].filter(Boolean).join(" · "),
   livreur:l&&["affectee","acceptee","en_cours","livree"].includes(l.statut)&&lv?lv.nom.split(" ")[0]:null,
   eta:l&&l.statut==="en_cours"?new Date(new Date(l.depart_at||Date.now()).getTime()+(z?z.delai_min:60)*60000).toISOString():null,
-  pos:pos?{lat:pos.lat,lng:pos.lng,ts:pos.ts}:null,dest:c.adr.gps||null,hist:(c.hist||[]).map(h=>({a:h.a,ts:h.ts})),
+  pos:pos?{lat:pos.lat,lng:pos.lng,ts:pos.ts}:null,dest:geoFiable(c.adr)?c.adr.gps:null,hist:(c.hist||[]).map(h=>({a:h.a,ts:h.ts})),
   avis:av?{note:av.note,commentaire:av.commentaire}:null,peut_noter:!!(l&&c.statut==="livree"&&l.statut==="livree"&&!av),
   a_payer:l&&["affectee","acceptee","en_cours"].includes(l.statut)?l.montant_attendu:null,_lid:l&&l.id,_lvid:l&&l.livreur_id}}
 const SUIVI_TIT={brouillon:"Commande bien reçue",attente:"Commande bien reçue",confirmee:"Commande confirmée",preparation:"Votre commande est en préparation",prete:"Prête : un livreur va être désigné",affectee:"Un livreur est désigné",en_cours:"Votre livreur est en route",livree:"Livrée ✔",echouee:"Livraison non aboutie",retour_cours:"Livraison non aboutie",retour_recu:"Livraison non aboutie",annulee:"Commande annulée"};
