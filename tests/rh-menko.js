@@ -1,0 +1,90 @@
+/* Mise à niveau RH sur le modèle Menko : pointage, formations, recrutement, mobilité et missions, déclarations, cockpit.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/rh-menko.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ await p.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};window.__last=()=>__T[__T.length-1]||"";
+  window.__ch=(el,v)=>{el.value=v;el.dispatchEvent(new Event("change",{bubbles:true}))};window.__in=(el,v)=>{el.value=v;el.dispatchEvent(new Event("input",{bubbles:true}))};
+  window.__clic=re=>[...document.querySelectorAll("button")].find(x=>re.test(x.textContent)).click();
+  window.__V=()=>S.vendeurs[0];window.__Z=()=>S.config.zones[0].nom;
+  window.__prod=()=>S.produits.find(x=>x.actif&&x.stock>=50);
+  /* commande d'ANGEL'S pour un client divers, créée à la main */
+  window.__div=(o)=>{o=o||{};const ad={id:uid("a"),libelle:"Livraison",zone:__Z(),quartier:o.q||"Cocody",repere:"Pharmacie",gps:null,instructions:"",defaut:true};
+   const cl={id:uid("cl"),nom:"Client divers",tel:"",tel2:"",adresses:[ad],note:"",divers:true};if(o.vendeur)cl.vendeur_id=o.vendeur;S.clients.push(cl);
+   __as("admin");return creerCmd({client_id:cl.id,adr:Object.assign({},ad),lignes:o.lignes||[{produit_id:__prod().id,qte:2,pu:__prod().prix}],frais:1000,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Téléphone",obs:"",confirmer:o.confirmer!==false,vendeur_id:o.vendeur||null,paye_vendeur:0})}});
+ let ok=0,ko=0;const t=async(id,label,fn)=>{let r;try{r=await p.evaluate(fn)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
+
+ await t("RM-1","pointage : saisie d'une journée, date future refusée, statut invalide refusé, heures supp. plafonnées, retrait d'un pointage",()=>{__as("admin");const O=ANGELS_RH.ops,E=[],S0=S.rh;
+  const a=O.saveEmploye({nom:"Pointe",prenoms:"Un",embauche:"2025-01-06",contrat:"CDI",sal_base:240000,cnps_no:"1",tel:"0700000011"}),b=O.saveEmploye({nom:"Pointe",prenoms:"Deux",embauche:"2025-01-06",contrat:"CDI",sal_base:150000,cnps_no:"2",tel:"0700000012"});window.__a=a;window.__b=b;
+  const d="2026-09-01",er=f=>{try{f();return null}catch(x){return x.message}};
+  O.savePointage(d,[{emp_id:a.id,statut:"A"},{emp_id:b.id,statut:"P",hs:2}]);if(S.rh.pointages.length!==2)E.push("saisie "+S.rh.pointages.length);
+  if(!/future/.test(er(()=>O.savePointage("2099-01-01",[{emp_id:a.id,statut:"P"}]))))E.push("date future");if(!/invalide/.test(er(()=>O.savePointage(d,[{emp_id:a.id,statut:"Z"}]))))E.push("statut");
+  if(!/12 h/.test(er(()=>O.savePointage(d,[{emp_id:b.id,statut:"P",hs:15}]))))E.push("hs");O.savePointage(d,[{emp_id:a.id,statut:""}]);if(S.rh.pointages.some(x=>x.emp_id===a.id&&x.date===d))E.push("retrait");
+  if(!/n'est pas en poste/.test(er(()=>O.savePointage("2024-01-02",[{emp_id:a.id,statut:"P"}]))))E.push("avant embauche");return E.length?E.join(" ; "):true});
+ await t("RM-2","impact sur la paie : absences non justifiées → jours non payés, heures supp. majorées → variables ; génération automatique (congés, missions) ; verrou après validation",()=>{const O=ANGELS_RH.ops,E=[],a=window.__a,b=window.__b,m="2026-09";
+  O.savePointage("2026-09-02",[{emp_id:a.id,statut:"A"},{emp_id:a.id,statut:"A"}]);O.savePointage("2026-09-03",[{emp_id:a.id,statut:"A"},{emp_id:b.id,statut:"R"}]);
+  const im=O.impactPaie(S.rh.employes.find(e=>e.id===b.id),m);if(im.h!==2)E.push("heures "+im.h);const att=Math.round(150000/(22*8)*2*1.25);if(Math.abs(im.hsF-att)>1)E.push("hs F "+im.hsF+" vs "+att);
+  const n=O.appliquerImpact(m);const va=S.rh.variables.find(v=>v.emp_id===a.id&&v.mois===m);if(!va||va.abs!==2)E.push("abs "+JSON.stringify(va));
+  S.rh.conges.push({id:"cg1",emp_id:b.id,type:"annuel",debut:"2026-09-07",fin:"2026-09-08",jours:2,statut:"approuve"});
+  const g=O.genererPointage(m);if(!(g>0))E.push("génération");const c=S.rh.pointages.find(x=>x.emp_id===b.id&&x.date==="2026-09-07");if(!c||c.statut!=="C")E.push("congé non repris "+JSON.stringify(c));
+  const ex=S.rh.pointages.find(x=>x.emp_id===a.id&&x.date==="2026-09-02");if(ex.statut!=="A")E.push("pointage existant écrasé");
+  const h=VIEWS.rh();ANGELS_RH.UI.tab="pointage";ANGELS_RH.UI.mois=m;if(!/Absences et retards récents/.test(VIEWS.rh()))E.push("vue");
+  S.rh.paies.push({id:"pv",mois:"2026-10",statut:"valide",bulletins:[]});let e="";try{O.savePointage("2026-10-01",[{emp_id:a.id,statut:"P"}])}catch(x){e=x.message}if(!/validée/.test(e)||false)E.push("verrou "+e);S.rh.paies=S.rh.paies.filter(x=>x.id!=="pv");return E.length?E.join(" ; "):true});
+ await t("RM-3","formations : création (participants, FDFP ≤ coût), validations, terminer, annuler avec motif, indicateurs, fiche employé",()=>{const O=ANGELS_RH.ops,E=[],a=window.__a,er=f=>{try{f();return null}catch(x){return x.message}};
+  const f=O.saveFormation({titre:"Sécurité routière",type:"externe",organisme:"CIFOP",debut:"2026-10-05",fin:"2026-10-06",heures:14,cout:300000,fdfp:"a_deposer",fdfp_montant:150000,statut:"planifie",participants:[a.id,"inconnu"]});
+  if(f.participants.length!==1)E.push("participants");if(!/Titre/.test(er(()=>O.saveFormation({titre:"",debut:"2026-10-05"}))))E.push("titre");if(!/dépasser/.test(er(()=>O.saveFormation({titre:"X",debut:"2026-10-05",cout:100,fdfp_montant:200}))))E.push("FDFP > coût");
+  if(!/antérieure/.test(er(()=>O.saveFormation({titre:"X",debut:"2026-10-05",fin:"2026-10-01"}))))E.push("fin<début");if(!/Motif/.test(er(()=>O.statutFormation(f.id,"annule",""))))E.push("motif annulation");
+  ANGELS_RH.UI.tab="formations";const h=VIEWS.rh();if(!/Sécurité routière/.test(h)||!/FDFP attendu/.test(h))E.push("vue");ANGELS_RH.UI.tab="employes";ANGELS_RH.UI.fiche=a.id;if(!/Formations/.test(VIEWS.rh()))E.push("fiche");ANGELS_RH.UI.fiche=null;
+  O.statutFormation(f.id,"termine");if(S.rh.formations[0].statut!=="termine")E.push("terminer");O.statutFormation(f.id,"annule","Reportée");if(S.rh.formations[0].statut!=="annule")E.push("annuler");return E.length?E.join(" ; "):true});
+ await t("RM-4","recrutement : poste, candidature (doublon refusé), étapes, refus avec motif, embauche = création de la fiche employé",async()=>{const O=ANGELS_RH.ops,E=[],er=f=>{try{f();return null}catch(x){return x.message}};
+  const po=O.savePoste({intitule:"Magasinier",dept:"Logistique",contrat:"CDI",salaire:130000,statut:"ouvert"});
+  const c=O.saveCandidat({nom:"Koffi Jean",tel:"0700000021",poste_id:po.id,pretention:140000});if(!/déjà candidaté/.test(er(()=>O.saveCandidat({nom:"koffi jean",poste_id:po.id}))))E.push("doublon");
+  if(!/date d'entretien/.test(er(()=>O.etapeCandidat(c.id,"entretien"))))E.push("entretien sans date");if(!/Embaucher/.test(er(()=>O.etapeCandidat(c.id,"embauche"))))E.push("embauche directe");
+  O.saveCandidat({id:c.id,nom:c.nom,poste_id:po.id,entretien:"2026-12-01",pretention:140000});O.etapeCandidat(c.id,"preselection");O.etapeCandidat(c.id,"entretien");O.etapeCandidat(c.id,"offre");
+  const c2=O.saveCandidat({nom:"Autre Cand",poste_id:po.id});if(!/Motif/.test(er(()=>O.etapeCandidat(c2.id,"refuse",""))))E.push("motif refus");O.etapeCandidat(c2.id,"refuse","Profil inadapté");
+  ANGELS_RH.UI.tab="recrutement";VIEWS.rh();document.getElementById("app")&&0;window.__cid=c.id;return E.length?E.join(" ; "):true});
+ await t("RM-5","embauche depuis le pipeline : le bouton ouvre la fiche préremplie ; à l'enregistrement le candidat devient « embauché » et lié à l'employé",()=>{const E=[],c=S.rh.candidats.find(x=>x.id===window.__cid);
+  document.body.insertAdjacentHTML("beforeend",'<div id="rhhost"></div>');ANGELS_RH.UI.tab="recrutement";const btn=document.createElement("button");btn.dataset.rh="cd.next";btn.dataset.id=c.id;document.body.appendChild(btn);btn.click();
+  const fm=document.querySelector(".rh-ov form");if(!fm)return"fiche non ouverte";if(fm.elements.nom.value!=="Koffi")E.push("nom "+fm.elements.nom.value);if(+fm.elements.sal_base.value!==140000)E.push("salaire "+fm.elements.sal_base.value);
+  fm.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));if(c.statut!=="embauche"||!c.emp_id)E.push("statut "+c.statut);if(!S.rh.employes.some(e=>e.id===c.emp_id&&e.poste==="Magasinier"))E.push("employé");
+  document.querySelectorAll(".rh-ov").forEach(x=>x.remove());btn.remove();return E.length?E.join(" ; "):true});
+ await t("RM-6","mobilité : promotion (poste, catégorie, salaire) avec historique daté ; aucun changement / SMIG / motif refusés ; fiche et CSV",()=>{const O=ANGELS_RH.ops,E=[],a=window.__a,er=f=>{try{f();return null}catch(x){return x.message}};
+  if(!/Aucun changement/.test(er(()=>O.saveMobilite({emp_id:a.id,type:"mutation",date_effet:"2026-10-01",motif:"Test"}))))E.push("sans changement");if(!/SMIG/.test(er(()=>O.saveMobilite({emp_id:a.id,type:"changement_grille",date_effet:"2026-10-01",motif:"Test",sal_base:10000}))))E.push("SMIG");
+  if(!/Motif/.test(er(()=>O.saveMobilite({emp_id:a.id,type:"promotion",date_effet:"2026-10-01",motif:"",poste:"Chef"}))))E.push("motif");
+  const m=O.saveMobilite({emp_id:a.id,type:"mutation_promotion",date_effet:"2026-10-01",poste:"Chef d'équipe",dept:"Logistique",categorie:"6",sal_base:280000,motif:"Promotion annuelle",ref:"DEC-12"});
+  const e=S.rh.employes.find(x=>x.id===a.id);if(e.poste!=="Chef d'équipe"||e.sal_base!==280000||e.dept!=="Logistique")E.push("fiche non mise à jour");if(!e.historique.some(h=>h.from==="2026-10-01"&&h.sal_base===280000))E.push("historique");if(m.avant.sal_base!==240000)E.push("avant");
+  ANGELS_RH.UI.tab="mobilite";const h=VIEWS.rh();if(!/Promotion|promotion/.test(h)||!/DEC-12/.test(h))E.push("vue");return E.length?E.join(" ; "):true});
+ await t("RM-7","ordres de mission : création, équipe/chef, chevauchement refusé à la validation, clôture avec frais réels, annulation avec motif, impression",()=>{const O=ANGELS_RH.ops,E=[],a=window.__a,b=window.__b,er=f=>{try{f();return null}catch(x){return x.message}};
+  const m=O.saveMission({objet:"Audit des points de vente",destination:"Bouaké",chef:a.id,equipe:[b.id],debut:"2026-11-03",fin:"2026-11-05",transport:"Véhicule société",frais:120000});if(!/^OM-\d{4}-0001$/.test(m.numero)||m.equipe.length!==2)E.push("création "+m.numero+" "+m.equipe.length);
+  if(!/Destination/.test(er(()=>O.saveMission({objet:"X",destination:"",chef:a.id,debut:"2026-11-03",fin:"2026-11-05"}))))E.push("destination");if(!/précéder/.test(er(()=>O.saveMission({objet:"X",destination:"Y",chef:a.id,debut:"2026-11-05",fin:"2026-11-03"}))))E.push("période");
+  O.etatMission(m.id,"valide");const m2=O.saveMission({objet:"Autre",destination:"Korhogo",chef:b.id,debut:"2026-11-04",fin:"2026-11-06"});if(!/déjà en mission/.test(er(()=>O.etatMission(m2.id,"valide"))))E.push("chevauchement");
+  O.etatMission(m.id,"terminee",95000);if(S.rh.missions[0].frais_reels!==95000)E.push("frais réels");if(!/Motif/.test(er(()=>O.etatMission(m2.id,"annulee",""))))E.push("motif");O.etatMission(m2.id,"annulee","Reportée");
+  ANGELS_RH.UI.tab="mobilite";if(!/OM-\d{4}-0001/.test(VIEWS.rh()))E.push("vue");return E.length?E.join(" ; "):true});
+ await t("RM-8","déclarations : calendrier par mois et organisme, dépôt avec référence, doublon refusé, annulation, alerte d'échéance",()=>{const O=ANGELS_RH.ops,E=[],er=f=>{try{f();return null}catch(x){return x.message}};
+  const pdc=O.calculerMois("2026-03");pdc.statut="valide";
+  const dus0=er(()=>O.saveDeclaration({org:"cnps",mois:"2026-03",date:"2026-04-10",ref:""}));if(!/Référence/.test(dus0))E.push("référence "+dus0);
+  const d=O.saveDeclaration({org:"cnps",mois:"2026-03",date:"2026-04-10",ref:"ACC-123"});if(!/déjà/.test(er(()=>O.saveDeclaration({org:"cnps",mois:"2026-03",date:"2026-04-10",ref:"ACC-124"}))))E.push("doublon");
+  if(!/n'est pas validée/.test(er(()=>O.saveDeclaration({org:"cnps",mois:"2026-02",date:"2026-04-10",ref:"ACC-1"}))))E.push("paie non validée");
+  ANGELS_RH.UI.tab="declarations";const h=VIEWS.rh();if(!/ACC-123/.test(h)||!/en retard/.test(h))E.push("vue "+/en retard/.test(h));
+  const A=ANGELS_RH.alertes(RH_HOST).map(a=>a.m).join("|");if(!/Déclaration ITS de mars 2026 non enregistrée/.test(A))E.push("alerte ITS");if(/Déclaration CNPS et CMU de mars 2026 non enregistrée/.test(A))E.push("alerte CNPS malgré dépôt");
+  O.annulerDeclaration(d.id,"Erreur de saisie");if(!ANGELS_RH.alertes(RH_HOST).some(a=>/CNPS et CMU de mars 2026 non enregistrée/.test(a.m)))E.push("alerte après annulation");S.rh.paies=S.rh.paies.filter(x=>x!==pdc);return E.length?E.join(" ; "):true});
+ await t("RM-9","cockpit RH : effectif, turnover, pyramide des âges, masse salariale 6 mois, absentéisme, services ; toutes les pages s'affichent sans erreur",()=>{const O=ANGELS_RH.ops,E=[];
+  const c=O.cockpit();if(!(c.act.length>=3))E.push("effectif");if(typeof c.turn!=="number")E.push("turnover");ANGELS_RH.UI.fiche=null;
+  for(const t of ["tableau","employes","pointage","conges","mobilite","formations","recrutement","paie","charges","declarations","livre","params"]){ANGELS_RH.UI.tab=t;try{const h=VIEWS.rh();if(!h||h.length<200)E.push("page vide "+t)}catch(x){E.push(t+": "+x.message)}}
+  ANGELS_RH.UI.tab="tableau";const h=VIEWS.rh();if(!/Pyramide des âges/.test(h)||!/Turnover/.test(h)||!/Absentéisme/.test(h))E.push("cockpit");return E.length?E.join(" ; "):true});
+ const ctx2=await b.newContext({viewport:{width:1100,height:900}});
+ for(const [app,id] of [["transport","RM-10"],["agro","RM-11"]]){const q=await ctx2.newPage();q.on("pageerror",e=>errs.push(app+": "+e.message));q.on("dialog",d=>d.accept());await q.goto(base+"/"+app+".html");await q.waitForTimeout(500);
+  let r;try{r=await q.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");const O=ANGELS_RH.ops,E=[],act=(typeof ACTS!=="undefined"&&ACTS[0]?ACTS[0][0]:"");
+   const e=O.saveEmploye({nom:"Test",prenoms:"RH",embauche:"2025-01-06",contrat:"CDI",sal_base:150000,cnps_no:"3",tel:"0700000003",act});O.savePointage("2026-09-01",[{emp_id:e.id,statut:"A"}]);
+   const f=O.saveFormation({titre:"Formation test",debut:"2026-10-01",participants:[e.id]});const po=O.savePoste({intitule:"Poste test"});O.saveCandidat({nom:"Cand Test",poste_id:po.id});
+   O.saveMission({objet:"Mission",destination:"Ville",chef:e.id,debut:"2026-11-01",fin:"2026-11-02"});O.saveMobilite({emp_id:e.id,type:"promotion",date_effet:"2026-10-01",poste:"Senior",motif:"Promotion"});
+   for(const t of ["tableau","pointage","mobilite","formations","recrutement","declarations"]){ANGELS_RH.UI.tab=t;try{const h=ANGELS_RH.view(RH_HOST);if(!h||h.length<200)E.push("vide "+t)}catch(x){E.push(t+": "+x.message)}}return E.length?E.join(" ; "):true})}catch(e){r="EXC "+e.message}
+  if(r===true){ok++;console.log("PASS",id,app+" : pages RH Menko")}else{ko++;console.log("FAIL",id,app,"→",r)}}
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
