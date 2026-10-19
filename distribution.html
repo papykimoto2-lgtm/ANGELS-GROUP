@@ -1031,7 +1031,7 @@ function vAdrForm(){
   if(CL.on)return CL.go(()=>CL.rpc("maj_adresse_collecte",{p:adr}),"Adresse enregistrée");v.adresse_collecte=adr;audit("Adresse de collecte mise à jour",v.nom);save();render();toast("Adresse enregistrée","ok")}});
  const paint=()=>{const e=$("#va_gt");if(!e)return;e.innerHTML=gt();const c=$("#va_clr");if(c)c.onclick=ev=>{ev.preventDefault();pos=null;paint()}};paint();
  $("#va_gps").onclick=()=>{if(!navigator.geolocation)return toast("Géolocalisation indisponible sur cet appareil","err");
-  navigator.geolocation.getCurrentPosition(g=>{pos={lat:g.coords.latitude,lng:g.coords.longitude};paint();toast("Position trouvée (±"+Math.round(g.coords.accuracy||0)+" m)","ok")},e=>toast("Position impossible : autorisez la localisation ("+e.message+")","err"),{enableHighAccuracy:true,timeout:20000})}}
+  toast("Recherche de la position (jusqu'à 20 s)…");geoPrecis().then(q=>{const n=geoNiveau(q.acc);if(n==="faux")return toast(GEO_FAUX(q.acc),"err");pos={lat:q.lat,lng:q.lng};paint();toast(n==="ok"?"Position trouvée ("+geoTxt(q.acc)+")":"Position approximative ("+geoTxt(q.acc)+") : complétez le quartier et le repère","ok")}).catch(e=>toast("Position impossible : autorisez la localisation ("+(e.message||"refusée")+")","err"))}}
 
 /* ---------- Versements des livreurs à ANGEL'S GROUP : au comptant ou par Mobile Money ---------- */
 const bindMomo=()=>{const sel=document.querySelector("#mf [name=mode]");if(!sel)return;const m=estMobile(sel.value);["mm_box","mm_box2"].forEach(i=>{const b=document.getElementById(i);if(b)b.classList.toggle("hide",!m)})};
@@ -1765,13 +1765,13 @@ function syncGPS(){
  if(need&&watchId==null&&navigator.geolocation){watchId=navigator.geolocation.watchPosition(pushPos,e=>{ui.gpsErr=e.message},{enableHighAccuracy:true,maximumAge:10000,timeout:30000})}
  if(!need&&watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}}
 function pushPos(p,force){
- const lv=ME&&livreurOf(ME);if(!lv)return;const t=Date.now();if(!force&&t-lastSent<S.config.gps_interval*1000)return;lastSent=t;
+ const lv=ME&&livreurOf(ME);if(!lv)return;if(p&&p.coords&&(p.coords.accuracy||0)>GEO_MAX)return;const t=Date.now();if(!force&&t-lastSent<S.config.gps_interval*1000)return;lastSent=t;
  const l=S.livraisons.find(x=>x.livreur_id===lv.id&&x.statut==="en_cours");
  const pt={lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy||0),ts:now(),livraison_id:l?l.id:null};
 if(CL.on){S.pos[lv.id]=pt;CL.pos[lv.id]=pt;return CL.rpc("enregistrer_position",{p_lat:pt.lat,p_lng:pt.lng,p_acc:pt.acc}).catch(()=>{})}
  S.pos[lv.id]=pt;S.gps_hist.push(Object.assign({livreur_id:lv.id},pt));if(S.gps_hist.length>3000)S.gps_hist.splice(0,500);save()}
 function sendPosNow(){if(!navigator.geolocation)return toast("Géolocalisation non disponible sur cet appareil","err");
- navigator.geolocation.getCurrentPosition(p=>{if(CL.on){const lv=livreurOf(ME),en=S.livraisons.some(x=>x.livreur_id===lv.id&&x.statut==="en_cours");if(!en)return toast("Le suivi GPS n'est actif que pendant une course en cours","err");pushPos(p,true);toast("Position envoyée","ok");render();return}pushPos(p,true);toast("Position envoyée","ok");render()},e=>toast("Position impossible : "+e.message,"err"),{enableHighAccuracy:true,timeout:15000})}
+ navigator.geolocation.getCurrentPosition(p=>{if((p.coords.accuracy||0)>GEO_MAX)return toast(GEO_FAUX(p.coords.accuracy),"err");if(CL.on){const lv=livreurOf(ME),en=S.livraisons.some(x=>x.livreur_id===lv.id&&x.statut==="en_cours");if(!en)return toast("Le suivi GPS n'est actif que pendant une course en cours","err");pushPos(p,true);toast("Position envoyée","ok");render();return}pushPos(p,true);toast("Position envoyée","ok");render()},e=>toast("Position impossible : "+e.message,"err"),{enableHighAccuracy:true,timeout:15000})}
 function livreurHTML(){
  const lv=livreurOf(ME);if(!lv)return`<div class="lv"><div class="card">Compte livreur non rattaché. <a data-act="logout" href="#">Déconnexion</a></div></div>`;
  const mine=S.livraisons.filter(l=>l.livreur_id===lv.id),todo=(()=>{const L=mine.filter(isActive),P=propositionItineraire(lv),rk={};P.stops.forEach(s=>rk[s.l.id]=s.n);return L.sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)||((rk[a.id]||999)-(rk[b.id]||999))||(a.tournee_id?0:1)-(b.tournee_id?0:1)||(a.ordre||99)-(b.ordre||99)||new Date(a.affectee_at)-new Date(b.affectee_at))})(),today=new Date().toDateString(),done=mine.filter(l=>["livree","echouee"].includes(l.statut)&&new Date(l.fin_at).toDateString()===today);
@@ -2495,6 +2495,16 @@ function loadLeaflet(){if(window.L)return Promise.resolve();if(LP)return LP;
 const pinIcon=e=>L.divIcon({html:`<div style="font-size:30px;line-height:30px;transform:translate(-50%,-100%)">${e}</div>`,className:"",iconSize:[0,0]});
 const osmLink=(lat,lng)=>{lat=+lat||0;lng=+lng||0;return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`};
 /* Affiche une carte dans `el`. o.dest : destination ; o.me : position du livreur ; o.onPick(ll) : repère déplaçable */
+/* Géolocalisation fiable : on suit la position jusqu'à 20 s et on garde la mesure la plus précise (le premier point est souvent une estimation grossière).
+   Un ordinateur sans GPS ne connaît que l'emplacement approximatif de sa connexion Internet (plusieurs km) : au-delà de GEO_MAX, la position est refusée. */
+const GEO_OK=60,GEO_MAX=1000,geoTxt=a=>a<1000?"±"+Math.round(a)+" m":"±"+(Math.round(a/100)/10).toString().replace(".",",")+" km",geoNiveau=a=>a<=GEO_OK?"ok":a<=GEO_MAX?"approx":"faux";
+const GEO_FAUX=a=>"Position inutilisable ("+geoTxt(a)+") : cet appareil n'a pas de GPS actif — un ordinateur ne connaît que l'emplacement approximatif de sa connexion Internet. Placez le repère à la main sur la carte, recherchez le quartier, ou faites-le depuis un téléphone sur place (lien client).";
+function geoPrecis(o){o=o||{};return new Promise((ok,ko)=>{if(!navigator.geolocation)return ko(new Error("Géolocalisation indisponible sur cet appareil"));
+ let best=null,id=null,fini=false,t=null;const fin=e=>{if(fini)return;fini=true;clearTimeout(t);if(id!=null)navigator.geolocation.clearWatch(id);best?ok(best):ko(e||new Error("aucune position reçue"))};
+ t=setTimeout(()=>fin(),o.max||20000);
+ id=navigator.geolocation.watchPosition(g=>{const q={lat:g.coords.latitude,lng:g.coords.longitude,acc:Math.round(g.coords.accuracy||99999)};if(!best||q.acc<best.acc){best=q;if(o.progres)o.progres(q)}if(q.acc<=(o.cible||25))fin()},e=>{if(!best||e.code===1)fin(e)},{enableHighAccuracy:true,maximumAge:0,timeout:o.max||20000})})}
+/* Recherche d'un quartier / repère (OpenStreetMap Nominatim) pour centrer la carte avant de placer le repère à la main. */
+function geoChercher(q){return fetch("https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ci&accept-language=fr&q="+encodeURIComponent(q)).then(r=>r.ok?r.json():[]).then(a=>(a||[]).map(x=>({lat:+x.lat,lng:+x.lon,nom:x.display_name}))).catch(()=>[])}
 function mapInto(el,o){
  const c=o.dest||o.center||{lat:5.345,lng:-4.02};
  return loadLeaflet().then(()=>{
@@ -2504,7 +2514,8 @@ function mapInto(el,o){
   if(o.dest)put([o.dest.lat,o.dest.lng]);
   if(o.me){L.marker([o.me.lat,o.me.lng],{icon:pinIcon("🏍️")}).addTo(m);if(o.dest)m.fitBounds([[o.dest.lat,o.dest.lng],[o.me.lat,o.me.lng]],{padding:[35,35],maxZoom:17})}
   if(o.onPick)m.on("click",e=>{put(e.latlng);o.onPick(e.latlng)});
-  setTimeout(()=>m.invalidateSize(),150);return{map:m,put}})
+  let cer=null;const zone=(ll,r)=>{if(cer){m.removeLayer(cer);cer=null}if(ll&&r)cer=L.circle(ll,{radius:r,color:r>GEO_OK?"#b26a00":"#1f8a4c",weight:1,fillOpacity:.12}).addTo(m)};
+  setTimeout(()=>m.invalidateSize(),150);return{map:m,put,zone}})
  .catch(()=>{el.style.height="auto";el.innerHTML=`<div class="al warn sm" style="margin:0">Carte indisponible (pas de connexion Internet).${o.dest?` Coordonnées : ${esc(o.dest.lat)}, ${esc(o.dest.lng)} — <a target="_blank" rel="noopener" href="${osmLink(o.dest.lat,o.dest.lng)}">ouvrir</a>`:""}</div>`;return null})}
 function initMaps(){if(!ME||ME.role!=="livreur")return;const lv=livreurOf(ME);if(!lv)return;
  for(const id in(ui.mapOpen||{})){if(!ui.mapOpen[id])continue;const el=$("#map_"+id),l=byId(S.livraisons,id);if(!el||!l)continue;const a=cmd(l.commande_id).adr;if(a.gps)mapInto(el,{dest:a.gps,me:S.pos[lv.id]})}}
@@ -2532,12 +2543,28 @@ function geoLinkModal0(cid,aid,ref){
  ${location.protocol==="file:"?`<div class="al warn sm">Ce lien pointe vers un fichier local : le client ne pourra pas l'ouvrir. Hébergez d'abord l'application sur Internet (Netlify, Vercel…) et ouvrez-la depuis son adresse web avant de générer les liens.</div>`:""}
  <div class="sm mu">Quand le client répond, utilisez « 📋 Coller une position reçue » (le message contient la position). Avec un backend partagé (étape suivante), la position se mettra à jour automatiquement.</div>`,{focus:false})}
 function geoPickModal(cid,aid){
- const cl=cli(cid),a=cl.adresses.find(x=>x.id===aid);let pos=a.gps?{lat:a.gps.lat,lng:a.gps.lng}:null,h=null;
- modal("Position de livraison — "+cl.nom,`<div class="pill sm">${esc([a.libelle,a.zone,a.quartier,a.repere].filter(Boolean).join(" · "))}</div><div id="pm" style="height:320px;border-radius:10px;overflow:hidden;background:#e8ebf5"></div><div class="flex"><button type="button" class="btn sm ghost" id="pm_gps">📍 Ma position actuelle</button><span class="sm mu" id="pm_c">${pos?pos.lat+", "+pos.lng:"Touchez la carte pour placer le repère"}</span></div>`,
- {wide:true,focus:false,label:"Enregistrer la position",onSubmit:()=>{if(!pos)return toast("Placez le repère sur la carte","err"),false;if(CL.on)return CL.go(()=>CL.rpc("appliquer_position_adresse",{p_adresse:aid,p_lat:pos.lat,p_lng:pos.lng}),"Position enregistrée");applyGeo(cid,aid,pos.lat,pos.lng,"saisie par le personnel");save();toast("Position enregistrée","ok");render()}});
- const set=(lat,lng)=>{pos={lat:+lat.toFixed(6),lng:+lng.toFixed(6)};$("#pm_c").textContent=pos.lat+", "+pos.lng};
- mapInto($("#pm"),{dest:pos,onPick:ll=>set(ll.lat,ll.lng)}).then(x=>h=x);
- $("#pm_gps").onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{set(p.coords.latitude,p.coords.longitude);if(h){h.put([pos.lat,pos.lng]);h.map.setView([pos.lat,pos.lng],17)}},e=>toast("Position impossible : "+e.message,"err"),{enableHighAccuracy:true,timeout:15000}):toast("Géolocalisation indisponible","err")}
+ const cl=cli(cid),a=cl.adresses.find(x=>x.id===aid);let pos=a.gps?{lat:a.gps.lat,lng:a.gps.lng}:null,acc=a.gps?(a.gps_acc||0):0,src="repère placé à la main",h=null;
+ const parts=[a.repere,a.quartier,a.zone].map(x=>String(x||"").trim()).filter(Boolean);
+ modal("Position de livraison — "+cl.nom,`<div class="pill sm">${esc([a.libelle,a.zone,a.quartier,a.repere].filter(Boolean).join(" · "))}</div>
+ <div class="flex" style="margin:6px 0"><input id="pm_q" value="${esc(parts.join(", "))}" placeholder="Quartier, repère, rue…" style="flex:1;min-width:180px"><button type="button" class="btn sm ghost" id="pm_s">🔎 Centrer la carte</button></div><div id="pm_r" class="sm mu"></div>
+ <div id="pm" style="height:320px;border-radius:10px;overflow:hidden;background:#e8ebf5"></div>
+ <div class="flex"><button type="button" class="btn sm ghost" id="pm_gps" title="Uniquement si vous êtes sur place, chez le client, avec un téléphone">📍 Ma position (je suis chez le client)</button><span class="sm mu" id="pm_c"></span></div><div id="pm_w" class="sm"></div>
+ <div class="sm mu">Le plus fiable : zoomez et touchez l'entrée exacte, ou envoyez le lien au client pour qu'il donne sa position depuis son téléphone. « Ma position » sur un ordinateur du bureau donne l'emplacement approximatif de la connexion Internet, pas celui du client.</div>`,
+ {wide:true,focus:false,label:"Enregistrer la position",onSubmit:()=>{if(!pos)return toast("Placez le repère sur la carte","err"),false;if(CL.on)return CL.go(()=>CL.rpc("appliquer_position_adresse",{p_adresse:aid,p_lat:pos.lat,p_lng:pos.lng}),"Position enregistrée");applyGeo(cid,aid,pos.lat,pos.lng,"saisie par le personnel ("+src+")",acc);save();toast("Position enregistrée","ok");render()}});
+ const show=()=>{$("#pm_c").textContent=pos?pos.lat+", "+pos.lng+(acc?" ("+geoTxt(acc)+")":""):"Touchez la carte pour placer le repère"};show();
+ const set=(lat,lng,a2,s2)=>{pos={lat:+(+lat).toFixed(6),lng:+(+lng).toFixed(6)};acc=a2||0;src=s2||"repère placé à la main";show();if(h&&!a2){h.zone(null);$("#pm_w").innerHTML=""}};
+ const centrer=(auto)=>{const q=$("#pm_q").value.trim();if(!q)return;const essais=auto&&parts.length>1?parts.map((_,k)=>parts.slice(k).join(", ")):[q];$("#pm_r").textContent="Recherche sur la carte…";
+  const go=k=>k>=essais.length?Promise.resolve($("#pm_r").textContent=auto?"Quartier introuvable sur la carte : déplacez-vous et touchez l'endroit exact.":"Aucun résultat : déplacez la carte et touchez l'endroit exact."):geoChercher(essais[k]+", Côte d'Ivoire").then(L=>{if(!L.length)return go(k+1);if(h)h.map.setView([L[0].lat,L[0].lng],16);
+   $("#pm_r").innerHTML="Carte centrée sur « "+esc(L[0].nom.split(",").slice(0,3).join(","))+" » : zoomez puis <b>touchez l'endroit exact</b>."+(L.length>1?" Autres : "+L.slice(1).map((x,n)=>`<a href="#" data-pmr="${n+1}">${esc(x.nom.split(",").slice(0,2).join(","))}</a>`).join(" · "):"");
+   $("#pm_r").querySelectorAll("[data-pmr]").forEach(e=>e.onclick=ev=>{ev.preventDefault();const x=L[+e.dataset.pmr];if(h)h.map.setView([x.lat,x.lng],16)})});go(0)};
+ mapInto($("#pm"),{dest:pos,onPick:ll=>set(ll.lat,ll.lng)}).then(x=>{h=x;if(h&&pos&&acc)h.zone([pos.lat,pos.lng],acc);if(!pos&&parts.length)centrer(true)});
+ $("#pm_s").onclick=()=>centrer(false);$("#pm_q").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();centrer(false)}};
+ $("#pm_gps").onclick=()=>{const b=$("#pm_gps"),w=$("#pm_w");b.disabled=true;w.innerHTML='<span class="mu">Recherche de la position (jusqu\'à 20 s)…</span>';
+  geoPrecis({progres:q=>{w.innerHTML='<span class="mu">Précision actuelle '+geoTxt(q.acc)+'…</span>'}}).then(q=>{b.disabled=false;const n=geoNiveau(q.acc);
+   if(n==="faux"){w.innerHTML='<div class="al warn sm" style="margin:6px 0">'+esc(GEO_FAUX(q.acc))+'</div>';return}
+   set(q.lat,q.lng,q.acc,"GPS "+geoTxt(q.acc));if(h){h.put([pos.lat,pos.lng]);h.zone([pos.lat,pos.lng],q.acc);h.map.setView([pos.lat,pos.lng],n==="ok"?18:16)}
+   w.innerHTML=n==="ok"?'<span style="color:var(--ok)">✔ Position précise ('+geoTxt(q.acc)+')</span>':'<div class="al warn sm" style="margin:6px 0">Position approximative ('+geoTxt(q.acc)+') : faites glisser le repère sur l\'entrée exacte avant d\'enregistrer.</div>'})
+  .catch(e=>{b.disabled=false;w.innerHTML='<div class="al warn sm" style="margin:6px 0">Position impossible ('+esc(e.message||"refusée")+') : autorisez la localisation ou touchez la carte.</div>'})}}
 function geoPasteModal(cid,aid){
  modal("Coller une position reçue",`<label>Message du client, lien Google Maps / OpenStreetMap ou coordonnées « lat, lng »<textarea name="t" rows="4" required></textarea></label>`,
  {label:"Enregistrer",onSubmit:d=>{const g=parseGeo(d.t);if(!g)return toast("Aucune position reconnue dans ce texte","err"),false;
@@ -2551,16 +2578,20 @@ function renderPortal(p){
  $("#app").innerHTML=`<div class="login"><div class="card"><div style="font-size:20px;font-weight:800;color:var(--b2)">${esc(p.org)}</div><div class="mu" style="margin-bottom:10px">Portail client · position de livraison</div>
  <p>Bonjour <b>${esc(p.n)}</b>,<br>pour que notre livreur trouve votre adresse sans difficulté, placez le repère 📍 à l'endroit exact où vous souhaitez être livré.</p>
  <div class="pill sm">Adresse enregistrée : ${esc(p.a)}${p.r?`<br>Référence : ${esc(p.r)}`:""}</div>
- <button class="btn" id="pt_gps" style="width:100%;margin:10px 0">📍 Utiliser ma position actuelle</button>
+ <button class="btn" id="pt_gps" style="width:100%;margin:10px 0">📍 Utiliser ma position actuelle</button><div id="pt_w" class="sm"></div>
  <div id="pt_map" style="height:320px;border-radius:10px;overflow:hidden;background:#e8ebf5"></div>
  <div class="sm mu" style="margin:6px 0 10px">Touchez la carte ou faites glisser le repère pour ajuster.</div>
  <label>Précision utile (portail bleu, 2e étage, près de…)<input id="pt_note"></label>
  <button class="btn ok" id="pt_ok" style="width:100%;margin-top:12px" disabled>Confirmer cette position</button><div id="pt_res"></div>
  <p class="sm mu" style="margin-top:12px">Votre position n'est utilisée que pour cette livraison. Elle n'est partagée qu'avec ${esc(p.org)} et son livreur.</p></div></div>`;
  let pos=p.g?{lat:p.g.lat,lng:p.g.lng}:null,acc=0,h=null;const ok=$("#pt_ok");if(pos)ok.disabled=false;
- mapInto($("#pt_map"),{dest:pos,onPick:ll=>{pos={lat:ll.lat,lng:ll.lng};acc=0;ok.disabled=false}}).then(x=>h=x);
- $("#pt_gps").onclick=()=>{if(!navigator.geolocation)return toast("Géolocalisation indisponible sur ce téléphone","err");
-  navigator.geolocation.getCurrentPosition(g=>{pos={lat:g.coords.latitude,lng:g.coords.longitude};acc=g.coords.accuracy;ok.disabled=false;if(h){h.put([pos.lat,pos.lng]);h.map.setView([pos.lat,pos.lng],18)}toast("Position trouvée. Ajustez le repère si besoin.","ok")},e=>toast("Position impossible : autorisez la localisation ou touchez la carte ("+e.message+")","err"),{enableHighAccuracy:true,timeout:20000})};
+ mapInto($("#pt_map"),{dest:pos,onPick:ll=>{pos={lat:ll.lat,lng:ll.lng};acc=0;ok.disabled=false;if(h)h.zone(null)}}).then(x=>h=x);
+ $("#pt_gps").onclick=()=>{const b=$("#pt_gps"),w=$("#pt_w");b.disabled=true;w.innerHTML='<span class="mu">Recherche de votre position (jusqu\'à 20 s, restez à l\'extérieur si possible)…</span>';
+  geoPrecis({progres:q=>{w.innerHTML='<span class="mu">Précision actuelle '+geoTxt(q.acc)+'…</span>'}}).then(q=>{b.disabled=false;const n=geoNiveau(q.acc);
+   if(n==="faux"){w.innerHTML='<div class="al warn sm">Position trop imprécise ('+geoTxt(q.acc)+') : activez la localisation précise (GPS) du téléphone, ou touchez la carte à l\'endroit exact.</div>';return}
+   pos={lat:q.lat,lng:q.lng};acc=q.acc;ok.disabled=false;if(h){h.put([pos.lat,pos.lng]);h.zone([pos.lat,pos.lng],q.acc);h.map.setView([pos.lat,pos.lng],n==="ok"?18:16)}
+   w.innerHTML=n==="ok"?'<span style="color:var(--ok)">✔ Position trouvée ('+geoTxt(q.acc)+'). Ajustez le repère si besoin.</span>':'<div class="al warn sm">Position approximative ('+geoTxt(q.acc)+') : faites glisser le repère sur votre porte avant de confirmer.</div>'})
+  .catch(e=>{b.disabled=false;w.innerHTML='<div class="al warn sm">Position impossible : autorisez la localisation ou touchez la carte ('+esc(e.message||"refusée")+').</div>'})};
  ok.onclick=()=>{if(!pos)return;const lat=+pos.lat.toFixed(6),lng=+pos.lng.toFixed(6),note=$("#pt_note").value.trim();
   if(p.cloudToken){ok.disabled=true;CL.rpc("portail_poser",{p_token:p.cloudToken,p_lat:lat,p_lng:lng,p_acc:Math.round(acc||0),p_note:note||null}).then(r=>{$("#pt_res").innerHTML=r?'<div class="al" style="background:var(--okbg);margin-top:12px"><b>Merci ✔</b> Votre position a été transmise à '+esc(p.org)+'.</div>':'<div class="al err">Lien expiré ou invalide : demandez-en un nouveau.</div>';ok.textContent=r?"Position confirmée ✔":"Confirmer cette position";ok.disabled=!!r}).catch(e=>{ok.disabled=false;toast(fixErr(e),"err")});return}
   let saved=false;if(S&&cli(p.cid)){saved=applyGeo(p.cid,p.aid,lat,lng,"client",acc,note);if(saved)save()}
@@ -2881,7 +2912,7 @@ function renderOrder(p,submit){
     else if(a==="unph"){st.lines[i].img=-1;keep()}
     else if(a==="nogps"){st.gps=null;keep()}
     else if(a==="gps"){if(!navigator.geolocation)return toast("Géolocalisation indisponible : indiquez votre quartier et un repère","err");
-     navigator.geolocation.getCurrentPosition(g=>{st.gps={lat:+g.coords.latitude.toFixed(6),lng:+g.coords.longitude.toFixed(6),acc:Math.round(g.coords.accuracy||0)};keep()},e=>toast("Position impossible : autorisez la localisation ou indiquez votre quartier ("+e.message+")","err"),{enableHighAccuracy:true,timeout:20000})}}});
+     toast("Recherche de la position (jusqu'à 20 s)…");geoPrecis().then(q=>{if(geoNiveau(q.acc)==="faux")return toast(GEO_FAUX(q.acc),"err");st.gps={lat:+q.lat.toFixed(6),lng:+q.lng.toFixed(6),acc:q.acc};keep()}).catch(e=>toast("Position impossible : autorisez la localisation ou indiquez votre quartier ("+(e.message||"refusée")+")","err"))}}});
   $("#o_send").onclick=send};
  const FIELDS=["o_nom","o_tel","o_zone","o_q","o_rep","o_note"],keep=()=>{const v={};FIELDS.forEach(k=>{const e=document.getElementById(k);if(e)v[k]=e.value});draw();FIELDS.forEach(k=>{const e=document.getElementById(k);if(e&&v[k]!=null)e.value=v[k]})};
  async function send(){sync();const err=m=>{const e=$("#o_err");e.textContent=m;e.style.display="block";e.scrollIntoView({block:"center"})};
@@ -3234,7 +3265,7 @@ const OFFRE_MOTIFS=["Trop loin","Moto en panne ou plus de carburant","Déjà tro
 const roadKm=(a,b)=>haversine(a,b)*KM_ROUTE;
 function gainTheorique(lv,c){if(!lv||!c)return 0;const f=c.frais||0;if(estExterne(lv))return Math.max(0,f-Math.round(f*(+lv.commission_pct||0)/100));const r=lv.remu||S.config.remu;return Math.round((r.type==="pct"?0:+r.fixe||0)+(r.type==="fixe"?0:(+r.pct||0)/100*f))}
 function posLivreur(lv){const p=S.pos&&S.pos[lv.id];if(p&&Date.now()-new Date(p.ts)<30*60000)return{lat:p.lat,lng:p.lng};return ui.moi&&Date.now()-ui.moi.t<15*60000?{lat:ui.moi.lat,lng:ui.moi.lng}:null}
-function localiser(){return new Promise(ok=>{if(!navigator.geolocation)return ok(null);navigator.geolocation.getCurrentPosition(p=>{ui.moi={lat:p.coords.latitude,lng:p.coords.longitude,t:Date.now()};ok(ui.moi)},()=>ok(null),{enableHighAccuracy:true,timeout:6000,maximumAge:60000})})}
+function localiser(){return new Promise(ok=>{if(!navigator.geolocation)return ok(null);navigator.geolocation.getCurrentPosition(p=>{if((p.coords.accuracy||0)>GEO_MAX)return ok(null);ui.moi={lat:p.coords.latitude,lng:p.coords.longitude,t:Date.now()};ok(ui.moi)},()=>ok(null),{enableHighAccuracy:true,timeout:6000,maximumAge:60000})})}
 /* Ordre le plus court : plus proche voisin puis amélioration 2-opt (chemin ouvert) ; sans point de départ on essaie chaque arrêt comme premier. */
 function cheminKm(start,arr){let d=0,p=start;arr.forEach(x=>{if(p)d+=haversine(p,x.gps);p=x.gps});return d}
 function ameliorer(start,seq){let out=seq.slice(),imp=true,g=0;while(imp&&g++<60){imp=false;for(let i=0;i<out.length-1;i++)for(let j=i+1;j<out.length;j++){const c=out.slice(0,i).concat(out.slice(i,j+1).reverse(),out.slice(j+1));if(cheminKm(start,c)<cheminKm(start,out)-1e-9){out=c;imp=true}}}return out}
@@ -4823,7 +4854,7 @@ function bootBoutique(tok){
  app.querySelectorAll(".bp").forEach(r=>{const i=items.find(x=>x.c===r.dataset.c);r.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{const q=(st.q[i.c]||0)+(b.dataset.b==="+"?1:-1);st.q[i.c]=Math.max(0,Math.min(i.st,99,q));r.querySelector(".bn").textContent=st.q[i.c];calc()})});
  $b("b_zone").onchange=calc;app.querySelectorAll("[name=b_pm]").forEach(r=>r.onchange=()=>{const m=$b("b_mm");if(m)m.style.display=document.querySelector("[name=b_pm]:checked").value==="mm"?"block":"none"});
  $b("b_gpsb").onclick=()=>{if(!navigator.geolocation)return toast("Géolocalisation indisponible : indiquez votre quartier et un repère","err");
-  navigator.geolocation.getCurrentPosition(g=>{st.gps={lat:+g.coords.latitude.toFixed(6),lng:+g.coords.longitude.toFixed(6),acc:Math.round(g.coords.accuracy||0)};$b("b_gps").textContent="✔ Position enregistrée (±"+st.gps.acc+" m)"},e=>toast("Position impossible : autorisez la localisation ou indiquez votre quartier","err"),{enableHighAccuracy:true,timeout:20000})};
+  $b("b_gps").textContent="Recherche de la position (jusqu'à 20 s)…";geoPrecis({progres:q=>{$b("b_gps").textContent="Précision actuelle "+geoTxt(q.acc)+"…"}}).then(q=>{const n=geoNiveau(q.acc);if(n==="faux"){st.gps=null;$b("b_gps").textContent="Position trop imprécise ("+geoTxt(q.acc)+") : activez le GPS du téléphone ou indiquez votre quartier et un repère.";return}st.gps={lat:+q.lat.toFixed(6),lng:+q.lng.toFixed(6),acc:q.acc};$b("b_gps").textContent=(n==="ok"?"✔ Position enregistrée (":"Position approximative enregistrée (")+geoTxt(q.acc)+")"+(n==="ok"?"":" : précisez le repère")}).catch(()=>{$b("b_gps").textContent="Position impossible : autorisez la localisation ou indiquez votre quartier."})};
  $b("b_send").onclick=()=>{const err=m=>{const e=$b("b_err");e.textContent=m;e.style.display="block";e.scrollIntoView({block:"center"})},val=id=>$b(id).value.trim(),L=lines();
   if(!L.length)return err("Choisissez au moins un produit");if(!val("b_nom"))return err("Indiquez votre nom");if(digits(val("b_tel")).length<8)return err("Indiquez un numéro de téléphone valide");
   if(!val("b_zone"))return err("Choisissez votre zone de livraison");if(!val("b_q")&&!val("b_rep")&&!st.gps)return err("Indiquez votre quartier, un point de repère ou envoyez votre position");
