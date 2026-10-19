@@ -563,3 +563,27 @@ Onglet inspiré de la configuration Supabase de ZAHARA : URL du projet et clé *
 - **Bouton 👁** « afficher / masquer » dans tous les champs de mot de passe (applications, Paramètres, `livreur.html`).
 - Tests : `tests/production.js` (25 contrôles, sans données de démonstration) ; `sh tests/run-all.sh` lance toutes les suites, les autres avec le drapeau de démonstration (`tests/demo-hook.js`).
 - **Aucun numéro préenregistré** : WhatsApp de l'entreprise, téléphones d'en-tête des documents, comptes Mobile Money et exemples des écrans sont vides ; ils se renseignent dans Paramètres. Seuls restent la signature du développeur (demandée) et les numéros d'urgence publics du SOS (police 110, SAMU 185, pompiers 180).
+
+## Synchronisation entre postes (Distributions, Transport, Agro)
+Plusieurs postes peuvent travailler sur les **mêmes données**. Chaque poste garde ses données dans son navigateur (rapide, utilisable hors ligne) et les synchronise avec Supabase, enregistrement par enregistrement.
+
+- **Fonctionnement** : après chaque enregistrement (1,5 s) et toutes les 12 s, le poste récupère les changements des autres puis envoie les siens. Un indicateur « ☁ Synchronisé 14:32 » s'affiche en bas à gauche (clic = synchroniser maintenant ; rouge = erreur, orange = hors ligne).
+- **Pas d'écrasement silencieux** : si deux postes modifient le même enregistrement en même temps, la première modification enregistrée est conservée sur tous les postes et l'autre poste est prévenu (« Modification simultanée… »).
+- **Numérotation** : les compteurs gardent la plus grande valeur ; deux postes qui créent une pièce au même instant peuvent obtenir le même numéro, l'application signale alors « Numéro en double » pour correction.
+- **Suppressions** transmises aux autres postes ; une suppression massive (≥ 20 enregistrements et ≥ la moitié des données) demande confirmation ; en cas de refus, le poste est restauré depuis le serveur.
+- **Rien de secret n'est envoyé** : la clé d'administration, les compteurs de tentatives de connexion et les positions GPS en direct restent locaux.
+- **Comptes** : le compte administrateur KESSIE a le même identifiant sur tous les postes ; deux comptes de même nom créés séparément sur deux postes sont fusionnés à la première synchronisation (le compte du serveur est conservé).
+- **Première synchronisation d'un poste** : il récupère d'abord le serveur ; si le poste contient déjà des données, une confirmation est demandée (les communs prennent la version du serveur, les autres sont ajoutés).
+- **Passerelle livreur** : avec la synchronisation, cocher « Ce poste relève les actions des livreurs » sur **un seul** poste (Distributions → Paramètres).
+
+### Mise en service
+1. Appliquer `supabase/migrations/006_sync_postes.sql` (SQL Editor) et déployer la fonction `sync` (sans vérification JWT).
+2. Créer le secret **`SYNC_KEY`** (32 caractères aléatoires minimum) dans Supabase → Edge Functions → Secrets.
+3. Sur **chaque poste** : Hub → Paramètres → Cloud / Supabase → « Synchronisation entre postes » : coller la même clé, cocher, Enregistrer (une application doit être déverrouillée), puis ouvrir les applications.
+
+Tests : `node tests/sync-serveur.js` (12 contrôles serveur), `node tests/sync-postes.js` (13 contrôles à deux postes avec le vrai code serveur), onglet Cloud dans `tests/parametres-onglets.js`.
+Limites : délai de quelques secondes entre postes ; enregistrements de plus de 900 Ko non synchronisés (signalés) ; données entièrement locales tant qu'aucune clé n'est enregistrée.
+
+### Hub → Cloud / Supabase → « État de la synchronisation (envoi ↔ réception) »
+Panneau inspiré de celui de ZAHARA : pastilles « Connecté au cloud », dernier envoi, dernière réception ; compteurs éléments / à jour / à envoyer / à récupérer / en file d'attente / suppressions, par application (tableau) ; boutons **Vérifier l'état**, **Resynchro complète**, **Purger le cache local** (confirmation, refusée si l'appareil n'a jamais été synchronisé), **Tout envoyer**, **Tout récupérer**, **Réessayer la file**, **Rafraîchir**, **File d'attente** (nature, table, élément), **Diagnostic cloud** (adresse, temps de réponse, enregistrements par application, erreurs récentes), **Écart cloud ↔ local** (par table : seulement ici, seulement serveur, différents). Les actions qui modifient les données exigent une application déverrouillée par un administrateur ; si l'application visée est ouverte dans un autre onglet, c'est elle qui exécute l'action (elle détient l'état en mémoire).
+Test : `node tests/sync-etat.js` (10 contrôles).

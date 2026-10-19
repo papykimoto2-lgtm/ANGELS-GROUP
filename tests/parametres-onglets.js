@@ -67,6 +67,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("CLD-5","test de connexion : projet joignable, et migration de la passerelle signalée comme non installée quand les tables manquent",/Projet joignable/.test(tr)&&/tables non installées/.test(tr),tr);
  await ps.click('[data-cl="clear"]');const cl=await ps.evaluate(()=>({o:JSON.parse(localStorage.getItem("angels_supabase")),b:document.getElementById("cl-badge").innerText}));
  await ps.click('[data-cl="def"]');const df=await ps.evaluate(()=>localStorage.getItem("angels_supabase"));
- chk("CLD-6","effacer : mode local ; projet par défaut rétabli ensuite",cl.o.off===true&&/Mode local/.test(cl.b)&&df===null,JSON.stringify([cl,df]));}
+ chk("CLD-6","effacer : mode local ; projet par défaut rétabli ensuite",cl.o.off===true&&/Mode local/.test(cl.b)&&df===null,JSON.stringify([cl,df]));
+ await ps.evaluate(()=>{Object.keys(AUTH).forEach(k=>delete AUTH[k]);localStorage.removeItem("angels_sync")});await ps.fill("#cs-key","courte");await ps.check("#cs-on");await ps.click('[data-cl="sync-save"]');const s0=await ps.innerText("#cs-res");const l0=await ps.evaluate(()=>localStorage.getItem("angels_sync"));
+ await ps.evaluate(()=>{AUTH.test={exp:Date.now()+6e5}});await ps.click('[data-cl="sync-save"]');const s1=await ps.innerText("#cs-res");const l1=await ps.evaluate(()=>localStorage.getItem("angels_sync"));
+ await ps.fill("#cs-key","CLE-DE-SYNCHRONISATION-LONGUE-123");await ps.click('[data-cl="sync-save"]');const s2=await ps.evaluate(()=>({o:JSON.parse(localStorage.getItem("angels_sync")),b:document.getElementById("cs-badge").innerText}));
+ chk("CLD-7","synchronisation entre postes : réglage réservé aux administrateurs, clé trop courte refusée, puis activée et mémorisée sur l'appareil",/Déverrouillez/.test(s0)&&l0===null&&/trop courte/.test(s1)&&l1===null&&s2.o&&s2.o.actif===true&&s2.o.cle==="CLE-DE-SYNCHRONISATION-LONGUE-123"&&/activée/.test(s2.b),JSON.stringify({s0,s1,s2}));
+ await ps.route("https://gfzqxoolorbejxnxrlji.supabase.co/functions/v1/sync",r=>{const k=r.request().headers()["x-sync-key"];r.fulfill({status:k==="BONNE-CLE-DE-SYNCHRO-0123456"?200:401,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify(k==="BONNE-CLE-DE-SYNCHRO-0123456"?{ok:true,enregistrements:{distribution:12,transport:3,agro:0}}:{ok:false,erreur:"Clé de synchronisation invalide"})})});
+ await ps.fill("#cs-key","MAUVAISE-CLE-DE-SYNCHRO-012");await ps.click('[data-cl="sync-test"]');await ps.waitForTimeout(400);const t0=await ps.innerText("#cs-res");
+ await ps.fill("#cs-key","BONNE-CLE-DE-SYNCHRO-0123456");await ps.click('[data-cl="sync-test"]');await ps.waitForTimeout(400);const t1=await ps.innerText("#cs-res");
+ chk("CLD-8","test de la clé : clé refusée signalée ; clé acceptée affiche le nombre d'enregistrements du serveur par application",/refusée/.test(t0)&&/Clé acceptée/.test(t1)&&/Distributions 12/.test(t1),JSON.stringify([t0,t1]));}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();

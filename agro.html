@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icons/agro-192.png">
 <link rel="apple-touch-icon" href="icons/agro-apple-180.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Angel's Agro"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; base-uri 'none'; form-action 'none'">
 <title>ANGEL'S AGRO — Élevage avicole</title>
 <script>try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="emeraude")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <style>
@@ -93,7 +93,9 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <body>
 <div id="app"></div>
 <script src="qrcode.js"></script>
+<script src="passerelle-config.js"></script>
 <script src="auth-engine.js"></script>
+<script src="sync-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
@@ -334,7 +336,7 @@ function migrerSante(){
 const phase=(t,a)=>t==="ponte"?(a<84?"Démarrage":a<126?"Pré-ponte":a<350?"Pic de ponte":a<500?"Déclin":"Réforme"):(a<10?"Démarrage":a<28?"Croissance":a<42?"Finition":"Prêt à vendre");
 
 /* ---------- Persistance, audit, transactions ---------- */
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend (Supabase) est requis.")}try{localStorage.setItem("angels_compta_agro",JSON.stringify(comptaResume()))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){throw new Error("Stockage plein : données non enregistrées. Un backend (Supabase) est requis.")}try{ANGELS_SYNC.signal()}catch(e){}try{localStorage.setItem("angels_compta_agro",JSON.stringify(comptaResume()))}catch(e){}};
 function comptaResume(){ // synthèse lue par le Hub (consolidation du groupe)
  const E=S.entries||[],d=x=>sum(x.lignes,l=>l.debit),c=x=>sum(x.lignes,l=>l.credit),hp=new Set();E.forEach(e=>e.lignes.forEach(l=>{try{if(!accOf(l.compte))hp.add(l.compte)}catch(x){hp.add(l.compte)}}));
  return{t:new Date().toISOString(),module:"agro",nb_ecritures:E.length,debit:sum(E,d),credit:sum(E,c),desequilibres:E.filter(e=>d(e)!==c(e)).length,non_comptabilisees:0,anomalies:E.filter(e=>d(e)!==c(e)).length+hp.size,hors_plan:hp.size,brouillards:(S.brouillard||[]).length,comptes:(S.accounts||[]).length}}
@@ -1096,7 +1098,7 @@ function seed(){
  ME={id:"seed",nom:"Initialisation",role:"seed"};
  migrerPlan();migrerCond();migrerNutri();migrerVentes();migrerCaisse();
  const mkU=(nom,role,pin)=>{const u={id:uid("u"),nom,role,actif:true};u.pwd=Object.assign({},ANGELS_AUTH.DEMO);S.users.push(u)};
- if(!ANGELS_AUTH.demoOn()){S.users.push(ANGELS_AUTH.adminProd(uid("u")));S.settings.acces_demo=false;ME=null;save();return}
+ if(!ANGELS_AUTH.demoOn()){S.users.push(ANGELS_AUTH.adminProd("u_kessie"));S.settings.acces_demo=false;ME=null;save();return}
  mkU("Administrateur","admin","1234");mkU("Direction","direction","0000");mkU("Chef d'exploitation","chef","1111");mkU("Soigneur","soigneur","2222");mkU("Magasinier","magasinier","3333");mkU("Commercial","commercial","4444");mkU("Caissier","caissier","5555");mkU("Comptable","comptable","6666");
  const bA={id:uid("b"),nom:"Poulailler A",capacite:1000,usage:"Chair"},bB={id:uid("b"),nom:"Poulailler B",capacite:600,usage:"Ponte"};S.batiments.push(bA,bB);
  const P=(code,nom,categorie,unite,seuil,prix,x)=>{const p={id:uid("p"),code,nom,categorie,unite,seuil,prix_ref:prix,...x};S.produits.push(p);return p};
@@ -2150,6 +2152,7 @@ barre();
 load();
 try{const id=sessionStorage.getItem("ag_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
 render();
+ANGELS_SYNC.init({app:"agro",nom:"Agro",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries"],qui:()=>ME?ME.nom:"poste"});
 </script>
 </body>
 </html>
