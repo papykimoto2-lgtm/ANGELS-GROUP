@@ -60,5 +60,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const garde=await p.evaluate(()=>({nb:S.users.length,cmd:S.commandes.length}));
   chk("PRD-9","refus de la purge : les données de démonstration sont conservées et la question n'est posée qu'une fois",garde.nb>3&&garde.cmd>0&&n===1,JSON.stringify({garde,n}));
   await ctx.close()}
+ /* Hub : démonstration encore présente sur l'appareil → alerte et effacement en un clic */
+ {const ctx=await b.newContext({viewport:{width:1200,height:900}}),p=await ctx.newPage();p.on("pageerror",e=>errs.push("hub: "+e.message));p.on("dialog",d=>d.accept());
+  await p.goto(base+"/transport.html?demo=1");await p.waitForTimeout(900);await p.goto(base+"/agro.html?demo=1");await p.waitForTimeout(900);
+  await p.evaluate(()=>localStorage.removeItem("angels_demo"));await p.goto(base+"/index.html");await p.waitForTimeout(900);
+  const av=await p.evaluate(()=>({alerte:!document.getElementById("demo-alerte").hidden,txt:document.getElementById("demo-alerte").innerText,cons:document.getElementById("cons").innerText}));
+  await p.click("#demo-purge");await p.waitForTimeout(1200);
+  const ap=await p.evaluate(()=>({alerte:!document.getElementById("demo-alerte").hidden,cons:document.getElementById("cons").innerText,cles:["angels_transport_v3","angels_agro_v1","angels_compta_transport"].map(k=>localStorage.getItem(k))}));
+  chk("PRD-10","Hub : données de démonstration détectées (Transport, Agro) → alerte ; un clic les efface, la vue consolidée repart à zéro, aucun chiffre de démonstration ne subsiste",av.alerte&&/Transport/.test(av.txt)&&/Agro/.test(av.txt)&&/386|346/.test(av.cons)&&!ap.alerte&&!/386 ?000|346 ?000/.test(ap.cons.replace(/\u202f|\u00a0/g," "))&&ap.cles.every(x=>x===null),JSON.stringify({av:av.txt.slice(0,120),ap:ap.cons.slice(0,160),cles:ap.cles.map(x=>!!x)}));
+  await ctx.close()}
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.slice(0,5).join(" | "):""));process.exit(ko||errs.length?1:0);
 })();

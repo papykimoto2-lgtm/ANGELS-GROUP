@@ -52,6 +52,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <body>
 <header><div class="w top"><div><h1>🅰️ ANGEL'S GROUP — Hub</h1><p>Pilotage unique des filiales · <span id="date"></span></p></div></div></header>
 <main><div class="w">
+<div id="demo-alerte" hidden role="alert" style="background:#fff1d6;border:1px solid #e0b34a;color:#6b4a00;border-radius:12px;padding:12px 14px;margin:14px 0 0;font-size:14px"></div>
 <section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="tw"><table id="tcons"></table></div><p class="note" id="ncons"></p></section>
 <h2 style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
 <div class="tabs" id="tabs"></div><section id="tdb"></section>
@@ -100,6 +101,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </div>
 </div></main>
 <footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
+<script src="auth-engine.js"></script>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
@@ -207,6 +209,24 @@ function tdb(X){
 $("maj").onclick=consolide;window.addEventListener("storage",consolide);document.addEventListener("visibilitychange",()=>{if(!document.hidden)consolide()});consolide();
 
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+/* Mise en production : des données de démonstration encore présentes sur cet appareil faussent la vue consolidée. */
+(function(){
+ const APPS=[["Distributions","angels_erp_v1",["angels_compta_distribution","angels_portail_v1"]],["Transport","angels_transport_v3",["angels_compta_transport","angels_transport_files"]],["Agro","angels_agro_v1",["angels_compta_agro"]]];
+ try{
+  if(ANGELS_AUTH.demoOn())return;
+  const trouves=APPS.filter(([n,k])=>{try{const S=JSON.parse(localStorage.getItem(k)||"null");return S&&ANGELS_AUTH.demoUsers(S.users)}catch(e){return false}});
+  if(!trouves.length)return;
+  const box=$("demo-alerte");box.hidden=false;
+  box.innerHTML='<b>⚠ Données de démonstration détectées sur cet appareil</b> ('+trouves.map(x=>x[0]).join(", ")+'). Elles apparaissent dans la vue consolidée ci-dessous.<div style="margin-top:8px"><button type="button" id="demo-purge" style="font:700 14px Arial;padding:10px 14px;border-radius:9px;border:0;background:#c62828;color:#fff;cursor:pointer;min-height:42px">Effacer les données de démonstration de cet appareil</button></div>';
+  $("demo-purge").onclick=function(){
+   if(!confirm("Effacer les données de démonstration de : "+trouves.map(x=>x[0]).join(", ")+" ?\n\nLes applications repartiront d'une base vide avec l'administrateur KESSIE. Cette action est définitive pour cet appareil."))return;
+   trouves.forEach(([n,k,der])=>{[k].concat(der).forEach(x=>{try{localStorage.removeItem(x)}catch(e){}});try{localStorage.removeItem("angels_demo_garde_"+n);localStorage.removeItem("angels_sync_base_"+n.toLowerCase().replace(/s$/,""))}catch(e){}});
+   try{sessionStorage.clear()}catch(e){}
+   location.reload();
+  };
+ }catch(e){}
+})();
 </script>
 </body>
 </html>
