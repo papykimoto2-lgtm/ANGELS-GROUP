@@ -110,8 +110,8 @@
     ".art{margin:10px 0;page-break-inside:avoid}.art b{color:#111}.sg{display:flex;gap:30px;margin-top:34px;page-break-inside:avoid}.sg div{flex:1;border-top:1px solid #6b7480;padding-top:6px;font-size:9pt;min-height:70px}" +
     ".sec{margin-top:18px;border-top:1px solid #c9d0d9;padding-top:8px;display:flex;gap:12px;align-items:center;page-break-inside:avoid}.sec .qr{flex:0 0 auto;border:1px solid #d8dde4;padding:4px;background:#fff;width:112px;height:112px}.sec .qr svg{width:100%;height:100%;display:block}" +
     ".sec .tx{font-size:8pt;line-height:1.5;color:#46505e;font-family:Arial}.sec .tx b{color:#111}.sec .cd{font:700 10pt 'Courier New',monospace;letter-spacing:.06em;color:#111}.noprint{display:none!important}" +
-    ".ft{margin-top:14px;border-top:1px solid #c9d0d9;padding-top:5px;font-size:7.5pt;color:#5b6572;text-align:center;line-height:1.4}" +
-    "@media print{.ft{position:fixed;left:0;right:0;bottom:-14mm;margin:0;background:#fff;height:11mm}}";
+    ".ft{margin-top:14px;border-top:1px solid #c9d0d9;padding-top:5px;font-size:7.5pt;color:#5b6572;text-align:center;line-height:1.4;page-break-inside:avoid}" +
+    "td.n,th.n{text-align:right;white-space:nowrap}.nw{white-space:nowrap}tr.tot td{font-weight:700;background:#f3f3f3}.sub{color:#46505e;font-size:9pt;margin:0 0 8px}thead{display:table-header-group}tfoot{display:table-row-group}h2+table{page-break-before:avoid}table.cp{font-size:8.5pt}table.cp th,table.cp td{padding:4px 5px}";
   function enteteHtml(id, meta) {
     var lg = id.logo ? '<img src="' + esc(id.logo) + '" alt="Logo ' + esc(id.nom) + '">' : '<div class="mono">' + esc((id.nom.match(/[A-Za-zÀ-ÿ0-9]/g) || ["A"]).slice(0, 2).join("").toUpperCase()) + "</div>";
     var l1 = [id.forme, id.capital ? "capital " + id.capital : ""].filter(Boolean).join(" · "), l2 = [id.siege, id.tel ? "Tél. " + id.tel : "", id.email].filter(Boolean).join(" · "), l3 = [id.rccm ? "RCCM " + id.rccm : "", id.ncc ? "NCC " + id.ncc : ""].filter(Boolean).join(" · ");
@@ -137,7 +137,10 @@
     var sec = ctl && c.qr !== false ? '<div class="sec"><div class="qr">' + qr + '</div><div class="tx"><b>Document authentifiable — ' + esc(id.nom) + "</b><br>Réf. " + esc(ctl.ref) + " · émis le " + esc(fd(date)) + (o.emetteur ? " par " + esc(o.emetteur) : "") +
       '<br>Code de contrôle : <span class="cd">' + esc(ctl.code) + "</span> · clé " + esc(ctl.kid || "—") + " · empreinte " + esc(ctl.h) + "<br>" +
       (ctl.simple ? "Contrôle simple (signature numérique indisponible sur cet appareil)." : "Signature numérique ECDSA P-256 : scannez le QR (ou ouvrez verifier.html) pour confirmer l'origine et l'intégrité de ce document.") + "</div></div>" : "";
-    return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>' + esc(o.titre) + " — " + esc(ctl ? ctl.ref : o.ref || "") + '</title><style>@page{size:' + page + ";margin:12mm 12mm 20mm}:root{--ac:" + id.couleur + "}" + CSS + '</style></head><body><div class="pg">' +
+    var refD = ctl ? ctl.ref : o.ref || "", l1 = [id.nom, id.rccm ? "RCCM " + id.rccm : "", id.ncc ? "NCC " + id.ncc : "", id.siege].filter(Boolean).join(" — ");
+    var cs = function (t) { return String(t || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]+/g, " "); };
+    var boite = '@bottom-center{content:"' + cs(l1) + '\\A ' + cs(refD) + ' — page " counter(page) " / " counter(pages);white-space:pre-line;text-align:center;vertical-align:top;padding-top:3mm;font:7pt Arial,Helvetica,sans-serif;color:#5b6572}';
+    return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>' + esc(o.titre) + " — " + esc(refD) + '</title><style>@page{size:' + page + ";margin:12mm 12mm 18mm;" + boite + "}:root{--ac:" + id.couleur + "}" + CSS + '</style></head><body><div class="pg">' +
       enteteHtml(id, "Édité le " + fd(today())) + '<div class="tt"><h1>' + esc(o.titre) + '</h1><div class="mt">Réf. <b>' + esc(ctl ? ctl.ref : o.ref || "") + "</b><br>Date : <b>" + esc(fd(date)) + "</b>" + (o.montant ? "<br>Montant : <b>" + esc(Math.round(o.montant).toLocaleString("fr-FR").replace(/[  ]/g, " ")) + " F</b>" : "") + "</div></div>" +
       '<div class="corps">' + o.corps + "</div>" + signaturesHtml(o.signatures) + sec + piedHtml(id, ctl ? ctl.ref : o.ref || "", !!qr, o.mention) + "</div></body></html>";
   }
@@ -170,8 +173,9 @@
   function fermer() { var e = document.getElementById("ap-ov"); if (e) { e.hidden = true; document.body.style.overflow = ""; document.getElementById("ap-f").srcdoc = ""; try { if (ST.opener && ST.opener.focus) ST.opener.focus(); } catch (x) { } ST.opener = null; } }
   function zoomer() { var z = +document.getElementById("ap-z").value || 1, s = document.getElementById("ap-s"); s.style.transform = "scale(" + z + ")"; s.style.marginBottom = "-" + Math.round((1 - z) * (document.getElementById("ap-f").offsetHeight || 1000)) + "px"; }
   function charger() {
-    var f = document.getElementById("ap-f"), pay = document.getElementById("ap-o").value === "l";
-    f.onload = function () { try { var h = f.contentDocument.documentElement.scrollHeight; f.style.height = Math.max(1000, h + 10) + "px"; document.getElementById("ap-i").textContent = "Format A4 · " + Math.max(1, Math.ceil(h / (pay ? 794 : 1123))) + " page(s) · " + (ST.ctl && ST.ctl.simple ? "contrôle simple (non signé)" : ST.ctl ? "signé, clé " + ST.ctl.kid : "sans QR de sécurité"); zoomer(); } catch (x) {} };
+    var f = document.getElementById("ap-f"), pay = document.getElementById("ap-o").value === "l", W = pay ? 1123 : 794;
+    f.style.width = W + "px"; document.getElementById("ap-s").style.width = W + "px";
+    f.onload = function () { try { var h = f.contentDocument.documentElement.scrollHeight; f.style.height = Math.max(1000, h + 10) + "px"; document.getElementById("ap-i").textContent = "Format A4 · " + Math.max(1, Math.ceil(h / (pay ? 794 : 1123))) + " page(s) · " + (ST.ctl && ST.ctl.simple ? "contrôle simple (non signé)" : ST.ctl ? "signé, clé " + ST.ctl.kid : "sans QR de sécurité") + (pay ? " · Paysage : choisissez aussi « Paysage » dans la fenêtre d'impression si le PDF sort en portrait" : ""); zoomer(); } catch (x) {} };
     f.srcdoc = construire(ST.o, ST.id, ST.ctl, pay);
   }
 
@@ -220,7 +224,7 @@
   function depuisFrame(fr, o) {
     var d = fr && (fr.contentDocument || (fr.contentWindow && fr.contentWindow.document)); if (!d || !d.body) return false;
     var b = d.body.cloneNode(true); b.querySelectorAll(".top,.f,.noprint,script,style,button").forEach(function (n) { n.remove(); });
-    var h1 = b.querySelector("h1"), titre = o.titre || (h1 ? h1.textContent.replace(/\s+/g, " ").trim() : "Document"); if (!o.titre && h1) h1.remove();
+    var h1 = b.querySelector("h1"), titre = o.titre || (h1 ? h1.textContent.replace(/\s+/g, " ").trim() : "Document"); if (h1 && (!o.titre || h1.textContent.replace(/\s+/g, " ").toLowerCase().indexOf(String(o.titre).replace(/\s+/g, " ").toLowerCase()) >= 0)) h1.remove();
     var ml = d.querySelector(".f"); ouvrir(Object.assign({}, o, { titre: titre.slice(0, 90), corps: b.innerHTML, mention: o.mention || (ml ? ml.textContent.replace(/\s+/g, " ").trim() : "") })); return true;
   }
   /* Jeton signé pour un lien public (suivi de livraison, etc.) : b64url(json) . signature . identifiant de clé.
