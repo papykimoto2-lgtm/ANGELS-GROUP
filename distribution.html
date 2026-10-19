@@ -2522,7 +2522,9 @@ function initMaps(){if(!ME||ME.role!=="livreur")return;const lv=livreurOf(ME);if
 
 const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const unb64=t=>JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g,"+").replace(/_/g,"/")))));
-const portalLink=(c,a,ref)=>location.href.split("#")[0]+"#portail="+b64({cid:c.id,aid:a.id,n:c.nom,r:ref||"",a:[a.libelle,a.zone,a.quartier,a.repere].filter(Boolean).join(" · "),w:S.config.whatsapp,g:a.gps||null,org:S.config.org});
+const portalLink=(c,a,ref)=>location.href.split("#")[0]+"#portail="+b64({cid:c.id,aid:a.id,n:c.nom,r:ref||"",a:[a.libelle,a.zone,a.quartier,a.repere].filter(Boolean).join(" · "),w:S.config.whatsapp,g:geoFiable(a)?a.gps:null,q:[a.repere,a.quartier,a.zone].filter(Boolean),org:S.config.org});
+/* Position jugée fiable : donnée par le client, mesurée au GPS (≤ 60 m) ou placée à la main sur la carte. Les anciennes positions « Ma position » du bureau (sans précision) ne le sont pas. */
+const geoFiable=a=>!!(a&&a.gps&&(a.gps_src==="client"||(a.gps_acc&&a.gps_acc<=GEO_OK)||/placé à la main/.test(a.gps_src||"")));
 const geoBadge=a=>a.gps?badge(a.gps_src==="client"?"📍 Position confirmée par le client":"📍 Position enregistrée"+(a.gps_src?" ("+a.gps_src+")":""),"ok"):badge("Pas de position GPS","wa");
 const geoBtns=(cid,aid)=>`<div class="flex noprint" style="margin-top:6px"><button type="button" class="btn sm ghost" data-act="geoLink" data-id="${cid}|${aid}">🔗 Lien portail client</button><button type="button" class="btn sm ghost" data-act="geoPick" data-id="${cid}|${aid}">📌 Placer sur la carte</button><button type="button" class="btn sm ghost" data-act="geoPaste" data-id="${cid}|${aid}">📋 Coller une position reçue</button></div>`;
 function applyGeo(cid,aid,lat,lng,src,acc,note){
@@ -2548,7 +2550,7 @@ function geoPickModal(cid,aid){
  modal("Position de livraison — "+cl.nom,`<div class="pill sm">${esc([a.libelle,a.zone,a.quartier,a.repere].filter(Boolean).join(" · "))}</div>
  <div class="flex" style="margin:6px 0"><input id="pm_q" value="${esc(parts.join(", "))}" placeholder="Quartier, repère, rue…" style="flex:1;min-width:180px"><button type="button" class="btn sm ghost" id="pm_s">🔎 Centrer la carte</button></div><div id="pm_r" class="sm mu"></div>
  <div id="pm" style="height:320px;border-radius:10px;overflow:hidden;background:#e8ebf5"></div>
- <div class="flex"><button type="button" class="btn sm ghost" id="pm_gps" title="Uniquement si vous êtes sur place, chez le client, avec un téléphone">📍 Ma position (je suis chez le client)</button><span class="sm mu" id="pm_c"></span></div><div id="pm_w" class="sm"></div>
+ <div class="flex"><button type="button" class="btn sm ghost" id="pm_gps" title="Uniquement si vous êtes sur place, chez le client, avec un téléphone">📍 Ma position (je suis chez le client)</button>${a.gps?'<button type="button" class="btn sm er ghost" id="pm_del">🗑 Effacer la position</button>':""}<span class="sm mu" id="pm_c"></span></div><div id="pm_w" class="sm">${a.gps&&!geoFiable(a)?'<div class="al warn sm" style="margin:6px 0">La position enregistrée n\'est pas fiable (« '+esc(a.gps_src||"origine inconnue")+' », sans précision mesurée) : elle n\'est pas transmise au client. Vérifiez-la ou effacez-la.</div>':""}</div>
  <div class="sm mu">Le plus fiable : zoomez et touchez l'entrée exacte, ou envoyez le lien au client pour qu'il donne sa position depuis son téléphone. « Ma position » sur un ordinateur du bureau donne l'emplacement approximatif de la connexion Internet, pas celui du client.</div>`,
  {wide:true,focus:false,label:"Enregistrer la position",onSubmit:()=>{if(!pos)return toast("Placez le repère sur la carte","err"),false;if(CL.on)return CL.go(()=>CL.rpc("appliquer_position_adresse",{p_adresse:aid,p_lat:pos.lat,p_lng:pos.lng}),"Position enregistrée");applyGeo(cid,aid,pos.lat,pos.lng,"saisie par le personnel ("+src+")",acc);save();toast("Position enregistrée","ok");render()}});
  const show=()=>{$("#pm_c").textContent=pos?pos.lat+", "+pos.lng+(acc?" ("+geoTxt(acc)+")":""):"Touchez la carte pour placer le repère"};show();
@@ -2558,7 +2560,7 @@ function geoPickModal(cid,aid){
    $("#pm_r").innerHTML="Carte centrée sur « "+esc(L[0].nom.split(",").slice(0,3).join(","))+" » : zoomez puis <b>touchez l'endroit exact</b>."+(L.length>1?" Autres : "+L.slice(1).map((x,n)=>`<a href="#" data-pmr="${n+1}">${esc(x.nom.split(",").slice(0,2).join(","))}</a>`).join(" · "):"");
    $("#pm_r").querySelectorAll("[data-pmr]").forEach(e=>e.onclick=ev=>{ev.preventDefault();const x=L[+e.dataset.pmr];if(h)h.map.setView([x.lat,x.lng],16)})});go(0)};
  mapInto($("#pm"),{dest:pos,onPick:ll=>set(ll.lat,ll.lng)}).then(x=>{h=x;if(h&&pos&&acc)h.zone([pos.lat,pos.lng],acc);if(!pos&&parts.length)centrer(true)});
- $("#pm_s").onclick=()=>centrer(false);$("#pm_q").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();centrer(false)}};
+ $("#pm_s").onclick=()=>centrer(false);if($("#pm_del"))$("#pm_del").onclick=()=>{if(!confirm("Effacer la position enregistrée de cette adresse ?"))return;if(CL.on){closeModal();return toast("En mode serveur, placez simplement la nouvelle position puis enregistrez","err")}a.gps=null;delete a.gps_acc;a.gps_src="";audit("Position effacée",cl.nom+" — "+[a.zone,a.quartier].filter(Boolean).join(" · "));save();closeModal();toast("Position effacée","ok");render()};$("#pm_q").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();centrer(false)}};
  $("#pm_gps").onclick=()=>{const b=$("#pm_gps"),w=$("#pm_w");b.disabled=true;w.innerHTML='<span class="mu">Recherche de la position (jusqu\'à 20 s)…</span>';
   geoPrecis({progres:q=>{w.innerHTML='<span class="mu">Précision actuelle '+geoTxt(q.acc)+'…</span>'}}).then(q=>{b.disabled=false;const n=geoNiveau(q.acc);
    if(n==="faux"){w.innerHTML='<div class="al warn sm" style="margin:6px 0">'+esc(GEO_FAUX(q.acc))+'</div>';return}
@@ -2584,8 +2586,10 @@ function renderPortal(p){
  <label>Précision utile (portail bleu, 2e étage, près de…)<input id="pt_note"></label>
  <button class="btn ok" id="pt_ok" style="width:100%;margin-top:12px" disabled>Confirmer cette position</button><div id="pt_res"></div>
  <p class="sm mu" style="margin-top:12px">Votre position n'est utilisée que pour cette livraison. Elle n'est partagée qu'avec ${esc(p.org)} et son livreur.</p></div></div>`;
- let pos=p.g?{lat:p.g.lat,lng:p.g.lng}:null,acc=0,h=null;const ok=$("#pt_ok");if(pos)ok.disabled=false;
- mapInto($("#pt_map"),{dest:pos,onPick:ll=>{pos={lat:ll.lat,lng:ll.lng};acc=0;ok.disabled=false;if(h)h.zone(null)}}).then(x=>h=x);
+ let pos=p.g?{lat:p.g.lat,lng:p.g.lng}:null,acc=0,h=null;const ok=$("#pt_ok");if(pos){ok.disabled=false;$("#pt_w").innerHTML='<span class="mu">Position déjà enregistrée : vérifiez-la, ajustez le repère si besoin, puis confirmez.</span>'}
+ const parts=(p.q&&p.q.length?p.q:String(p.a||"").split(" · ").slice(1).reverse()).map(x=>String(x||"").trim()).filter(Boolean);
+ mapInto($("#pt_map"),{dest:pos,onPick:ll=>{pos={lat:ll.lat,lng:ll.lng};acc=0;ok.disabled=false;if(h)h.zone(null);$("#pt_w").innerHTML='<span style="color:var(--ok)">✔ Repère placé. Vous pouvez le faire glisser pour l\'ajuster.</span>'}}).then(x=>{h=x;
+  if(h&&!pos&&parts.length){const go=k=>k>=parts.length?null:geoChercher(parts.slice(k).join(", ")+", Côte d'Ivoire").then(L=>{if(!L.length)return go(k+1);h.map.setView([L[0].lat,L[0].lng],16);$("#pt_w").innerHTML='<span class="mu">Carte centrée sur votre quartier : zoomez et touchez l\'endroit exact, ou utilisez votre position actuelle.</span>'});go(0)}});
  $("#pt_gps").onclick=()=>{const b=$("#pt_gps"),w=$("#pt_w");b.disabled=true;w.innerHTML='<span class="mu">Recherche de votre position (jusqu\'à 20 s, restez à l\'extérieur si possible)…</span>';
   geoPrecis({progres:q=>{w.innerHTML='<span class="mu">Précision actuelle '+geoTxt(q.acc)+'…</span>'}}).then(q=>{b.disabled=false;const n=geoNiveau(q.acc);
    if(n==="faux"){w.innerHTML='<div class="al warn sm">Position trop imprécise ('+geoTxt(q.acc)+') : activez la localisation précise (GPS) du téléphone, ou touchez la carte à l\'endroit exact.</div>';return}
