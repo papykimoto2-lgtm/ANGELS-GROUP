@@ -15,7 +15,7 @@ export async function sha256hex(s) {
   return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-const egal = (a, b) => { // comparaison à durée constante
+export const egal = (a, b) => { // comparaison à durée constante
   a = String(a || ""); b = String(b || ""); if (a.length !== b.length) return false;
   let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0;
 };
