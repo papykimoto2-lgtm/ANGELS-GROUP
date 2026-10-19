@@ -1,0 +1,64 @@
+/* Date de la commande (antériorité) + vérification d'un paiement déjà fait chez le vendeur partenaire (livreur → centre → vendeur).
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/commande-date-verif.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ await p.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};window.__last=()=>__T[__T.length-1]||"";
+  window.__ch=(el,v)=>{el.value=v;el.dispatchEvent(new Event("change",{bubbles:true}))};window.__in=(el,v)=>{el.value=v;el.dispatchEvent(new Event("input",{bubbles:true}))};
+  window.__clic=re=>[...document.querySelectorAll("button")].find(x=>re.test(x.textContent)).click();
+  window.__j=n=>{const d=new Date();d.setDate(d.getDate()+n);return cxJour(d)};window.__Z=()=>S.config.zones[0].nom;window.__V=()=>S.vendeurs[0];
+  window.__err=f=>{try{f();return""}catch(e){return e.message}};
+  /* commande du vendeur, 20 000 F d'articles + 1 500 de livraison, en cours de livraison chez un livreur */
+  window.__vc=(o)=>{o=o||{};__as("admin");const v=__V(),ad={id:uid("a"),libelle:"L",zone:__Z(),quartier:"Plateau",repere:"Banque",gps:null,instructions:"",defaut:true};
+   const cl={id:uid("cl"),nom:"Client Test",tel:"0101010101",tel2:"",adresses:[ad],note:"",vendeur_id:v.id};S.clients.push(cl);
+   const c=creerCmd({vendeur_id:v.id,client_id:cl.id,adr:Object.assign({},ad),lignes:[{produit_id:null,desig:"Robe",qte:2,pu:10000}],frais:1500,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Vendeur partenaire",obs:"",confirmer:true});
+   setStatut(c,"preparation");setStatut(c,"prete");const lv=S.livreurs[0];const l=affecter(c,lv.id,"");accepter(l);priseEnCharge(l,1);demarrer(l);return{c,l:activeLiv(c.id),lv}}});
+ let ok=0,ko=0;const t=async(id,label,fn)=>{let r;try{r=await p.evaluate(fn)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
+
+ await t("DT-1","date de la commande : champ au jour par défaut, plafonné au jour ; saisie d'une commande antérieure (3 jours) comptée à sa date, saisie réelle conservée",()=>{__as("admin");formCmd();const E=[],i=document.getElementById("f_date");if(!i||i.type!=="date"||i.value!==cxJour()||i.max!==cxJour())return"champ "+(i&&i.value);
+  const cl=S.clients.find(c=>!c.vendeur_id&&!c.divers);__ch(document.getElementById("f_client"),cl.id);i.value=__j(-3);__clic(/Créer la commande/);const c=S.commandes[0];
+  if(!c||cxJour(new Date(c.date))!==__j(-3))return"date "+(c&&c.date)+" "+__last();if(cxJour(new Date(c.saisie_le))!==cxJour())E.push("saisie");
+  const old=ui.per;const n=S.commandes.filter(x=>cxJour(new Date(x.date))===__j(-3)).length;if(!n)E.push("période");cmdDetail(c.id);if(!/saisie le/.test(document.body.innerText))E.push("mention saisie");
+  formCmd();__ch(document.getElementById("f_client"),cl.id);document.getElementById("f_date").value=__j(1);const n0=S.commandes.length;__clic(/Créer la commande/);if(S.commandes.length!==n0)E.push("futur accepté "+__last());return E.length?E.join(" ; "):true});
+ await t("DT-2","modifier la date d'une commande : tracée dans l'historique, saisie réelle conservée",()=>{const c=S.commandes[0],E=[];__as("admin");const r=modifierCmd(c,{date:__j(-7)});if(cxJour(new Date(c.date))!==__j(-7))E.push("date");if(!/date de la commande/.test(c.hist[c.hist.length-1].note)||!r.length)E.push("trace");if(!c.saisie_le)E.push("saisie perdue");return E.length?E.join(" ; "):true});
+ await t("VP-1","vérification : seulement pour une commande d'un vendeur partenaire, à la remise, une à la fois ; le livreur concerné ou le centre peut la lancer, pas un autre profil",()=>{const{c,l,lv}=__vc(),E=[];
+  __as("admin");
+  const o2=creerCmd({client_id:S.clients.find(x=>!x.vendeur_id&&!x.divers).id,adr:Object.assign({},S.clients.find(x=>!x.vendeur_id&&!x.divers).adresses[0]),lignes:[{produit_id:S.produits[0].id,qte:1,pu:1000}],frais:0,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"T",obs:"",confirmer:true});o2.statut="en_cours";
+  if(!/vendeur partenaire/.test(__err(()=>verifOuvrir(o2))))E.push("commande d'ANGEL'S acceptée");
+  __as("caissier");if(!/Droits/.test(__err(()=>verifOuvrir(c))))E.push("caissier");
+  ME=S.users.find(u=>u.id===lv.user_id);const v=verifOuvrir(c,{montant:20000});if(v.statut!=="a_verifier"||v.livreur_id!==lv.id)E.push("livreur");
+  __as("admin");if(!/déjà en cours/.test(__err(()=>verifOuvrir(c))))E.push("doublon");return E.length?E.join(" ; "):true});
+ await t("VP-2","tant que la vérification est ouverte, le livreur ne peut pas confirmer la livraison (le code et le montant sont acceptés ensuite)",()=>{const E=[];const c=S.commandes.find(x=>verifOuverte(x)),l=activeLiv(c.id);__as("admin");
+  const r=confirmer(l,{code:l.code,montant:String(l.montant_attendu),mode:"Espèces",recu_par:"Client"});if(r!==false||!/ne remettez pas le colis/.test(__last()))E.push("livraison permise "+__last());if(l.statut!=="en_cours")E.push("statut");
+  const c2=__vc();c2.c.statut="prete";return E.length?E.join(" ; "):true});
+ await t("VP-3","le centre appelle le vendeur : notes d'appel, puis confirmation → montant payé au vendeur déduit, livreur n'encaisse que le reste, fiche et historique à jour ; le livreur ne décide pas",()=>{const E=[],c=S.commandes.find(x=>verifOuverte(x)),l=activeLiv(c.id),lv=liv(l.livreur_id);const att0=l.montant_attendu;
+  ME=S.users.find(u=>u.id===lv.user_id);if(!/Droits/.test(__err(()=>verifDecider(c,"confirmer",{montant:1000,contact:"X"}))))E.push("livreur décide");
+  __as("commercial");if(!/résultat de l'appel/.test(__err(()=>verifAppel(c,"")))||verifAppel(c,"Injoignable, rappel à 15 h").appels.length!==1)E.push("appel");
+  if(!/invalide/.test(__err(()=>verifDecider(c,"confirmer",{montant:0,contact:"Mme Koné"}))))E.push("montant 0");if(!/trop élevé/.test(__err(()=>verifDecider(c,"confirmer",{montant:999999,contact:"Mme Koné"}))))E.push("montant trop élevé");if(!/Nom de la personne/.test(__err(()=>verifDecider(c,"confirmer",{montant:5000,contact:""}))))E.push("contact");
+  const e=__err(()=>verifDecider(c,"confirmer",{montant:20000,contact:"Mme Koné",note:"Payé hier en espèces"}));if(e)return e;
+  if(c.paye_vendeur!==20000||!c.vendeur_encaisse)E.push("paye_vendeur "+c.paye_vendeur);if(soldeCmd(c)!==1500||l.montant_attendu!==1500)E.push("solde "+soldeCmd(c)+"/"+l.montant_attendu+" (avant "+att0+")");
+  if(!S.fonds.some(f=>f.commande_id===c.id&&f.mode==="Payé au vendeur"&&f.montant===20000))E.push("fonds");if(!/confirmé par/.test(c.hist[c.hist.length-1].note))E.push("historique");if(verifOuverte(c))E.push("encore ouverte");
+  if(!S.audit.some(a=>a.action==="Paiement vendeur confirmé"&&a.detail.includes(c.numero)))E.push("audit");
+  __as("admin");const r=confirmer(l,{code:l.code,montant:"1500",mode:"Espèces",recu_par:"Client Test"});if(r!==true||c.statut!=="livree")E.push("livraison après vérification "+__last());return E.length?E.join(" ; "):true});
+ await t("VP-4","le vendeur dément : aucun effet sur l'argent, le livreur encaisse le total, la décision est tracée (motif obligatoire)",()=>{const E=[],{c,l}=__vc();__as("superviseur");const att=l.montant_attendu;verifOuvrir(c,{});
+  if(!/Motif/.test(__err(()=>verifDecider(c,"dementir",{note:""}))))E.push("motif");const e=__err(()=>verifDecider(c,"dementir",{note:"Aucun paiement reçu de ce client",contact:"Vendeur"}));if(e)return e;
+  if(c.paye_vendeur||l.montant_attendu!==att||soldeCmd(c)!==att)E.push("argent touché");if(verifOuverte(c)||verifDernier(c).statut!=="dement")E.push("statut");if(!/NON confirmé/.test(c.hist[c.hist.length-1].note))E.push("historique");
+  __as("admin");if(confirmer(l,{code:l.code,montant:String(att),mode:"Espèces",recu_par:"X"})!==true)E.push("livraison "+__last());return E.length?E.join(" ; "):true});
+ await t("VP-5","écrans : bouton « Le client dit avoir déjà payé le vendeur », bloc vendeur (téléphone, WhatsApp), alerte et tableau pour le centre, carte livreur (bannière + bouton bloqué), projection de la passerelle",()=>{const E=[],{c,l,lv}=__vc();__as("admin");
+  cmdDetail(c.id);if(!/Le client dit avoir déjà payé le vendeur/.test(document.body.innerText))E.push("bouton centre absent");
+  ME=S.users.find(u=>u.id===lv.user_id);const carte1=missionCard(l);if(!/lVerif/.test(carte1))E.push("bouton livreur absent");
+  __as("admin");verifOuvrir(c,{montant:20000});cmdDetail(c.id);const txt=document.body.innerText,html=document.body.innerHTML;if(!/Paiement chez le vendeur à vérifier/.test(txt)||!/vpOk/.test(html)||!/vpNo/.test(html)||!/wa\.me/.test(html))E.push("bloc de vérification");
+  if(!alertes().some(a=>/à vérifier/.test(a.m)))E.push("alerte");if(!/Paiements déclarés chez le vendeur/.test(VIEWS.commandes()))E.push("tableau");
+  ME=S.users.find(u=>u.id===lv.user_id);const carte2=missionCard(l);if(!/Vérification du paiement chez le vendeur en cours/.test(carte2)||!/data-act="lConf"[^>]*disabled/.test(carte2))E.push("carte livreur");
+  const prj=passProjection(l);if(!prj.payload.verif_paiement||prj.payload.verif_paiement.statut!=="a_verifier"||prj.payload.partenaire!==true)E.push("projection "+JSON.stringify(prj.payload.verif_paiement));
+  __as("admin");verifDecider(c,"confirmer",{montant:20000,contact:"Vendeur"});const prj2=passProjection(l);if(prj2.payload.verif_paiement.statut!=="confirme"||prj2.payload.montant_attendu!==1500)E.push("projection après");return E.length?E.join(" ; "):true});
+ await t("VP-6","passerelle : une confirmation reçue du téléphone livreur pendant la vérification n'est jamais perdue (le bureau l'applique, l'écart éventuel passe par la validation habituelle)",()=>{const E=[],{c,l}=__vc();__as("admin");verifOuvrir(c,{});
+  const r=confirmer(l,{code:l.code,montant:String(l.montant_attendu),mode:"Espèces",recu_par:"Client",pg:true});if(r!==true||c.statut!=="livree")E.push("pg bloqué "+__last());return E.length?E.join(" ; "):true});
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
