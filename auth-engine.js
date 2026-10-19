@@ -58,6 +58,53 @@
   async function appliquer(u, mdp, temporaire) { u.pwd = await creer(mdp); delete u.h; delete u.pin_h; if (temporaire) u.chg = true; else delete u.chg; u.pwd_le = new Date().toISOString(); }
   var DEMO_MDP = "Demo@Angels2026", DEMO = {"v":2,"it":150000,"s":"YW5nZWxzLWRlbW8tMjAyNg==","h":"v3l6xZ/zqYp7e91ov33bbD69jUlngFx9y1GL/fA7DEM="};   /* comptes de démonstration (mot de passe « Demo@Angels2026 », haché) : à remplacer en production */
 
+  /* ---------- Mise en production ----------
+     Une installation neuve ne contient AUCUNE donnée de démonstration : un seul administrateur (KESSIE), à qui le logiciel impose de changer son mot de passe à la première connexion.
+     Le mode démonstration (données d'exemple, profils prêts à l'emploi) n'existe que si « angels_demo » vaut 1 sur l'appareil (ouvrir l'application avec ?demo=1) : réservé aux tests et aux présentations. */
+  var ADMIN_PROD = { nom: "KESSIE", role: "admin", pwd: {"v":2,"it":150000,"s":"yDBjFkfuh6JJdWfOCZvWVA==","h":"k3sCfLXaCoI3AncQjn1I66xZf6c6znrNsxg7p8iF154="} };
+  try { if (/[?&]demo=1(&|$)/.test(location.search)) localStorage.setItem("angels_demo", "1"); else if (/[?&]demo=0(&|$)/.test(location.search)) localStorage.removeItem("angels_demo"); } catch (e) { }
+  function demoOn() { try { return localStorage.getItem("angels_demo") === "1"; } catch (e) { return false; } }
+  function adminProd(id) { return { id: id, nom: ADMIN_PROD.nom, role: ADMIN_PROD.role, actif: true, pwd: JSON.parse(JSON.stringify(ADMIN_PROD.pwd)), chg: true }; }
+  /* Reconnaît les comptes d'une démonstration (mot de passe de démonstration, ou anciens PIN de démonstration jamais changés). */
+  function demoUsers(users) {
+    return (users || []).some(function (u) {
+      if (u && u.pwd && u.pwd.h === DEMO.h) return true;
+      var h = u && (typeof u.h === "number" ? u.h : typeof u.pin_h === "number" ? u.pin_h : null); if (h == null) return false;
+      return ["1234", "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999"].some(function (p) { return legacy(u.id, p) === h; });
+    });
+  }
+  /* Données de démonstration trouvées sur un appareil en production : l'utilisateur confirme leur effacement (refus mémorisé). */
+  function purgerDemo(users, cles, nomApp) {
+    if (demoOn() || !demoUsers(users)) return false;
+    try { if (localStorage.getItem("angels_demo_garde_" + nomApp) === "1") return false; } catch (e) { }
+    var ok = true; try { ok = confirm("MISE EN PRODUCTION — " + nomApp + "\n\nDes données de démonstration ont été trouvées sur cet appareil (comptes et exemples).\nElles vont être EFFACÉES pour repartir d'une base vide avec l'administrateur KESSIE.\n\nOK = effacer et passer en production\nAnnuler = conserver ces données de démonstration"); } catch (e) { }
+    if (!ok) { try { localStorage.setItem("angels_demo_garde_" + nomApp, "1"); } catch (e) { } return false; }
+    (cles || []).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { } });
+    try { sessionStorage.clear(); } catch (e) { }
+    return true;
+  }
+
+  /* ---------- Bouton « afficher / masquer » sur tous les champs de mot de passe ---------- */
+  (function oeil() {
+    if (!G.document) return;
+    var d = G.document, css = ".aa-w{position:relative;display:block;width:100%}.aa-w>input{width:100%;padding-right:46px!important;box-sizing:border-box}.aa-e{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:19px;line-height:1;cursor:pointer;padding:8px;border-radius:8px;color:#516070}.aa-e:focus-visible{outline:3px solid #7ab0ff}";
+    function habiller(i) {
+      if (i.dataset.aa || i.closest("#aa-ov")) return; i.dataset.aa = "1";
+      var w = d.createElement("span"), b = d.createElement("button"), foc = d.activeElement === i, st = foc ? [i.selectionStart, i.selectionEnd] : null; w.className = "aa-w";
+      b.type = "button"; b.className = "aa-e"; b.textContent = "👁"; b.title = "Afficher le mot de passe"; b.setAttribute("aria-label", "Afficher le mot de passe"); b.setAttribute("aria-pressed", "false"); b.tabIndex = 0;
+      b.onclick = function (e) { e.preventDefault(); var v = i.type === "password"; i.type = v ? "text" : "password"; b.textContent = v ? "🙈" : "👁"; var lib = v ? "Masquer le mot de passe" : "Afficher le mot de passe"; b.title = lib; b.setAttribute("aria-label", lib); b.setAttribute("aria-pressed", v ? "true" : "false"); };
+      i.parentNode.insertBefore(w, i); w.appendChild(i); w.appendChild(b);
+      if (foc) { try { i.focus(); i.setSelectionRange(st[0], st[1]); } catch (e) { } }
+    }
+    var t = 0;
+    function balayer() { t = 0; Array.prototype.forEach.call(d.querySelectorAll("input[type=password]:not([data-aa])"), habiller); }
+    function demarrer() {
+      if (!d.getElementById("aa-eye-css")) { var st = d.createElement("style"); st.id = "aa-eye-css"; st.textContent = css; d.head.appendChild(st); }
+      balayer(); new MutationObserver(function () { if (!t) t = setTimeout(balayer, 0); }).observe(d.documentElement, { childList: true, subtree: true });
+    }
+    if (d.readyState === "loading") d.addEventListener("DOMContentLoaded", demarrer); else demarrer();
+  })();
+
   /* ---------- Écrans (indépendants de l'application hôte) ---------- */
   var CSS = "#aa-ov{position:fixed;inset:0;z-index:100000;background:rgba(15,20,28,.74);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Arial,sans-serif}" +
     "#aa-ov .bx{background:#fff;color:#1c2430;border-radius:14px;width:min(440px,100%);max-height:94vh;overflow:auto;padding:20px;box-shadow:0 12px 44px rgba(0,0,0,.45)}#aa-ov h2{margin:0 0 6px;font-size:19px}#aa-ov p{margin:6px 0;font-size:14px;line-height:1.45;color:#46505e}" +
@@ -124,5 +171,5 @@
     });
   }
 
-  G.ANGELS_AUTH = { IT: IT, MIN_DEF: MIN_DEF, creer: creer, verifier: verifier, valider: valider, force: force, generer: generer, connecter: connecter, appliquer: appliquer, legacy: legacy, ouvrirChangement: ouvrirChangement, afficherTemp: afficherTemp, fermer: fermer, DEMO_MDP: DEMO_MDP, DEMO: DEMO };
+  G.ANGELS_AUTH = { IT: IT, MIN_DEF: MIN_DEF, creer: creer, verifier: verifier, valider: valider, force: force, generer: generer, connecter: connecter, appliquer: appliquer, legacy: legacy, ouvrirChangement: ouvrirChangement, afficherTemp: afficherTemp, fermer: fermer, DEMO_MDP: DEMO_MDP, DEMO: DEMO, demoOn: demoOn, adminProd: adminProd, demoUsers: demoUsers, purgerDemo: purgerDemo };
 })(typeof window !== "undefined" ? window : globalThis);

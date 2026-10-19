@@ -10,7 +10,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const t=(id,l,r)=>{if(r===true){ok++;console.log("PASS",id,l)}else{ko++;console.log("FAIL",id,l,"→",r)}};
  const page=async u=>{const p=await ctx.newPage();p.on("pageerror",e=>errs.push(u+" : "+e.message));p.on("crash",()=>console.log("CRASH",u));p.on("close",()=>console.log("CLOSE",u));p.on("dialog",d=>d.accept());await p.goto(base+"/"+u);await p.waitForTimeout(400);return p};
  const msg=h=>h.evaluate(()=>{const m=document.querySelector("#usr .umsg");return m?m.textContent:""});
- const unlock=async(h,mod,pwd)=>{await h.click(`[data-um=${mod}]`);await h.fill("#ugate [name=pwd]",pwd);await h.click("#ugate button");await h.waitForTimeout(700)};
+ const unlock=async(h,mod,pwd)=>{await h.click(`[data-um=${mod}]`);await h.fill("#ugate [name=pwd]",pwd);await h.click("#ugate button:not(.aa-e)");await h.waitForTimeout(700)};
  const DEMO="Demo@Angels2026";
  const temp=async h=>{await h.waitForSelector("#aa-m",{timeout:5000});const m=await h.$eval("#aa-m",e=>e.textContent);await h.click("#aa-ok");await h.waitForTimeout(200);return m};
  /* première connexion avec un mot de passe temporaire : l'écran de création s'affiche, on le remplit */
@@ -28,7 +28,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await h.evaluate(()=>{TRY.trans={n:0,until:0}});await h.evaluate(()=>uView());
  await unlock(h,"trans",DEMO);t("USR-4","mot de passe administrateur correct : formulaire de création affiché",(await h.$("#uadd"))!==null?true:"verrou persistant");
  // 2. création d'un compte dans chaque application, puis connexion réelle
- const cree=async(mod,nom,role)=>{await h.click(`[data-um=${mod}]`);if(await h.$("#ugate")){await h.fill("#ugate [name=pwd]",DEMO);await h.click("#ugate button");await h.waitForTimeout(700)}
+ const cree=async(mod,nom,role)=>{await h.click(`[data-um=${mod}]`);if(await h.$("#ugate")){await h.fill("#ugate [name=pwd]",DEMO);await h.click("#ugate button:not(.aa-e)");await h.waitForTimeout(700)}
   await h.fill("#uadd [name=nom]",nom);await h.selectOption("#uadd [name=role]",role);await h.click("#uadd button");await h.waitForTimeout(900)};
  await cree("trans","Awa Comptable","comptable");const mT=await temp(h);t("USR-5","Transport : compte créé, mot de passe temporaire montré une fois",/compte créé/.test(await msg(h))&&mT.length===14?true:await msg(h)+mT);
  await cree("agro","Koffi Soigneur","soigneur");const mA=await temp(h);t("USR-6","Agro : compte créé, mot de passe temporaire montré une fois",/compte créé/.test(await msg(h))&&mA.length===14?true:await msg(h)+mA);
