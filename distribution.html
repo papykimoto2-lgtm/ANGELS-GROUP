@@ -297,6 +297,38 @@ function creerCmd(d){
  audit("Création commande",c.numero+" — "+fcfa(c.total));
  if(d.confirmer)setStatut(c,"confirmee","Confirmation à la création");
  return c}
+const normLg=l=>({p:l.produit_id||"",s:l.prestation_id||"",d:l.desig||"",q:+l.qte,u:+l.pu});
+function modifierCmd(c,p){
+ const niv=cmdNiveau(c);if(!niv)throw new Error("Cette commande ne peut plus être modifiée dans son état actuel ("+ST[c.statut]+")");
+ const full=niv==="full",ch=[],cl0=cli(c.client_id);
+ const vid=full&&p.vendeur_id!==undefined?(p.vendeur_id||null):(c.vendeur_id||null);
+ if(vid!==(c.vendeur_id||null)&&(!["brouillon","attente","confirmee"].includes(c.statut)||colOf(c.id)||paye(c)>0))throw new Error("Le vendeur de cette commande ne peut plus être changé (collecte planifiée ou paiement enregistré)");
+ let L=c.lignes,frais=+c.frais||0,rem=+c.remise||0;
+ if(full){if(p.lignes){if(!p.lignes.length)throw new Error("Une commande doit comporter au moins une ligne");L=p.lignes}
+  if(p.frais!==undefined)frais=Math.max(0,Math.round(+p.frais)||0);if(p.remise!==undefined)rem=Math.max(0,Math.round(+p.remise)||0)}
+ const prods=L.reduce((a,l)=>a+l.qte*l.pu,0),total=Math.max(0,prods+frais-rem);
+ if(paye(c)>total)throw new Error("Le nouveau total ("+fcfa(total)+") est inférieur à ce qui est déjà payé ("+fcfa(paye(c))+")");
+ if(vid&&(c.paye_vendeur||0)>prods)throw new Error("Le prix des articles ("+fcfa(prods)+") est inférieur au montant déjà payé au vendeur ("+fcfa(c.paye_vendeur)+")");
+ const lignesChg=full&&p.lignes&&JSON.stringify(L.map(normLg))!==JSON.stringify(c.lignes.map(normLg));
+ if(lignesChg&&c.stock_sorti){const need={},back={};L.forEach(l=>{if(l.produit_id)need[l.produit_id]=(need[l.produit_id]||0)+l.qte});c.lignes.forEach(l=>{if(l.produit_id)back[l.produit_id]=(back[l.produit_id]||0)+l.qte});
+  for(const id in need){const pr=prod(id);if(!pr||pr.stock+(back[id]||0)<need[id])throw new Error("Stock insuffisant : "+(pr?pr.nom:"?")+" ("+(pr?pr.stock+(back[id]||0):0)+" disponibles, "+need[id]+" requis)")}}
+ /* validations passées : application */
+ if(p.client_id&&p.client_id!==c.client_id){const n1=cli(p.client_id);ch.push("client : "+(cl0?cl0.nom:"?")+" → "+(n1?n1.nom:"?"));c.client_id=p.client_id;
+  if(cl0&&cl0.divers&&!S.commandes.some(x=>x.id!==c.id&&x.client_id===cl0.id))S.clients=S.clients.filter(x=>x.id!==cl0.id)}
+ if(p.adr){const a=c.adr,b=p.adr;if(a.zone!==b.zone||(a.quartier||"")!==(b.quartier||"")||(a.repere||"")!==(b.repere||"")||(a.instructions||"")!==(b.instructions||"")||a.id!==b.id){ch.push("adresse : "+[a.zone,a.quartier].filter(Boolean).join(" ")+" → "+[b.zone,b.quartier].filter(Boolean).join(" "));c.adr=Object.assign({},b)}}
+ if(p.obs!==undefined&&String(p.obs).trim()!==(c.obs||"")){ch.push("observations");c.obs=String(p.obs).trim()}
+ if(full){
+  if(vid!==(c.vendeur_id||null)){ch.push("origine : "+(c.vendeur_id?(vendOf(c.vendeur_id)||{}).nom:"ANGEL'S")+" → "+(vid?(vendOf(vid)||{}).nom:"ANGEL'S"));c.vendeur_id=vid;if(!vid){c.paye_vendeur=0}c.vendeur_encaisse=false}
+  if(lignesChg){if(c.stock_sorti){c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),l.qte,"modif_commande",c.numero)});L.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),-l.qte,"modif_commande",c.numero)})}
+   ch.push("articles ("+c.lignes.length+" → "+L.length+" ligne(s))");c.lignes=L.map(l=>Object.assign({},l))}
+  if(frais!==(+c.frais||0)){ch.push("livraison "+fcfa(c.frais)+" → "+fcfa(frais));c.frais=frais}
+  if(rem!==(+c.remise||0)){ch.push("remise "+fcfa(c.remise)+" → "+fcfa(rem));c.remise=rem}
+  if(p.priorite&&p.priorite!==c.priorite){ch.push("priorité : "+c.priorite+" → "+p.priorite);c.priorite=p.priorite}
+  if(p.canal&&p.canal!==c.canal){ch.push("canal : "+c.canal+" → "+p.canal);c.canal=p.canal}
+  if(c.vendeur_id)c.vendeur_encaisse=prods>0&&(c.paye_vendeur||0)>=prods;
+  const t0=c.total;calcCmd(c);if(c.total!==t0)ch.push("total "+fcfa(t0)+" → "+fcfa(c.total))}
+ if(ch.length){c.hist.push({ts:now(),de:c.statut,a:c.statut,par:who(),note:"Modification : "+ch.join(" ; ")});c.modifie_le=now();audit("Modification commande",c.numero+" — "+ch.join(" ; "))}
+ return ch}
 function stockMvt(p,qte,type,ref){p.stock+=qte;S.stock_mvts.push({id:uid("m"),ts:now(),produit_id:p.id,type,qte,ref,par:who()})}
 function marquerPrete(c){
  if(!garde(["admin","preparateur"]))return false;
@@ -1193,59 +1225,91 @@ VIEWS.commandes=()=>{
  <div class="flex" style="margin-bottom:10px"><input data-f="q" placeholder="Rechercher (n°, client, zone) puis Entrée" value="${esc(ui.q||"")}" style="max-width:320px"><select data-f="fs" style="width:auto"><option value="">Tous les statuts</option>${opts(Object.entries(ST).map(e=>({v:e[0],t:e[1]})),fs)}</select></div>
  ${tbl(["Commande","Client / destination","Total","Statut","Livreur",""],rows,"Aucune commande")}`};
 
-const clientsDe=vid=>S.clients.filter(c=>vid?c.vendeur_id===vid:!c.vendeur_id);
-function formCmd(){
- modal("Nouvelle commande",`${CL.on||!S.vendeurs.length?"":`<label>Origine de la commande<select name="vendeur" id="f_vend"><option value="">🏠 ANGEL'S GROUP — vente propre (produits du stock)</option>${S.vendeurs.map(v=>`<option value="${v.id}">🤝 Vendeur partenaire — ${esc(v.nom)}</option>`).join("")}</select></label><div class="sm mu" id="f_vhint" style="margin:-6px 0 8px"></div>`}
- <div class="g2"><label>Client<select name="client" id="f_client"><option value="">— Choisir —</option>${clientsDe("").map(c=>`<option value="${c.id}">${esc(c.nom)} · ${esc(c.tel)}</option>`).join("")}<option value="__new">➕ Nouveau client</option></select></label>
+const clientsDe=vid=>S.clients.filter(c=>!c.divers&&(vid?c.vendeur_id===vid:!c.vendeur_id));
+let EDIT_CMD=null;   /* commande en cours de modification dans le formulaire (null = création) */
+function clientOpts(vid){const e=EDIT_CMD,cur=e?cli(e.client_id):null;
+ return'<option value="">— Choisir —</option>'+(cur&&(vid||"")===(e.vendeur_id||"")&&!clientsDe(vid).some(c=>c.id===cur.id)?`<option value="${cur.id}">${cur.divers?"👤 ":""}${esc(cur.nom)} (client actuel de la commande)</option>`:"")+clientsDe(vid).map(c=>`<option value="${c.id}">${esc(c.nom)}${c.tel?" · "+esc(c.tel):""}</option>`).join("")+'<option value="__div">👤 Client divers (nom inconnu)</option><option value="__new">➕ Nouveau client</option>'}
+/* niveau de modification d'une commande : "full" (tout), "leger" (client, adresse, observations) ou null */
+function cmdNiveau(c){if(CL.on||!c)return null;
+ if(can("admin","superviseur","commercial")){if(["brouillon","attente","confirmee","preparation","prete"].includes(c.statut))return"full";if(["affectee","en_cours"].includes(c.statut))return"leger";return null}
+ if(can("vendeur")&&vend()&&c.vendeur_id===vend().id&&["brouillon","attente"].includes(c.statut))return"full";return null}
+function resoudreClient(d,vd,cur){let cl,ad,neuf=false;
+ if(d.client==="__new"){if(!d.n_nom.trim()||!d.n_tel.trim())throw new Error("Nom et téléphone du client requis (ou choisissez « Client divers »)");
+  cl={id:uid("cl"),nom:d.n_nom.trim(),tel:d.n_tel.trim(),tel2:"",adresses:[],note:""};if(vd)cl.vendeur_id=vd.id;neuf=true}
+ else if(d.client==="__div"){cl={id:uid("cl"),nom:(d.n_nom||"").trim()||"Client divers",tel:(d.n_tel||"").trim(),tel2:"",adresses:[],note:"",divers:true};if(vd)cl.vendeur_id=vd.id;neuf=true}
+ else cl=cli(d.client);
+ if(!cl)throw new Error("Choisissez un client");
+ if(neuf||d.adresse==="__new"){if(!(d.a_q||"").trim()&&!(d.a_rep||"").trim())throw new Error("Renseignez le quartier ou un point de repère");
+  ad={id:uid("a"),libelle:"Livraison",zone:d.a_zone,quartier:d.a_q.trim(),repere:d.a_rep.trim(),gps:null,instructions:(d.a_ins||"").trim(),defaut:!cl.adresses.length};cl.adresses.push(ad)}
+ else if(cur&&(d.adresse==="__cur"||(cl.id===cur.client_id&&d.adresse===cur.adr.id)))ad=Object.assign({},cur.adr);
+ else ad=cl.adresses.find(a=>a.id===d.adresse);
+ if(!ad)throw new Error("Choisissez une adresse");
+ return{cl,ad,neuf}}
+function formCmd(edit){
+ EDIT_CMD=edit||null;const niv=edit?cmdNiveau(edit):"full",vm=can("vendeur"),vm0=vm&&vend()?vend():null,vid0=edit?(edit.vendeur_id||""):"";
+ if(edit&&!niv){toast("Cette commande ne peut plus être modifiée","err");return}
+ const full=niv==="full",orig=!vm&&full&&!CL.on&&S.vendeurs.length&&(!edit||(["brouillon","attente","confirmee"].includes(edit.statut)&&!colOf(edit.id)&&paye(edit)===0));
+ modal(edit?"✏ Modifier la commande "+edit.numero:"Nouvelle commande",`${edit?`<div class="pill">${niv==="leger"?"Livraison en cours : seuls le client, l'adresse et les observations sont modifiables.":"Le paiement déjà enregistré reste inchangé (Déjà payé : <b>"+fcfa(paye(edit))+"</b>)."} Toute modification est tracée dans l'historique.</div>`:""}${orig?`<label>Origine de la commande<select name="vendeur" id="f_vend"><option value="">🏠 ANGEL'S GROUP — vente propre (produits du stock)</option>${S.vendeurs.map(v=>`<option value="${v.id}" ${v.id===vid0?"selected":""}>🤝 Vendeur partenaire — ${esc(v.nom)}</option>`).join("")}</select></label><div class="sm mu" id="f_vhint" style="margin:-6px 0 8px"></div>`:(vm0?`<input type="hidden" name="vendeur" id="f_vend" value="${vm0.id}">`:(edit&&edit.vendeur_id?`<input type="hidden" name="vendeur" id="f_vend" value="${edit.vendeur_id}">`:""))}
+ <div class="g2"><label>Client<select name="client" id="f_client">${clientOpts(edit?vid0:(vm0?vm0.id:""))}</select></label>
  <label>Adresse de livraison<select name="adresse" id="f_adr"></select></label></div>
- <div class="g2 hide" id="newcl"><label>Nom du client<input name="n_nom"></label><label>Téléphone<input name="n_tel" inputmode="tel"></label></div>
+ <div class="g2 hide" id="newcl"><label>Nom du client <span class="mu sm" id="f_nomopt"></span><input name="n_nom"></label><label>Téléphone <span class="mu sm" id="f_telopt"></span><input name="n_tel" inputmode="tel"></label></div>
  <div class="hide" id="newadr"><div class="g3"><label>Zone<select name="a_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier<input name="a_q"></label><label>Point de repère<input name="a_rep"></label></div><label>Instructions d'accès<input name="a_ins"></label></div>
- <div class="sec">Produits et prestations</div><div id="lignes"></div><button type="button" class="btn sm ghost" data-act="addLigne">+ Ajouter une ligne</button>
- <div class="g3"><label>Frais de livraison <span id="f_eta" class="mu sm"></span><input type="number" name="frais" id="f_frais" min="0" value="0"></label><label>Remise<input type="number" name="remise" id="f_remise" min="0" value="0"></label><label>Priorité<select name="priorite"><option value="normale">Normale</option><option value="urgente">Urgente</option><option value="programmee">Programmée</option></select></label></div>
- <div class="g3" id="f_payrow"><label>Paiement<select name="paiement" id="f_pay"><option value="livraison">À la livraison</option><option value="avance">Payé d'avance</option><option value="partiel">Paiement partiel</option></select></label>
+ <div id="f_lourd" class="${full?"":"hide"}"><div class="sec">Produits et prestations</div><div id="lignes"></div><button type="button" class="btn sm ghost" data-act="addLigne">+ Ajouter une ligne</button>
+ <div class="g3"><label>Frais de livraison <span id="f_eta" class="mu sm"></span><input type="number" name="frais" id="f_frais" min="0" value="${edit?edit.frais:0}" ${vm?"readonly":""}></label><label>Remise<input type="number" name="remise" id="f_remise" min="0" value="${edit?edit.remise:0}" ${vm?"readonly":""}></label><label>Priorité<select name="priorite"><option value="normale">Normale</option><option value="urgente" ${edit&&edit.priorite==="urgente"?"selected":""}>Urgente</option><option value="programmee" ${edit&&edit.priorite==="programmee"?"selected":""}>Programmée</option></select></label></div>
+ <div class="g3 ${edit?"hide":""}" id="f_payrow"><label>Paiement<select name="paiement" id="f_pay"><option value="livraison">À la livraison</option><option value="avance">Payé d'avance</option><option value="partiel">Paiement partiel</option></select></label>
  <label>Acompte versé<input type="number" name="acompte" id="f_acompte" min="0" value="0" disabled></label><label>Mode de paiement<select name="mode">${opts(S.config.modes)}</select></label></div>
- <div class="hide" id="f_vpayrow"><div class="g3"><label>Articles payés au vendeur<select name="vpay" id="f_vpay"><option value="rien">Rien — le livreur encaisse tout</option><option value="paye">Payés en totalité chez le vendeur</option><option value="partiel">Payés en partie chez le vendeur</option></select></label><label>Montant déjà payé au vendeur<input type="number" name="vmontant" id="f_vmontant" min="0" value="0" disabled></label><label>Frais de livraison<span class="mu sm"> (encaissés par le livreur)</span><input disabled value="voir ci-dessus"></label></div></div>
- <div class="g2"><label>Canal<select name="canal">${opts(["Téléphone","WhatsApp","Vente en ligne","Commande directe","Autre"])}</select></label><label>Observations<input name="obs"></label></div>
- <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="confirmer" checked style="width:auto"> Confirmer immédiatement</label>
- <div class="card" style="margin:0;background:#f7f8fd"><div class="between"><span>Produits : <b id="t_prod">0 F</b></span><span>Total à payer : <b id="t_tot" style="font-size:18px">0 F</b></span></div><div class="between sm mu"><span>Solde à encaisser à la livraison</span><b id="t_solde">0 F</b></div></div>`,
- {wide:true,label:"Créer la commande",onSubmit:(d,f)=>{if(CL.on)return CL.creerCommande(d,f);
-  const vd=d.vendeur?vendOf(d.vendeur):null;if(d.vendeur&&!vd)return toast("Vendeur partenaire introuvable","err"),false;
-  let cl,ad;
-  if(d.client==="__new"){if(!d.n_nom.trim()||!d.n_tel.trim())return toast("Nom et téléphone du client requis","err"),false;
-   cl={id:uid("cl"),nom:d.n_nom.trim(),tel:d.n_tel.trim(),tel2:"",adresses:[],note:""};if(vd)cl.vendeur_id=vd.id}
-  else cl=cli(d.client);
-  if(!cl)return toast("Choisissez un client","err"),false;
-  if(d.client==="__new"||d.adresse==="__new"){if(!d.a_q.trim()&&!d.a_rep.trim())return toast("Renseignez le quartier ou un point de repère","err"),false;
-   ad={id:uid("a"),libelle:"Livraison",zone:d.a_zone,quartier:d.a_q.trim(),repere:d.a_rep.trim(),gps:null,instructions:d.a_ins.trim(),defaut:!cl.adresses.length};cl.adresses.push(ad)}
-  else ad=cl.adresses.find(a=>a.id===d.adresse);
-  if(!ad)return toast("Choisissez une adresse","err"),false;
-  const lignes=vd?[...f.querySelectorAll(".lrow")].map(r=>({produit_id:null,desig:r.querySelector(".l_desig").value.trim(),qte:+r.querySelector(".l_qte").value,pu:+r.querySelector(".l_pu").value})).filter(l=>l.desig&&l.qte>0):[...f.querySelectorAll(".lrow")].map(r=>{const v=r.querySelector(".l_prod").value,qte=+r.querySelector(".l_qte").value,pu=+r.querySelector(".l_pu").value;
-   if(v.startsWith("svc:")){const sv=presta(v.slice(4));return{produit_id:null,prestation_id:sv?sv.id:null,desig:sv?sv.nom:"Prestation",qte,pu}}return{produit_id:v,qte,pu}}).filter(l=>(l.produit_id||l.prestation_id)&&l.qte>0);
-  if(!lignes.length)return toast(vd?"Ajoutez au moins un article du vendeur (désignation, quantité, prix)":"Ajoutez au moins un produit ou une prestation","err"),false;
+ <div class="hide" id="f_vpayrow"><div class="g3"><label>Articles payés au vendeur<select name="vpay" id="f_vpay"><option value="rien">Rien — le livreur encaisse tout</option><option value="paye">Payés en totalité chez le vendeur</option><option value="partiel">Payés en partie chez le vendeur</option></select></label><label>Montant déjà payé au vendeur<input type="number" name="vmontant" id="f_vmontant" min="0" value="0" disabled></label><label>Frais de livraison<span class="mu sm"> (encaissés par le livreur)</span><input disabled value="voir ci-dessus"></label></div></div></div>
+ <div class="g2"><label>Canal<select name="canal">${opts(["Téléphone","WhatsApp","Vente en ligne","Commande directe","Autre"],edit?edit.canal:undefined)}</select></label><label>Observations<input name="obs" value="${edit?esc(edit.obs||""):""}" placeholder="Ex. colis sans nom : « sac rouge, Mme Koné »"></label></div>
+ ${edit?"":`<label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="confirmer" checked style="width:auto"> Confirmer immédiatement</label>`}
+ <div class="card" style="margin:0;background:#f7f8fd ${full?"":";display:none"}"><div class="between"><span>Produits : <b id="t_prod">0 F</b></span><span>Total à payer : <b id="t_tot" style="font-size:18px">0 F</b></span></div><div class="between sm mu"><span>Solde à encaisser à la livraison</span><b id="t_solde">0 F</b></div></div>`,
+ {wide:true,label:edit?"💾 Enregistrer les modifications":"Créer la commande",onSubmit:(d,f)=>{if(CL.on)return CL.creerCommande(d,f);
+  try{
+  const vd=(d.vendeur?vendOf(d.vendeur):null);if(d.vendeur&&!vd)throw new Error("Vendeur partenaire introuvable");
+  const R=resoudreClient(d,vd,edit),cl=R.cl,ad=R.ad;
+  let lignes=null;
+  if(full){
+   lignes=vd?[...f.querySelectorAll(".lrow")].map(r=>({produit_id:null,desig:r.querySelector(".l_desig").value.trim(),qte:+r.querySelector(".l_qte").value,pu:+r.querySelector(".l_pu").value})).filter(l=>l.desig&&l.qte>0):[...f.querySelectorAll(".lrow")].map(r=>{const v=r.querySelector(".l_prod").value,qte=+r.querySelector(".l_qte").value,pu=+r.querySelector(".l_pu").value;
+    if(v.startsWith("svc:")){const sv=presta(v.slice(4));return{produit_id:null,prestation_id:sv?sv.id:null,desig:sv?sv.nom:"Prestation",qte,pu}}return{produit_id:v,qte,pu}}).filter(l=>(l.produit_id||l.prestation_id)&&l.qte>0);
+   if(!lignes.length)throw new Error(vd?"Ajoutez au moins un article du vendeur (désignation, quantité, prix)":"Ajoutez au moins un produit ou une prestation")}
+  if(edit){
+   if(R.neuf)S.clients.push(cl);
+   const frais=vm?(zone(ad.zone)||{}).frais||0:d.frais;
+   const r=modifierCmd(edit,{client_id:cl.id,adr:ad,lignes,frais:full?frais:undefined,remise:full?d.remise:undefined,priorite:full?d.priorite:undefined,canal:full?d.canal:undefined,obs:d.obs,vendeur_id:orig?(d.vendeur||null):undefined});
+   save();toast("Commande "+edit.numero+" modifiée"+(r.length?" ("+r.length+" changement(s))":" — aucun changement"),"ok");render();return true}
   let vp={};
   if(vd){const prods=lignes.reduce((a,l)=>a+l.qte*l.pu,0),pv=d.vpay==="paye"?prods:d.vpay==="partiel"?Math.floor(+d.vmontant||0):0;
-   if(pv<0||pv>prods)return toast("Le montant payé au vendeur doit être compris entre 0 et le prix des articles ("+fcfa(prods)+")","err"),false;if(d.vpay==="partiel"&&pv===0)return toast("Indiquez le montant déjà payé au vendeur","err"),false;
+   if(pv<0||pv>prods)throw new Error("Le montant payé au vendeur doit être compris entre 0 et le prix des articles ("+fcfa(prods)+")");if(d.vpay==="partiel"&&pv===0)throw new Error("Indiquez le montant déjà payé au vendeur");
    vp={vendeur_id:vd.id,vendeur_encaisse:prods>0&&pv>=prods,paye_vendeur:pv}}
-  if(d.client==="__new")S.clients.push(cl);
+  if(R.neuf)S.clients.push(cl);
   const c=creerCmd(vd?Object.assign({client_id:cl.id,adr:Object.assign({},ad),lignes,frais:d.frais,remise:d.remise,paiement:vp.paye_vendeur>0?"partiel":"livraison",acompte:vp.paye_vendeur,mode:vp.paye_vendeur>0?"Payé au vendeur":"Espèces",priorite:d.priorite,canal:d.canal,obs:d.obs,confirmer:!!d.confirmer},vp):{client_id:cl.id,adr:Object.assign({},ad),lignes,frais:d.frais,remise:d.remise,paiement:d.paiement,acompte:d.acompte,mode:d.mode,priorite:d.priorite,canal:d.canal,obs:d.obs,confirmer:!!d.confirmer});
-  save();toast("Commande "+c.numero+" créée"+(vd?" · rattachée à "+vd.nom:""),"ok");render()}});
- fillAdr();addLigne();recalc()}
+  save();toast("Commande "+c.numero+" créée"+(vd?" · rattachée à "+vd.nom:""),"ok");render();return true
+  }catch(e){toast(fixErr(e),"err");return false}}});
+ FRAIS_AUTO=!edit;if(edit)$("#f_client").value=edit.client_id;
+ fillAdr();if(edit){(edit.lignes||[]).forEach(l=>addLigne(l));if(!(edit.lignes||[]).length)addLigne()}else addLigne();
+ FRAIS_AUTO=true;if(edit&&edit.vendeur_id)vendHint();recalc()}
+let FRAIS_AUTO=true;
+function vendHint(){const v=$("#f_vend")&&$("#f_vend").value?vendOf($("#f_vend").value):null,h=$("#f_vhint");if(!h)return;
+ h.textContent=v?"Commande du vendeur partenaire « "+v.nom+" » (commission "+(v.commission_pct||0)+" %) : articles du vendeur saisis librement, aucune sortie du stock ANGEL'S ; une fois confirmée, la collecte chez le vendeur est à planifier ; le règlement du vendeur se fait dans Caisse.":"Vente propre d'ANGEL'S GROUP : produits du catalogue, sortie du stock."}
 function vendChange(){const vid=$("#f_vend")?$("#f_vend").value:"",v=vid?vendOf(vid):null;
- $("#f_client").innerHTML='<option value="">— Choisir —</option>'+clientsDe(vid).map(c=>`<option value="${c.id}">${esc(c.nom)} · ${esc(c.tel)}</option>`).join("")+'<option value="__new">➕ Nouveau client</option>';
- $("#f_payrow").classList.toggle("hide",!!v);$("#f_vpayrow").classList.toggle("hide",!v);
- const h=$("#f_vhint");if(h)h.textContent=v?"Commande du vendeur partenaire « "+v.nom+" » (commission "+(v.commission_pct||0)+" %) : articles du vendeur saisis librement, aucune sortie du stock ANGEL'S ; une fois confirmée, la collecte chez le vendeur est à planifier ; le règlement du vendeur se fait dans Caisse.":"Vente propre d'ANGEL'S GROUP : produits du catalogue, sortie du stock.";
- $("#lignes").innerHTML="";addLigne();fillAdr();recalc()}
-function fillAdr(){const cl=cli($("#f_client").value),sel=$("#f_adr");
- const isNew=$("#f_client").value==="__new";
- sel.innerHTML=cl?cl.adresses.map(a=>`<option value="${a.id}" ${a.defaut?"selected":""}>${esc(a.libelle)} — ${esc(a.zone)} ${esc(a.quartier||"")}</option>`).join("")+'<option value="__new">➕ Nouvelle adresse</option>':'<option value="__new">Saisir l\'adresse ci-dessous</option>';
- $("#newcl").classList.toggle("hide",!isNew);$("#newadr").classList.toggle("hide",!(isNew||sel.value==="__new"));
+ $("#f_client").innerHTML=clientOpts(vid);
+ $("#f_payrow").classList.toggle("hide",!!v||!!EDIT_CMD);$("#f_vpayrow").classList.toggle("hide",!v||!!EDIT_CMD);
+ vendHint();$("#lignes").innerHTML="";addLigne();fillAdr();recalc()}
+function fillAdr(){const v=$("#f_client").value,cl=cli(v),sel=$("#f_adr"),isNew=v==="__new"||v==="__div",e=EDIT_CMD,meme=!!(e&&cl&&cl.id===e.client_id);
+ let h=cl?cl.adresses.map(a=>`<option value="${a.id}" ${a.defaut?"selected":""}>${esc(a.libelle)} — ${esc(a.zone)} ${esc(a.quartier||"")}</option>`).join("")+'<option value="__new">➕ Nouvelle adresse</option>':'<option value="__new">Saisir l\'adresse ci-dessous</option>';
+ if(meme&&!cl.adresses.some(a=>a.id===e.adr.id))h=`<option value="__cur">Adresse de la commande — ${esc(e.adr.zone)} ${esc(e.adr.quartier||"")}</option>`+h;
+ sel.innerHTML=h;if(meme)sel.value=cl.adresses.some(a=>a.id===e.adr.id)?e.adr.id:"__cur";
+ $("#newcl").classList.toggle("hide",!isNew);$("#f_nomopt").textContent=v==="__div"?"(facultatif)":"";$("#f_telopt").textContent=v==="__div"?"(facultatif)":"";
+ $("#newadr").classList.toggle("hide",!(isNew||sel.value==="__new"));
  autoFrais()}
+function adrChange(){const v=$("#f_client").value;$("#newadr").classList.toggle("hide",!(v==="__new"||v==="__div"||$("#f_adr").value==="__new"));autoFrais()}
 function autoFrais(){const cl=cli($("#f_client").value),a=cl&&cl.adresses.find(x=>x.id===$("#f_adr").value);let zn=a?a.zone:null;
- if(!a&&$("#newadr:not(.hide) select"))zn=$("#newadr select").value;if(zn&&zone(zn))$("#f_frais").value=zone(zn).frais;const eta=$("#f_eta");if(eta)eta.textContent=zn&&zone(zn)?"· ⏱ estimé "+zone(zn).delai_min+" min":"";recalc()}
-function addLigne(){const d=document.createElement("div");d.className="lrow flex";d.style.marginBottom="6px";
- if($("#f_vend")&&$("#f_vend").value){d.innerHTML=`<input class="l_desig" placeholder="Article du vendeur (désignation)" maxlength="120" style="flex:2"><input class="l_qte" type="number" min="1" value="1" style="width:70px"><input class="l_pu" type="number" min="0" value="0" style="width:100px" placeholder="Prix"><button type="button" class="btn sm er" data-act="delLigne">✕</button>`;$("#lignes").appendChild(d);recalc();return}
+ if(!a&&$("#newadr:not(.hide) select"))zn=$("#newadr select").value;if(FRAIS_AUTO&&zn&&zone(zn)&&!(EDIT_CMD&&zn===EDIT_CMD.adr.zone))$("#f_frais").value=zone(zn).frais;const eta=$("#f_eta");if(eta)eta.textContent=zn&&zone(zn)?"· ⏱ estimé "+zone(zn).delai_min+" min":"";recalc()}
+function addLigne(pre){if(pre&&pre.target)pre=null;const d=document.createElement("div");d.className="lrow flex";d.style.marginBottom="6px";
+ if($("#f_vend")&&$("#f_vend").value){d.innerHTML=`<input class="l_desig" placeholder="Article du vendeur (désignation)" maxlength="120" style="flex:2"><input class="l_qte" type="number" min="1" value="1" style="width:70px"><input class="l_pu" type="number" min="0" value="0" style="width:100px" placeholder="Prix"><button type="button" class="btn sm er" data-act="delLigne">✕</button>`;$("#lignes").appendChild(d);
+  if(pre){d.querySelector(".l_desig").value=pre.desig||"";d.querySelector(".l_qte").value=pre.qte;d.querySelector(".l_pu").value=pre.pu}recalc();return}
  d.innerHTML=`<select class="l_prod" style="flex:2">${S.produits.filter(p=>p.actif).map(p=>`<option value="${p.id}" data-p="${p.prix}">${esc(p.nom)} (stock ${p.stock})</option>`).join("")}${!CL.on&&(S.prestations||[]).some(x=>x.actif)?`<optgroup label="Prestations">${S.prestations.filter(x=>x.actif).map(x=>`<option value="svc:${x.id}" data-p="${x.prix}">🛠️ ${esc(x.nom)}</option>`).join("")}</optgroup>`:""}</select><input class="l_qte" type="number" min="1" value="1" style="width:70px"><input class="l_pu" type="number" min="0" style="width:100px"><button type="button" class="btn sm er" data-act="delLigne">✕</button>`;
- $("#lignes").appendChild(d);d.querySelector(".l_pu").value=d.querySelector(".l_prod option:checked").dataset.p;recalc()}
+ $("#lignes").appendChild(d);d.querySelector(".l_pu").value=d.querySelector(".l_prod option:checked").dataset.p;
+ if(pre){const sel=d.querySelector(".l_prod"),k=pre.produit_id||(pre.prestation_id?"svc:"+pre.prestation_id:"");if(k&&[...sel.options].some(o=>o.value===k))sel.value=k;d.querySelector(".l_qte").value=pre.qte;d.querySelector(".l_pu").value=pre.pu}recalc()}
 function recalc(){const rows=[...document.querySelectorAll(".lrow")];const prods=rows.reduce((a,r)=>a+(+r.querySelector(".l_qte").value||0)*(+r.querySelector(".l_pu").value||0),0);
  const tot=Math.max(0,prods+(+$("#f_frais").value||0)-(+$("#f_remise").value||0));const pay=$("#f_pay").value;
  $("#f_acompte").disabled=pay!=="partiel";const vp=$("#f_vpay")&&$("#f_vend")&&$("#f_vend").value?$("#f_vpay").value:"";if($("#f_vmontant"))$("#f_vmontant").disabled=vp!=="partiel";
@@ -1253,7 +1317,7 @@ function recalc(){const rows=[...document.querySelectorAll(".lrow")];const prods
  $("#t_prod").textContent=fcfa(prods);$("#t_tot").textContent=fcfa(tot);$("#t_solde").textContent=fcfa(tot-ac)}
 document.addEventListener("change",e=>{
  if(!$("#mf")||!$("#f_client"))return;const t=e.target;
- if(t.id==="f_vend")vendChange();else if(t.id==="f_client")fillAdr();else if(t.id==="f_adr"){fillAdr()}
+ if(t.id==="f_vend")vendChange();else if(t.id==="f_client")fillAdr();else if(t.id==="f_adr")adrChange()
  else if(t.matches(".l_prod")){t.closest(".lrow").querySelector(".l_pu").value=t.selectedOptions[0].dataset.p;recalc()}
  else if(t.name==="a_zone")autoFrais();
  if(t.matches("#f_pay,#f_vpay,#f_frais,#f_remise"))recalc()});
@@ -1278,14 +1342,15 @@ function cmdDetail(id){
   if(fac&&can("admin","commercial","caissier"))b.push(`<button class="btn ghost" data-act="docAvoir" data-id="${fac.id}">↩ Avoir</button>`);
   if(can("admin","superviseur","commercial","preparateur","caissier")&&["prete","affectee","en_cours","livree","echouee","retour_cours","retour_recu"].includes(c.statut))b.push(`<button class="btn ghost" data-act="printBL" data-id="${c.id}">🖨 Bon de livraison${docsOf(c.id,"bl")[0]?" "+docsOf(c.id,"bl")[0].numero:""}</button>`)}
  if(nPhotos(c)||canPhoto(c))b.push(`<button class="btn ghost" data-act="cmdPhotos" data-id="${c.id}">📷 ${nPhotos(c)?"Photos jointes ("+nPhotos(c)+")":"Ajouter des photos"}</button>`);
+ if(cmdNiveau(c))b.push(`<button class="btn" data-act="cmdEdit" data-id="${c.id}">✏ Modifier la commande</button>`);
  if(can("admin"))b.push(`<button class="btn ghost" data-act="forceStatut" data-id="${c.id}">Correction exceptionnelle</button>`);
  modal(c.numero+" — "+cl.nom,`<div class="flex">${sb(c)}${c.priorite==="urgente"?badge("URGENT","er"):""}${badge(c.canal,"mu")}</div>
- <div class="pill"><b>Destination</b> : ${esc(a.libelle||"")} · ${esc(a.zone)} ${esc(a.quartier||"")}<br>Repère : ${esc(a.repere||"—")}${a.instructions?"<br>Instructions : "+esc(a.instructions):""}<br>Tél. client : <a href="tel:${esc(cl.tel)}">${esc(cl.tel)}</a><br>${geoBadge(a)}${can("admin","superviseur","commercial")?geoBtns(cl.id,a.id):can("vendeur")?`<div class="flex noprint" style="margin-top:6px"><button type="button" class="btn sm ghost" data-act="geoLink" data-id="${cl.id}|${a.id}">🔗 Lien portail client (position)</button></div>`:""}</div>
+ <div class="pill"><b>Destination</b> : ${esc(a.libelle||"")} · ${esc(a.zone)} ${esc(a.quartier||"")}<br>Repère : ${esc(a.repere||"—")}${a.instructions?"<br>Instructions : "+esc(a.instructions):""}<br>Tél. client : ${cl.tel?`<a href="tel:${esc(cl.tel)}">${esc(cl.tel)}</a>`:'<span class="mu">non renseigné (client divers)</span>'}<br>${geoBadge(a)}${can("admin","superviseur","commercial")?geoBtns(cl.id,a.id):can("vendeur")?`<div class="flex noprint" style="margin-top:6px"><button type="button" class="btn sm ghost" data-act="geoLink" data-id="${cl.id}|${a.id}">🔗 Lien portail client (position)</button></div>`:""}</div>
  ${tbl(["Produit","Qté","P.U.","Total"],c.lignes.map(l=>`<tr><td>${esc(lname(l))}</td><td>${l.qte}</td><td>${fcfa(l.pu)}</td><td>${fcfa(l.qte*l.pu)}</td></tr>`))}
  <div class="pill">Produits ${fcfa(c.montant_produits)} + livraison ${fcfa(c.frais)} − remise ${fcfa(c.remise)} = <b>${fcfa(c.total)}</b><br>Déjà payé : ${fcfa(paye(c))} · Reste dû : <b>${fcfa(soldeCmd(c))}</b> (${c.paiement==="avance"?"payé d'avance":c.paiement==="partiel"?"paiement partiel":"à la livraison"})</div>
  ${c.paye_vendeur>0?`<div class="pill">💳 Payé chez le fournisseur : <b>${fcfa(c.paye_vendeur)}</b> · reste à encaisser par le livreur : <b>${fcfa(soldeCmd(c))}</b></div>`:(c.vendeur_id?`<div class="pill">💳 Paiement : le client règle tout au livreur (${fcfa(soldeCmd(c))})</div>`:"")}
  ${c.obs?`<div class="pill">Observations : ${esc(c.obs)}</div>`:""}
- ${act&&!can("vendeur")?`<div class="pill"><b>Mission en cours</b> : ${esc(liv(act.livreur_id).nom)} · ${lb(act)} · code client <b style="font-size:18px">${act.code}</b> <a class="btn sm ghost" target="_blank" rel="noopener" href="${waLink(cl.tel,`${ORG()} — votre livraison ${c.numero} arrive. Code de confirmation à donner au livreur : ${act.code}`)}">Envoyer le code (WhatsApp)</a></div>`:""}
+ ${act&&!can("vendeur")?`<div class="pill"><b>Mission en cours</b> : ${esc(liv(act.livreur_id).nom)} · ${lb(act)} · code client <b style="font-size:18px">${act.code}</b> ${cl.tel?`<a class="btn sm ghost" target="_blank" rel="noopener" href="${waLink(cl.tel,`${ORG()} — votre livraison ${c.numero} arrive. Code de confirmation à donner au livreur : ${act.code}`)}">Envoyer le code (WhatsApp)</a>`:'<span class="sm mu">(client divers : donnez le code au livreur par téléphone)</span>'}</div>`:""}
  ${ls.length&&!can("vendeur")?`<div class="sec">Livraisons (${ls.length})</div>${tbl(["Tentative","Livreur","Statut","Encaissé","Détail"],ls.map(l=>`<tr><td>#${l.tentative}</td><td>${esc(liv(l.livreur_id).nom)}</td><td>${lb(l)}</td><td>${l.montant_encaisse!=null?fcfa(l.montant_encaisse):"—"}</td><td class="sm">${esc(l.motif_echec||l.motif||"")}${l.recu_par?"Reçu par "+esc(l.recu_par):""}</td></tr>`))}`:""}
  <div class="sec">Historique</div><div class="sm">${c.hist.slice().reverse().map(h=>`<div>${fdt(h.ts)} — <b>${ST[h.a]}</b> · ${can("vendeur")?"":esc(h.par)}${h.note&&!can("vendeur")?" · "+esc(h.note):""}</div>`).join("")}</div>
  <div class="flex noprint">${b.join("")}</div>`,{wide:true,focus:false})}
@@ -1692,6 +1757,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  cmdConfirm:id=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"confirmer"}),"Commande confirmée",()=>cmdDetail(id));if(setStatut(cmd(id),"confirmee","Confirmation")){audit("Confirmation commande",cmd(id).numero);done("Commande confirmée");cmdDetail(id)}},
  cmdPrep:id=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"preparer"}),null,()=>cmdDetail(id));if(setStatut(cmd(id),"preparation","Début de préparation")){done();cmdDetail(id)}},
  cmdPrete:id=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"prete"}),"Commande prête",()=>cmdDetail(id));if(marquerPrete(cmd(id))){done("Commande prête");cmdDetail(id)}},
+ cmdEdit:id=>formCmd(cmd(id)),
  cmdAnnul:id=>ask("Annuler la commande","Motif de l'annulation (obligatoire)",m=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"annuler",p_note:m}),"Commande annulée");if(annuler(cmd(id),m))done("Commande annulée")},{label:"Annuler la commande",cls:"er"}),
  assign:id=>assignModal(cmd(id)),
  reprog:id=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"reprogrammer"}),"Prête pour une nouvelle tentative — à affecter",()=>cmdDetail(id));if(setStatut(cmd(id),"prete","Nouvelle tentative programmée")){audit("Nouvelle tentative",cmd(id).numero);done("Prête pour une nouvelle tentative — à affecter");cmdDetail(id)}},
@@ -1844,7 +1910,7 @@ function ensureConfig(){
 const fillTpl=(t,v)=>String(t).replace(/\{(\w+)\}/g,(_,k)=>v[k]!=null?v[k]:"");
 function notifier(c,to,note){
  const cfg=S.config;if(!cfg.notif||cfg.notif[to]!==true||!cfg.tpl[to])return;
- const cl=cli(c.client_id),l=activeLiv(c.id)||livsOf(c.id).slice(-1)[0],z=zone(c.adr.zone);
+ const cl=cli(c.client_id),l=activeLiv(c.id)||livsOf(c.id).slice(-1)[0],z=zone(c.adr.zone);if(!cl||!cl.tel)return;
  const eta=new Date(Date.now()+(z?z.delai_min:45)*60000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
  const msg=fillTpl(cfg.tpl[to],{client:cl.nom,numero:c.numero,livreur:l&&liv(l.livreur_id)?liv(l.livreur_id).nom.split(" ")[0]:"",heure:eta,code:l?l.code:"",solde:fcfa(soldeCmd(c)),motif:String(note||"").replace(/^Échec : /,""),org:cfg.org});
  S.notifs.push({id:uid("n"),ts:now(),commande_id:c.id,event:to,canal:"WhatsApp",tel:cl.tel,nom:cl.nom,message:msg+((to==="confirmee"||to==="en_cours")&&cfg.suivi_portail!==false?"\nSuivi de votre commande : {{SUIVI}}":""),statut:"a_envoyer"})}
@@ -2070,9 +2136,9 @@ function vendDue(v){
  return{acquis,regle,restant:acquis-regle,attente,elig,net}}
 const normTxt=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
 function creerCmdVendeur(v,d){
- const tel=d.tel.replace(/\s/g,"");
- let cl=S.clients.find(c=>c.vendeur_id===v.id&&c.tel.replace(/\s/g,"")===tel);
- if(!cl){cl={id:uid("cl"),nom:d.nom.trim(),tel:d.tel.trim(),tel2:"",adresses:[],note:"",vendeur_id:v.id};S.clients.push(cl)}
+ const tel=(d.tel||"").replace(/\s/g,""),nom=(d.nom||"").trim();
+ let cl=tel?S.clients.find(c=>!c.divers&&c.vendeur_id===v.id&&c.tel.replace(/\s/g,"")===tel):null;
+ if(!cl){cl={id:uid("cl"),nom:nom||"Client divers",tel:(d.tel||"").trim(),tel2:"",adresses:[],note:"",vendeur_id:v.id};if(!nom)cl.divers=true;S.clients.push(cl)}
  let ad=cl.adresses.find(a=>a.zone===d.zone&&normTxt(a.quartier)===normTxt(d.quartier)&&normTxt(a.repere)===normTxt(d.repere));
  if(!ad){ad={id:uid("a"),libelle:"Livraison",zone:d.zone,quartier:(d.quartier||"").trim(),repere:(d.repere||"").trim(),gps:d.gps?{lat:d.gps.lat,lng:d.gps.lng}:null,instructions:(d.ins||"").trim(),defaut:!cl.adresses.length};cl.adresses.push(ad)}else if(d.gps&&!ad.gps)ad.gps={lat:d.gps.lat,lng:d.gps.lng};
  const prods=d.lignes.reduce((a,l)=>a+l.qte*l.pu,0),pv=d.pay==="paye"?prods:d.pay==="partiel"?Math.floor(+d.paye_vendeur||0):0;
@@ -2136,7 +2202,7 @@ function vendForm(v){const u=v&&usr(v.user_id);
   else{const nu={id:uid("u"),nom:d.nom,role:"vendeur",actif:true,pwd:null,chg:true};rstUid=nu.id;S.users.push(nu);S.vendeurs.push({id:uid("v"),user_id:nu.id,nom:d.nom,tel:d.tel,commission_pct:+d.com||0});audit("Création vendeur partenaire",d.nom)}save();render();if(rstUid)mdpTemp(rstUid,v?"Mot de passe réinitialisé":"Compte vendeur créé")}})}
 function vCmdForm(){
  const v=vend(),vph=[];const row=()=>`<div class="vrow flex" style="margin-bottom:6px"><input class="vd" placeholder="Article" style="flex:2"><input class="vq" type="number" min="1" value="1" style="width:70px"><input class="vp" type="number" min="0" placeholder="Prix unitaire" style="width:110px"><button type="button" class="btn sm er vdel">✕</button></div>`;
- modal("Nouvelle commande à livrer",`<div class="sec">Client à livrer</div><div class="g2"><label>Nom du client<input name="nom" required></label><label>Téléphone<input name="tel" inputmode="tel" required></label></div>
+ modal("Nouvelle commande à livrer",`<div class="sec">Client à livrer</div><div class="g2"><label>Nom du client <span class="mu sm">(vide = « Client divers »)</span><input name="nom"></label><label>Téléphone <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel"></label></div>
  <div class="g3"><label>Zone<select name="zone" id="v_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier<input name="quartier"></label><label>Point de repère<input name="repere"></label></div><label>Instructions d'accès<input name="ins"></label>
  <div class="sec">Articles (prix de vente au client)</div><div id="v_lignes">${row()}</div><button type="button" class="btn sm ghost" id="v_add">+ Ajouter un article</button>
  <label>Paiement du client<select name="pay" id="v_pay"><option value="livraison">Tout chez le livreur ${ORG()} (articles + livraison)</option><option value="partiel">Partagé : une partie déjà payée chez moi, le reste au livreur</option><option value="paye">Articles entièrement payés chez moi — le livreur n'encaisse que la livraison</option></select></label>
