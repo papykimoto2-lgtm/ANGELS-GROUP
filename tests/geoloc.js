@@ -1,0 +1,56 @@
+/* Géolocalisation fiable : mesure la plus précise sur 20 s, refus des positions d'ordinateur (estimation par la connexion Internet), recherche du quartier.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/geoloc.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ await p.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};window.__last=()=>__T[__T.length-1]||"";
+  window.__ch=(el,v)=>{el.value=v;el.dispatchEvent(new Event("change",{bubbles:true}))};window.__in=(el,v)=>{el.value=v;el.dispatchEvent(new Event("input",{bubbles:true}))};
+  window.__clic=re=>[...document.querySelectorAll("button")].find(x=>re.test(x.textContent)).click();
+  window.__V=()=>S.vendeurs[0];window.__Z=()=>S.config.zones[0].nom;
+  window.__prod=()=>S.produits.find(x=>x.actif&&x.stock>=50);
+  /* commande d'ANGEL'S pour un client divers, créée à la main */
+  window.__div=(o)=>{o=o||{};const ad={id:uid("a"),libelle:"Livraison",zone:__Z(),quartier:o.q||"Cocody",repere:"Pharmacie",gps:null,instructions:"",defaut:true};
+   const cl={id:uid("cl"),nom:"Client divers",tel:"",tel2:"",adresses:[ad],note:"",divers:true};if(o.vendeur)cl.vendeur_id=o.vendeur;S.clients.push(cl);
+   __as("admin");return creerCmd({client_id:cl.id,adr:Object.assign({},ad),lignes:o.lignes||[{produit_id:__prod().id,qte:2,pu:__prod().prix}],frais:1000,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Téléphone",obs:"",confirmer:o.confirmer!==false,vendeur_id:o.vendeur||null,paye_vendeur:0})}});
+ let ok=0,ko=0;const t=async(id,label,fn)=>{let r;try{r=await p.evaluate(fn)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
+
+ await p.evaluate(()=>{window.__geo=[];Object.defineProperty(navigator,"geolocation",{configurable:true,value:{watchPosition(ok,ko){const seq=window.__geo.slice();let i=0;const id=setInterval(()=>{if(i>=seq.length){clearInterval(id);return}const g=seq[i++];if(g.err)ko({code:g.err,message:"refus"});else ok({coords:{latitude:g.lat,longitude:g.lng,accuracy:g.acc}})},30);return id},clearWatch(id){clearInterval(id)},getCurrentPosition(ok){const g=window.__geo[0];ok({coords:{latitude:g.lat,longitude:g.lng,accuracy:g.acc}})}}});
+  window.__fetch0=window.fetch;window.fetch=(u,o)=>/nominatim/.test(String(u))?Promise.resolve({ok:true,json:()=>Promise.resolve(/Kassembl/.test(decodeURIComponent(u))?[{lat:"5.3201",lon:"-4.2512",display_name:"Songon-Kassemblé, Songon, Abidjan, Côte d'Ivoire"}]:[])}):window.__fetch0(u,o);
+  window.__wait=ms=>new Promise(r=>setTimeout(r,ms));window.__adr=()=>{const c=S.clients.find(x=>!x.divers&&x.adresses.length);return [c,c.adresses[0]]}});
+ await t("GE-1","outils : précision lisible, niveaux (précis ≤ 60 m, approximatif ≤ 1 km, inutilisable au-delà)",()=>{const E=[];if(geoTxt(12)!=="±12 m"||geoTxt(12400)!=="±12,4 km")E.push("texte "+geoTxt(12400));if(geoNiveau(30)!=="ok"||geoNiveau(400)!=="approx"||geoNiveau(5000)!=="faux")E.push("niveaux");return E.length?E.join(" ; "):true});
+ await t("GE-2","la première mesure grossière est remplacée par la plus précise (suivi jusqu'à 20 s, arrêt dès ±25 m)",async()=>{window.__geo=[{lat:5.34,lng:-4.0199,acc:15000},{lat:5.3205,lng:-4.2508,acc:180},{lat:5.32051,lng:-4.25083,acc:12},{lat:9,lng:9,acc:5}];const q=await geoPrecis();return q.acc===12&&q.lat===5.32051||JSON.stringify(q)});
+ await t("GE-3","ordinateur sans GPS (±15 km) : la position du bureau n'est PAS placée sur l'adresse du client ; explication affichée",async()=>{__as("admin");const [c,a]=__adr();a.gps=null;window.__geo=[{lat:5.34,lng:-4.0199,acc:15000}];geoPickModal(c.id,a.id);await __wait(400);
+  document.getElementById("pm_gps").click();await __wait(21500);const w=document.getElementById("pm_w").innerText,E=[];if(!/inutilisable/.test(w)||!/connexion Internet/.test(w))E.push("message "+w);
+  if(/5\.34, -4\.0199/.test(document.getElementById("pm_c").innerText))E.push("position IP placée");document.querySelector("#mf").dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));
+  if(a.gps)E.push("enregistrée malgré tout");closeModal();return E.length?E.join(" ; "):true});
+ await t("GE-4","téléphone sur place : position précise placée, enregistrée avec sa précision et sa source",async()=>{__as("admin");const [c,a]=__adr();a.gps=null;window.__geo=[{lat:5.32051,lng:-4.25083,acc:9}];geoPickModal(c.id,a.id);await __wait(400);
+  document.getElementById("pm_gps").click();await __wait(300);const E=[];if(!/précise/.test(document.getElementById("pm_w").innerText))E.push("texte "+document.getElementById("pm_w").innerText);
+  document.querySelector("#mf").dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));if(!a.gps||a.gps.lat!==5.32051||a.gps_acc!==9||!/GPS ±9 m/.test(a.gps_src))E.push("enregistrement "+JSON.stringify([a.gps,a.gps_acc,a.gps_src]));return E.length?E.join(" ; "):true});
+ await t("GE-5","position approximative (±300 m) : placée avec un avertissement « faites glisser le repère »",async()=>{__as("admin");const [c,a]=__adr();a.gps=null;window.__geo=[{lat:5.3203,lng:-4.2509,acc:300}];geoPickModal(c.id,a.id);await __wait(400);
+  document.getElementById("pm_gps").click();await __wait(21500);const w=document.getElementById("pm_w").innerText;closeModal();return /approximative/.test(w)&&/glisser/.test(w)||w});
+ await t("GE-6","recherche du quartier : la carte se centre sur le quartier de l'adresse (repère → quartier → zone), sans placer de repère",async()=>{__as("admin");const [c,a]=__adr();a.gps=null;a.quartier="Songon-Kassemblé";a.repere="Cité Arc en ciel";a.zone="Songon";geoPickModal(c.id,a.id);await __wait(900);
+  const r=document.getElementById("pm_r").innerText,E=[];if(!/Songon-Kassemblé/.test(r))E.push("recherche "+r);if(!/Touchez la carte/.test(document.getElementById("pm_c").innerText))E.push("repère placé");closeModal();return E.length?E.join(" ; "):true});
+ await t("GE-7","suivi du livreur : une position inexploitable (±15 km) n'est pas envoyée ; le bouton « envoyer ma position » l'explique",()=>{const E=[];const lv=S.livreurs[0];ME=S.users.find(u=>u.id===lv.user_id);const avant=JSON.stringify(S.pos[lv.id]||null);
+  pushPos({coords:{latitude:5.34,longitude:-4.02,accuracy:15000}},true);if(JSON.stringify(S.pos[lv.id]||null)!==avant)E.push("position IP enregistrée");return E.length?E.join(" ; "):true});
+ await t("GE-8","portail client (téléphone du client) : position trop imprécise refusée, précise acceptée",async()=>{const E=[];renderPortal({org:"ANGEL'S",n:"Client",a:"Songon",cid:"x",aid:"y"});await __wait(300);
+  window.__geo=[{lat:5.34,lng:-4.02,acc:9000}];document.getElementById("pt_gps").click();await __wait(21500);if(!/trop imprécise/.test(document.getElementById("pt_w").innerText))E.push("refus "+document.getElementById("pt_w").innerText);if(!document.getElementById("pt_ok").disabled)E.push("confirmation possible");
+  window.__geo=[{lat:5.3205,lng:-4.2508,acc:15}];document.getElementById("pt_gps").click();await __wait(300);if(document.getElementById("pt_ok").disabled)E.push("précise non acceptée");return E.length?E.join(" ; "):true});
+ await t("GE-9","lien du portail : une position du bureau non fiable (ancienne « Ma position », sans précision) n'est pas transmise au client ; une position client ou GPS précise l'est",()=>{__as("admin");const [c,a]=__adr(),E=[],dec=l=>JSON.parse(decodeURIComponent(escape(atob(l.split("#portail=")[1].replace(/-/g,"+").replace(/_/g,"/")))));
+  a.gps={lat:5.34,lng:-4.0199};a.gps_src="saisie par le personnel";delete a.gps_acc;let d;try{d=dec(portalLink(c,a,""))}catch(x){return"décodage "+x.message}if(d.g)E.push("position douteuse transmise");if(!d.q||!d.q.length)E.push("quartier absent");
+  a.gps_src="client";if(!dec(portalLink(c,a,"")).g)E.push("position client non transmise");a.gps_src="saisie par le personnel (GPS ±9 m)";a.gps_acc=9;if(!dec(portalLink(c,a,"")).g)E.push("GPS précis non transmis");return E.length?E.join(" ; "):true});
+ await t("GE-10","portail sans position fiable : « Confirmer » reste inactif tant que le client n'a pas touché la carte ou donné une position précise",async()=>{renderPortal({org:"ANGEL'S",n:"Client",a:"Livraison · Songon · Songon-Kassemblé · Cité Arc en ciel",q:["Cité Arc en ciel","Songon-Kassemblé","Songon"],cid:"x",aid:"y",g:null});await __wait(300);
+  return document.getElementById("pt_ok").disabled===true||"confirmation possible sans action"});
+ await t("GE-11","bureau : position douteuse signalée et bouton « Effacer la position » (audit)",async()=>{__as("admin");const [c,a]=__adr(),E=[];a.gps={lat:5.34,lng:-4.0199};a.gps_src="saisie par le personnel";delete a.gps_acc;geoPickModal(c.id,a.id);await __wait(300);
+  if(!/n'est pas fiable/.test(document.getElementById("pm_w").innerText))E.push("avertissement absent");const d=document.getElementById("pm_del");if(!d)return"bouton absent";d.click();if(a.gps)E.push("non effacée");if(!S.audit.some(x=>x.action==="Position effacée"))E.push("audit");return E.length?E.join(" ; "):true});
+ {const q=await ctx.newPage();q.on("pageerror",e=>errs.push("portail: "+e.message));await q.goto(base+"/portail.html#/suivi");await q.waitForTimeout(900);
+  let r;try{r=await q.evaluate(()=>{const z=document.getElementById("sv_zone");if(!z)return"carte de zone absente";const E=[],im=[...z.querySelectorAll("img.t")];if(!im.length)E.push("aucune tuile");if(im.some(i=>i.getAttribute("referrerpolicy")==="no-referrer"))E.push("tuiles sans référent (bloquées par OpenStreetMap)");
+   const pin=z.querySelector(".pin");if(!pin||/^Zone de livraison$/.test(pin.innerText.trim()))E.push("étiquette de zone absente ou ambiguë");if(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(z.innerText))E.push("emoji dans la carte");return E.length?E.join(" ; "):true})}catch(e){r="EXC "+e.message}
+  if(r===true){ok++;console.log("PASS GE-12 portail : carte de zone étiquetée « zone desservie », sans emoji, tuiles avec référent (OpenStreetMap ne les bloque plus)")}else{ko++;console.log("FAIL GE-12 →",r)}}
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
