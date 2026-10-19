@@ -552,3 +552,6 @@ Tests : `node tests/mots-de-passe.js` (19) et `node tests/hub-users.js` (23).
 Limites assumées : le scan des colis et la signature ne sont pas disponibles sur ce canal (la confirmation est tracée « via passerelle » dans l'audit) ; seul le flux Distributions est branché ; si le bureau est hors ligne, les actions attendent sur le serveur et sont appliquées à sa reconnexion.
 
 Tests : `node tests/passerelle.js` (14 contrôles serveur), `node tests/passerelle-appli.js` (17 contrôles bureau + application livreur, serveur simulé).
+
+### Paramètres du Hub → Cloud / Supabase
+Onglet inspiré de la configuration Supabase de ZAHARA : URL du projet et clé **anonyme**, boutons Enregistrer / Tester / Effacer / Projet par défaut, état « Connecté » et état des applications branchées (passerelle livreur, pont, application livreur). La clé `service_role` ou secrète est refusée. Le test vérifie le projet, l'installation des tables de la passerelle et le déploiement de `mission-action`. La configuration est mémorisée sur l'appareil (`angels_supabase`) et reprise par `livreur.html` et par l'adresse des fonctions de Distributions ; sans réglage, le projet ANGELS-GROUP de `passerelle-config.js` s'applique. Réservé aux administrateurs (une application déverrouillée).

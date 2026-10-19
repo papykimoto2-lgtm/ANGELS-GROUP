@@ -42,7 +42,7 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-
 /* Application LIVREUR (mode serveur). Le livreur s'identifie avec un compte Supabase : le mot de passe est vérifié par le serveur.
    Il ne reçoit JAMAIS le téléphone du client ni le code de confirmation : il demande l'appel au serveur (pont téléphonique) et saisit le code que le client lui communique. */
 "use strict";
-const CFG=window.ANGELS_PASSERELLE||{},FN=String(CFG.url||"").replace(/\/+$/,"")+"/functions/v1/";
+const CFG=(()=>{const d=window.ANGELS_PASSERELLE||{};try{const o=JSON.parse(localStorage.getItem("angels_supabase")||"null");if(o&&o.off)return{};if(o&&o.url&&o.key)return{url:o.url,key:o.key}}catch(e){}return d})(),FN=String(CFG.url||"").replace(/\/+$/,"")+"/functions/v1/";
 const SB_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",SB_SRI="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o";
 const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";

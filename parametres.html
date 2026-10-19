@@ -68,11 +68,15 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </div><div id="s-stats" hidden><h2 style="margin:6px 0 10px;font-size:16px">📊 Statistiques portail</h2><p class="note">Activité commerciale venue du portail : commandes de la boutique en ligne et candidatures de vendeurs partenaires, lues dans les données de Distributions de cet appareil. Le portail est un site public sans serveur : le nombre de visites n'est pas mesuré.</p><section id="pstat"></section></div>
 <div id="s-acces" hidden><h2 style="margin:6px 0 10px;font-size:16px">🔑 Accès portail (tous acteurs)</h2><p class="note">Toutes les personnes en lien avec le portail : clients de la boutique en ligne, candidats vendeurs et vendeurs partenaires. Contactez-les sur WhatsApp et gérez l'accès des vendeurs partenaires (activation / désactivation du compte, après déverrouillage de Distributions dans l'onglet Utilisateurs).</p><section id="pacc"></section></div>
 <div id="s-imp" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖨️ Impression — en-tête, logo par division, pied de page et QR de sécurité</h2><p class="note">Moteur d'impression commun à Distributions, Transport et Agro : chaque document imprimé porte l'en-tête de la division qui l'émet (logo, raison sociale, RCCM, NCC, siège), un pied de page et un QR code de sécurité signé que l'on contrôle sur la page de vérification.</p><section id="pimp"></section></div>
+<div id="s-cloud" hidden><h2 style="margin:6px 0 10px;font-size:16px">☁️ Cloud / Supabase</h2><p class="note">Connexion du groupe à son projet Supabase : comptes des livreurs vérifiés par le serveur, passerelle livreur (numéros des clients retirés des téléphones) et pont téléphonique. Sans configuration, les applications fonctionnent en mode local (données stockées dans l'appareil). Seule la clé <b>anonyme</b> (publique) se saisit ici ; la clé d'administration reste dans Distributions → Paramètres.</p>
+<div class="two" style="margin-top:12px"><div class="pan"><h4>☁️ Connexion Supabase</h4><div class="uf" style="display:block"><label>URL du projet Supabase<input id="cl-url" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="none" style="width:100%"></label><label style="margin-top:8px">Clé anonyme (anon key)<input id="cl-key" placeholder="eyJh…" autocomplete="off" autocapitalize="none" style="width:100%"></label></div><div id="cl-badge" style="margin:8px 0;font-size:13px"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="sb" data-cl="save">💾 Enregistrer</button><button type="button" class="sb g" data-cl="test">🔌 Tester</button><button type="button" class="sb g" data-cl="clear">🗑️ Effacer</button><button type="button" class="sb g" data-cl="def">↩ Projet par défaut</button></div><div id="cl-res" style="margin-top:10px;font-size:13px"></div></div>
+<div class="pan"><h4>🔗 Applications branchées</h4><ul class="det" id="cl-apps"></ul><p class="note">La passerelle livreur et le pont se règlent dans Distributions → Paramètres. L'application des livreurs est <a href="livreur.html">livreur.html</a>.</p></div></div></div>
 <div id="s-med" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖼️ Site / Portail — Médias publiables</h2>
 <p class="note">Ajoutez des photos, des vidéos (par lien YouTube / Vimeo / fichier https) et des documents PDF qui s'affichent sur le portail public : diaporama d'accueil, galerie, pages d'activité, page Société, documents à télécharger. Les photos sont compressées automatiquement ; documents PDF : 1,5 Mo maximum (au-delà, utilisez « Document par lien »).</p>
 <section id="pmed"></section>
 </div></div></main>
 <footer>© ANGEL'S GROUP · Paramètres · <a href="index.html">Retour au hub</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
+<script src="passerelle-config.js"></script>
 <script src="qrcode.js"></script>
 <script src="auth-engine.js"></script>
 <script src="print-engine.js"></script>
@@ -477,11 +481,40 @@ document.addEventListener("click",ev=>{const b=ev.target.closest("[data-ilogoclr
  if(k==="exp"){if(!pDebloque())return alert("Déverrouillez d'abord une application avec le mot de passe d'un administrateur : la clé privée permet de signer de faux documents.");const t=ANGELS_PRINT.cleExporter();if(!t)return;const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"application/json"}));a.download="cle-signature-angels.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return}
  if(k==="gen"){if(!pDebloque()){IMSG={er:1,t:"Déverrouillez d'abord une application avec le mot de passe d'un administrateur."};return iView()}if(ANGELS_PRINT.cleInfo().existe&&!confirm("Régénérer la clé ? Les documents déjà imprimés ne seront plus confirmés si l'ancienne clé n'est plus publiée."))return;(async()=>{try{const K=await ANGELS_PRINT.cleRegenerer();IMSG={t:"Clé active : "+K.kid+". Republiez le portail pour publier la clé publique."}}catch(e){IMSG={er:1,t:e.message}}iView()})()}});
 
-const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["impression","🖨️ Impression"],["publication","🚀 Publication"]];
+/* Cloud / Supabase : configuration partagée par les applications (stockée sur l'appareil). Seule la clé « anon » est acceptée. */
+const esc=t=>String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const CL_K="angels_supabase",clDef=()=>window.ANGELS_PASSERELLE||{url:"",key:""};
+const clLire=()=>{try{return JSON.parse(localStorage.getItem(CL_K)||"null")}catch(e){return null}};
+const clEff=()=>{const o=clLire();if(o&&o.off)return{url:"",key:"",off:true};if(o&&o.url&&o.key)return{url:o.url,key:o.key,perso:true};const d=clDef();return{url:d.url||"",key:d.key||"",defaut:true}};
+function clRole(k){try{const j=JSON.parse(atob(String(k).split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));return j.role||""}catch(e){return""}}
+function clValide(url,key){url=String(url||"").trim().replace(/\/+$/,"").replace(/\/(rest|auth|functions)\/v1$/,"");key=String(key||"").trim();
+ if(!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(url)&&!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}$/i.test(url))throw new Error("URL invalide : elle doit ressembler à https://xxxx.supabase.co");
+ if(/^sb_secret_/i.test(key))throw new Error("Cette clé est SECRÈTE : seule la clé anonyme (publique) peut être saisie ici.");
+ if(clRole(key)==="service_role")throw new Error("Cette clé est la clé « service_role » (secrète) : refusée. Utilisez la clé anonyme (anon / publishable).");
+ if(!/^(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_publishable_[\w-]+)$/.test(key))throw new Error("Clé anonyme invalide (elle commence par eyJ… ou sb_publishable_…)");
+ return{url,key}}
+function clView(){const e=clEff(),u=$("cl-url"),k=$("cl-key");if(!u)return;if(document.activeElement!==u&&document.activeElement!==k){u.value=e.url;k.value=e.key}
+ $("cl-badge").innerHTML=e.off?'<b style="color:#c62828">● Mode local — aucune connexion Supabase</b>':`<b style="color:#118a4b">● Connecté — ${esc(e.url)}${e.defaut?" (projet par défaut)":""}</b>`;
+ const A=(()=>{try{return JSON.parse(localStorage.getItem("angels_erp_v1")||"null")}catch(x){return null}})(),c=(A&&A.config)||{};
+ $("cl-apps").innerHTML=[["Passerelle livreur (Distributions)",c.passerelle_actif===true],["Pont téléphonique (Distributions)",!!(c.appel_pont&&c.appel_pont.actif)],["Application des livreurs (livreur.html)",!e.off&&!!e.url]].map(x=>`<li><span>${x[0]}</span><b style="color:${x[1]?"#118a4b":"#6b7390"}">${x[1]?"● Actif":"○ Inactif"}</b></li>`).join("")}
+function clMsg(t,er){$("cl-res").innerHTML=`<div class="umsg${er?" er":""}">${esc(t)}</div>`}
+async function clTester(){const r=$("cl-res");r.innerHTML="Test en cours…";let c;try{c=clValide($("cl-url").value,$("cl-key").value)}catch(e){return clMsg(e.message,1)}
+ const H={apikey:c.key},L=[];let ok=false;
+ try{const a=await fetch(c.url+"/auth/v1/settings",{headers:H});ok=a.ok;L.push(a.ok?"✅ Projet joignable, clé acceptée":"❌ Réponse "+a.status+" : vérifiez l'URL et la clé")}catch(e){return clMsg("Projet injoignable : "+(navigator.onLine?"vérifiez l'URL":"pas de connexion Internet"),1)}
+ if(ok){try{const t=await fetch(c.url+"/rest/v1/pg_livreurs?select=livreur_ref&limit=1",{headers:H});L.push(t.status===404?"⚠️ Passerelle livreur : tables non installées (appliquer la migration 005)":"✅ Passerelle livreur : tables installées")}catch(e){}
+  try{const f=await fetch(c.url+"/functions/v1/mission-action",{method:"OPTIONS"});L.push(f.status<400?"✅ Fonction mission-action déployée":"⚠️ Fonction mission-action non déployée")}catch(e){L.push("⚠️ Fonctions non testables depuis ce navigateur")}}
+ r.innerHTML=L.map(x=>`<div class="umsg${/^❌/.test(x)?" er":""}">${esc(x)}</div>`).join("")}
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-cl]");if(!b)return;const k=b.dataset.cl;
+ if(k==="test")return clTester();
+ if(!pDebloque())return clMsg("Déverrouillez d'abord une application avec le mot de passe d'un administrateur.",1);
+ if(k==="save"){try{const c=clValide($("cl-url").value,$("cl-key").value);localStorage.setItem(CL_K,JSON.stringify(c));clView();clMsg("Configuration Supabase enregistrée.")}catch(e){clMsg(e.message,1)}}
+ else if(k==="clear"){if(!confirm("Effacer la configuration Supabase ? Les applications passeront en mode local."))return;localStorage.setItem(CL_K,JSON.stringify({off:true}));$("cl-url").value=$("cl-key").value="";clView();clMsg("Configuration effacée : mode local activé.")}
+ else if(k==="def"){localStorage.removeItem(CL_K);clView();clMsg("Projet par défaut rétabli.")}});
+const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["impression","🖨️ Impression"],["cloud","☁️ Cloud / Supabase"],["publication","🚀 Publication"]];
 let PTAB=(()=>{try{const t=sessionStorage.getItem("angels_param_tab");return PTABS.some(x=>x[0]===t)?t:"users"}catch(e){return"users"}})();
 function pTab(t){if(!PTABS.some(x=>x[0]===t))t="users";PTAB=t;try{sessionStorage.setItem("angels_param_tab",t)}catch(e){}
  $("ptabs").innerHTML=PTABS.map(x=>`<button type="button" role="tab" aria-selected="${x[0]===t}" class="tab ${x[0]===t?"on":""}" data-pt="${x[0]}">${x[1]}</button>`).join("");
- $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";$("s-imp").hidden=t!=="impression";if(t==="impression")iView();if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","medias","stats","acces","impression"].includes(t);$("s-ptl").hidden=!portail;
+ $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";$("s-imp").hidden=t!=="impression";$("s-cloud").hidden=t!=="cloud";if(t==="cloud")clView();if(t==="impression")iView();if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","medias","stats","acces","impression","cloud"].includes(t);$("s-ptl").hidden=!portail;
  document.querySelectorAll("#ptl .pp").forEach(p=>{p.hidden=p.dataset.pp!==t});const bar=document.querySelector("#pform>.uf");if(bar)bar.style.display=t==="publication"?"none":"flex"}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-pt]");if(b)pTab(b.dataset.pt)});
 pView();mView();pTab(PTAB);
