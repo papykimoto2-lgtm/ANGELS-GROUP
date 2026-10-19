@@ -555,3 +555,10 @@ Tests : `node tests/passerelle.js` (14 contrôles serveur), `node tests/passerel
 
 ### Paramètres du Hub → Cloud / Supabase
 Onglet inspiré de la configuration Supabase de ZAHARA : URL du projet et clé **anonyme**, boutons Enregistrer / Tester / Effacer / Projet par défaut, état « Connecté » et état des applications branchées (passerelle livreur, pont, application livreur). La clé `service_role` ou secrète est refusée. Le test vérifie le projet, l'installation des tables de la passerelle et le déploiement de `mission-action`. La configuration est mémorisée sur l'appareil (`angels_supabase`) et reprise par `livreur.html` et par l'adresse des fonctions de Distributions ; sans réglage, le projet ANGELS-GROUP de `passerelle-config.js` s'applique. Réservé aux administrateurs (une application déverrouillée).
+
+## Mise en production (base vide, administrateur unique)
+- Une installation neuve ne contient **aucune donnée de démonstration** : un seul compte, l'administrateur **KESSIE**, dans Distributions, Transport et Agro. Son mot de passe d'origine n'est stocké que haché et doit être remplacé à la première connexion.
+- Un appareil qui contient encore une démonstration affiche l'avertissement « MISE EN PRODUCTION » : confirmer efface les données de l'appareil (application, comptabilité miroir, catalogue du portail) ; refuser les conserve et la question n'est plus posée.
+- Les profils et le mot de passe de démonstration n'existent plus à l'écran. Le mode démonstration reste disponible pour les tests et présentations en ouvrant l'application avec `?demo=1` (`?demo=0` pour le quitter).
+- **Bouton 👁** « afficher / masquer » dans tous les champs de mot de passe (applications, Paramètres, `livreur.html`).
+- Tests : `tests/production.js` (25 contrôles, sans données de démonstration) ; `sh tests/run-all.sh` lance toutes les suites, les autres avec le drapeau de démonstration (`tests/demo-hook.js`).
