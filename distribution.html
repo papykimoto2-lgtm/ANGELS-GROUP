@@ -657,11 +657,16 @@ const RH_HOST={division:"distribution",matPrefixe:"DIS",state:()=>S,comptes:()=>
   treso:mode=>mode==="mobile"?{compte:cdd("mobile"),journal:"MM"}:mode==="banque"?{compte:cdd("banque"),journal:"BQ"}:{compte:cdd("caisse"),journal:"CAI"}}};
 ANGELS_RH.use(RH_HOST);
 /* ---------- Comptes de tiers : relevé de compte individuel et ancienneté par pièce (moteur tiers-engine.js) ---------- */
-const TIERS_HOST={division:"distribution",can:()=>can("admin","direction"),user:()=>ME?ME.nom:"système",render:()=>render(),util:{fcfa},audit:(a,d)=>audit(a,d),
+const TIERS_HOST={division:"distribution",can:a=>a==="c"||a==="a"?can("admin"):can("admin","direction"),
+ run:fn=>{const pc=S.config.tiers_prov===undefined?undefined:JSON.stringify(S.config.tiers_prov),bk=JSON.stringify(S.compta||null),al=S.audit.length;try{fn();save();render();return true}catch(e){if(pc===undefined)delete S.config.tiers_prov;else S.config.tiers_prov=JSON.parse(pc);S.compta=JSON.parse(bk);if(S.audit.length>al)S.audit.length=al;toast(fixErr(e),"err");return false}},
+ prov:{get:()=>S.config.tiers_prov||{},set:c=>{S.config.tiers_prov=JSON.parse(JSON.stringify(c))}},soldeCompte:c=>-cptLignesCompte(c).reduce((s,x)=>s+x.m,0),
+ brouillard:o=>{cptGuard();if(cptClosed(o.date))throw new Error("Période clôturée jusqu'au "+cpt().clos);o.lignes.forEach(l=>{const er=cptCheck(l.compte);if(er)throw new Error(er)});cpt().manuelles.push({id:uid("em"),date:new Date(o.date+"T12:00:00").toISOString(),journal:o.journal,libelle:o.libelle,ref:o.piece,lignes:o.lignes.map(l=>({compte:l.compte,sens:l.debit?"D":"C",montant:l.debit||l.credit})),statut:"brouillard",par:ME.nom});audit("Écriture manuelle (brouillard)",o.libelle)},
+ brouillardEnAttente:p=>cpt().manuelles.some(m=>m.statut==="brouillard"&&String(m.ref||"").startsWith(p)),user:()=>ME?ME.nom:"système",render:()=>render(),util:{fcfa},audit:(a,d)=>audit(a,d),
  identite:()=>{const g=S.config,t=g.ste||{};return{nom:g.org,siege:t.adresse,tel:t.tel,rccm:t.rccm,ncc:t.nif}},aller:()=>{view="compta";ui.cpt="rel";render()},
  comptes:()=>[[cdd("client"),"Clients","D"],[cdd("fournisseur"),"Fournisseurs","C"],[cdd("vendeurs"),"Vendeurs partenaires","C"]].filter((x,i,a)=>x[0]&&a.findIndex(y=>y[0]===x[0])===i).map(([c,l,n])=>({compte:c,lib:l,nature:n})),
  lignes:compte=>cptLignesCompte(compte).map(x=>({k:x.k,date:x.date,piece:x.e.no||x.e.ref||"",libelle:x.e.libelle||"",journal:x.e.journal||"",debit:x.m>0?x.m:0,credit:x.m<0?-x.m:0,tiers:x.tiers,tn:x.tn,lettre:x.let}))};
 ANGELS_TIERS.use(TIERS_HOST);
+setInterval(()=>{if(ME)try{ANGELS_TIERS.publier(TIERS_HOST)}catch(e){}},60000);setTimeout(()=>{if(ME)try{ANGELS_TIERS.publier(TIERS_HOST)}catch(e){}},4000);
 /* « Relevé » depuis la balance âgée : id = « c|nom » (client) ou « f|nom » (fournisseur ou vendeur partenaire) */
 function tiersRelDepuis(id){const [k,...n]=String(id).split("|"),nom=n.join("|"),cs=k==="c"?[cdd("client")]:[cdd("fournisseur"),cdd("vendeurs")];
  for(const c of cs){const t=ANGELS_TIERS.liste(c,TIERS_HOST).find(x=>x.nom===nom);if(t)return ANGELS_TIERS.ouvrir(TIERS_HOST,c,t.id)}toast("Aucun mouvement trouvé pour ce tiers","err")}
