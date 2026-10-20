@@ -56,6 +56,21 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const c=S.commandes.find(x=>x.colis&&x.colis.length);ACT.printLabels(c.id);window.open=wo;
   return{n:cap.length,p1:/window\.print\(\)/.test(cap[0]&&cap[0].html)&&/@page\{size:80mm 80mm;margin:0\}/.test(cap[0].html)&&!/dashed/.test(cap[0].html),p2:/window\.print\(\)/.test(cap[1]&&cap[1].html)&&/@page\{size:80mm 80mm;margin:0\}/.test(cap[1].html)}});
  chk("ET-15","impression dans une fenêtre dédiée (taille de page et marges nulles respectées, plus d'en-tête ni de pied de page du navigateur) pour les étiquettes QR et l'étiquette colis standard",imp.n===2&&imp.p1&&imp.p2||JSON.stringify(imp));
+ /* PDF à la taille exacte, sans en-tête ni pied de page */
+ const pd=await D.evaluate(async()=>{const items=[{qr:"AGE1P|X1",titre:"Savon test",l1:"1 000 F",code:"X1"}];
+  const c=await ANGELS_ETIQ.rasteriser(ANGELS_ETIQ.html(items,{w:80,h:80,copies:3,cadre:false}),".et",80,80);
+  const g=c[0].getContext("2d").getImageData(0,0,c[0].width,c[0].height).data;let noir=0;for(let i=0;i<g.length;i+=4)if(g[i]<100)noir++;
+  const blob=ANGELS_ETIQ.pdf(c,80,80),txt=new TextDecoder("latin1").decode(new Uint8Array(await blob.arrayBuffer()));
+  return{n:c.length,noir:noir>20000&&noir<500000,entete:txt.startsWith("%PDF-1.4"),pages:(txt.match(/\/Type \/Page /g)||[]).length,box:/MediaBox \[0 0 226\.77 226\.77\]/.test(txt),fin:txt.trim().endsWith("%%EOF")}});
+ chk("ET-16","PDF : une page par étiquette (3 copies), taille exacte 80 × 80 mm, étiquette rendue (QR et texte), fichier PDF bien formé",pd.n===3&&pd.noir&&pd.entete&&pd.pages===3&&pd.box&&pd.fin||JSON.stringify(pd));
+ const bp=await D.evaluate(async()=>{const cap=[];const wo=window.open;window.open=()=>{const w={document:{write(){}},location:{href:""},close(){}};cap.push(w);return w};
+  ANGELS_ETIQ.ouvrir({titre:"t",items:[{qr:"AGE1P|X",titre:"Savon"}]});const b=document.querySelector('#et-ov [data-et="pdf"]');const vis=!!b;b.click();
+  await new Promise(r=>setTimeout(r,1500));document.getElementById("et-ov")&&document.getElementById("et-ov").remove();
+  const c=S.commandes.find(x=>x.colis&&x.colis.length);const n0=cap.length;ACT.pdfLabels(c.id);await new Promise(r=>setTimeout(r,2500));window.open=wo;
+  return{vis,n:cap.length,u1:/^blob:/.test(cap[0]&&cap[0].location.href),u2:/^blob:/.test(cap[1]&&cap[1].location.href),btn:n0===1}});
+ chk("ET-17","bouton « PDF sans en-tête » (étiquettes QR et colis standard) : ouvre le PDF dans un nouvel onglet",bp.vis&&bp.n===2&&bp.u1&&bp.u2||JSON.stringify(bp));
+ const btnStd=await D.evaluate(()=>{const c=S.commandes.find(x=>x.colis&&x.colis.length);labelsModal(c);return !!document.querySelector('#modal [data-act="pdfLabels"]')});
+ chk("ET-18","fenêtre des étiquettes colis : bouton « PDF sans en-tête » à côté de « Imprimer »",btnStd);
  /* Transport */
  const T=await open("transport");await T.evaluate(()=>{view="vehicules";render()});
  const tb=await T.evaluate(()=>document.querySelectorAll('[data-a="veh.etiq"]').length);
