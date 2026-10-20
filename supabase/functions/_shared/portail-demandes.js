@@ -57,9 +57,32 @@ export async function traiterBureau(db, cfg, req, adminKey) {
   if (!cfg.adminKey || !egal(adminKey, cfg.adminKey)) return err(401, "Clé d'administration invalide");
   const a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteListe(100) });
+  if (a === "publier") return publierCatalogue(db, req);
   if (a === "acquitter") {
     const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
     if (ids.length) await db.acquitter(ids); return rep(200, { ok: true, acquittes: ids.length });
   }
   return err(400, "Action inconnue");
+}
+
+/* ================= Catalogue public du portail ================= */
+const PHOTO = /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/;
+/* Le bureau publie le catalogue (jeton de boutique + photos) : contrôlé, borné, puis remplace la version précédente. */
+async function publierCatalogue(db, req) {
+  const boutique = typeof req.boutique === "string" ? req.boutique : "";
+  if (boutique && !/^[A-Za-z0-9_-]{20,300000}$/.test(boutique)) return err(400, "Catalogue illisible");
+  const ph = req.photos && typeof req.photos === "object" && !Array.isArray(req.photos) ? req.photos : {}, photos = {}; let total = 0;
+  for (const [k, v] of Object.entries(ph).slice(0, 300)) {
+    const code = String(k).slice(0, 30);
+    if (!code || typeof v !== "string" || v.length > 70000 || !PHOTO.test(v)) continue;
+    total += v.length; if (total > 4000000) return err(413, "Photos trop volumineuses (4 Mo au plus)");
+    photos[code] = v;
+  }
+  await db.ecrireCatalogue({ boutique, photos });
+  return rep(200, { ok: true, photos: Object.keys(photos).length, ignorees: Object.keys(ph).length - Object.keys(photos).length });
+}
+/* Visiteur du portail : lecture seule du catalogue publié */
+export async function lireCatalogue(db) {
+  const c = await db.lireCatalogue(); if (!c || !c.boutique) return rep(200, { ok: true, boutique: "", photos: {}, maj_le: null });
+  return rep(200, { ok: true, boutique: c.boutique, photos: c.photos || {}, maj_le: c.maj_le });
 }
