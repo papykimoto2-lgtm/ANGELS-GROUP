@@ -4893,7 +4893,7 @@ function majPortail(force){
  if(c.boutique===tok&&c.photos_sig===sig&&(c.boutique_src||"auto")==="auto"&&!force)return false;
  c.photosProduits=c.photosProduits&&typeof c.photosProduits==="object"?c.photosProduits:{};(c.photos_dist||[]).forEach(k=>{if(!(k in ph))delete c.photosProduits[k]});Object.assign(c.photosProduits,ph);c.photos_dist=Object.keys(ph);c.photos_sig=sig;
  c.boutique=tok;c.boutique_src="auto";c.boutique_sync=now();localStorage.setItem(PORTAIL_KEY,JSON.stringify(c));
- try{new BroadcastChannel("angels_portail").postMessage("maj")}catch(e){}return true}
+ try{new BroadcastChannel("angels_portail").postMessage("maj")}catch(e){}try{if(typeof portailPubPlanifier==="function"&&PORT())portailPubPlanifier()}catch(e){}return true}
 const portailEtat=()=>{let c=null;try{c=JSON.parse(localStorage.getItem(PORTAIL_KEY)||"null")}catch(e){}c=c&&typeof c==="object"?c:{};return{src:c.boutique_src||"auto",sync:c.boutique_sync||"",tok:!!c.boutique}};
 const webCmds=()=>S.commandes.filter(c=>c.web);
 const digits=s=>String(s||"").replace(/\D/g,"");
@@ -4973,15 +4973,25 @@ async function portailRelever(force){const P=PORT();if(!P||_portBusy||!S.command
   S.portail_poll={le:now(),err:""};
  }catch(e){S.portail_poll={le:now(),err:String(e&&e.message||e).slice(0,160)}}finally{_portBusy=false}
  return out}
+/* Publication automatique du catalogue (boutique, prestations, forfaits, photos) vers le serveur : les visiteurs du portail le lisent sans que le portail soit republié.
+   Active avec la liaison directe (même case, mêmes réglages de la passerelle). Envoyée 2 s après chaque modification, au démarrage et toutes les 5 minutes. */
+let _pubBusy=false,_pubSig="",_pubTimer=null;
+const portailPubPlan=()=>{let c=null;try{c=JSON.parse(localStorage.getItem(PORTAIL_KEY)||"null")}catch(e){}c=c&&typeof c==="object"?c:{};const ph={};[...S.produits,...(S.prestations||[]),...(S.forfaits||[])].forEach(x=>{if(photoOk(x.photo)&&x.actif!==false&&x.en_ligne)ph[x.code]=x.photo});return{boutique:String(c.boutique||""),photos:ph}};
+async function portailPublier(force){const P=PORT();if(!P||_pubBusy||!S.commandes||!can("admin","commercial","superviseur"))return null;if(ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1")return null;
+ try{majPortail(false)}catch(e){}const plan=portailPubPlan(),sig=plan.boutique.length+":"+plan.boutique.slice(-40)+"|"+Object.keys(plan.photos).sort().map(k=>k+plan.photos[k].length).join(",");if(!force&&sig===_pubSig)return null;
+ _pubBusy=true;let r=null;try{const j=await passPost(P,"portail-sync",{action:"publier",boutique:plan.boutique,photos:plan.photos});_pubSig=sig;S.portail_pub={le:now(),err:"",nb:boutNb(),photos:j.photos||0};r=j}catch(e){S.portail_pub={le:now(),err:String(e&&e.message||e).slice(0,160)}}finally{_pubBusy=false}return r}
+const portailPubPlanifier=()=>{clearTimeout(_pubTimer);_pubTimer=setTimeout(()=>{if(ME)portailPublier().catch(()=>{})},2000)};
+setInterval(()=>{if(ME)portailPublier().catch(()=>{})},300000);setTimeout(()=>{if(ME)portailPublier().catch(()=>{})},6000);
 function portDirectHtml(){const P=PORT(),ok=!!(S.config.appel_pont&&/^https:\/\//.test(S.config.appel_pont.url||"")&&S.config.appel_pont.cle_admin),pl=S.portail_poll,ref=S.config.portail_refus||[];
- return`<div class="card"><h2>Réception directe des demandes du portail</h2>
-  <p class="mu sm">Les demandes envoyées depuis le portail (commande, livraison, abonnement) arrivent ici automatiquement, sans passer par WhatsApp : elles sont importées comme à la main (en attente de confirmation). WhatsApp reste disponible pour le client.</p>
+ return`<div class="card"><h2>Liaison directe avec le portail</h2>
+  <p class="mu sm">Deux sens, sans intervention : <b>le catalogue</b> (produits, prestations, forfaits, prix, stock et photos) est publié automatiquement vers le portail, que les visiteurs voient à jour sans republier le portail ; <b>les demandes</b> des clients (commande, livraison, abonnement) arrivent ici sans passer par WhatsApp, importées comme à la main (en attente de confirmation). WhatsApp reste disponible pour le client.</p>
   ${ok?"":'<div class="al warn sm">Configurez d\'abord la passerelle (Paramètres → Passerelle livreur : adresse des fonctions et clé d\'administration).</div>'}
-  <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="pd_on" style="width:auto" ${S.config.portail_direct===true?"checked":""} ${ok&&can("admin")?"":"disabled"} data-act="portDirect"> Activer la réception directe</label>
-  ${P?`<p class="sm mu">${pl?"Dernière relève : "+fdt(pl.le)+(pl.err?` — <b style="color:var(--er)">${esc(pl.err)}</b>`:" — "+(ref.length?"":"tout est importé.")):"En attente de la première relève."}</p><div class="flex"><button class="btn" data-act="portReleve">🔄 Relever maintenant</button></div>`:""}
+  <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="pd_on" style="width:auto" ${S.config.portail_direct===true?"checked":""} ${ok&&can("admin")?"":"disabled"} data-act="portDirect"> Activer la liaison directe</label>
+  ${P?`<p class="sm mu">${pl?"Dernière relève : "+fdt(pl.le)+(pl.err?` — <b style="color:var(--er)">${esc(pl.err)}</b>`:" — "+(ref.length?"":"tout est importé.")):"En attente de la première relève."}</p><p class="sm mu">${S.portail_pub?(S.portail_pub.err?`Catalogue : <b style="color:var(--er)">${esc(S.portail_pub.err)}</b>`:"Catalogue publié le "+fdt(S.portail_pub.le)+" ("+S.portail_pub.nb+" article(s), "+S.portail_pub.photos+" photo(s))."):"Catalogue : pas encore publié."}</p><div class="flex"><button class="btn" data-act="portReleve">🔄 Relever les demandes</button><button class="btn ghost" data-act="portPublie">📤 Publier le catalogue maintenant</button></div>`:""}
   ${ref.length?`<h3>À traiter à la main (${ref.length})</h3>${tbl(["Reçue","Type","Motif du refus",""],ref.map(r=>`<tr><td>${fdt(r.le)}<br><span class="sm mu">${esc(r.ref)}</span></td><td>${esc(r.type)}</td><td>${esc(r.motif)}</td><td><button class="btn sm ghost" data-act="portRefusVoir" data-id="${r.id}">Voir le message</button> <button class="btn sm ghost" data-act="portRefusOk" data-id="${r.id}">Traité</button></td></tr>`),"")}<p class="sm mu">Un message refusé (zone inconnue, doublon…) peut être corrigé puis collé dans « Importer les commandes reçues ».</p>`:""}</div>`}
-Object.assign(ACT,{portDirect:()=>{if(!can("admin"))return toast("Réservé à l'administrateur","err");S.config.portail_direct=!!$("#pd_on").checked;audit("Réception directe des demandes du portail",S.config.portail_direct?"activée":"désactivée");save();render();if(S.config.portail_direct)portailRelever(true).then(()=>{})},
+Object.assign(ACT,{portDirect:()=>{if(!can("admin"))return toast("Réservé à l'administrateur","err");S.config.portail_direct=!!$("#pd_on").checked;audit("Liaison directe avec le portail",S.config.portail_direct?"activée":"désactivée");save();render();if(S.config.portail_direct){portailRelever(true).then(()=>{});portailPublier(true).then(r=>{if(r){save();render()}})}},
  portReleve:async()=>{const r=await portailRelever(true);if(r)toast(r.recues?(r.importees+" importée(s), "+r.refusees+" à traiter à la main"):"Aucune nouvelle demande",r.refusees?"err":"ok");render()},
+ portPublie:async()=>{const r=await portailPublier(true);toast(r?"Catalogue publié : le portail est à jour":(S.portail_pub&&S.portail_pub.err)||"Publication impossible",r?"ok":"err");if(r)save();render()},
  portRefusVoir:id=>{const r=(S.config.portail_refus||[]).find(x=>x.id===id);if(r)modal("Message refusé — "+r.ref,`<div class="al warn sm">${esc(r.motif)}</div><textarea readonly rows="8" style="width:100%;font-size:12px">${esc(r.message)}</textarea>`)},
  portRefusOk:id=>{S.config.portail_refus=(S.config.portail_refus||[]).filter(x=>x.id!==id);save();render()}});
 setInterval(()=>{if(ME)portailRelever().catch(()=>{})},30000);setTimeout(()=>{if(ME)portailRelever().catch(()=>{})},5000);
@@ -5097,7 +5107,7 @@ else{
  load();
  {const id=sessionStorage.getItem("angels_me");const u=id&&usr(id);if(u&&u.actif)ME=u}
  render();
- if(!CL.on)ANGELS_SYNC.init({app:"distribution",nom:"Distributions",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["pos","gps_hist","tries","pass","pass_err","portail_poll"],secrets:{config:["appel_pont.cle_admin"]},qui:()=>ME?ME.nom:"poste",toast:(m,t)=>toast(m,t),occupe:()=>!!$("#modal").innerHTML||/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)});
+ if(!CL.on)ANGELS_SYNC.init({app:"distribution",nom:"Distributions",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["pos","gps_hist","tries","pass","pass_err","portail_poll","portail_pub"],secrets:{config:["appel_pont.cle_admin"]},qui:()=>ME?ME.nom:"poste",toast:(m,t)=>toast(m,t),occupe:()=>!!$("#modal").innerHTML||/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)});
 }
 </script>
 </body>

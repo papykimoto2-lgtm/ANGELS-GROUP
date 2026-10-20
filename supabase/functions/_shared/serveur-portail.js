@@ -12,6 +12,8 @@ export function dbPortail(sb = createClient(Deno.env.get("SUPABASE_URL"), Deno.e
     existe: async (ref) => !!ok(await t().select("id").eq("ref", ref).maybeSingle()).data,
     inserer: async (row) => ok(await t().insert(row)),
     enAttenteListe: async (n) => ok(await t().select("id,ref,type,message,cree_le").eq("traite", false).order("id").limit(n)).data || [],
+    ecrireCatalogue: async (c) => ok(await sb.from("portail_catalogue").upsert({ id: 1, boutique: c.boutique, photos: c.photos, maj_le: new Date().toISOString() }, { onConflict: "id" })),
+    lireCatalogue: async () => ok(await sb.from("portail_catalogue").select("boutique,photos,maj_le").eq("id", 1).maybeSingle()).data,
     acquitter: async (ids) => ok(await t().update({ traite: true, traite_le: new Date().toISOString() }).in("id", ids)),
   };
 }

@@ -76,3 +76,14 @@ Mise en service (rien n'est déployé automatiquement) :
 4. Distributions : *Paramètres → Passerelle livreur* (adresse des fonctions et clé d'administration), puis *Vente en ligne → Réception directe des demandes du portail → Activer*.
 
 Le portail utilise `passerelle-config.js` (adresse publique) : sans fonction déployée, l'envoi direct échoue proprement et WhatsApp reste proposé. Tests : `node tests/portail-demandes.js`.
+
+
+## Catalogue public du portail (mise à jour automatique pour les visiteurs)
+
+| Fichier | Rôle |
+|---|---|
+| `migrations/009_portail_catalogue.sql` | Table `portail_catalogue` (une ligne : jeton de boutique + photos JPEG), RLS sans politique, aucun droit pour `anon` / `authenticated` |
+| `functions/portail-sync/` (action `publier`) | Le bureau publie le catalogue (clé d'administration) : jeton contrôlé, photos JPEG de 70 Ko au plus, 300 au plus, 4 Mo au total ; chaque publication remplace la précédente |
+| `functions/portail-catalogue/` | **Public**, GET seulement : le portail lit le catalogue publié (`--no-verify-jwt`, cache 30 s) |
+
+Mise en service : appliquer la migration 009, redéployer `portail-sync` (nouvelle action) et déployer `portail-catalogue` avec `--no-verify-jwt`. Tests : `node tests/portail-demandes.js`.
