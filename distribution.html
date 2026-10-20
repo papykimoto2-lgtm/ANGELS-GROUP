@@ -211,6 +211,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"commandes",l:"Commandes",i:"🧾",g:"Commandes",r:["admin","superviseur","commercial","preparateur"]},
  {v:"notifs",l:"Notifications",i:"💬",g:"Commandes",r:["admin","superviseur","commercial"]},
  {v:"prestations",l:"Prestations",i:"🛠️",g:"Commandes",r:["admin","commercial"]},
+ {v:"abonnements",l:"Abonnements",i:"🔁",g:"Commandes",r:["admin","commercial","caissier"]},
  {v:"vente_ligne",l:"Vente en ligne",i:"🛒",g:"Commandes",r:["admin","superviseur","commercial","caissier"]},
  {v:"produits",l:"Produits & stock",i:"📦",g:"Stock & préparation",r:["admin","commercial","preparateur"]},
  {v:"journal",l:"Journal des mouvements",i:"📒",g:"Stock & préparation",r:["admin","direction","superviseur","commercial","preparateur"]},
@@ -236,6 +237,8 @@ const byId=(a,id)=>a.find(x=>x.id===id);
 const cmd=id=>byId(S.commandes,id),cli=id=>byId(S.clients,id),liv=id=>byId(S.livreurs,id),prod=id=>byId(S.produits,id),moto=id=>byId(S.motos,id),usr=id=>byId(S.users,id);
 const nPhotos=c=>c.photos?c.photos.length:(c.nphotos||0);
 const presta=id=>(S.prestations||[]).find(x=>x.id===id);
+/* Services de livraison (express, course spéciale, retour de colis) : des prestations du catalogue qui portent un « service » ; le portail les propose sur la page « Programmer une livraison » */
+const SERVICES={express:{l:"Livraison express"},course:{l:"Course spéciale"},retour:{l:"Retour de colis"}};
 const lname=l=>l.produit_id?((prod(l.produit_id)||{}).nom||"?"):(l.desig||"Article");
 const vend=()=>ME&&S.vendeurs.find(v=>v.user_id===ME.id);
 const vendOf=id=>S.vendeurs.find(v=>v.id===id);
@@ -296,7 +299,7 @@ function numCmd(){S.seq.cmd++;return"CMD-"+new Date().getFullYear()+"-"+String(S
 function creerCmd(d){
  if(!garde(["admin","commercial","superviseur","vendeur"],null,d))throw new Error("Droits insuffisants pour créer une commande");
  const c={id:uid("c"),numero:numCmd(),date:dateCmd(d.date),saisie_le:now(),vendeur_id:d.vendeur_id||null,vendeur_encaisse:!!d.vendeur_encaisse,paye_vendeur:+d.paye_vendeur||0,client_id:d.client_id,adr:d.adr,lignes:d.lignes,frais:+d.frais||0,remise:+d.remise||0,paiement:d.paiement,mode:d.mode,priorite:d.priorite||"normale",canal:d.canal||"Téléphone",obs:d.obs||"",statut:"brouillon",hist:[{ts:now(),de:null,a:"brouillon",par:who(),note:"Création"}],cree_par:who(),stock_sorti:false};
- calcCmd(c);S.commandes.unshift(c);
+ aboAppliquer(c);calcCmd(c);S.commandes.unshift(c);
  let ac=d.paiement==="avance"?c.total:d.paiement==="partiel"?Math.min(+d.acompte||0,c.total):0;
  if(ac>0)S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,montant:ac,mode:d.mode,ts:now(),par:who()});
  audit("Création commande",c.numero+" — "+fcfa(c.total));
@@ -531,7 +534,7 @@ function seed(){
   L1.dossier={piece_type:"cni",piece_numero:"SPECIMEN-0001",piece_expire:exp,permis_numero:"SPECIMEN-P-01",permis_categorie:"A",permis_expire:exp,adresse:"Cocody, Abidjan",contact_urgence_nom:"Famille Traoré",contact_urgence_tel:"0100000001",garant_nom:"",garant_tel:"",date_naissance:"1996-04-12",consent_le:now(),maj_le:now()};
   L1.fichiers={photo:{full:av(),mini:av()},piece_recto:{full:sp("CARTE D'IDENTITÉ — RECTO","#e8f0ff","#0f2570")},piece_verso:{full:sp("CARTE D'IDENTITÉ — VERSO","#e8f0ff","#0f2570")},permis:{full:sp("PERMIS DE CONDUIRE","#fff1d6","#7a4a00")}}}
  [["P-RIZ","Riz 25 kg",14500,40],["P-HUI","Huile végétale 5 L",6500,60],["P-SUC","Sucre 5 kg",3500,80],["P-SAV","Savon (carton)",8000,25],["P-EAU","Eau minérale (pack)",1800,120]].forEach(p=>S.produits.push({id:uid("p"),code:p[0],nom:p[1],prix:p[2],cout:Math.round(p[2]*.78/50)*50,stock:p[3],seuil:10,actif:true}));
- S.prestations=[["PR-EXP","Livraison express (moins de 2 h)",2000,"Course prioritaire, départ immédiat"],["PR-EMB","Emballage cadeau",1000,"Papier cadeau et ruban"],["PR-COU","Course spéciale (aller simple)",3000,"Récupérer ou déposer un colis pour le client"],["PR-INS","Installation / mise en service",5000,"Déplacement et mise en route chez le client"]].map(x=>({id:uid("pr"),code:x[0],nom:x[1],prix:x[2],desc:x[3],actif:true,en_ligne:false}));
+ S.prestations=[["PR-EXP","Livraison express (moins de 2 h)",2000,"Course prioritaire, départ immédiat"],["PR-EMB","Emballage cadeau",1000,"Papier cadeau et ruban"],["PR-COU","Course spéciale (aller simple)",3000,"Récupérer ou déposer un colis pour le client"],["PR-INS","Installation / mise en service",5000,"Déplacement et mise en route chez le client"]].map(x=>({id:uid("pr"),code:x[0],nom:x[1],prix:x[2],desc:x[3],actif:true,en_ligne:false,service:{"PR-EXP":"express","PR-COU":"course"}[x[0]]||""}));
  const addr=(lib,zn,q,rep,gps,ins)=>({id:uid("a"),libelle:lib,zone:zn,quartier:q,repere:rep,gps,instructions:ins||""});
  const mkC=(nom,tel,adrs)=>{adrs[0].defaut=true;const c={id:uid("cl"),nom,tel,tel2:"",adresses:adrs,note:""};S.clients.push(c);return c};
  const C1=mkC("Boutique Mariam","0505111111",[addr("Boutique","Cocody","Riviera 2","Face pharmacie",{lat:5.3600,lng:-3.9700},"Sonner 2 fois"),addr("Domicile","Marcory","Zone 4","Près du marché",null)]);
@@ -583,7 +586,7 @@ function seed(){
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}
  if(d&&d.v===1&&ANGELS_AUTH.purgerDemo(d.users,[KEY,"angels_compta_distribution","angels_portail_v1"],"Distributions"))d=null;
  if(d&&d.v===1)S=d;else seed();
- S.vendeurs=S.vendeurs||[];S.reglements=S.reglements||[];S.tournees=S.tournees||[];S.entretiens=S.entretiens||[];ensureConfig();
+ S.vendeurs=S.vendeurs||[];S.reglements=S.reglements||[];S.tournees=S.tournees||[];S.entretiens=S.entretiens||[];S.forfaits=S.forfaits||[];S.abonnements=S.abonnements||[];ensureConfig();
  const lim=Date.now()-S.config.gps_retention_jours*864e5;S.gps_hist=S.gps_hist.filter(p=>new Date(p.ts)>lim)}
 
 /* ---------- Interface : utilitaires ---------- */
@@ -4180,7 +4183,7 @@ const cptCatCompte=c=>cdd(CPT_CATK[c]||"attente");
 const cptDte=d=>String(d||"").slice(0,10);
 /* Construit toutes les écritures déduites des opérations */
 function cptAuto(){
- const C=cpt(),t=+C.tva||0,E=[],ht=x=>t?Math.round(x/(1+t/100)):Math.round(x),Dl=(c,m,k)=>({compte:c,sens:"D",montant:Math.round(m),tiers:k||null}),Cl=(c,m,k)=>({compte:c,sens:"C",montant:Math.round(m),tiers:k||null});
+ aboCycle();const C=cpt(),t=+C.tva||0,E=[],ht=x=>t?Math.round(x/(1+t/100)):Math.round(x),Dl=(c,m,k)=>({compte:c,sens:"D",montant:Math.round(m),tiers:k||null}),Cl=(c,m,k)=>({compte:c,sens:"C",montant:Math.round(m),tiers:k||null});
  const SK=[],sk=(src,sid,date,lib,why,diff,m)=>SK.push({id:src+":"+sid,src,sid,date,lib,why,diff:!!diff,montant:m||0,rg:cptRg({source_table:src,libelle:lib,id:src+":"+sid})});
  const mk=(src,sid,date,j,lib,ref,L)=>{L=L.filter(l=>l.montant!==0).map(l=>l.montant<0?{...l,sens:l.sens==="D"?"C":"D",montant:-l.montant}:l);if(L.length<2){sk(src,sid,date,lib,"Montant nul : aucune écriture à passer");return}E.push({id:src+":"+sid,date,journal:j,libelle:lib,ref:ref||"",lignes:L,source_table:src,source_id:sid,origine:"auto",statut:"validee"})};
  const trs=mode=>estMobile(mode)?[cdd("mobile"),"MM"]:/virement|banque|ch[eè]que/i.test(mode||"")?[cdd("banque"),"BQ"]:null;
@@ -4197,6 +4200,9 @@ function cptAuto(){
  S.depenses.forEach(d=>{const cp=/carbur|essence|transport|p[ée]age|stationn/i.test(d.nature||"")?cdd("c_transport"):cdd("c_div");mk("depenses",d.id,d.ts,"CAI","Dépense de mission : "+(d.nature||""),"",[Dl(cp,d.montant),Cl(cdd("caisse_liv"),d.montant,tLv(d.livreur_id))])});
  S.paie.forEach(p=>mk("paie",p.id,p.ts,"CAI",(p.type==="avance"?"Avance":"Commission")+" "+((liv(p.livreur_id)||{}).nom||""),"",[Dl(p.type==="avance"?cdd("perso"):cdd("commission"),p.montant,tLv(p.livreur_id)),Cl(cdd("caisse"),p.montant)]));
  S.reglements.forEach(r=>{const a=trs(r.mode)||[cdd("caisse"),"CAI"],v=vendOf(r.vendeur_id);mk("reglements",r.id,r.ts,a[1],"Règlement vendeur "+(v?v.nom:""),"",[Dl(cdd("vendeurs"),r.montant,v?{k:"vendeur",id:v.id,nom:v.nom}:null),Cl(a[0],r.montant)])});
+ (S.abonnements||[]).forEach(a=>{const vend=a.sujet.type==="vendeur",cp=vend?cdd("vendeurs"):cdd("client"),tk={k:vend?"vendeur":"client",id:a.sujet.id,nom:aboNom(a)};
+  (a.factures||[]).forEach(f=>{const h=ht(f.montant);mk("abonnements",f.id,f.date,"VT","Abonnement "+a.numero+" — "+f.periode+" ("+aboNom(a)+")",a.numero,[Dl(cp,f.montant,tk),Cl(cdd("vente_prest"),h),Cl(cdd("tva_coll"),f.montant-h)]);
+   if(f.paye){const ac=trs(f.paye.mode)||[cdd("caisse"),"CAI"];mk("abonnements_paiements",f.id,f.paye.ts||f.date,ac[1],"Règlement abonnement "+a.numero+" — "+f.periode+" ("+f.paye.mode+")",f.paye.ref||a.numero,[Dl(ac[0],f.montant),Cl(cp,f.montant,tk)])}})});
  const perm=C.stock!=="intermittent";
  S.stock_mvts.forEach(s=>{const p=prod(s.produit_id);if(!p){sk("stock_mvts",s.id,s.ts,"Mouvement de stock "+s.type,"Produit introuvable : valorisation impossible");return}const m=Math.round(Math.abs(s.qte)*(p.cout||0));if(!(m>0)){sk("stock_mvts",s.id,s.ts,(s.type==="entree"?"Entrée de stock ":s.type==="inventaire"?"Écart d'inventaire ":"Coût des marchandises ")+p.nom,"Coût unitaire nul : aucune valeur à comptabiliser (renseignez le coût du produit)",true);return}
   if(s.type==="entree"&&s.qte>0){const tv=Math.round(m*t/100),fo=String(s.ref||"").split(" — ")[1]||"Fournisseur";mk("stock_mvts",s.id,s.ts,"AC","Entrée de stock "+p.nom+" ×"+s.qte,String(s.ref||"").split(" — ")[0],[Dl(perm?cdd("stock"):cdd("achats"),m),Dl(cdd("tva_ded"),tv),Cl(cdd("fournisseur"),m+tv,{k:"fournisseur",id:fo,nom:fo})])}
@@ -4509,6 +4515,7 @@ function cptSoldes(a,b){const P=cptDef(cptEcr()).filter(e=>!e.cloture_ex&&cptIn(
 const CPT_REGLES=[
  ["vente","Vente livrée","VT",["client"],["vente_art","vente_serv","tva_coll"],"Constatée à la livraison : produits HT (remise commerciale déduite), frais de livraison en services vendus, TVA facturée."],
  ["vente_v","Vente d'un vendeur partenaire (livrée)","VT",["client"],["vendeurs","vente_serv","tva_coll"],"Net à reverser au vendeur ; commission et frais en services vendus, avec leur TVA."],
+ ["abo","Abonnement professionnel (facture mensuelle et règlement)","VT / CAI / MM / BQ",["client|vendeurs","caisse|mobile|banque"],["vente_prest","tva_coll","client|vendeurs"],"Facture mensuelle du forfait en prestations vendues (TVA incluse) ; règlement en trésorerie. La part non consommée à la clôture se traite en produit constaté d'avance."],
  ["remise","Remise commerciale accordée","VT",[],[],"Pas d'écriture propre : la vente est enregistrée nette de remise (produit minoré). Comptée avec la vente."],
  ["acompte","Acompte client","CAI / MM / BQ",["caisse|mobile|banque"],["client"],"Compte de trésorerie selon le mode de paiement."],
  ["encaissement","Encaissement à la livraison","CAI / MM / BQ",["caisse_liv|mobile|banque"],["client"],"Espèces détenues par le livreur ; Mobile Money / virement direct au compte de trésorerie."],
@@ -4536,6 +4543,7 @@ const cptRg=e=>{const s=e.source_table,l=e.libelle||"";
  if(s==="depenses")return"depense";if(s==="paie")return"paie";if(s==="reglements")return"reglement";
  if(s==="stock_mvts")return/^Entrée/.test(l)?"achat":/^Coût/.test(l)?"cout":/^Retour/.test(l)?"retour":"inventaire";
  if(s==="caisse_mvts")return"bon";if(s==="caisse_fond")return"fond";if(s==="caisse_sessions")return"ecart";if(s==="caisse_remises")return"remise_fonds";if(s==="caisse_reappros")return"reappro";
+ if(s==="abonnements"||s==="abonnements_paiements")return"abo";
  if(s==="motos")return/:amort:/.test(e.id||"")?"dotation":"immo";
  if(e.tva_liq)return"tva";if(e.cloture_ex)return"cloture";return"od"};
 function cptRegStats(){const E=cptEcr(),T={};CPT_REGLES.forEach(r=>T[r[0]]={ok:0,ko:0,diff:0});const ops=[];
@@ -4731,7 +4739,7 @@ Object.assign(ACT,{saveSec:()=>{if(CL.on)return toast("Disponible en mode démon
 VIEWS.prestations=()=>{
  if(CL.on)return`<h1>🛠️ Prestations</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
  const rows=(S.prestations||[]).map(p=>{const n=S.commandes.reduce((t,c)=>t+c.lignes.filter(l=>l.prestation_id===p.id).reduce((a,l)=>a+l.qte,0),0);
-  return`<tr><td>${esc(p.code)}</td><td><b>${esc(p.nom)}</b>${p.desc?`<br><span class="sm mu">${esc(p.desc)}</span>`:""}</td><td>${fcfa(p.prix)}</td><td>${n}</td><td>${p.actif?badge("Actif","ok"):badge("Inactif","mu")}${p.en_ligne?" "+badge("🛒 En ligne","wa"):""}</td><td><button class="btn sm ghost" data-act="editPresta" data-id="${p.id}">Modifier</button></td></tr>`});
+  return`<tr><td>${esc(p.code)}</td><td><b>${esc(p.nom)}</b>${p.desc?`<br><span class="sm mu">${esc(p.desc)}</span>`:""}</td><td>${fcfa(p.prix)}</td><td>${n}</td><td>${p.actif?badge("Actif","ok"):badge("Inactif","mu")}${p.en_ligne?" "+badge("🛒 En ligne","wa"):""}${SERVICES[p.service]?" "+badge("🚚 "+SERVICES[p.service].l,"mu"):""}</td><td><button class="btn sm ghost" data-act="editPresta" data-id="${p.id}">Modifier</button></td></tr>`});
  return`<div class="between"><h1>🛠️ Prestations</h1><button class="btn" data-act="newPresta">➕ Nouvelle prestation</button></div>
  <p class="mu sm">Services vendus sans stock (livraison express, emballage cadeau, course spéciale…). Ajoutez-les aux commandes comme un produit ; cochez « Vendu en ligne » pour les proposer dans la boutique. Une prestation ne se supprime pas : désactivez-la.</p>
  ${tbl(["Code","Prestation","Prix","Quantité vendue","Statut",""],rows,"Aucune prestation : créez la première.")}`};
@@ -4739,15 +4747,102 @@ function prestaForm(p){
  modal(p?"Modifier la prestation":"Nouvelle prestation",`<div class="g2"><label>Code<input name="code" required maxlength="20" placeholder="PR-EXP" value="${esc(p?p.code:"")}"></label><label>Désignation<input name="nom" required maxlength="80" value="${esc(p?p.nom:"")}"></label></div>
  <div class="g2"><label>Prix (F)<input type="number" name="prix" min="0" required value="${p?p.prix:""}"></label><label>Description (facultatif)<input name="desc" maxlength="120" value="${esc(p?p.desc||"":"")}"></label></div>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="actif" style="width:auto" ${!p||p.actif?"checked":""}> Prestation active</label>
- <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="en_ligne" style="width:auto" ${p&&p.en_ligne?"checked":""}> 🛒 Vendue en ligne (boutique publique)</label>`,
+ <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="en_ligne" style="width:auto" ${p&&p.en_ligne?"checked":""}> 🛒 Vendue en ligne (boutique publique)</label>
+ <label>Service de livraison proposé sur la page « Programmer une livraison » du portail<select name="service">${opts([{v:"",t:"Aucun (article de boutique ou supplément ordinaire)"},...Object.keys(SERVICES).map(k=>({v:k,t:SERVICES[k].l+(k==="express"?" — commande prioritaire":k==="retour"?" — collecte chez le client, retour au vendeur":"")}))],p?p.service||"":"")}</select></label><div class="sm mu">Une prestation « service » doit aussi être <b>vendue en ligne</b> pour apparaître sur le portail ; son prix s'ajoute aux frais de la zone de livraison.</div>`,
  {onSubmit:d=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err"),false;
   const code=d.code.trim(),nom=d.nom.trim(),prix=Math.round(+d.prix);
   if(!code||!nom)return toast("Code et désignation requis","err"),false;if(!(prix>=0))return toast("Prix invalide","err"),false;
   if(S.produits.some(x=>x.code===code)||S.prestations.some(x=>x.code===code&&x!==p))return toast("Ce code est déjà utilisé","err"),false;
-  if(p){Object.assign(p,{code,nom,prix,desc:d.desc.trim(),actif:!!d.actif,en_ligne:!!d.en_ligne});audit("Modification prestation",nom)}
-  else{S.prestations.push({id:uid("pr"),code,nom,prix,desc:d.desc.trim(),actif:!!d.actif,en_ligne:!!d.en_ligne});audit("Création prestation",nom)}
+  const service=SERVICES[d.service]?d.service:"";if(p){Object.assign(p,{code,nom,prix,desc:d.desc.trim(),actif:!!d.actif,en_ligne:!!d.en_ligne,service});audit("Modification prestation",nom)}
+  else{S.prestations.push({id:uid("pr"),code,nom,prix,desc:d.desc.trim(),actif:!!d.actif,en_ligne:!!d.en_ligne,service});audit("Création prestation",nom)}
   save();render()}})}
 Object.assign(ACT,{newPresta:()=>prestaForm(),editPresta:id=>prestaForm(presta(id))});
+
+/* ---------- Abonnements professionnels : forfaits de livraisons pour un commerçant (client ou vendeur partenaire) ----------
+   Un forfait = N livraisons par mois pour un prix mensuel. L'abonnement génère une facture par mois (dérivée, identifiant stable : pas de doublon) ;
+   chaque commande de l'abonné créée dans le mois est livrée « gratuitement » (frais de zone à 0) tant que le quota n'est pas consommé. La facture est comptabilisée
+   en prestations vendues (écriture automatique), son règlement en trésorerie. La part de forfait non consommée à la clôture se traite en « produit constaté d'avance » (régularisations). */
+const forf=id=>(S.forfaits||[]).find(x=>x.id===id);
+const aboMois=d=>String(d||"").slice(0,7);
+const aboSujet=a=>a.sujet.type==="vendeur"?vendOf(a.sujet.id):cli(a.sujet.id);
+const aboNom=a=>{const s=aboSujet(a);return s?s.nom:(a.nom||"?")};
+const aboStatuts={attente:["En attente d'activation","wa"],actif:["Actif","ok"],suspendu:["Suspendu","mu"],resilie:["Résilié","er"]};
+const aboConso=(a,per)=>S.commandes.filter(c=>c.abo&&c.abo.id===a.id&&c.abo.periode===per&&c.statut!=="annulee").length;
+const aboFacture=(a,per)=>(a.factures||[]).find(f=>f.periode===per);
+const aboDu=a=>(a.factures||[]).filter(f=>!f.paye).reduce((t,f)=>t+f.montant,0);
+function aboMoisSuivant(m){const y=+m.slice(0,4),k=+m.slice(5,7);return k===12?(y+1)+"-01":y+"-"+String(k+1).padStart(2,"0")}
+/* Facture mensuelle : une par mois depuis le début de l'abonnement actif, jusqu'au mois courant (ou de la résiliation). Idempotent : identifiant a.id + période. */
+function aboCycle(){let n=0;const cur=aboMois(ymd(new Date()));(S.abonnements||[]).forEach(a=>{if(a.statut!=="actif")return;a.factures=a.factures||[];const fin=a.fin?aboMois(a.fin):cur;let m=aboMois(a.debut),k=0;
+  for(;m<=cur&&m<=fin&&k<48;m=aboMoisSuivant(m),k++){if(a.factures.some(f=>f.periode===m))continue;a.factures.push({id:a.id+":"+m,periode:m,date:m===aboMois(a.debut)?a.debut:m+"-01",montant:a.forfait.prix,quota:a.forfait.livraisons,paye:null});n++}});return n}
+/* Abonnement applicable à une commande : actif, facture du mois émise, quota non consommé ; titulaire = le vendeur partenaire de la commande, sinon son client */
+function aboApplicable(c){if(CL.on)return null;const per=aboMois(String(c.date||now()).slice(0,10)),sid=c.vendeur_id||c.client_id,typ=c.vendeur_id?"vendeur":"client";
+ return(S.abonnements||[]).find(a=>a.statut==="actif"&&a.sujet.type===typ&&a.sujet.id===sid&&aboFacture(a,per)&&aboConso(a,per)<(aboFacture(a,per).quota||0))||null}
+function aboAppliquer(c){if(!(c.frais>0))return;aboCycle();const a=aboApplicable(c);if(!a)return;const per=aboMois(String(c.date).slice(0,10));c.frais_zone=c.frais;c.frais=0;c.abo={id:a.id,numero:a.numero,periode:per,eco:c.frais_zone}}
+function aboNumero(){const y=new Date().getFullYear(),n=(S.abonnements||[]).filter(a=>a.numero.startsWith("AB-"+y+"-")).length+1;return"AB-"+y+"-"+String(n).padStart(3,"0")}
+function aboCreer(f,web){
+ if(!web&&!can("admin","commercial"))throw new Error("Droits insuffisants");
+ const fo=forf(f.forfait_id);if(!fo||!fo.actif)throw new Error("Forfait introuvable ou désactivé");
+ const typ=f.type==="vendeur"?"vendeur":"client",s=typ==="vendeur"?vendOf(f.sujet_id):cli(f.sujet_id);if(!s)throw new Error("Titulaire introuvable");
+ const d=String(f.debut||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||isNaN(new Date(d+"T00:00:00Z")))throw new Error("Date de début invalide");
+ if(d>ymd(new Date(Date.now()+60*864e5)))throw new Error("Date de début trop éloignée (60 jours au plus)");if(d<ymd(new Date(Date.now()-366*864e5)))throw new Error("Date de début trop ancienne");
+ if((S.abonnements||[]).some(a=>a.sujet.type===typ&&a.sujet.id===s.id&&a.statut!=="resilie"))throw new Error(s.nom+" a déjà un abonnement en cours : résiliez-le avant d'en créer un autre");
+ const a={id:uid("ab"),numero:aboNumero(),sujet:{type:typ,id:s.id},nom:s.nom,forfait_id:fo.id,forfait:{code:fo.code,nom:fo.nom,livraisons:fo.livraisons,prix:fo.prix},debut:d,statut:web?"attente":"actif",factures:[],cree_par:who(),cree_le:now(),web:web||null};
+ S.abonnements.push(a);if(a.statut==="actif")aboCycle();audit("Abonnement "+(web?"demandé (portail)":"créé"),a.numero+" — "+s.nom+" — "+fo.nom);return a}
+function aboChanger(id,statut,motif){if(!can("admin","commercial"))throw new Error("Droits insuffisants");const a=(S.abonnements||[]).find(x=>x.id===id);if(!a)throw new Error("Abonnement introuvable");
+ if(statut==="actif"){if(a.statut==="resilie")throw new Error("Un abonnement résilié ne se réactive pas : créez-en un nouveau");if(a.statut==="actif")throw new Error("Déjà actif");a.statut="actif";a.fin=null;aboCycle()}
+ else if(statut==="suspendu"){if(a.statut!=="actif")throw new Error("Seul un abonnement actif se suspend");a.statut="suspendu"}
+ else if(statut==="resilie"){if(a.statut==="resilie")throw new Error("Déjà résilié");if(String(motif||"").trim().length<5)throw new Error("Motif obligatoire");a.statut="resilie";a.fin=ymd(new Date());a.motif=String(motif).trim()}
+ else throw new Error("Statut inconnu");a.hist=(a.hist||[]).concat([{ts:now(),a:statut,par:who(),note:motif||""}]);audit("Abonnement "+aboStatuts[statut][0].toLowerCase(),a.numero+(motif?" — "+motif:""));return a}
+function aboEncaisser(id,fid,o){if(!can("admin","caissier"))throw new Error("Droits insuffisants : encaissement réservé à l'administrateur et au caissier");const a=(S.abonnements||[]).find(x=>x.id===id),f=a&&(a.factures||[]).find(x=>x.id===fid);if(!f)throw new Error("Facture introuvable");
+ if(f.paye)throw new Error("Facture déjà réglée");const mode=["Espèces","Mobile Money","Virement"].includes(o.mode)?o.mode:"Espèces",ref=String(o.ref||"").trim();
+ if(mode!=="Espèces"){if(ref.length<4)throw new Error("Référence de la transaction obligatoire");if(refUtilisee(ref)||(S.abonnements||[]).some(x=>(x.factures||[]).some(y=>y.paye&&y.paye.ref&&y.paye.ref.toUpperCase()===ref.toUpperCase())))throw new Error("Cette référence de transaction est déjà enregistrée")}
+ f.paye={date:ymd(new Date()),ts:now(),mode,ref,par:who()};audit("Abonnement : facture réglée",a.numero+" "+f.periode+" — "+fcfa(f.montant)+" ("+mode+")");return f}
+function forfaitSave(p,d){if(!can("admin","commercial"))throw new Error("Droits insuffisants");const code=String(d.code||"").trim(),nom=String(d.nom||"").trim(),q=Math.round(+d.livraisons),prix=Math.round(+d.prix);
+ if(!code||!nom)throw new Error("Code et désignation requis");if(!(q>=1&&q<=10000))throw new Error("Nombre de livraisons : entre 1 et 10 000");if(!(prix>=0))throw new Error("Prix invalide");
+ if(S.produits.some(x=>x.code===code)||S.prestations.some(x=>x.code===code)||S.forfaits.some(x=>x.code===code&&x!==p))throw new Error("Ce code est déjà utilisé");
+ const v={code,nom,livraisons:q,prix,desc:String(d.desc||"").trim(),actif:!!d.actif,en_ligne:!!d.en_ligne};if(p){Object.assign(p,v);audit("Modification forfait",nom)}else{S.forfaits.push({id:uid("fo"),...v});audit("Création forfait",nom)}}
+/* Demande d'abonnement reçue du portail (marqueur [ABONNEMENT:…]) : abonnement « en attente d'activation », aucune facture avant l'activation */
+function aboWeb(d){const ref=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,12);if(!ref)throw new Error("référence absente");if((S.abonnements||[]).some(a=>a.web&&a.web.ref===ref))throw new Error("déjà importée");
+ const nom=String(d.e||d.n||"").trim().replace(/\s+/g," ").slice(0,80),tel=String(d.t||"").replace(/[^0-9+]/g,"").slice(0,20);if(!nom||digits(tel).length<8)throw new Error("nom ou téléphone invalide");
+ const fo=(S.forfaits||[]).find(x=>x.code===String(d.fo)&&x.actif&&x.en_ligne);if(!fo)throw new Error("forfait indisponible « "+String(d.fo||"").slice(0,20)+" »");
+ let cl=S.clients.find(c=>!c.vendeur_id&&digits(c.tel)===digits(tel));if(!cl){cl={id:uid("cl"),nom,tel,tel2:"",adresses:[],note:"Abonnement professionnel demandé depuis le portail"};S.clients.push(cl)}
+ const dd=/^\d{4}-\d{2}-\d{2}$/.test(String(d.d||""))?d.d:ymd(new Date());
+ const a=aboCreer({forfait_id:fo.id,type:"client",sujet_id:cl.id,debut:dd},{ref,at:now(),contact:String(d.n||"").slice(0,80)});return{numero:a.numero,nom,total:fo.prix,notes:[]}}
+VIEWS.abonnements=()=>{
+ if(CL.on)return`<h1>🔁 Abonnements</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
+ aboCycle();const k=ui.abo||"abos",cur=aboMois(ymd(new Date())),A=S.abonnements||[],act=A.filter(a=>a.statut==="actif"),mrr=act.reduce((t,a)=>t+a.forfait.prix,0),du=A.reduce((t,a)=>t+(a.statut==="resilie"&&!aboDu(a)?0:aboDu(a)),0),att=A.filter(a=>a.statut==="attente").length,w=can("admin","commercial");
+ const T0=`<div class="between"><h1>🔁 Abonnements professionnels</h1>${w?`<div class="flex"><button class="btn" data-act="newAbo">➕ Nouvel abonnement</button><button class="btn ghost" data-act="newForfait">➕ Nouveau forfait</button></div>`:""}</div>
+ <p class="mu sm">Un commerçant (client ou vendeur partenaire) souscrit un forfait de livraisons par mois : ses commandes du mois sont livrées sans frais de zone tant que le quota n'est pas consommé. Une facture mensuelle est émise et comptabilisée en prestations vendues.</p>
+ <div class="grid">${kpi("Abonnements actifs",act.length)}${kpi("Revenu mensuel récurrent",fcfa(mrr))}${kpi("Factures à encaisser",fcfa(du),du?"w":"o")}${kpi("Demandes à activer",att,att?"w":"o")}</div>${tabs("abo",[["abos","Abonnements"],["forf","Forfaits"]])}`;
+ if(k==="forf")return T0+tbl(["Code","Forfait","Livraisons / mois","Prix mensuel","Abonnés","Statut",""],(S.forfaits||[]).map(f=>`<tr><td>${esc(f.code)}</td><td><b>${esc(f.nom)}</b>${f.desc?`<br><span class="sm mu">${esc(f.desc)}</span>`:""}</td><td>${f.livraisons}</td><td>${fcfa(f.prix)}</td><td>${A.filter(a=>a.forfait_id===f.id&&a.statut==="actif").length}</td><td>${f.actif?badge("Actif","ok"):badge("Inactif","mu")}${f.en_ligne?" "+badge("🛒 En ligne","wa"):""}</td><td>${w?`<button class="btn sm ghost" data-act="editForfait" data-id="${f.id}">Modifier</button>`:""}</td></tr>`),"Aucun forfait : créez le premier (ex. « Pro 30 livraisons »).");
+ const rows=A.slice().sort((a,b)=>(a.statut==="attente"?0:1)-(b.statut==="attente"?0:1)||b.cree_le.localeCompare(a.cree_le)).map(a=>{const st=aboStatuts[a.statut],fa=aboFacture(a,cur),c=fa?aboConso(a,cur):null,du2=aboDu(a);
+  return`<tr><td><b>${esc(a.numero)}</b>${a.web?`<br><span class="sm mu">portail ${esc(a.web.ref)}</span>`:""}</td><td>${esc(aboNom(a))}<br><span class="sm mu">${a.sujet.type==="vendeur"?"Vendeur partenaire":"Client"}</span></td><td>${esc(a.forfait.nom)}<br><span class="sm mu">${a.forfait.livraisons} / mois · ${fcfa(a.forfait.prix)}</span></td><td>${a.debut.split("-").reverse().join("/")}</td><td>${badge(st[0],st[1])}</td><td>${fa?`<b style="color:${c>=fa.quota?"var(--er)":"inherit"}">${c} / ${fa.quota}</b>`:"—"}</td><td>${du2?`<b style="color:var(--er)">${fcfa(du2)}</b>`:"—"}</td>
+  <td><button class="btn sm ghost" data-act="aboDetail" data-id="${a.id}">Ouvrir</button>${w&&a.statut==="attente"?` <button class="btn sm ok" data-act="aboOn" data-id="${a.id}">✔ Activer</button>`:""}${w&&a.statut==="suspendu"?` <button class="btn sm ok" data-act="aboOn" data-id="${a.id}">Réactiver</button>`:""}</td></tr>`});
+ return T0+tbl(["N°","Titulaire","Forfait","Début","Statut","Mois en cours","À encaisser",""],rows,"Aucun abonnement : créez-en un, ou activez les demandes reçues du portail.")};
+function aboDetail(id){const a=S.abonnements.find(x=>x.id===id);if(!a)return;const w=can("admin","commercial"),cash=can("admin","caissier"),st=aboStatuts[a.statut];
+ const fr=(a.factures||[]).slice().sort((x,y)=>y.periode.localeCompare(x.periode)).map(f=>`<tr><td>${f.periode}</td><td>${fcfa(f.montant)}</td><td>${aboConso(a,f.periode)} / ${f.quota}</td><td>${f.paye?badge("Réglée le "+f.paye.date.split("-").reverse().join("/")+" · "+f.paye.mode,"ok"):badge("À encaisser","wa")}</td><td>${cash&&!f.paye?`<button class="btn sm ok" data-act="aboPay" data-id="${a.id}|${f.id}">💰 Encaisser</button>`:""}</td></tr>`).join("");
+ const cs=S.commandes.filter(c=>c.abo&&c.abo.id===a.id).slice(0,15).map(c=>`<tr><td>${c.numero}</td><td>${fdt(c.date)}</td><td>${c.abo.periode}</td><td>${fcfa(c.abo.eco)}</td></tr>`).join("");
+ modal(a.numero+" — "+aboNom(a),`<div class="pill">${badge(st[0],st[1])} · ${esc(a.forfait.nom)} : ${a.forfait.livraisons} livraisons / mois, ${fcfa(a.forfait.prix)} · depuis le ${a.debut.split("-").reverse().join("/")}${a.fin?" · fin le "+a.fin.split("-").reverse().join("/"):""}</div>
+ <h3>Factures mensuelles</h3><div class="tw"><table><thead><tr><th>Mois</th><th>Montant</th><th>Livraisons</th><th>Règlement</th><th></th></tr></thead><tbody>${fr||`<tr><td colspan="5" class="mu">Aucune facture : l'abonnement n'est pas encore actif.</td></tr>`}</tbody></table></div>
+ <h3>Dernières livraisons incluses</h3><div class="tw"><table><thead><tr><th>Commande</th><th>Date</th><th>Mois</th><th>Frais offerts</th></tr></thead><tbody>${cs||`<tr><td colspan="4" class="mu">Aucune livraison encore.</td></tr>`}</tbody></table></div>
+ ${w&&a.statut!=="resilie"?`<div class="flex" style="margin-top:10px">${a.statut==="actif"?`<button type="button" class="btn ghost" data-act="aboOff" data-id="${a.id}">⏸ Suspendre</button>`:""}<button type="button" class="btn er ghost" data-act="aboStop" data-id="${a.id}">Résilier</button></div>`:""}`,{wide:true})}
+const aboRun=(fn,msg)=>{try{fn();save();render();if(msg)toast(msg,"ok");return true}catch(e){toast(e.message,"err");return false}};
+function aboForm(){const cl=S.clients.filter(c=>!c.divers),ve=S.vendeurs.filter(v=>v.actif!==false);
+ modal("Nouvel abonnement professionnel",`<div class="g2"><label>Type de titulaire<select name="type" id="ab_t"><option value="client">Client</option><option value="vendeur">Vendeur partenaire</option></select></label><label>Titulaire<select name="sujet" id="ab_s"></select></label></div>
+ <div class="g2"><label>Forfait<select name="forfait">${opts((S.forfaits||[]).filter(f=>f.actif).map(f=>({v:f.id,t:f.nom+" — "+f.livraisons+" livraisons / "+fcfa(f.prix)})))}</select></label><label>Début<input type="date" name="debut" required value="${ymd(new Date())}"></label></div>
+ <div class="sm mu">La première facture (mois entier, sans prorata) est émise à la création. Un seul abonnement en cours par titulaire.</div>`,
+ {label:"Créer l'abonnement",onSubmit:d=>aboRun(()=>aboCreer({forfait_id:d.forfait,type:d.type,sujet_id:d.sujet,debut:d.debut}),"Abonnement créé")});
+ const fill=()=>{const t=document.getElementById("ab_t").value,L=t==="vendeur"?ve:cl;document.getElementById("ab_s").innerHTML=opts(L.map(x=>({v:x.id,t:x.nom})))};document.getElementById("ab_t").onchange=fill;fill()}
+function forfaitForm(p){modal(p?"Modifier le forfait":"Nouveau forfait",`<div class="g2"><label>Code<input name="code" required maxlength="20" placeholder="AB-PRO30" value="${esc(p?p.code:"")}"></label><label>Désignation<input name="nom" required maxlength="80" value="${esc(p?p.nom:"")}"></label></div>
+ <div class="g2"><label>Livraisons par mois<input type="number" name="livraisons" min="1" max="10000" required value="${p?p.livraisons:""}"></label><label>Prix mensuel (F)<input type="number" name="prix" min="0" required value="${p?p.prix:""}"></label></div>
+ <label>Description (facultatif)<input name="desc" maxlength="120" value="${esc(p?p.desc||"":"")}"></label>
+ <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="actif" style="width:auto" ${!p||p.actif?"checked":""}> Forfait actif</label>
+ <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="en_ligne" style="width:auto" ${p&&p.en_ligne?"checked":""}> 🛒 Proposé sur le portail (page « Abonnement professionnel »)</label>`,
+ {onSubmit:d=>aboRun(()=>forfaitSave(p,d),"Forfait enregistré")})}
+Object.assign(ACT,{newAbo:()=>{if(!(S.forfaits||[]).some(f=>f.actif))return toast("Créez d'abord un forfait","err");aboForm()},newForfait:()=>forfaitForm(),editForfait:id=>forfaitForm(forf(id)),aboDetail:id=>aboDetail(id),
+ aboOn:id=>aboRun(()=>aboChanger(id,"actif"),"Abonnement activé"),aboOff:id=>{aboRun(()=>aboChanger(id,"suspendu"),"Abonnement suspendu");closeModal()},
+ aboStop:id=>ask("Résilier l'abonnement","Motif de la résiliation *",m=>{if(aboRun(()=>aboChanger(id,"resilie",m),"Abonnement résilié")){closeModal();return true}return false},{label:"Résilier",cls:"er"}),
+ aboPay:v=>{const[id,fid]=v.split("|");modal("Encaisser la facture",`<label>Mode de règlement<select name="mode"><option>Espèces</option><option>Mobile Money</option><option>Virement</option></select></label><label>Référence de la transaction (Mobile Money ou virement)<input name="ref" maxlength="60"></label>`,{label:"Encaisser",onSubmit:d=>{if(aboRun(()=>aboEncaisser(id,fid,d),"Règlement enregistré")){setTimeout(()=>aboDetail(id),0);return true}return false}})}});
 
 /* ---------- Vente en ligne : boutique publique (lien partageable) + import des commandes reçues par WhatsApp ----------
    Le lien contient une copie du catalogue (produits « vendus en ligne », prix, stock, zones, comptes Mobile Money). Le client commande,
@@ -4757,7 +4852,7 @@ const MM_OPS=["Wave","Orange Money","MTN MoMo","Moov Money","Autre"];
 const boutCatalogue=()=>S.produits.filter(p=>p.actif&&p.en_ligne),boutPrest=()=>(S.prestations||[]).filter(p=>p.actif&&p.en_ligne);
 const boutMM=()=>(S.config.momo_comptes||[]).map(s=>String(s).trim()).filter(s=>s&&!/exemple/i.test(s));
 const boutPayload=()=>({o:ORGRAW(),w:S.config.whatsapp||"",z:S.config.zones.map(z=>[z.nom,Math.round(z.frais||0)]),
- p:[...boutCatalogue().map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),...boutPrest().map(p=>[p.code,p.nom,Math.round(p.prix),-1])],m:boutMM()});
+ p:[...boutCatalogue().map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),...boutPrest().map(p=>[p.code,p.nom,Math.round(p.prix),-1,SERVICES[p.service]?p.service:""])],m:boutMM(),f:(S.forfaits||[]).filter(f=>f.actif&&f.en_ligne).map(f=>[f.code,f.nom,Math.round(f.prix),f.livraisons])});
 function boutLink(){return location.href.split("#")[0].split("?")[0]+"#boutique="+b64({...boutPayload(),t:Date.now()})}
 /* Connexion Vente en ligne → portail : le catalogue publié ici alimente la boutique du portail (même appareil, sans copier de lien).
    Mode « auto » par défaut ; le mode « lien » (Paramètres → Boutique et vendeurs) garde le lien collé à la main. Les visiteurs voient le catalogue à la dernière publication du portail. */
@@ -4813,26 +4908,28 @@ function progCreer(d){
  const desc=String(d.desc||"").trim().slice(0,300);if(!desc)throw new Error("description du colis absente");
  const dat=String(d.dat||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(dat))throw new Error("date invalide");const dd=new Date(dat+"T00:00:00Z");if(isNaN(dd)||dd.toISOString().slice(0,10)!==dat)throw new Error("date invalide");if(dat<new Date(Date.now()-864e5).toISOString().slice(0,10))throw new Error("date déjà passée ("+dat+")");if(dat>new Date(Date.now()+400*864e5).toISOString().slice(0,10))throw new Error("date trop éloignée ("+dat+")");
  const cren=CRENEAU_L[d.cren]?d.cren:"tot",pc=d.p==="l"?"l":"c";
+ let sv=null;if(d.sv){sv=(S.prestations||[]).find(x=>x.code===String(d.sv)&&x.actif&&x.en_ligne&&SERVICES[x.service]);if(!sv)throw new Error("service indisponible « "+String(d.sv).slice(0,20)+" »")}
+ const rt=sv&&sv.service==="retour"?String(d.rt||"").replace(/[^A-Za-z0-9 \-_.\/]/g,"").trim().slice(0,30):"",orig=rt?S.commandes.find(x=>x.numero===rt):null;
  let cl=S.clients.find(c=>!c.vendeur_id&&digits(c.tel)===digits(tel));if(!cl){cl={id:uid("cl"),nom,tel,tel2:"",adresses:[],note:""};S.clients.push(cl)}
  const ins="Destinataire : "+(dn||"—")+(dt?" "+dt:"");let ad=cl.adresses.find(a=>a.zone===z.nom&&normTxt(a.quartier)===normTxt(q)&&normTxt(a.repere)===normTxt(r)&&normTxt(a.instructions)===normTxt(ins));
  if(!ad){ad={id:uid("a"),libelle:"Livraison "+(dn||"destinataire"),zone:z.nom,quartier:q,repere:r,gps:null,instructions:ins,defaut:!cl.adresses.length};cl.adresses.push(ad)}
- const jour=dat.split("-").reverse().join("/"),obs=["Livraison programmée "+ref,"le "+jour+" — "+CRENEAU_L[cren],"Collecte : "+[cz,cq,cr].filter(Boolean).join(" · ")+(cg?" (GPS "+cg.lat+", "+cg.lng+")":""),"Destinataire : "+(dn||"—")+(dt?" "+dt:""),"Colis : "+desc,"Paiement : "+(pc==="l"?"à la livraison":"à la collecte"),String(d.m||"").trim().slice(0,300)].filter(Boolean).join(" · ");
- const c=creerCmd({client_id:cl.id,adr:Object.assign({},ad),lignes:[{produit_id:null,desig:"Livraison de colis — "+desc.slice(0,80),qte:1,pu:0}],frais:z.frais||0,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Programmation de livraison (portail)",obs,confirmer:false});
+ const jour=dat.split("-").reverse().join("/"),obs=["Livraison programmée "+ref,"le "+jour+" — "+CRENEAU_L[cren],"Collecte : "+[cz,cq,cr].filter(Boolean).join(" · ")+(cg?" (GPS "+cg.lat+", "+cg.lng+")":""),"Destinataire : "+(dn||"—")+(dt?" "+dt:""),"Colis : "+desc,sv?"Service : "+sv.nom+(sv.service==="retour"?" — RETOUR DE COLIS"+(rt?" (commande d'origine "+rt+")":""):""):"","Paiement : "+(pc==="l"?"à la livraison":"à la collecte"),String(d.m||"").trim().slice(0,300)].filter(Boolean).join(" · ");
+ const c=creerCmd({client_id:cl.id,adr:Object.assign({},ad),lignes:[{produit_id:null,desig:(sv&&sv.service==="retour"?"Retour de colis — ":"Livraison de colis — ")+desc.slice(0,80),qte:1,pu:0}].concat(sv?[{produit_id:null,prestation_id:sv.id,desig:sv.nom,qte:1,pu:sv.prix}]:[]),frais:z.frais||0,remise:0,paiement:"livraison",mode:"Espèces",priorite:sv&&sv.service==="express"?"urgente":"normale",canal:"Programmation de livraison (portail)",obs,confirmer:false});
  setStatut(c,"attente","Programmation de livraison reçue du portail");
- c.web={ref,at:now(),pm:"esp",pay:null,tt:null};c.prog={date:dat,creneau:cren,collecte:{zone:cz,quartier:cq,repere:cr,gps:cg},dest:{nom:dn,tel:dt},desc,paye:pc};
- audit("Programmation de livraison importée",c.numero+" — "+jour+" "+CRENEAU_L[cren]);return{numero:c.numero,nom,total:c.total,notes:[]}}
+ c.web={ref,at:now(),pm:"esp",pay:null,tt:null};c.prog={date:dat,creneau:cren,collecte:{zone:cz,quartier:cq,repere:cr,gps:cg},dest:{nom:dn,tel:dt},desc,paye:pc,service:sv?{code:sv.code,kind:sv.service,nom:sv.nom}:null,retour_de:rt||"",retour_cmd:orig?orig.id:null};
+ audit("Programmation de livraison importée",c.numero+" — "+jour+" "+CRENEAU_L[cren]+(sv?" — "+sv.nom:""));return{numero:c.numero,nom,total:c.total,notes:[]}}
 function webImporter(text){
- const mk=[...String(text).matchAll(/\[(BOUTIQUE|LIVRAISON):([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
- if(!mk.length)throw new Error("Aucune commande dans ce texte (le marqueur [BOUTIQUE:…] ou [LIVRAISON:…] est absent)");
+ const mk=[...String(text).matchAll(/\[(BOUTIQUE|LIVRAISON|ABONNEMENT):([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
+ if(!mk.length)throw new Error("Aucune commande dans ce texte (le marqueur [BOUTIQUE:…], [LIVRAISON:…] ou [ABONNEMENT:…] est absent)");
  mk.forEach(m=>{let d;try{d=unb64(m[2])}catch(e){res.ko.push("message illisible");return}
-  try{res.ok.push(m[1]==="LIVRAISON"?progCreer(d):webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
+  try{res.ok.push(m[1]==="LIVRAISON"?progCreer(d):m[1]==="ABONNEMENT"?aboWeb(d):webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
  return res}
 VIEWS.vente_ligne=()=>{
  if(CL.on)return`<h1>🛒 Vente en ligne</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
  const cat=boutCatalogue(),pre=boutPrest(),dispo=cat.filter(p=>p.stock>0),mm=boutMM(),imp=can("admin","commercial","superviseur"),val=can("admin","caissier");
  const rows=webCmds().map(c=>{const w=c.web,cl=cli(c.client_id)||{nom:"?"};
   const pay=w.pm==="mm"?`Mobile Money ${esc(w.op||"")}<br><span class="sm mu">réf. ${esc(w.rf)}</span> ${w.pay==="valide"?badge("Reçu","ok"):w.pay==="rejete"?badge("Non reçu","er"):badge("À vérifier","wa")}`:"Espèces à la livraison";
-  return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${fdt(c.date)}</span>${c.prog?`<br>${badge("Programmée le "+c.prog.date.split("-").reverse().join("/")+" · "+CRENEAU_L[c.prog.creneau],"wa")}`:""}</td><td>${esc(cl.nom)}<br><span class="sm mu">${esc(c.adr.zone)}</span></td><td>${fcfa(c.total)}</td><td>${pay}</td><td>${sb(c)}</td>
+  return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${fdt(c.date)}</span>${c.prog?`<br>${badge("Programmée le "+c.prog.date.split("-").reverse().join("/")+" · "+CRENEAU_L[c.prog.creneau],"wa")}${c.prog.service?" "+badge(c.prog.service.kind==="retour"?"↩ Retour de colis":c.prog.service.kind==="express"?"⚡ Express":"🚀 "+c.prog.service.nom,"er"):""}`:""}</td><td>${esc(cl.nom)}<br><span class="sm mu">${esc(c.adr.zone)}</span></td><td>${fcfa(c.total)}</td><td>${pay}</td><td>${sb(c)}</td>
    <td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button>${val&&w.pay==="a_verifier"?` <button class="btn sm ok" data-act="webPayOk" data-id="${c.id}">✔ Paiement reçu</button> <button class="btn sm er ghost" data-act="webPayKo" data-id="${c.id}">✖ Non reçu</button>`:""}</td></tr>`});
  return`<div class="between"><h1>🛒 Vente en ligne</h1></div>
  <div class="card"><h2>Connexion au portail</h2>${(()=>{const e=portailEtat(),n=boutNb();return e.src==="auto"?`<p>${n?`<b>Synchronisée automatiquement</b> : la boutique du portail affiche ces <b>${cat.length}</b> produit(s) et <b>${pre.length}</b> prestation(s) (prix, stock, zones et comptes Mobile Money à jour à chaque enregistrement).`:`Aucun article publié : la boutique du portail affiche « ouvre bientôt ». Cochez « Vendu en ligne » sur vos produits ou prestations.`}</p>${e.sync?`<p class="sm mu">Dernière synchronisation : ${fdt(e.sync)}</p>`:""}`:`<div class="al warn sm">Le portail utilise un <b>lien collé à la main</b> (Paramètres → Boutique et vendeurs). Il ne suit plus ce catalogue.</div>`})()}
