@@ -48,6 +48,16 @@
       "@media print{body{background:#fff}.et{margin:0;outline:0}.et:last-child{page-break-after:auto;break-after:auto}}</style></head><body>" + L.join("") + "</body></html>";
   }
 
+  /* Impression : fenêtre dédiée. Imprimée depuis un cadre intégré, la page reprend les marges par défaut de la page principale et le navigateur ajoute en-tête (date, titre) et pied de page (adresse, n°) sur l'autocollant ;
+     dans sa propre fenêtre, la règle @page (taille exacte, marges nulles) s'applique et rien d'autre n'est imprimé. Repli sur le cadre si la fenêtre est bloquée. */
+  function imprimer(doc, cadre) {
+    var auto = "<script>window.onload=function(){setTimeout(function(){window.focus();window.print()},250)};window.onafterprint=function(){window.close()}<\/script>";
+    var w = null; try { w = window.open("", "_blank", "width=520,height=520"); } catch (e) { w = null; }
+    if (w) { w.document.open(); w.document.write(doc.replace("</body>", auto + "</body>")); w.document.close(); return true; }
+    try { cadre.contentWindow.focus(); cadre.contentWindow.print(); } catch (x) { alert("Impression impossible : autorisez les fenêtres surgissantes pour ce site. " + x.message); }
+    return false;
+  }
+
   /* ---------- Aperçu et impression ---------- */
   function ouvrir(o) {
     o = o || {}; var items = Array.isArray(o.items) ? o.items.filter(function (x) { return x && (x.qr || x.titre); }) : [];
@@ -75,10 +85,10 @@
     ov.addEventListener("click", function (e) {
       var b = e.target.closest("[data-et]"), fond = e.target === ov; if (!b && !fond) return;
       if (fond || b.dataset.et === "x") { ov.remove(); return; }
-      if (b.dataset.et === "p") { var r = maj(); enregistrer(r); setTimeout(function () { var f = q("et-f"); try { f.contentWindow.focus(); f.contentWindow.print(); } catch (x) { alert("Impression impossible : " + x.message); } if (typeof o.apres === "function") try { o.apres(r, items.length * r.copies); } catch (x) { } }, 150); }
+      if (b.dataset.et === "p") { var r = maj(); enregistrer(r); imprimer(html(items, { w: r.w, h: r.h, copies: r.copies, cadre: false }), q("et-f")); if (typeof o.apres === "function") try { o.apres(r, items.length * r.copies); } catch (x) { } }
     });
     maj(); return ov;
   }
 
-  G.ANGELS_ETIQ = { ouvrir: ouvrir, html: html, etiquette: etiquette, cfg: cfg, PRESETS: PRE, LIMITES: { wMin: W_MIN, wMax: W_MAX, hMin: H_MIN, hMax: H_MAX, copies: COPIES_MAX } };
+  G.ANGELS_ETIQ = { ouvrir: ouvrir, imprimer: imprimer, html: html, etiquette: etiquette, cfg: cfg, PRESETS: PRE, LIMITES: { wMin: W_MIN, wMax: W_MAX, hMin: H_MIN, hMax: H_MAX, copies: COPIES_MAX } };
 })(window);
