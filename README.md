@@ -515,6 +515,12 @@ Principe : **un seul catalogue**, tenu dans Distributions ; le portail le lit, e
 - **Distributions** : *Vente en ligne → Réception directe des demandes du portail* (administrateur ; nécessite la passerelle configurée ; **désactivée par défaut**). Le bureau relève la file toutes les 30 s (poste désigné quand plusieurs postes se synchronisent), importe chaque message **avec les mêmes contrôles que l'import manuel** (commande « en attente de confirmation », abonnement « en attente d'activation »), puis acquitte. Une demande déjà importée n'est jamais importée deux fois ; une demande refusée (zone inconnue, message illisible…) est gardée dans **« À traiter à la main »** avec son motif, consultable puis marquée « Traité » : rien n'est perdu.
 - Mise en service : voir `supabase/README.md` (migration 008, deux fonctions, purge) — **non déployée automatiquement**. Test : `node tests/portail-demandes.js` (27 contrôles : serveur avec base en mémoire, navigateur avec serveur simulé par les vraies fonctions).
 
+## Photos des produits, prestations et forfaits
+
+- **Dans la fiche** (Produits & stock, Prestations, Abonnements → Forfaits) : bloc **Photo** — « 📷 Ajouter / remplacer » (galerie ou appareil photo du téléphone), aperçu, « Retirer ». L'image est **redimensionnée (400 px au plus), convertie en JPEG et plafonnée à 50 Ko** ; seule une image JPEG ainsi produite est acceptée (aucun autre format, aucun script). Une **miniature** s'affiche dans les trois listes.
+- **Portail** : à chaque enregistrement, les photos suivent le catalogue publié (même mécanisme que les prix et le stock) : photo sur la ligne du produit ou de la prestation dans la boutique, et sur la carte du forfait de la page « Abonnement professionnel ». Une photo retirée disparaît du portail ; les photos ajoutées à la main dans **Paramètres → Photos des produits** sont conservées (cette liste montre désormais aussi les prestations). Les visiteurs d'un portail publié voient les nouvelles photos à la prochaine publication du portail, comme pour le catalogue.
+- Mode serveur (CL) : non disponible pour l'instant, comme les prestations. Test : `node tests/photos-catalogue.js` (8 contrôles).
+
 ## Revue de qualité (sécurité, calculs, accessibilité)
 
 Relecture complète du code récent (paie, impression et signature, portail, contrats, export, importations). Chaque défaut a été reproduit par un script avant d'être corrigé.
