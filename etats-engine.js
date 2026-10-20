@@ -176,5 +176,15 @@
   document.addEventListener("click", function (e) { var t = e.target.closest && e.target.closest("[data-et]"); if (!t || !G.ANGELS_ETATS.host) return; e.preventDefault(); H = G.ANGELS_ETATS.host; try { if (t.dataset.et === "imprimer") imprimer(); else if (t.dataset.et === "csv") csv(); } catch (x) { alert(x.message); } });
   document.addEventListener("change", function (e) { var t = e.target; if (!t.dataset || !t.dataset.etf || !G.ANGELS_ETATS.host) return; H = G.ANGELS_ETATS.host; UIS[t.dataset.etf] = t.checked; H.render(); });
 
-  G.ANGELS_ETATS = { host: null, view: view, etats: function (o, h) { if (h) H = h; return etats(o); }, modele: function (L, from, to) { return modele(L, from, to); }, ligneDe: ligneDe, rubrique: rubrique, PLAN: PLAN, LIB: LIB, UI: UIS, use: function (h) { H = h; this.host = h; } };
+  /* Synthèse de l'exercice en cours (1er janvier → aujourd'hui), publiée pour le consolidé du groupe : aucune donnée nominative */
+  function publier(host) {
+    if (host) H = host;
+    try {
+      if (!H.can("v")) return null; var t = today(), m = modele(lignes(), t.slice(0, 4) + "-01-01", t), b = m.bilan, cp = 0;
+      BIL.P[0][2].forEach(function (x) { cp += b.P[x[0]] || 0; });
+      var r = { t: new Date().toISOString(), division: H.division, du: t.slice(0, 4) + "-01-01", au: t, marge: R(m.v.XA), ca: R(m.v.XB), va: R(m.v.XC), ebe: R(m.v.XD), rex: R(m.v.XE), rfin: R(m.v.XF), hao: R(m.v.XH), rn: R(m.v.XI), caf: R(m.caf.total), actif: R(b.totA), passif: R(b.totP), ecart: b.ecart, capitaux: R(cp), treso: R((b.A.banque || 0) + (b.A.valeurs || 0) + (b.A.titres || 0) - (b.P.treso_p || 0)), clients: R(b.A.clients || 0), fournisseurs: R(b.P.fournisseurs || 0), dettes_fin: R(b.P.dettes_fin || 0) };
+      localStorage.setItem("angels_etats_" + H.division, JSON.stringify(r)); return r;
+    } catch (e) { return null; }
+  }
+  G.ANGELS_ETATS = { host: null, view: view, publier: publier, etats: function (o, h) { if (h) H = h; return etats(o); }, modele: function (L, from, to) { return modele(L, from, to); }, ligneDe: ligneDe, rubrique: rubrique, PLAN: PLAN, LIB: LIB, UI: UIS, use: function (h) { H = h; this.host = h; } };
 })(window);
