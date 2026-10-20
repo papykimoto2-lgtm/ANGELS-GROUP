@@ -118,6 +118,7 @@ dialog{max-width:640px;width:calc(100% - 32px);border:1px solid var(--bd);border
 <dialog id="vdlg"></dialog>
 <dialog id="dlg"><h3 style="margin-top:0">Mentions légales</h3><div id="mentions" style="white-space:pre-wrap"></div><p style="text-align:right"><button class="go" onclick="this.closest('dialog').close()">Fermer</button></p></dialog>
 <script src="portail-data.js"></script>
+<script src="passerelle-config.js"></script>
 <script src="qrcode.js"></script>
 <script>
 /* Géolocalisation fiable : suivi jusqu'à 20 s, mesure la plus précise conservée ; au-delà de 1 km (pas de GPS : estimation par la connexion Internet), la position est refusée. */
@@ -196,9 +197,18 @@ let T=charger(),ST={q:{},gps:null,vs:"form",vc:"form"};
 const ref6=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x%32]).join("");
 const waNum=()=>telWA(T.contact.whatsapp||(T.shop&&T.shop.w)||"");
 function lienWA(msg){const n=waNum();return n?"https://wa.me/"+n+"?text="+encodeURIComponent(msg):""}
-function envoi(titre,msg,ref,back,num){ // dernière étape : WhatsApp, ou copie du message si aucun numéro n'est publié
+/* Envoi direct au bureau (fonction serveur « portail-demande ») : seulement si la passerelle est configurée ; WhatsApp reste toujours disponible */
+const portailDirect=()=>{const c=window.ANGELS_PASSERELLE;return c&&/^https:\/\//.test(c.url||"")?c.url.replace(/\/+$/,"")+"/functions/v1/portail-demande":""};
+async function envoiDirect(btn){const card=btn.closest(".card"),st=card.querySelector("#dir_st"),ta=card.querySelector("textarea"),u=portailDirect();if(!u||!ta)return;btn.disabled=true;st.textContent="Envoi en cours…";
+ try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:ta.value})}),j=await r.json().catch(()=>({}));
+  if(r.ok&&j.ok){card.querySelector("h3").textContent="Demande envoyée ✔";btn.remove();st.textContent="Nous avons bien reçu votre demande (réf. "+(j.refs&&j.refs[0]||"")+"). Nous vous recontactons très vite."+(j.doublons?" (Elle avait déjà été reçue.)":"");st.style.color="var(--ok,#118a4b)";return}
+  st.textContent=(j.erreur||"Envoi impossible")+" — utilisez WhatsApp ci-dessous.";st.style.color="#b42318";btn.disabled=false}
+ catch(e){st.textContent="Pas de connexion au serveur — utilisez WhatsApp ci-dessous.";st.style.color="#b42318";btn.disabled=false}}
+function envoi(titre,msg,ref,back,num){ // dernière étape : envoi direct (si disponible), WhatsApp, ou copie du message si aucun numéro n'est publié
+ const dir=!!portailDirect()&&/\[(BOUTIQUE|LIVRAISON|ABONNEMENT):/.test(msg);
  const u=num?"https://wa.me/"+telWA(num)+"?text="+encodeURIComponent(msg):lienWA(msg);return `<div class="card" style="align-items:center;text-align:center"><div class="ic" style="color:var(--c)"><svg class="i" viewBox="0 0 24 24" style="width:44px;height:44px" aria-hidden="true">${ICO.send}</svg></div><h3>Dernière étape</h3><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(ref)}</b></p><p class="mu">${titre}</p>
  ${num?`<p class="mu" style="font-size:13px">Le message sera envoyé au <b>${esc(num)}</b>${digits(num)!==digits(waNum())?" — ce numéro n'est pas celui publié par l'entreprise : vérifiez-le avant d'envoyer.":"."}</p>`:""}
+ ${dir?`<button type="button" class="go" data-direct="1" style="width:100%;justify-content:center">${ico("send")}Envoyer directement à ${esc(T.nom)}</button><p class="mu" id="dir_st" role="status" style="font-size:13px">Envoi instantané, sans passer par WhatsApp. Vous pouvez aussi utiliser WhatsApp ci-dessous.</p>`:""}
  ${u?`<a class="go" href="${esc(u)}" target="_blank" rel="noopener">${ico("chat")}Envoyer sur WhatsApp</a>`:'<div class="empty">Numéro WhatsApp non publié : copiez le message ci-dessous et envoyez-le.</div>'}
  <button type="button" class="chip" data-cp="1">${ico("copy")}Copier le message</button><textarea class="msg" readonly rows="6" style="width:100%;font-size:12px">${esc(msg)}</textarea><button type="button" class="chip" data-vue="${back}">← Nouvelle demande</button></div>`}
 function rendreShop(){
@@ -533,6 +543,7 @@ document.addEventListener("click",e=>{
  if(!e.target.closest("#parcours-nav")){const nv=document.getElementById("parcours-nav");if(nv&&nv.classList.contains("ouvert")){nv.classList.remove("ouvert");document.getElementById("parcours-tg").setAttribute("aria-expanded","false")}}
  const dd=e.target.closest("[data-dd]");document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>{if(!dd||m.id!==dd.dataset.dd)m.classList.remove("open")});
  if(dd){const m=document.getElementById(dd.dataset.dd);m.classList.toggle("open");dd.setAttribute("aria-expanded",m.classList.contains("open")?"true":"false");if(m.classList.contains("open")&&dd.closest(".parcours")){const r=dd.getBoundingClientRect();m.style.position="fixed";m.style.left=Math.max(8,Math.min(r.left,innerWidth-250))+"px";m.style.top=(r.bottom+6)+"px";m.style.right="auto"}return}
+ const dx=e.target.closest("[data-direct]");if(dx){envoiDirect(dx);return}
  const g=e.target.closest("[data-go]");if(g){document.querySelectorAll(".nav-dropdown-menu.open").forEach(m=>m.classList.remove("open"));allerA(g.dataset.go);return}
  if(e.target.id==="lm")document.getElementById("dlg").showModal();
  if(e.target.dataset&&e.target.dataset.lb){document.getElementById("lbi").src=e.target.src;document.getElementById("lbi").alt=e.target.alt;document.getElementById("lbc").textContent=e.target.closest("figure").innerText;document.getElementById("lb").classList.add("on")}

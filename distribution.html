@@ -4924,6 +4924,37 @@ function webImporter(text){
  mk.forEach(m=>{let d;try{d=unb64(m[2])}catch(e){res.ko.push("message illisible");return}
   try{res.ok.push(m[1]==="LIVRAISON"?progCreer(d):m[1]==="ABONNEMENT"?aboWeb(d):webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
  return res}
+/* ---------- Demandes du portail reçues directement (fonctions serveur portail-demande / portail-sync) ----------
+   Le portail peut transmettre la demande du client au serveur au lieu de WhatsApp. Le bureau relève la file, importe chaque message avec les mêmes contrôles que l'import manuel
+   (webImporter : un doublon est refusé, jamais importé deux fois), puis acquitte. Les demandes refusées sont gardées dans « À traiter à la main » avec leur motif : rien n'est perdu. */
+const PORT=()=>{const p=S&&S.config&&S.config.appel_pont;return S&&S.config&&S.config.portail_direct===true&&p&&/^https:\/\//.test(p.url||"")&&p.cle_admin?p:null};
+let _portBusy=false,_portLast=0;
+async function portailRelever(force){const P=PORT();if(!P||_portBusy||!S.commandes||(!force&&Date.now()-_portLast<30000))return null;
+ if(!can("admin","commercial","superviseur"))return null;if(ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1")return null;_portBusy=true;_portLast=Date.now();let out=null;
+ try{const j=await passPost(P,"portail-sync",{action:"lister"}),L=j.demandes||[];out={recues:L.length,importees:0,refusees:0,deja:0};
+  if(L.length){const ids=[];S.config.portail_refus=S.config.portail_refus||[];
+   for(const d of L){let r;try{r=webImporter(String(d.message||""))}catch(e){r={ok:[],ko:[e.message]}}
+    out.importees+=r.ok.length;r.ko.forEach(m=>{if(/déjà importée/.test(m))out.deja++;else{out.refusees++;S.config.portail_refus.unshift({id:uid("pr"),ref:d.ref,type:d.type,motif:m,le:now(),message:String(d.message||"").slice(0,6000)})}});
+    ids.push(d.id)}
+   S.config.portail_refus=S.config.portail_refus.slice(0,50);
+   audit("Demandes du portail reçues (envoi direct)",out.importees+" importée(s), "+out.refusees+" refusée(s), "+out.deja+" déjà connue(s)");save();
+   await passPost(P,"portail-sync",{action:"acquitter",ids});
+   if(out.importees)toast(out.importees+" demande(s) du portail importée(s)","ok");if(out.refusees)toast(out.refusees+" demande(s) du portail à traiter à la main","err");render()}
+  S.portail_poll={le:now(),err:""};
+ }catch(e){S.portail_poll={le:now(),err:String(e&&e.message||e).slice(0,160)}}finally{_portBusy=false}
+ return out}
+function portDirectHtml(){const P=PORT(),ok=!!(S.config.appel_pont&&/^https:\/\//.test(S.config.appel_pont.url||"")&&S.config.appel_pont.cle_admin),pl=S.portail_poll,ref=S.config.portail_refus||[];
+ return`<div class="card"><h2>Réception directe des demandes du portail</h2>
+  <p class="mu sm">Les demandes envoyées depuis le portail (commande, livraison, abonnement) arrivent ici automatiquement, sans passer par WhatsApp : elles sont importées comme à la main (en attente de confirmation). WhatsApp reste disponible pour le client.</p>
+  ${ok?"":'<div class="al warn sm">Configurez d\'abord la passerelle (Paramètres → Passerelle livreur : adresse des fonctions et clé d\'administration).</div>'}
+  <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="pd_on" style="width:auto" ${S.config.portail_direct===true?"checked":""} ${ok&&can("admin")?"":"disabled"} data-act="portDirect"> Activer la réception directe</label>
+  ${P?`<p class="sm mu">${pl?"Dernière relève : "+fdt(pl.le)+(pl.err?` — <b style="color:var(--er)">${esc(pl.err)}</b>`:" — "+(ref.length?"":"tout est importé.")):"En attente de la première relève."}</p><div class="flex"><button class="btn" data-act="portReleve">🔄 Relever maintenant</button></div>`:""}
+  ${ref.length?`<h3>À traiter à la main (${ref.length})</h3>${tbl(["Reçue","Type","Motif du refus",""],ref.map(r=>`<tr><td>${fdt(r.le)}<br><span class="sm mu">${esc(r.ref)}</span></td><td>${esc(r.type)}</td><td>${esc(r.motif)}</td><td><button class="btn sm ghost" data-act="portRefusVoir" data-id="${r.id}">Voir le message</button> <button class="btn sm ghost" data-act="portRefusOk" data-id="${r.id}">Traité</button></td></tr>`),"")}<p class="sm mu">Un message refusé (zone inconnue, doublon…) peut être corrigé puis collé dans « Importer les commandes reçues ».</p>`:""}</div>`}
+Object.assign(ACT,{portDirect:()=>{if(!can("admin"))return toast("Réservé à l'administrateur","err");S.config.portail_direct=!!$("#pd_on").checked;audit("Réception directe des demandes du portail",S.config.portail_direct?"activée":"désactivée");save();render();if(S.config.portail_direct)portailRelever(true).then(()=>{})},
+ portReleve:async()=>{const r=await portailRelever(true);if(r)toast(r.recues?(r.importees+" importée(s), "+r.refusees+" à traiter à la main"):"Aucune nouvelle demande",r.refusees?"err":"ok");render()},
+ portRefusVoir:id=>{const r=(S.config.portail_refus||[]).find(x=>x.id===id);if(r)modal("Message refusé — "+r.ref,`<div class="al warn sm">${esc(r.motif)}</div><textarea readonly rows="8" style="width:100%;font-size:12px">${esc(r.message)}</textarea>`)},
+ portRefusOk:id=>{S.config.portail_refus=(S.config.portail_refus||[]).filter(x=>x.id!==id);save();render()}});
+setInterval(()=>{if(ME)portailRelever().catch(()=>{})},30000);setTimeout(()=>{if(ME)portailRelever().catch(()=>{})},5000);
 VIEWS.vente_ligne=()=>{
  if(CL.on)return`<h1>🛒 Vente en ligne</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
  const cat=boutCatalogue(),pre=boutPrest(),dispo=cat.filter(p=>p.stock>0),mm=boutMM(),imp=can("admin","commercial","superviseur"),val=can("admin","caissier");
@@ -4935,6 +4966,7 @@ VIEWS.vente_ligne=()=>{
  <div class="card"><h2>Connexion au portail</h2>${(()=>{const e=portailEtat(),n=boutNb();return e.src==="auto"?`<p>${n?`<b>Synchronisée automatiquement</b> : la boutique du portail affiche ces <b>${cat.length}</b> produit(s) et <b>${pre.length}</b> prestation(s) (prix, stock, zones et comptes Mobile Money à jour à chaque enregistrement).`:`Aucun article publié : la boutique du portail affiche « ouvre bientôt ». Cochez « Vendu en ligne » sur vos produits ou prestations.`}</p>${e.sync?`<p class="sm mu">Dernière synchronisation : ${fdt(e.sync)}</p>`:""}`:`<div class="al warn sm">Le portail utilise un <b>lien collé à la main</b> (Paramètres → Boutique et vendeurs). Il ne suit plus ce catalogue.</div>`})()}
   <div class="flex" style="margin-top:8px"><button class="btn" data-act="portSync">Synchroniser maintenant</button><a class="btn ghost" href="portail.html#/boutique" target="_blank" rel="noopener">Ouvrir la boutique du portail</a></div>
   <p class="sm mu" style="margin-top:8px">Sur cet appareil, le portail suit votre catalogue en direct. Pour que vos <b>visiteurs</b> voient les changements, republiez le portail : Hub → Paramètres → Publication (portail-data.js ou portail autonome). Les commandes arrivent sur WhatsApp et s'importent ci-dessous.</p></div>
+ ${portDirectHtml()}
  <div class="card"><h2>Votre boutique</h2>
   <p><b>${cat.length}</b> produit(s) publié(s) dont <b>${dispo.length}</b> en stock, et <b>${pre.length}</b> prestation(s). Cochez « Vendu en ligne » dans <a href="#" data-act="nav" data-id="produits">Produits & stock</a> ou <a href="#" data-act="nav" data-id="prestations">Prestations</a> pour publier.</p>
   ${!S.config.whatsapp?'<div class="al warn sm">Aucun numéro WhatsApp d\'entreprise : le client ne pourra pas vous envoyer sa commande. Renseignez-le dans Paramètres.</div>':""}
@@ -5035,7 +5067,7 @@ else{
  load();
  {const id=sessionStorage.getItem("angels_me");const u=id&&usr(id);if(u&&u.actif)ME=u}
  render();
- if(!CL.on)ANGELS_SYNC.init({app:"distribution",nom:"Distributions",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["pos","gps_hist","tries","pass","pass_err"],secrets:{config:["appel_pont.cle_admin"]},qui:()=>ME?ME.nom:"poste",toast:(m,t)=>toast(m,t),occupe:()=>!!$("#modal").innerHTML||/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)});
+ if(!CL.on)ANGELS_SYNC.init({app:"distribution",nom:"Distributions",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["pos","gps_hist","tries","pass","pass_err","portail_poll"],secrets:{config:["appel_pont.cle_admin"]},qui:()=>ME?ME.nom:"poste",toast:(m,t)=>toast(m,t),occupe:()=>!!$("#modal").innerHTML||/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)});
 }
 </script>
 </body>
