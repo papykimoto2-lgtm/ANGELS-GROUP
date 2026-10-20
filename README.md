@@ -251,7 +251,7 @@ Menu *Livreurs & motos* → **📁 Dossier** : photo, pièce d'identité (recto/
 - **Signature :** dans l'écran de confirmation du livreur, un cadre de signature au doigt est obligatoire dès un montant de commande réglable (100 000 F par défaut, 0 = jamais), facultatif en dessous. Elle apparaît sur le bon de livraison.
 
 ## Étiquettes colis et QR codes
-- **Impression :** sur une commande confirmée, « 🏷 Étiquettes colis » demande le nombre de colis et génère une étiquette 100 × 150 mm par colis : numéro de commande, **QR code unique**, « 1/3 », zone de livraison en grand, quartier et repère, client, code court de 5 caractères sous le QR, expéditeur pour les vendeurs partenaires, mention URGENT. Le montant à encaisser et le téléphone du client ne s'impriment que si vous les activez dans Paramètres (le montant affiché dans l'application fait foi).
+- **Impression :** sur une commande confirmée, « 🏷 Étiquettes colis » demande le nombre de colis et génère une étiquette carrée 80 × 80 mm par colis (autocollant maximal de l'Xprinter) : numéro de commande, **QR code unique**, « 1/3 », zone de livraison en grand, quartier et repère, client, code court de 5 caractères sous le QR, expéditeur pour les vendeurs partenaires, mention URGENT. Le montant à encaisser et le téléphone du client ne s'impriment que si vous les activez dans Paramètres (le montant affiché dans l'application fait foi).
 - **Réimpression :** les mêmes QR codes sont conservés. Changer le nombre de colis invalide les étiquettes déjà collées (et c'est refusé dès qu'un colis a été scanné).
 - **Prise en charge :** quand la commande a des étiquettes, le livreur doit scanner chaque colis (caméra) avant de partir. Un colis d'une autre commande est refusé avec le numéro de la commande concernée ; une étiquette inventée ou périmée est refusée.
 - **Remise au client :** la confirmation de livraison exige de scanner de nouveau tous les colis remis.
@@ -661,7 +661,7 @@ Test : `node tests/roles.js` (13 contrôles) et SYP-13 dans `tests/sync-postes.j
 Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, choix de la taille (**80 × 80 mm par défaut** — autocollant maximal —, 50 × 30, 40 × 30, 60 × 40, 80 × 50 ou taille libre de 20 à 82 mm de large), nombre de copies, impression par la boîte d'impression du navigateur avec le pilote Xprinter (une étiquette par page, règle `@page` à la taille exacte). Les réglages sont mémorisés sur le poste ; chaque impression est tracée dans le journal d'audit.
 
 - **Réglage de la boîte d'impression** : imprimante *Xprinter XP-365B*, papier de la **même taille** que celle choisie (créer une fois ce format dans le pilote), marges *Aucune*, échelle *100 %* et **« En-têtes et pieds de page » décoché** (sinon la date, le titre et l'adresse du site s'impriment sur l'autocollant et un « 1/1 » apparaît). Le titre de la page imprimée est vide et l'étiquette est un peu plus basse que la page pour ne jamais produire une seconde feuille.
-- **Colis / commande** (Distribution) : bouton « Petit format 50 × 30 mm » dans la fenêtre des étiquettes colis. Même QR `AGE1|commande|n/N|code` que l'étiquette 100 × 150 (le scan de contrôle le reconnaît) ; ni téléphone ni montant.
+- **Colis / commande** (Distribution) : bouton « Petit format 50 × 30 mm » dans la fenêtre des étiquettes colis. Même QR `AGE1|commande|n/N|code` que l'étiquette standard 80 × 80 (le scan de contrôle le reconnaît) ; ni téléphone ni montant.
 - **Produits** : bouton 🏷 par ligne et « Étiquettes QR » pour tout le catalogue (QR `AGE1P|code`) — aussi dans le catalogue Agro.
 - **Livreurs et motos** : bouton 🏷 (QR `AGE1L|id`, `AGE1M|immatriculation`).
 - **Transport** : véhicules (`AGE1V|immatriculation`). **Agro** : lots (`AGE1T|code`).
@@ -670,3 +670,7 @@ Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, c
 ## Commandes : filtres
 
 La page Commandes combine la recherche (n°, client, zone, quartier, repère, téléphone si non masqué), le statut, la période (aujourd'hui à l'année, dates précises), le livreur (ou « sans livreur en cours »), l'origine (vente propre ou vendeur), la zone, le paiement (soldées / à encaisser) et les commandes urgentes. Un compteur indique le nombre de commandes, le total et le reste à encaisser ; « Réinitialiser » remet les filtres à zéro. Test : `node tests/commandes-filtres.js`.
+
+## Application livreur installable
+
+`livreur.html` s'installe sur l'écran d'accueil du téléphone comme les autres applications : manifeste dédié `manifest-livreur.webmanifest` (icône « L », plein écran, portrait), adresse courte **`/livreur`**, fichiers mis en cache hors ligne par `sw.js`. Android / Chrome : bouton « 📲 Installer l'application Livreur » (écran de connexion et liste des missions) ; iPhone : consigne « Partager → Sur l'écran d'accueil ». Le bouton disparaît une fois l'application installée. Icônes générées par `tools/gen-icons.py`. Tests : `tests/pwa.js` (PWA-L1 à L5).

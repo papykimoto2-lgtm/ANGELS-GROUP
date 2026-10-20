@@ -42,12 +42,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("ET-7","Livreurs & motos : bouton 🏷 par livreur et par moto ; l'étiquette moto porte l'immatriculation",lv.l>0&&lv.m>0&&!!ol&&!!om&&om.doc.includes(im),JSON.stringify(lv));
  /* colis */
  const col=await D.evaluate(()=>{const c=S.commandes.find(x=>x.adr)||S.commandes[0];etiqueter(c,2);save();ACT.etiqColisPetit(c.id);const d=document.getElementById("et-f").srcdoc;return{n:document.getElementById("et-n").textContent,num:d.includes(c.numero),tok:c.colis.every(k=>d.includes(k.tok)),tel:S.clients.every(x=>!x.tel||!d.includes(x.tel)),payload:colisPayload(c,c.colis[0]),chk:checkColis(colisPayload(c,c.colis[0]),c).ok}});
- chk("ET-8","colis petit format : une étiquette par colis (2), numéro et code court, QR identique à l'étiquette 100 × 150 (reconnu par la vérification de scan), aucun téléphone",/^2 étiquette/.test(col.n)&&col.num&&col.tok&&col.tel&&col.chk,JSON.stringify(col));
+ chk("ET-8","colis petit format : une étiquette par colis (2), numéro et code court, QR identique à l'étiquette standard 80 × 80 (reconnu par la vérification de scan), aucun téléphone",/^2 étiquette/.test(col.n)&&col.num&&col.tok&&col.tel&&col.chk,JSON.stringify(col));
  await D.evaluate(()=>document.getElementById("et-ov").remove());
  await D.evaluate(()=>{const c=S.commandes.find(x=>x.colis&&x.colis.length);labelsModal(c)});
- chk("ET-9","fenêtre « Étiquettes » des colis : bouton « Petit format 50 × 30 mm » à côté de l'impression 100 × 150",await D.evaluate(()=>!!document.querySelector('#modal [data-act="etiqColisPetit"]')));
+ chk("ET-9","fenêtre « Étiquettes » des colis : bouton « Petit format 50 × 30 mm » à côté de l'impression standard 80 × 80",await D.evaluate(()=>!!document.querySelector('#modal [data-act="etiqColisPetit"]')));
  const dim=await D.evaluate(()=>{const h=ANGELS_ETIQ.html([{qr:"AGE1|CMD-2026-000123|1/1|C76WW",titre:"CMD-2026-000123",l1:"Colis 1/1",l2:"Koumassi · Koumassi",code:"C76WW"}],{w:80,h:80});return{page:/@page\{size:80mm 80mm;margin:0\}/.test(h),haut:/height:79\.6mm/.test(h),titre:/<title> <\/title>/.test(h),vert:/class="et v"/.test(h)}});
  chk("ET-13","80 × 80 mm : page à la taille exacte, étiquette légèrement plus basse que la page (pas de 2e feuille), titre vide (rien d'imprimé en en-tête), mise en page verticale avec grand QR",dim.page&&dim.haut&&dim.titre&&dim.vert,JSON.stringify(dim));
+ const std=await D.evaluate(()=>{const c=S.commandes.find(x=>x.colis&&x.colis.length)||(()=>{const k=S.commandes[0];etiqueter(k,1);return k})();const h=labelsHTML(c);return{page:/@page\{size:80mm 80mm;margin:0\}/.test(h),haut:/height:79\.6mm/.test(h),ancien:/150mm/.test(h),qr:/<svg/.test(h),code:c.colis.every(k=>h.includes(k.tok)),titre:/<title> <\/title>/.test(h)}});
+ chk("ET-14","étiquette colis standard : carrée 80 × 80 mm (plus de 100 × 150), QR, code court, sans titre de page, pas de 2e feuille",std.page&&std.haut&&!std.ancien&&std.qr&&std.code&&std.titre,JSON.stringify(std));
  /* Transport */
  const T=await open("transport");await T.evaluate(()=>{view="vehicules";render()});
  const tb=await T.evaluate(()=>document.querySelectorAll('[data-a="veh.etiq"]').length);

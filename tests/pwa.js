@@ -51,6 +51,23 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  // l'ancien défaut : une navigation ne doit pas écraser la page d'accueil en cache
  const idx=await p.evaluate(async()=>{const ks=await caches.keys(),c=await caches.open(ks.find(k=>k.startsWith("angels-v")));const a=await c.match("distribution.html"),h=await c.match("agro.html");return[(await a.text()).includes("ANGEL'S GROUP ERP"),(await h.text()).includes("ANGEL'S AGRO")]});
  t("PWA-9","chaque page garde sa propre entrée de cache",idx[0]&&idx[1]?true:JSON.stringify(idx));
+ // Application livreur installable (livreur.html)
+ {const m=await (await p.request.get(base+"/manifest-livreur.webmanifest")).json(),bad=[];
+  ["id","name","short_name","start_url","scope","display","icons","theme_color","background_color"].forEach(k=>{if(!m[k])bad.push("manque "+k)});
+  if(m.display!=="standalone")bad.push("display");if(!/livreur\.html/.test(m.start_url))bad.push("start_url");if(!(m.icons||[]).some(i=>i.purpose==="maskable"))bad.push("maskable");
+  const sz=(m.icons||[]).map(i=>i.sizes);if(!sz.includes("192x192")||!sz.includes("512x512"))bad.push("tailles");
+  for(const i of m.icons||[]){const r=await p.request.get(base+"/"+i.src);if(r.status()!==200)bad.push("icône "+i.src)}
+  t("PWA-L1","manifeste de l'application livreur complet (start_url livreur.html, icônes 192/512/maskable)",bad.length?bad.join(", "):true);
+  const lj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8")),swt=fs.readFileSync(path.join(root,"sw.js"),"utf8");
+  t("PWA-L2","adresse courte /livreur et mise en cache hors ligne (manifeste, icônes)",(lj.rewrites||[]).some(r=>r.source==="/livreur"&&/livreur\.html/.test(r.destination))&&swt.includes("manifest-livreur.webmanifest")&&swt.includes("icons/livreur-512.png")?true:"rewrite ou cache absent");
+  const lp=await ctx.newPage();await lp.goto(base+"/livreur.html");await lp.evaluate(()=>navigator.serviceWorker.ready);await lp.waitForTimeout(600);
+  const li=await lp.evaluate(()=>({man:document.querySelector("link[rel=manifest]")&&document.querySelector("link[rel=manifest]").getAttribute("href"),ap:document.querySelector("link[rel=apple-touch-icon]").getAttribute("href"),inst:document.querySelectorAll(".inst").length}));
+  t("PWA-L3","livreur.html : manifeste dédié, icône iPhone dédiée, zone d'installation",li.man==="manifest-livreur.webmanifest"&&/livreur-apple/.test(li.ap)&&li.inst>=1?true:JSON.stringify(li));
+  const cdl=await ctx.newCDPSession(lp);const el=(await cdl.send("Page.getInstallabilityErrors")).installabilityErrors.map(e=>e.errorId).filter(x=>x!=="in-incognito");
+  t("PWA-L4","l'application livreur est installable (Chromium)",el.length===0?true:JSON.stringify(el));
+  const ev=await lp.evaluate(()=>{const e=new Event("beforeinstallprompt");e.prompt=()=>{window.__pr=1};e.userChoice=Promise.resolve({outcome:"accepted"});window.dispatchEvent(e);const b=document.querySelector('.inst [data-a="installer"]');const vis=!!b;if(b)b.click();return{vis,pr:window.__pr||0}});
+  t("PWA-L5","bouton « Installer l'application Livreur » affiché à l'invite du navigateur et déclenche l'installation",ev.vis&&ev.pr===1?true:JSON.stringify(ev));
+ }
  // Espace vendeur installable (Livraison ?app=vendeur)
  {const m=await (await p.request.get(base+"/manifest-vendeur.webmanifest")).json(),bad=[];
   ["name","short_name","start_url","scope","display","icons","theme_color","background_color","id"].forEach(k=>{if(!m[k])bad.push("manque "+k)});
