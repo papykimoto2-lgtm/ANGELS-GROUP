@@ -59,3 +59,20 @@ Limites à connaître : l'application Distributions fonctionne encore sur le sto
 ## Passerelle livreur
 
 Migration `migrations/005_passerelle_livreur.sql`, fonctions `mission-sync` (déployée **sans** vérification JWT : protégée par `ADMIN_KEY`) et `mission-action` (déployée **avec** vérification JWT). Secret requis : `ADMIN_KEY` (le même que le pont). Dans Authentication → Providers → Email, désactiver « Confirm email » est inutile (les comptes sont créés confirmés par le serveur) ; relever la longueur minimale du mot de passe à 10.
+
+
+## Demandes du portail → bureau (envoi direct, sans WhatsApp)
+
+| Fichier | Rôle |
+|---|---|
+| `migrations/008_portail_demandes.sql` | Table `pd_demandes` (RLS sans politique, aucun droit pour `anon` / `authenticated`), référence unique, message borné à 6 000 caractères, empreinte salée du visiteur, purge à 30 jours |
+| `functions/portail-demande/` | **Public** : le portail y envoie le même message que sur WhatsApp (avec son marqueur `[BOUTIQUE:…]`, `[LIVRAISON:…]` ou `[ABONNEMENT:…]`). Contrôle de format et de taille, **20 demandes par heure et par visiteur**, dédoublonnage sur la référence, file limitée à 2 000 demandes |
+| `functions/portail-sync/` | Bureau (en-tête `x-admin-key`) : `lister` les demandes en attente, `acquitter` celles qui sont importées |
+
+Mise en service (rien n'est déployé automatiquement) :
+1. Appliquer `008_portail_demandes.sql`.
+2. `supabase functions deploy portail-demande --no-verify-jwt` (le visiteur n'a pas de compte) et `supabase functions deploy portail-sync` ; le secret `ADMIN_KEY` est celui de la passerelle livreur. Facultatif : `PORTAIL_SEL` (sel de l'empreinte), `PORTAIL_LIMITE_HEURE`, `PORTAIL_FILE_MAX`.
+3. Planifier la purge : `select cron.schedule('pd-purge','30 3 * * *','select public.purge_pd_demandes()');`
+4. Distributions : *Paramètres → Passerelle livreur* (adresse des fonctions et clé d'administration), puis *Vente en ligne → Réception directe des demandes du portail → Activer*.
+
+Le portail utilise `passerelle-config.js` (adresse publique) : sans fonction déployée, l'envoi direct échoue proprement et WhatsApp reste proposé. Tests : `node tests/portail-demandes.js`.
