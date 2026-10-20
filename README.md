@@ -655,3 +655,14 @@ Bouton **🛡️ Rôles et droits** (Distributions → Utilisateurs & droits ; A
 - Les rôles et droits sont **synchronisés entre postes** (`roles_perso`, `droits_roles`, matrice `perms` de Transport) et pris en compte à la prochaine connexion de chaque utilisateur.
 - Les droits par défaut du catalogue (`roles-engine.js`) reproduisent exactement les droits d'origine : vérifié par test sur chaque menu et chaque contrôle d'action du code.
 Test : `node tests/roles.js` (13 contrôles) et SYP-13 dans `tests/sync-postes.js`.
+
+## Étiquettes QR pour imprimante thermique (Xprinter XP-365B)
+
+Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, choix de la taille (**50 × 30 mm par défaut**, 40 × 30, 60 × 40, 80 × 50 ou taille libre de 20 à 82 mm de large), nombre de copies, impression par la boîte d'impression du navigateur avec le pilote Xprinter (une étiquette par page, règle `@page` à la taille exacte). Les réglages sont mémorisés sur le poste ; chaque impression est tracée dans le journal d'audit.
+
+- **Réglage de la boîte d'impression** : imprimante *Xprinter XP-365B*, marges *Aucune*, échelle *100 %*, papier de la taille choisie (créer une fois ce format personnalisé dans le pilote).
+- **Colis / commande** (Distribution) : bouton « Petit format 50 × 30 mm » dans la fenêtre des étiquettes colis. Même QR `AGE1|commande|n/N|code` que l'étiquette 100 × 150 (le scan de contrôle le reconnaît) ; ni téléphone ni montant.
+- **Produits** : bouton 🏷 par ligne et « Étiquettes QR » pour tout le catalogue (QR `AGE1P|code`) — aussi dans le catalogue Agro.
+- **Livreurs et motos** : bouton 🏷 (QR `AGE1L|id`, `AGE1M|immatriculation`).
+- **Transport** : véhicules (`AGE1V|immatriculation`). **Agro** : lots (`AGE1T|code`).
+- Test : `node tests/etiquettes.js` (12 contrôles).
