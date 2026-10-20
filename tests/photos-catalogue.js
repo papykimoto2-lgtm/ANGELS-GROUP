@@ -1,0 +1,45 @@
+/* Photos des produits, prestations et forfaits : ajout depuis la fiche (redimensionnée, JPEG, plafonnée), miniature dans les listes, publication avec le catalogue vers le portail.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/photos-catalogue.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1200,height:1000}}),errs=[];let ok=0,ko=0;
+ const chk=(id,label,o)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":o);o===true?ok++:ko++};
+ const pd=await ctx.newPage();pd.on("pageerror",e=>errs.push("distribution: "+e.message));pd.on("dialog",d=>d.accept());await pd.goto(base+"/distribution.html");await pd.waitForTimeout(600);
+ await pd.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};ME=S.users.find(u=>u.role==="admin");S.config.whatsapp="0707070707"});
+ /* une vraie image (PNG 900×600 dessinée dans la page) */
+ const png=Buffer.from((await pd.evaluate(()=>{const c=document.createElement("canvas");c.width=900;c.height=600;const x=c.getContext("2d");x.fillStyle="#d33";x.fillRect(0,0,900,600);x.fillStyle="#fff";for(let i=0;i<300;i++){x.fillRect((i*37)%900,(i*91)%600,40,12)}return c.toDataURL("image/png").split(",")[1]})),"base64");
+ const up=async()=>{await pd.setInputFiles("#modal input[data-pph]",{name:"photo.png",mimeType:"image/png",buffer:png});await pd.waitForFunction(()=>document.querySelector("#modal [name=photo]").value.length>100,null,{timeout:5000})};
+ const u=await pd.evaluate(()=>{const ok=photoOk;return[ok("data:image/jpeg;base64,AAAA"),ok("data:image/png;base64,AAAA"),ok("javascript:alert(1)"),ok("data:image/jpeg;base64,"+"A".repeat(70000)),ok('data:image/jpeg;base64,AAAA" onerror="x'),ok(null),ok("")].join()});
+ chk("PH-1","contrôle des photos acceptées : JPEG en data-URI seulement, taille plafonnée, aucun script ni autre format",u==="true,false,false,false,false,false,false",u);
+ await pd.evaluate(()=>{view="produits";render();ACT.newProd();document.querySelector("#modal [name=code]").value="P-PHOTO";document.querySelector("#modal [name=nom]").value="Savon test";document.querySelector("#modal [name=prix]").value="1500";document.querySelector("#modal [name=en_ligne]").checked=true});
+ await up();
+ const f1=await pd.evaluate(()=>{const v=document.querySelector("#modal [name=photo]").value,im=document.querySelector("#modal [data-pimg]");return{jpeg:/^data:image\/jpeg;base64,/.test(v),len:v.length,prev:!im.classList.contains("hide")&&im.src===v,del:!document.querySelector("#modal [data-pdel]").classList.contains("hide"),w:0}});
+ const dim=await pd.evaluate(()=>new Promise(r=>{const i=new Image();i.onload=()=>r([i.width,i.height]);i.src=document.querySelector("#modal [name=photo]").value}));
+ chk("PH-2","fiche produit : photo choisie → redimensionnée (400 px au plus, rapport conservé), JPEG, plafonnée à 50 Ko, aperçu et bouton « Retirer »",f1.jpeg&&f1.len<=70000&&f1.prev&&f1.del&&dim[0]===400&&dim[1]===267?true:JSON.stringify([f1,dim]));
+ await pd.evaluate(()=>document.getElementById("mf").requestSubmit());await pd.waitForTimeout(200);
+ const l1=await pd.evaluate(()=>{const p=S.produits.find(x=>x.code==="P-PHOTO");view="produits";render();const h=document.getElementById("app").innerHTML;return{p:!!p&&photoOk(p.photo),th:h.includes('src="'+(p&&p.photo)+'"'),n:S.produits.length}});
+ chk("PH-3","enregistrement : la photo est stockée sur le produit et sa miniature apparaît dans la liste des produits",l1.p&&l1.th,JSON.stringify(l1));
+ await pd.evaluate(()=>{ACT.editProd(S.produits.find(x=>x.code==="P-PHOTO").id)});const pre=await pd.evaluate(()=>photoOk(document.querySelector("#modal [name=photo]").value)&&!document.querySelector("#modal [data-pimg]").classList.contains("hide"));
+ await pd.click("#modal [data-pdel]");const rm=await pd.evaluate(()=>({v:document.querySelector("#modal [name=photo]").value,img:document.querySelector("#modal [data-pimg]").classList.contains("hide")}));await pd.evaluate(()=>document.getElementById("mf").requestSubmit());await pd.waitForTimeout(150);
+ chk("PH-4","modification : la photo existante est reprise dans la fiche ; « Retirer » la supprime du produit",pre&&rm.v===""&&rm.img&&await pd.evaluate(()=>S.produits.find(x=>x.code==="P-PHOTO").photo==="")?true:JSON.stringify([pre,rm]));
+ await pd.evaluate(()=>{ACT.newPresta();document.querySelector("#modal [name=code]").value="PR-PH";document.querySelector("#modal [name=nom]").value="Livraison express photo";document.querySelector("#modal [name=prix]").value="2000";document.querySelector("#modal [name=en_ligne]").checked=true;document.querySelector("#modal [name=service]").value="express"});await up();await pd.evaluate(()=>document.getElementById("mf").requestSubmit());await pd.waitForTimeout(150);
+ await pd.evaluate(()=>{forfaitSave(null,{code:"AB-PH",nom:"Forfait photo",livraisons:10,prix:20000,actif:true,en_ligne:true})});
+ await pd.evaluate(()=>{ACT.editForfait(S.forfaits.find(x=>x.code==="AB-PH").id)});await up();await pd.evaluate(()=>document.getElementById("mf").requestSubmit());await pd.waitForTimeout(150);
+ const l2=await pd.evaluate(()=>{const pr=S.prestations.find(x=>x.code==="PR-PH"),fo=S.forfaits.find(x=>x.code==="AB-PH");view="prestations";render();const h1=document.getElementById("app").innerHTML;view="abonnements";ui.abo="forf";render();const h2=document.getElementById("app").innerHTML;return{pr:photoOk(pr&&pr.photo),fo:photoOk(fo&&fo.photo),th1:h1.includes(pr.photo),th2:h2.includes(fo.photo)}});
+ chk("PH-5","prestations et forfaits : photo ajoutée depuis la fiche, miniature dans leur liste",l2.pr&&l2.fo&&l2.th1&&l2.th2,JSON.stringify(l2));
+ const pub=await pd.evaluate(()=>{const c0=JSON.parse(localStorage.getItem("angels_portail_v1")||"{}");c0.photosProduits=Object.assign({},c0.photosProduits,{MANUEL:"data:image/jpeg;base64,/9j/AAAA"});localStorage.setItem("angels_portail_v1",JSON.stringify(c0));
+  S.produits.find(x=>x.code==="P-PHOTO").photo=S.prestations.find(x=>x.code==="PR-PH").photo;S.produits.find(x=>x.code==="P-PHOTO").en_ligne=true;save();majPortail(false);const c=JSON.parse(localStorage.getItem("angels_portail_v1"));
+  const a={p:photoOk(c.photosProduits["P-PHOTO"]),s:photoOk(c.photosProduits["PR-PH"]),f:photoOk(c.photosProduits["AB-PH"]),man:c.photosProduits.MANUEL==="data:image/jpeg;base64,/9j/AAAA"};
+  S.produits.find(x=>x.code==="P-PHOTO").photo="";save();majPortail(false);const c2=JSON.parse(localStorage.getItem("angels_portail_v1"));a.retire=!("P-PHOTO" in c2.photosProduits)&&("PR-PH" in c2.photosProduits)&&c2.photosProduits.MANUEL==="data:image/jpeg;base64,/9j/AAAA";a.sans=majPortail(false);return a});
+ chk("PH-6","publication au portail : les photos des produits, prestations et forfaits suivent le catalogue ; une photo retirée disparaît, celles ajoutées depuis Paramètres sont conservées ; pas de republication inutile",pub.p&&pub.s&&pub.f&&pub.man&&pub.retire&&pub.sans===false?true:JSON.stringify(pub));
+ const pp=await ctx.newPage();pp.on("pageerror",e=>errs.push("portail: "+e.message));await pd.evaluate(()=>{S.prestations.find(x=>x.code==="PR-PH").en_ligne=true;S.produits.filter(p=>p.actif).slice(0,2).forEach(p=>{p.en_ligne=true});save();majPortail(true)});
+ await pp.goto(base+"/portail.html#/boutique");await pp.waitForTimeout(900);const sh=await pp.evaluate(()=>({img:[...document.querySelectorAll("#shop .bp")].filter(x=>x.dataset.c==="PR-PH"&&x.querySelector("img.th")).length}));
+ await pp.goto(base+"/portail.html#/abonnement");await pp.waitForTimeout(700);const ab=await pp.evaluate(()=>({img:document.querySelectorAll("#ab .card img.th").length,t:document.getElementById("ab").innerText}));
+ chk("PH-7","portail : la photo s'affiche sur la ligne de la prestation dans la boutique et sur la carte du forfait",sh.img===1&&ab.img>=1&&/Forfait photo/.test(ab.t),JSON.stringify([sh,ab.img]));
+ const src=fs.readFileSync(path.join(root,"parametres.html"),"utf8");chk("PH-8","Paramètres → Photos des produits : liste aussi les prestations (plus de filtre sur le stock)",!/\(o\.p\|\|\[\]\)\.filter\(x=>\+x\[3\]>=0\)/.test(src));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
