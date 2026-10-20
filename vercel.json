@@ -68,6 +68,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/livreur",
+      "destination": "/livreur.html"
+    },
+    {
       "source": "/portail",
       "destination": "/portail.html"
     },

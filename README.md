@@ -670,3 +670,7 @@ Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, c
 ## Commandes : filtres
 
 La page Commandes combine la recherche (n°, client, zone, quartier, repère, téléphone si non masqué), le statut, la période (aujourd'hui à l'année, dates précises), le livreur (ou « sans livreur en cours »), l'origine (vente propre ou vendeur), la zone, le paiement (soldées / à encaisser) et les commandes urgentes. Un compteur indique le nombre de commandes, le total et le reste à encaisser ; « Réinitialiser » remet les filtres à zéro. Test : `node tests/commandes-filtres.js`.
+
+## Application livreur installable
+
+`livreur.html` s'installe sur l'écran d'accueil du téléphone comme les autres applications : manifeste dédié `manifest-livreur.webmanifest` (icône « L », plein écran, portrait), adresse courte **`/livreur`**, fichiers mis en cache hors ligne par `sw.js`. Android / Chrome : bouton « 📲 Installer l'application Livreur » (écran de connexion et liste des missions) ; iPhone : consigne « Partager → Sur l'écran d'accueil ». Le bouton disparaît une fois l'application installée. Icônes générées par `tools/gen-icons.py`. Tests : `tests/pwa.js` (PWA-L1 à L5).

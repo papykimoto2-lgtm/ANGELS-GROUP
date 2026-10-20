@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0e7490">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest-livreur.webmanifest">
+<link rel="icon" type="image/png" href="icons/livreur-192.png">
+<link rel="apple-touch-icon" href="icons/livreur-apple-180.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Livreur ANGEL'S">
 <title>Livreur — ANGEL'S GROUP</title>
 <style>
@@ -70,7 +71,7 @@ const ferme=()=>{const o=$(".ov");if(o)o.remove()};
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
 
 /* ---------- Connexion ---------- */
-function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label>Identifiant<input id="li" autocapitalize="none" autocomplete="username" required></label><label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div></div>`;
+function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label>Identifiant<input id="li" autocapitalize="none" autocomplete="username" required></label><label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div></div>`;
  $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button:not(.aa-e)");b.disabled=true;try{await loadSb();sb=sb||window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});const{error}=await sb.auth.signInWithPassword({email:emailDe($("#li").value),password:$("#lp").value});if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect":error.message);await demarrer()}catch(x){vueLogin(x.message);}}}
 const mdpValide=m=>m.length>=10&&[/[a-z]/,/[A-Z]/,/\d/,/[^A-Za-z0-9]/].filter(r=>r.test(m)).length>=3;
 function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mot de passe</b><small>Obligatoire à la première connexion</small></div></div><div class="wrap"><div class="card"><form id="fc"><div class="sm mu">10 caractères minimum, avec au moins 3 types parmi : majuscule, minuscule, chiffre, symbole. Ne reprenez pas votre nom.</div><label>Nouveau mot de passe<input id="n1" type="password" autocomplete="new-password" required></label><label>Confirmer<input id="n2" type="password" autocomplete="new-password" required></label><div id="cm" class="al er hide"></div><button class="btn" type="submit">Enregistrer</button></form></div></div>`;
@@ -112,7 +113,7 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
- $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost" style="width:auto;margin:0;padding:8px 12px" data-a="quitter">Déconnexion</button></div><div class="wrap">${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}
+ $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost" style="width:auto;margin:0;padding:8px 12px" data-a="quitter">Déconnexion</button></div><div class="wrap"><div class="inst"></div>${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}
  ${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}
  <button class="btn ghost" data-a="incident">⚠ Signaler un incident</button><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button>
  ${fin.length?`<h3>Terminées récemment</h3>${fin.map(carte).join("")}`:""}</div>`}
@@ -163,6 +164,19 @@ addEventListener("online",()=>{reprendre()});addEventListener("offline",()=>{if(
 (async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}
  const c=cache();if(!enLigne()&&c)return hors(c);
  try{await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});await demarrer()}catch(e){if(c&&(!enLigne()||/Connexion Internet/.test(e.message)))return hors(c);vueLogin(enLigne()?e.message:"Connexion Internet requise pour se connecter")}})();
+/* Installation sur l'écran d'accueil (Android/Chrome : invite native ; iPhone : consigne Partager > Sur l'écran d'accueil) */
+let IPROMPT=null;
+const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const estIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+function majInstall(){let h="";
+ if(!standalone()&&/^https?:$/.test(location.protocol)){
+  if(IPROMPT)h='<button type="button" class="btn ghost" data-a="installer">📲 Installer l\'application Livreur</button>';
+  else if(estIOS())h='<div class="al">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l\'écran d\'accueil</b>.</div>'}
+ document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;majInstall()});
+addEventListener("appinstalled",()=>{IPROMPT=null;majInstall()});
+document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="installer"]');if(!b||!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(x){}IPROMPT=null;majInstall()});
+new MutationObserver(()=>{if(document.querySelector(".inst:empty"))majInstall()}).observe(document.getElementById("app"),{childList:true});
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>

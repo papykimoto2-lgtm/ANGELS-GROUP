@@ -1,9 +1,9 @@
-"""Génère les icônes PWA (hub, transport, agro). Usage : python3 tools/gen-icons.py"""
+"""Génère les icônes PWA (hub, transport, agro, livreur). Usage : python3 tools/gen-icons.py"""
 from PIL import Image, ImageDraw, ImageFont
 import os
 OUT=os.path.join(os.path.dirname(__file__),"..","icons")
 FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-APPS={"hub":("AG",(11,59,76),(14,116,144)),"transport":("T",(124,45,18),(194,65,12)),"agro":("A",(26,71,49),(45,106,79))}
+APPS={"hub":("AG",(11,59,76),(14,116,144)),"transport":("T",(124,45,18),(194,65,12)),"agro":("A",(26,71,49),(45,106,79)),"livreur":("L",(8,58,70),(8,145,178))}
 def grad(size,c1,c2):
     im=Image.new("RGB",(size,size));px=im.load()
     for y in range(size):
