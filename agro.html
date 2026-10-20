@@ -104,6 +104,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="regul-engine.js"></script>
 <script src="prevision-engine.js"></script>
 <script src="inter-engine.js"></script>
+<script src="etiquette-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
@@ -1226,7 +1227,7 @@ const lotSel=()=>{const f=UI.f.lots||(UI.f.lots={s:"en_cours"});let l=by(S.lots,
 V.lots=()=>{
  const f=UI.f.lots||(UI.f.lots={s:"en_cours"}),L=S.lots.filter(l=>!f.s||l.statut===f.s).slice().sort((a,b)=>(a.statut===b.statut?0:a.statut==="clos"?1:-1)||b.debut.localeCompare(a.debut)),l=lotSel();
  const side=`<div class="lside"><select data-f="lots:s" style="width:100%;margin-bottom:8px">${opt([["en_cours","En cours"],["clos","Clos"],["","Tous"]],f.s)}</select>${L.map(x=>{const s=lotStats(x);return `<div class="lotcard ${l&&x.id===l.id?"on":""} ${x.statut==="clos"?"clos":""}" data-a="lot.sel" data-id="${x.id}" role="button" tabindex="0"><div style="font-weight:700">${x.type==="ponte"?"🥚":"🍗"} ${esc(x.nom)} ${x.statut==="clos"?badge("Clos","mu"):""}</div><div class="mu sm">${esc(x.code)} · ${esc(s.phase)}<br>🐣 ${nf(x.initial)} · J${s.age} · ${esc(x.breed||"—")}</div></div>`}).join("")||`<div class="mu sm">Aucun lot.</div>`}</div>`;
- const act=`<div class="flex">${can("lot")?`<button class="btn" data-a="lot.add">+ Nouveau lot</button>`:""}${csvBtn("lots")}</div>`;
+ const act=`<div class="flex">${can("lot")?`<button class="btn" data-a="lot.add">+ Nouveau lot</button>`:""}${l?btn("lot.etiq",l.id,"🏷 Étiquette QR","ghost"):""}${csvBtn("lots")}</div>`;
  if(!l)return head("Lots & élevage",act)+`<div class="ml">${side}<div class="card mu" style="text-align:center;padding:40px">Sélectionnez un lot ou créez-en un.</div></div>`;
  const s=lotStats(l),al=lotAlertes(l,s),b=by(S.batiments,l.batiment_id)||{},t=tabOf("lot","ov"),ret=S.soins.filter(x=>x.lot_id===l.id&&!x.annule&&!x.realise_le&&x.prevue<today()).length;
  const kp=[l.type==="ponte"?kpi(s.tp!=null?nf(s.tp,1)+" %":"—","Taux de ponte (7 j)",s.tp==null?"":s.tp<S.settings.seuil_ponte?"e":s.tp>=85?"o":"w")+kpi(s.vivants>0&&s.feed>0&&s.oeufs>0?nf(s.feed/s.oeufs*1000,0)+" g":"—","Aliment par œuf")+kpi(nf(s.casse,1)+" %","Taux de casse",s.casse>stv("seuil_casse")?"e":s.casse>2?"w":"o"):kpi(s.IC?nf(s.IC,2):"—","Indice de consommation",s.IC==null?"":s.IC<=1.9?"o":s.IC<=S.settings.ic_max?"w":"e")+kpi(s.poids?nf(s.poids/1000,2)+" kg":"—","Poids moyen (dernière pesée)"),
@@ -1311,6 +1312,9 @@ A["so.edit"]=id=>{const x=by(S.soins,id);form("Modifier la tâche",soFields(),x,
 A["so.rep"]=id=>{const x=by(S.soins,id);form("Reprogrammer : "+x.action,[{k:"date",l:"Nouvelle date",t:"date",req:1}],{date:x.prevue},o=>soinReprogrammer(id,o.date))};
 A["so.del"]=id=>{const x=by(S.soins,id);if(confirm("Supprimer la tâche « "+x.action+" » ?")&&atomic(()=>soinSupprimer(id))!==false)render()};
 A["so.rst"]=id=>{if(confirm("Réinitialiser le calendrier depuis le protocole par défaut ?\nLes soins déjà réalisés sont conservés.")&&atomic(()=>soinsReset(id))!==false)render()};
+function etiqOuvrir(titre,items){if(typeof ANGELS_ETIQ==="undefined"){alert("Moteur d'étiquettes indisponible");return}ANGELS_ETIQ.ouvrir({titre,items,apres:(r,n)=>{audit("Étiquettes QR imprimées",titre+" — "+n+" étiquette(s) "+r.w+"×"+r.h+" mm");try{save()}catch(e){}}})}
+A["lot.etiq"]=id=>{const l=by(S.lots,id);if(!l)return;etiqOuvrir("Étiquette lot — "+l.code,[{qr:"AGE1T|"+l.code,titre:l.nom,l1:(l.type==="ponte"?"Pondeuses":"Chair")+(l.breed?" · "+l.breed:""),l2:"Mise en place "+fd(l.debut),code:l.code}])};
+A["pr.etiq"]=id=>{const L=id==="all"?S.produits:[by(S.produits,id)].filter(Boolean);if(!L.length)return;etiqOuvrir("Étiquettes produits ("+L.length+")",L.map(p=>({qr:"AGE1P|"+p.code,titre:p.nom,l1:(CATP[p.categorie]||p.categorie||""),l2:p.unite?"Unité : "+p.unite:"",code:p.code})))};
 A["lot.sel"]=id=>{UI.lotSel=id;UI.tab.lot="ov";UI.f.lotsem=null;render()};
 A["lot.ch"]=id=>{UI.f.lotch=id;render()};
 A["lot.sem"]=n=>{UI.f.lotsem={n:+n};render()};
@@ -1457,7 +1461,7 @@ V.stock=()=>{
   const I=(S.inventaires||[]).slice().sort((a,b)=>b.t.localeCompare(a.t));
   h+=`<div class="between"><h2 style="margin:0">Sessions d'inventaire (${I.length})</h2>${can("ajust")?`<button class="btn" data-a="inv.new">+ Nouvel inventaire</button>`:""}</div>`+tbl(["N°","Date","Statut","Références","Écarts","Valeur des écarts","Motifs","Par",""],I.map(i=>{const ec=i.lignes.filter(l=>Math.abs(l.compte-l.theorique)>=0.01),nj=ec.filter(l=>l.justification).length,v=invEcartVal(i);return tr([`<b>${esc(i.numero)}</b>`,fd(i.date),badge(i.statut==="valide"?"Validé":"Brouillon",i.statut==="valide"?"ok":"wa"),i.lignes.length,ec.length,`<b style="color:var(--${v<0?"er":v>0?"ok":"tx"})">${v>0?"+":""}${fcfa(v)}</b>`,ec.length?badge(nj+"/"+ec.length,nj===ec.length?"ok":"er"):"—",esc(i.auteur),`<div class="flex">${btn("inv.vue",i.id,"👁","ghost")}${btn("inv.imp",i.id,"🖨","ghost")}${i.statut==="brouillon"&&can("ajust")?btn("inv.edit",i.id,"Saisir","ghost")+btn("inv.del",i.id,"🗑","er"):""}</div>`])}),{empty:"Aucun inventaire réalisé."});
  }else{
-  h+=tbl(["Code","Produit","Catégorie","Stock","Unité","Coût moyen","Valeur","Seuil",""],S.produits.map(p=>{const q=qteStock(p.id),bas=p.seuil>0&&q<=p.seuil;return tr([esc(p.code),esc(p.nom),CATP[p.categorie],badge(nf(q,1),bas?"er":"ok"),esc(p.unite),p.categorie==="fini"?"—":fcfa(pmp(p.id)),fcfa(valP(p)),p.seuil||"—",`<div class="flex">${can("stock")?btn("pr.edit",p.id,"✏️","ghost"):""}${can("ajust")?btn("pr.aj",p.id,"Inventaire","ghost"):""}</div>`])}));
+  h+=`<div class="flex" style="margin-bottom:8px">${btn("pr.etiq","all","🏷 Étiquettes QR (tout le catalogue)","ghost")}</div>`;h+=tbl(["Code","Produit","Catégorie","Stock","Unité","Coût moyen","Valeur","Seuil",""],S.produits.map(p=>{const q=qteStock(p.id),bas=p.seuil>0&&q<=p.seuil;return tr([esc(p.code),esc(p.nom),CATP[p.categorie],badge(nf(q,1),bas?"er":"ok"),esc(p.unite),p.categorie==="fini"?"—":fcfa(pmp(p.id)),fcfa(valP(p)),p.seuil||"—",`<div class="flex">${can("stock")?btn("pr.edit",p.id,"✏️","ghost"):""}${btn("pr.etiq",p.id,"🏷","ghost")}${can("ajust")?btn("pr.aj",p.id,"Inventaire","ghost"):""}</div>`])}));
  }
  return h;
 };

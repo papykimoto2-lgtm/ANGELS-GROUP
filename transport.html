@@ -105,6 +105,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="regul-engine.js"></script>
 <script src="prevision-engine.js"></script>
 <script src="inter-engine.js"></script>
+<script src="etiquette-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
@@ -2033,12 +2034,14 @@ V.vehicules=()=>{
  const q=(UI.f.veh&&UI.f.veh.q||"").toLowerCase(),rows=S.vehicles.filter(v=>!q||(v.immat+v.marque+v.modele).toLowerCase().includes(q)).map(v=>{
   const c=contratActif(v.id),as=S.assignments.find(a=>a.vehicle_id===v.id&&!a.fin),dev=S.gps_dev.find(g=>g.vehicle_id===v.id&&g.actif),ge=dev?gpsEtat(dev):null;
   return tr([esc(v.immat)+(v.statut!=="sorti"&&dossierVeh(v).length?" "+badge("Dossier incomplet","wa"):""),esc(v.marque+" "+(v.modele||"")),badge(VST[v.statut],v.statut==="actif"?"ok":v.statut==="sorti"?"mu":"wa"),c?esc(c.mode==="recette"?"Recette "+fcfa(c.montant)+"/j":"Location "+fcfa(c.montant)+"/"+c.periodicite):"—",esc(as?chauffeurNom(as.driver_id):"—"),ge?badge(ge[0],ge[1]):"—",dateBadge(v.assurance_fin),dateBadge(v.visite_fin),dateBadge(v.carte_fin),
-   `<div class="flex">${btn("veh.fiche",v.id,"Fiche","ghost")}${can("vehicules","e")?btn("veh.edit",v.id,"✏️","ghost")+btn("veh.statut",v.id,"Statut","ghost"):""}</div>`])});
+   `<div class="flex">${btn("veh.fiche",v.id,"Fiche","ghost")}${btn("veh.etiq",v.id,"🏷","ghost",'title="Étiquette QR 50 × 30 mm"')}${can("vehicules","e")?btn("veh.edit",v.id,"✏️","ghost")+btn("veh.statut",v.id,"Statut","ghost"):""}</div>`])});
  return head("Parc automobile",`<input data-f="veh:q" placeholder="Rechercher…" value="${esc(UI.f.veh&&UI.f.veh.q||"")}" style="width:180px">${can("vehicules","c")?`<button class="btn" data-a="veh.add">+ Véhicule</button>`:""}${csvBtn("vehicules","vehicules")}`)+tbl(["Immat.","Véhicule","Statut","Contrat actif","Chauffeur","GPS","Assurance","Visite","Carte transp.",""],rows);
 };
 CSVS.vehicules=()=>[["Immat","Marque","Modèle","Statut","Km"],S.vehicles.map(v=>[v.immat,v.marque,v.modele,VST[v.statut],v.km])];
 A["veh.add"]=()=>form("Nouveau véhicule",vehFields(),{statut:"actif",places:stv("defaut_places"),proprietaire:ORGRAW(),date_entree:today()},o=>{need("vehicules","c");if(S.vehicles.some(v=>v.immat.toLowerCase()===o.immat.toLowerCase()))throw new Error("Immatriculation déjà enregistrée.");const[r,f]=vehFichiers(o);const v={id:uid("v"),statut:"actif",...r};S.vehicles.push(v);vehiculeDocs(v,f);immoVehicule(v,{});audit("Véhicule créé",r.immat)});
 A["veh.edit"]=id=>{const v=by(S.vehicles,id);form("Modifier "+v.immat,vehFields(),v,o=>{need("vehicules","e");if(S.vehicles.some(x=>x.id!==id&&x.immat.toLowerCase()===o.immat.toLowerCase()))throw new Error("Immatriculation déjà enregistrée.");const[r,f]=vehFichiers(o);const prev={valeur_acq:v.valeur_acq,date_service:v.date_service};Object.assign(v,r);vehiculeDocs(v,f);immoVehicule(v,prev);audit("Véhicule modifié",v.immat)})};
+function etiqOuvrir(titre,items){if(typeof ANGELS_ETIQ==="undefined"){alert("Moteur d'étiquettes indisponible");return}ANGELS_ETIQ.ouvrir({titre,items,apres:(r,n)=>{audit("Étiquettes QR imprimées",titre+" — "+n+" étiquette(s) "+r.w+"×"+r.h+" mm");try{save()}catch(e){}}})}
+A["veh.etiq"]=id=>{const v=by(S.vehicles,id);if(!v)return;etiqOuvrir("Étiquette véhicule — "+v.immat,[{qr:"AGE1V|"+v.immat,titre:v.immat,l1:(v.marque+" "+(v.modele||"")).trim(),l2:ORGRAW(),code:v.immat}])};
 A["veh.statut"]=id=>{const v=by(S.vehicles,id);form("Statut — "+v.immat,[{k:"s",l:"Nouveau statut",t:"select",o:Object.entries(VST)},{k:"motif",l:"Motif",req:1}],{s:v.statut},o=>{need("vehicules","e");if(o.s==="sorti"&&contratActif(v.id))throw new Error("Résilier le contrat actif avant la sortie du parc.");setStatutVeh(v,o.s,o.motif);audit("Statut véhicule",v.immat+" → "+o.s)})};
 A["veh.fiche"]=id=>{
  const v=by(S.vehicles,id),am=allocMap(),obs=S.obligations.filter(o=>o.vehicle_id===id),dev=S.gps_dev.find(g=>g.vehicle_id===id&&g.actif);
