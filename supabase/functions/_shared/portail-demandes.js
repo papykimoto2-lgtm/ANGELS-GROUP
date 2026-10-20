@@ -71,15 +71,17 @@ const PHOTO = /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/;
 async function publierCatalogue(db, req) {
   const boutique = typeof req.boutique === "string" ? req.boutique : "";
   if (boutique && !/^[A-Za-z0-9_-]{20,300000}$/.test(boutique)) return err(400, "Catalogue illisible");
-  const ph = req.photos && typeof req.photos === "object" && !Array.isArray(req.photos) ? req.photos : {}, photos = {}; let total = 0;
+  const ph = req.photos && typeof req.photos === "object" && !Array.isArray(req.photos) ? req.photos : {}, photos = {}; let total = 0, ignorees = 0;
   for (const [k, v] of Object.entries(ph).slice(0, 300)) {
     const code = String(k).slice(0, 30);
-    if (!code || typeof v !== "string" || v.length > 70000 || !PHOTO.test(v)) continue;
-    total += v.length; if (total > 4000000) return err(413, "Photos trop volumineuses (4 Mo au plus)");
-    photos[code] = v;
+    /* un article porte une ou plusieurs photos (5 au plus, la première est la principale) ; une chaîne seule reste acceptée */
+    const L = (Array.isArray(v) ? v : [v]).slice(0, 5).filter((x) => typeof x === "string" && x.length <= 70000 && PHOTO.test(x));
+    if (!code || !L.length) { ignorees++; continue; }
+    total += L.reduce((t, x) => t + x.length, 0); if (total > 6000000) return err(413, "Photos trop volumineuses (6 Mo au plus)");
+    photos[code] = L;
   }
   await db.ecrireCatalogue({ boutique, photos });
-  return rep(200, { ok: true, photos: Object.keys(photos).length, ignorees: Object.keys(ph).length - Object.keys(photos).length });
+  return rep(200, { ok: true, photos: Object.keys(photos).length, ignorees });
 }
 /* Visiteur du portail : lecture seule du catalogue publié */
 export async function lireCatalogue(db) {

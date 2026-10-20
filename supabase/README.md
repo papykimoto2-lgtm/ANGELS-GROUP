@@ -83,7 +83,7 @@ Le portail utilise `passerelle-config.js` (adresse publique) : sans fonction dé
 | Fichier | Rôle |
 |---|---|
 | `migrations/009_portail_catalogue.sql` | Table `portail_catalogue` (une ligne : jeton de boutique + photos JPEG), RLS sans politique, aucun droit pour `anon` / `authenticated` |
-| `functions/portail-sync/` (action `publier`) | Le bureau publie le catalogue (clé d'administration) : jeton contrôlé, photos JPEG de 70 Ko au plus, 300 au plus, 4 Mo au total ; chaque publication remplace la précédente |
+| `functions/portail-sync/` (action `publier`) | Le bureau publie le catalogue (clé d'administration) : jeton contrôlé, une ou plusieurs photos JPEG par article (5 au plus, 70 Ko chacune), 300 articles au plus, 6 Mo au total ; chaque publication remplace la précédente |
 | `functions/portail-catalogue/` | **Public**, GET seulement : le portail lit le catalogue publié (`--no-verify-jwt`, cache 30 s) |
 
 Mise en service : appliquer la migration 009, redéployer `portail-sync` (nouvelle action) et déployer `portail-catalogue` avec `--no-verify-jwt`. Tests : `node tests/portail-demandes.js`.
