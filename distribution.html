@@ -2335,14 +2335,14 @@ function labelsHTML(c){
   <div class="cl">${esc(cl.nom)}${g.etiq_tel&&!masqueOn()?" · "+esc(cl.tel):""}</div>
   ${g.etiq_montant?`<div class="cod">${sd>0?"À ENCAISSER "+fcfa(sd):"DÉJÀ PAYÉ"}</div>`:""}
   <div class="ft">Code : <b>${esc(k.tok)}</b>${v?" · Expéditeur : "+esc(v.nom):""} · ${new Date().toLocaleDateString("fr-FR")}</div></div>`).join("");
- return`<!doctype html><html><head><meta charset="utf-8"><style>@page{size:100mm 150mm;margin:0}*{box-sizing:border-box}body{margin:0;font:12px system-ui,Arial,sans-serif;color:#000;background:#eee}
- .lab{width:100mm;height:150mm;padding:6mm;background:#fff;page-break-after:always;border:1px dashed #999;margin:0 auto 8px;display:flex;flex-direction:column;gap:2mm}
- .hd{display:flex;justify-content:space-between;align-items:center;font-size:15px;border-bottom:2px solid #000;padding-bottom:2mm}.urg{background:#000;color:#fff;padding:1mm 3mm;font-weight:800;border-radius:2mm}
- .num{font-size:25px;font-weight:800;text-align:center}.mid{display:flex;align-items:center;justify-content:space-between;gap:4mm}.qr{width:52mm;height:52mm}.qr svg{width:100%;height:100%}
- .cn{text-align:center;font-weight:700;flex:1}.big{font-size:44px;font-weight:800;line-height:1}.dest{font-size:30px;font-weight:800;text-transform:uppercase;text-align:center;border-top:2px solid #000;padding-top:2mm}
- .adr{font-size:15px;text-align:center}.cl{font-size:15px;text-align:center;font-weight:700}.cod{font-size:20px;font-weight:800;text-align:center;border:2px solid #000;padding:1.5mm;border-radius:2mm}
- .ft{margin-top:auto;font-size:11px;text-align:center;border-top:1px solid #000;padding-top:2mm}.ft b{font-family:monospace;font-size:16px;letter-spacing:2px}
- @media print{body{background:#fff}.lab{border:0;margin:0}}</style></head><body>${lab}</body></html>`}
+ return`<!doctype html><html><head><meta charset="utf-8"><title> </title><style>@page{size:80mm 80mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font:11px system-ui,Arial,sans-serif;color:#000;background:#eee}
+ .lab{width:80mm;height:79.6mm;padding:3mm 4mm;background:#fff;page-break-after:always;break-after:page;border:1px dashed #999;margin:0 auto 8px;display:flex;flex-direction:column;gap:1mm;overflow:hidden}
+ .hd{display:flex;justify-content:space-between;align-items:center;font-size:11px;border-bottom:1.5px solid #000;padding-bottom:1mm}.urg{background:#000;color:#fff;padding:.5mm 2mm;font-weight:800;border-radius:1.5mm}
+ .num{font-size:17px;font-weight:800;text-align:center;line-height:1.1}.mid{display:flex;align-items:center;justify-content:space-between;gap:3mm}.qr{width:33mm;height:33mm;flex:none}.qr svg{width:100%;height:100%}
+ .cn{text-align:center;font-weight:700;flex:1;font-size:10px}.big{font-size:34px;font-weight:800;line-height:1}.dest{font-size:21px;font-weight:800;text-transform:uppercase;text-align:center;border-top:1.5px solid #000;padding-top:1mm;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .adr{font-size:11px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cl{font-size:12px;text-align:center;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cod{font-size:14px;font-weight:800;text-align:center;border:1.5px solid #000;padding:.8mm;border-radius:1.5mm}
+ .ft{margin-top:auto;font-size:9px;text-align:center;border-top:1px solid #000;padding-top:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ft b{font-family:monospace;font-size:13px;letter-spacing:1.5px}
+ @media print{body{background:#fff}.lab{border:0;margin:0}.lab:last-child{page-break-after:auto;break-after:auto}}</style></head><body>${lab}</body></html>`}
 /* ---------- Étiquettes QR 50 × 30 mm (imprimante thermique Xprinter XP-365B) ---------- */
 function etiqOuvrir(titre,items){if(typeof ANGELS_ETIQ==="undefined"){toast("Moteur d'étiquettes indisponible","err");return}ANGELS_ETIQ.ouvrir({titre,items,apres:(r,n)=>{audit("Étiquettes QR imprimées",titre+" — "+n+" étiquette(s) "+r.w+"×"+r.h+" mm");try{save()}catch(e){}}})}
 function etiqProduits(L){L=(L||[]).filter(Boolean);if(!L.length){toast("Aucun produit à étiqueter","err");return}
@@ -2352,13 +2352,13 @@ function etiqPersonnes(t,id){
   etiqOuvrir("Étiquette livreur — "+l.nom,[{qr:"AGE1L|"+l.id,titre:l.nom,l1:"Livreur "+S.config.org,l2:mo?"Moto "+mo.immat:"",code:String(l.id).slice(-6).toUpperCase()}])}
  else{const m=S.motos.find(x=>x.id===id);if(!m)return;const l=S.livreurs.find(x=>x.moto_id===m.id);
   etiqOuvrir("Étiquette moto — "+m.immat,[{qr:"AGE1M|"+m.immat,titre:m.immat,l1:m.modele||"Moto",l2:l?"Livreur : "+l.nom:S.config.org,code:m.immat}])}}
-/* Colis : même QR que l'étiquette 100 × 150 (AGE1|numéro|k/N|code) — sans téléphone ni montant, lisible à 50 × 30 mm. */
+/* Colis : même QR que l'étiquette 80 × 80 (AGE1|numéro|k/N|code) — sans téléphone ni montant, lisible à 50 × 30 mm. */
 function etiqColisPetit(id){const c=S.commandes.find(x=>x.id===id);if(!c||!c.colis||!c.colis.length){toast("Générez d'abord les étiquettes colis","err");return}
  etiqOuvrir("Étiquettes colis (petit format) — "+c.numero,c.colis.map(k=>({qr:colisPayload(c,k),titre:c.numero,l1:"Colis "+k.n+"/"+c.colis.length,l2:(c.adr.zone||"")+(c.adr.quartier?" · "+c.adr.quartier:""),code:k.tok})))}
 function etiqModal(c){
  const deja=c.colis&&c.colis.length;
  modal("Étiquettes colis — "+c.numero,`<label>Nombre de colis<input type="number" name="nb" min="1" max="20" required value="${deja?c.colis.length:1}"></label>
- <div class="sm mu">${deja?"Les étiquettes existent déjà : la réimpression conserve les mêmes QR codes. Changer le nombre invalide les étiquettes déjà collées.":"Chaque colis reçoit un QR code unique rattaché à cette commande."} Format 100 × 150 mm (étiqueteuse thermique ou impression A4 découpée).</div>`,
+ <div class="sm mu">${deja?"Les étiquettes existent déjà : la réimpression conserve les mêmes QR codes. Changer le nombre invalide les étiquettes déjà collées.":"Chaque colis reçoit un QR code unique rattaché à cette commande."} Format carré 80 × 80 mm (étiqueteuse thermique Xprinter) : papier 80 × 80 mm, marges « Aucune », échelle 100 %, en-têtes et pieds de page décochés.</div>`,
  {label:"Générer / imprimer",onSubmit:d=>{if(deja&&+d.nb!==c.colis.length&&!confirm("Changer le nombre de colis invalide les étiquettes déjà imprimées. Continuer ?"))return false;
   if(CL.on)return CL.etiqueter(c,d.nb);if(!etiqueter(c,d.nb))return false;save();
   labelsModal(c)}})}
