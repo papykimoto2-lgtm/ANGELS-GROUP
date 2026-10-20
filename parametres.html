@@ -205,8 +205,8 @@ const pTok=v=>{v=String(v||"").trim();if(!v)return"";const m=/#boutique=([A-Za-z
 const pProduits=C=>{try{const t=C.boutique;if(!t)return[];const o=JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g,"+").replace(/_/g,"/")))));return(o.p||[]).filter(x=>+x[3]>=0).map(x=>({c:String(x[0]).slice(0,30),n:String(x[1]).slice(0,100)}))}catch(e){return[]}};
 /* Catalogue de la boutique lu directement dans Distributions (mode automatique) */
 const pCatDist=()=>{const G=lire("angels_erp_v1");if(!G||!Array.isArray(G.produits)||!G.config)return null;const act=a=>(a||[]).filter(p=>p.actif&&p.en_ligne);
- const mm=(G.config.momo_comptes||[]).map(x=>String(x).trim()).filter(x=>x&&!/exemple/i.test(x)),P=[...act(G.produits).map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),...act(G.prestations).map(p=>[p.code,p.nom,Math.round(p.prix),-1])];
- return{n:P.length,tok:P.length?btoa(unescape(encodeURIComponent(JSON.stringify({o:String(G.config.org||"ANGEL'S GROUP"),w:G.config.whatsapp||"",z:(G.config.zones||[]).map(z=>[z.nom,Math.round(z.frais||0)]),p:P,m:mm})))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""):""}};
+ const mm=(G.config.momo_comptes||[]).map(x=>String(x).trim()).filter(x=>x&&!/exemple/i.test(x)),P=[...act(G.produits).map(p=>[p.code,p.nom,Math.round(p.prix),Math.max(0,Math.floor(p.stock))]),...act(G.prestations).map(p=>[p.code,p.nom,Math.round(p.prix),-1,p.service||""])];
+ return{n:P.length,tok:P.length?btoa(unescape(encodeURIComponent(JSON.stringify({o:String(G.config.org||"ANGEL'S GROUP"),w:G.config.whatsapp||"",z:(G.config.zones||[]).map(z=>[z.nom,Math.round(z.frais||0)]),p:P,m:mm,f:act(G.forfaits||[]).map(f=>[f.code,f.nom,Math.round(f.prix),f.livraisons])})))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""):""}};
 const pDebloque=()=>Object.values(AUTH).some(a=>a&&a.exp>Date.now());
 let PMSG=null,PCUR=null;
 function pEnc(c){return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g,"-").replace(/\//g,"_")}
