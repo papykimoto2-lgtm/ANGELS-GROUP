@@ -524,7 +524,7 @@ Principe : **un seul catalogue**, tenu dans Distributions ; le portail le lit, e
 - **Agrandir les photos** : toucher la photo d'un produit, d'un service ou d'un forfait ouvre une visionneuse (nom, « 1 / 3 », photo suivante / précédente par les boutons, les flèches du clavier ou un glissement, vignettes, fermeture par la croix, Échap ou en touchant le fond). Mention « 3 photos » sur la vignette.
 - **Liste ou Grille** (boutons au-dessus des articles, s'appliquent aux produits et aux services) : la grille (2 colonnes sur téléphone) met la photo en grand avec un espace réservé aux articles sans photo ; par défaut grille quand au moins la moitié des articles ont une photo, liste sinon ; choix mémorisé, quantités et champs saisis conservés.
 - **Catalogue standard (écran)** : présentation en cartes lisibles sur téléphone ; un élément déjà installé affiche « ✔ Déjà installé », son prix et un bouton **✎ Modifier le prix et les réglages** ; seuls les éléments manquants ont une case et un prix à saisir.
-- Serveur : la table du catalogue publié accepte une ou plusieurs photos par article (6 Mo au plus par publication). Mode serveur (CL) : non disponible pour l'instant, comme les prestations. Tests : `node tests/photos-catalogue.js` (13 contrôles), `node tests/portail-demandes.js` (41).
+- Serveur : la table du catalogue publié accepte une ou plusieurs photos par article (6 Mo au plus par publication). Mode serveur (CL) : non disponible pour l'instant, comme les prestations. Tests : `node tests/photos-catalogue.js` (18 contrôles), `node tests/portail-demandes.js` (41).
 
 ## Revue de qualité (sécurité, calculs, accessibilité)
 
@@ -654,7 +654,7 @@ Bouton **🛡️ Rôles et droits** (Distributions → Utilisateurs & droits ; A
 - Contrôles : nom unique de 3 à 40 caractères, au moins un droit de consultation, suppression refusée tant que des utilisateurs ont le rôle, confirmation pour les droits sensibles (⚠). Tout est inscrit au journal d'audit (« via Hub » depuis le Hub).
 - Les rôles et droits sont **synchronisés entre postes** (`roles_perso`, `droits_roles`, matrice `perms` de Transport) et pris en compte à la prochaine connexion de chaque utilisateur.
 - Les droits par défaut du catalogue (`roles-engine.js`) reproduisent exactement les droits d'origine : vérifié par test sur chaque menu et chaque contrôle d'action du code.
-Test : `node tests/roles.js` (13 contrôles) et SYP-13 dans `tests/sync-postes.js`.
+Test : `node tests/roles.js` (18 contrôles) et SYP-13 dans `tests/sync-postes.js`.
 
 ## Étiquettes QR pour imprimante thermique (Xprinter XP-365B)
 
@@ -665,7 +665,7 @@ Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, c
 - **Produits** : bouton 🏷 par ligne et « Étiquettes QR » pour tout le catalogue (QR `AGE1P|code`) — aussi dans le catalogue Agro.
 - **Livreurs et motos** : bouton 🏷 (QR `AGE1L|id`, `AGE1M|immatriculation`).
 - **Transport** : véhicules (`AGE1V|immatriculation`). **Agro** : lots (`AGE1T|code`).
-- Test : `node tests/etiquettes.js` (13 contrôles).
+- Test : `node tests/etiquettes.js` (18 contrôles).
 
 ## Commandes : filtres
 
@@ -676,3 +676,5 @@ La page Commandes combine la recherche (n°, client, zone, quartier, repère, t�
 `livreur.html` s'installe sur l'écran d'accueil du téléphone comme les autres applications : manifeste dédié `manifest-livreur.webmanifest` (icône « L », plein écran, portrait), adresse courte **`/livreur`**, fichiers mis en cache hors ligne par `sw.js`. Android / Chrome : bouton « 📲 Installer l'application Livreur » (écran de connexion et liste des missions) ; iPhone : consigne « Partager → Sur l'écran d'accueil ». Le bouton disparaît une fois l'application installée. Icônes générées par `tools/gen-icons.py`. Tests : `tests/pwa.js` (PWA-L1 à L5).
 
 **Impression sans en-tête ni pied de page** : « 🖨 Imprimer » ouvre l'étiquette dans une fenêtre dédiée (et non dans un cadre de la page) puis lance l'impression. Dans cette fenêtre, la taille de page de l'étiquette et ses marges nulles sont respectées : le navigateur n'ajoute plus la date, le titre, l'adresse du site ni le « 1/1 ». Si le navigateur bloque la fenêtre, autoriser les fenêtres surgissantes pour le site (à défaut, l'impression retombe sur l'ancien mode, avec en-tête et pied de page à décocher à la main). Valable pour les étiquettes QR et pour l'étiquette colis standard.
+
+**Option « 📄 PDF sans en-tête »** (étiquettes QR et étiquette colis standard) : le navigateur impose lui-même la date, le titre, l'adresse du site et le numéro de page selon le réglage « En-têtes et pieds de page » de sa boîte d'impression, qu'une page web ne peut pas désactiver. Le bouton génère à la place un PDF à la taille exacte de l'étiquette (une page par étiquette, environ 305 dpi, aucun en-tête ni pied de page) et l'ouvre dans un nouvel onglet : Ctrl+P y imprime l'étiquette seule, avec l'imprimante Xprinter et le papier de la même taille. Si le navigateur bloque la nouvelle fenêtre, le PDF est téléchargé. Aucun service externe : le PDF est fabriqué dans le navigateur.

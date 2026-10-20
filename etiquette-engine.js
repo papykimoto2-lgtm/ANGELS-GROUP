@@ -30,7 +30,7 @@
 
   /* ---------- Étiquette ---------- */
   function etiquette(it, w, h) {
-    var k = clamp(Math.min(w / 50, h / 30), 0.8, 2.2), horiz = w / h >= 1.15, pad = 1.2;
+    var k = clamp(Math.min(w / 50, h / 30), 0.8, 2.2), horiz = w / h >= 1.15, pad = w / h >= 1.15 ? 1.2 : 2.2;
     var qs = horiz ? Math.min(h - 2 * pad, w * 0.52) : Math.min(w - 2 * pad, h * 0.62);
     var qr = it.qr ? '<div class="q" style="width:' + qs.toFixed(1) + "mm;height:" + qs.toFixed(1) + 'mm">' + qrSvg(it.qr) + "</div>" : "";
     var t = it.titre ? '<div class="t" style="font-size:' + (9.5 * k).toFixed(1) + 'pt">' + esc(cut(it.titre, 22)) + "</div>" : "";
@@ -58,6 +58,57 @@
     return false;
   }
 
+  /* ---------- PDF à la taille exacte (aucun en-tête ni pied de page) ----------
+     Chaque étiquette est rasterisée (SVG + foreignObject, environ 305 dpi) puis placée sur une page PDF de la taille exacte de l'étiquette. Le lecteur PDF du navigateur
+     n'ajoute ni date, ni titre, ni adresse, ni numéro de page : Ctrl+P imprime l'étiquette seule. */
+  var PPM = 12, PX = 96 / 25.4;   /* points par mm (environ 305 dpi) ; pixels CSS par mm */
+  function rasteriser(docHtml, sel, w, h) {
+    var d = new DOMParser().parseFromString(docHtml, "text/html"),
+      css = Array.prototype.map.call(d.querySelectorAll("style"), function (x) { return x.textContent; }).join("\n") + "\n" + sel + "{margin:0!important;border:0!important;outline:0!important}",
+      els = Array.prototype.slice.call(d.querySelectorAll(sel)), W = Math.round(w * PX), H = Math.round(h * PX), cw = Math.round(w * PPM), ch = Math.round(h * PPM);
+    return els.reduce(function (p, el) {
+      return p.then(function (L) {
+        var wrap = d.createElement("div"), st = d.createElement("style"); st.textContent = css; wrap.appendChild(st); wrap.appendChild(el.cloneNode(true));
+        var xml = new XMLSerializer().serializeToString(wrap).replace("<div", '<div style="width:' + w + "mm;height:" + h + 'mm;background:#fff;color:#000;font:11px Arial,Helvetica,sans-serif"');
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '"><foreignObject x="0" y="0" width="' + W + '" height="' + H + '">' + xml + "</foreignObject></svg>";
+        return new Promise(function (ok, ko) {
+          var u = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg), im = new Image();   /* data: et non blob: : sinon le navigateur marque le canevas comme « contaminé » */
+          im.onload = function () { var c = document.createElement("canvas"); c.width = cw; c.height = ch; var g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cw, ch); g.drawImage(im, 0, 0, cw, ch); L.push(c); ok(L); };
+          im.onerror = function () { ko(new Error("Rendu de l'étiquette impossible")); }; im.src = u;
+        });
+      });
+    }, Promise.resolve([]));
+  }
+  function pdf(canvases, w, h) {
+    var enc = new TextEncoder(), parts = [], off = [], len = 0, mm = 72 / 25.4, pw = (w * mm).toFixed(2), ph = (h * mm).toFixed(2);
+    function add(x) { var b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); len += b.length; }
+    function obj(n, body) { off[n] = len; add(n + " 0 obj\n"); add(body); add("\nendobj\n"); }
+    var N = canvases.length, kids = canvases.map(function (_, i) { return 3 + i * 3 + " 0 R"; }).join(" ");
+    add("%PDF-1.4\n"); obj(1, "<< /Type /Catalog /Pages 2 0 R >>"); obj(2, "<< /Type /Pages /Kids [" + kids + "] /Count " + N + " >>");
+    canvases.forEach(function (c, i) {
+      var n = 3 + i * 3, bin = atob(c.toDataURL("image/jpeg", 0.95).split(",")[1]), jpg = new Uint8Array(bin.length), k;
+      for (k = 0; k < bin.length; k++) jpg[k] = bin.charCodeAt(k);
+      var cs = "q " + pw + " 0 0 " + ph + " 0 0 cm /Im0 Do Q";
+      obj(n, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pw + " " + ph + "] /Resources << /XObject << /Im0 " + (n + 2) + " 0 R >> >> /Contents " + (n + 1) + " 0 R >>");
+      obj(n + 1, "<< /Length " + cs.length + " >>\nstream\n" + cs + "\nendstream");
+      off[n + 2] = len; add((n + 2) + " 0 obj\n<< /Type /XObject /Subtype /Image /Width " + c.width + " /Height " + c.height + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpg.length + " >>\nstream\n"); add(jpg); add("\nendstream\nendobj\n");
+    });
+    var total = 3 + N * 3, xr = len; add("xref\n0 " + total + "\n0000000000 65535 f \n");
+    for (var n = 1; n < total; n++) add(("0000000000" + off[n]).slice(-10) + " 00000 n \n");
+    add("trailer\n<< /Size " + total + " /Root 1 0 R >>\nstartxref\n" + xr + "\n%%EOF\n");
+    return new Blob(parts, { type: "application/pdf" });
+  }
+  /* Ouvre le PDF dans un nouvel onglet (fenêtre ouverte pendant le clic pour ne pas être bloquée) ; à défaut, le télécharge. */
+  function ouvrirPdf(docHtml, sel, w, h, nom) {
+    var win = null; try { win = window.open("", "_blank"); if (win) win.document.write('<p style="font:14px system-ui;padding:20px">Préparation du PDF…</p>'); } catch (e) { win = null; }
+    return rasteriser(docHtml, sel, w, h).then(function (c) {
+      if (!c.length) throw new Error("Aucune étiquette");
+      var u = URL.createObjectURL(pdf(c, w, h));
+      if (win) win.location.href = u; else { var a = document.createElement("a"); a.href = u; a.download = (nom || "etiquettes") + ".pdf"; document.body.appendChild(a); a.click(); a.remove(); }
+      setTimeout(function () { URL.revokeObjectURL(u); }, 120000); return u;
+    }).catch(function (e) { if (win) win.close(); alert("PDF impossible : " + e.message); });
+  }
+
   /* ---------- Aperçu et impression ---------- */
   function ouvrir(o) {
     o = o || {}; var items = Array.isArray(o.items) ? o.items.filter(function (x) { return x && (x.qr || x.titre); }) : [];
@@ -72,8 +123,8 @@
       '<span id="et-p" style="display:' + (c.t === "perso" ? "flex" : "none") + ';gap:6px;align-items:flex-end"><label style="font-size:12px;color:#5b6572">Largeur (mm)<br><input id="et-w" type="number" min="' + W_MIN + '" max="' + W_MAX + '" value="' + c.w + '" style="width:80px;' + fld + '"></label><label style="font-size:12px;color:#5b6572">Hauteur (mm)<br><input id="et-h" type="number" min="' + H_MIN + '" max="' + H_MAX + '" value="' + c.h + '" style="width:80px;' + fld + '"></label></span>' +
       '<label style="font-size:12px;color:#5b6572">Copies par étiquette<br><input id="et-c" type="number" min="1" max="' + COPIES_MAX + '" value="' + c.copies + '" style="width:80px;' + fld + '"></label><span id="et-n" style="font-size:13px;color:#5b6572"></span></div>' +
       '<iframe id="et-f" title="Aperçu des étiquettes" style="width:100%;height:300px;border:1px solid #c9d1db;border-radius:8px;background:#e8e8e8"></iframe>' +
-      '<p style="font-size:12px;color:#5b6572;margin:8px 0">Dans la boîte d\'impression : imprimante <b>Xprinter XP-365B</b>, format de papier <b>identique à la taille ci-dessus</b>, marges <b>Aucune</b>, échelle <b>100 %</b>, et <b>décochez « En-têtes et pieds de page »</b> (sinon la date, le titre et l\'adresse du site s\'impriment sur l\'autocollant).</p>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" data-et="x" style="font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #c9d1db;background:#fff;cursor:pointer">Fermer</button><button type="button" data-et="p" style="font:inherit;padding:8px 14px;border-radius:8px;border:0;background:#1f3a5f;color:#fff;cursor:pointer;font-weight:700">🖨 Imprimer</button></div></div>';
+      '<p style="font-size:12px;color:#5b6572;margin:8px 0"><b>Pour supprimer l\'en-tête et le pied de page :</b> bouton « PDF sans en-tête », puis Ctrl+P dans le PDF. Sinon, dans la boîte d\'impression : imprimante <b>Xprinter XP-365B</b>, format de papier <b>identique à la taille ci-dessus</b>, marges <b>Aucune</b>, échelle <b>100 %</b>, et <b>décochez « En-têtes et pieds de page »</b> (sinon la date, le titre et l\'adresse du site s\'impriment sur l\'autocollant).</p>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" data-et="x" style="font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #c9d1db;background:#fff;cursor:pointer">Fermer</button><button type="button" data-et="pdf" title="PDF à la taille exacte : aucun en-tête ni pied de page" style="font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #1f3a5f;background:#fff;color:#1f3a5f;cursor:pointer;font-weight:700">📄 PDF sans en-tête</button><button type="button" data-et="p" style="font:inherit;padding:8px 14px;border-radius:8px;border:0;background:#1f3a5f;color:#fff;cursor:pointer;font-weight:700">🖨 Imprimer</button></div></div>';
     document.body.appendChild(ov);
     var q = function (id) { return ov.querySelector("#" + id); };
     function lire() {
@@ -85,10 +136,11 @@
     ov.addEventListener("click", function (e) {
       var b = e.target.closest("[data-et]"), fond = e.target === ov; if (!b && !fond) return;
       if (fond || b.dataset.et === "x") { ov.remove(); return; }
+      if (b.dataset.et === "pdf") { var rp = maj(); enregistrer(rp); ouvrirPdf(html(items, { w: rp.w, h: rp.h, copies: rp.copies, cadre: false }), ".et", rp.w, rp.h, "etiquettes"); if (typeof o.apres === "function") try { o.apres(rp, items.length * rp.copies); } catch (x) { } return; }
       if (b.dataset.et === "p") { var r = maj(); enregistrer(r); imprimer(html(items, { w: r.w, h: r.h, copies: r.copies, cadre: false }), q("et-f")); if (typeof o.apres === "function") try { o.apres(r, items.length * r.copies); } catch (x) { } }
     });
     maj(); return ov;
   }
 
-  G.ANGELS_ETIQ = { ouvrir: ouvrir, imprimer: imprimer, html: html, etiquette: etiquette, cfg: cfg, PRESETS: PRE, LIMITES: { wMin: W_MIN, wMax: W_MAX, hMin: H_MIN, hMax: H_MAX, copies: COPIES_MAX } };
+  G.ANGELS_ETIQ = { ouvrir: ouvrir, imprimer: imprimer, ouvrirPdf: ouvrirPdf, rasteriser: rasteriser, pdf: pdf, html: html, etiquette: etiquette, cfg: cfg, PRESETS: PRE, LIMITES: { wMin: W_MIN, wMax: W_MAX, hMin: H_MIN, hMax: H_MAX, copies: COPIES_MAX } };
 })(window);
