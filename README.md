@@ -658,14 +658,14 @@ Test : `node tests/roles.js` (13 contrôles) et SYP-13 dans `tests/sync-postes.j
 
 ## Étiquettes QR pour imprimante thermique (Xprinter XP-365B)
 
-Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, choix de la taille (**50 × 30 mm par défaut**, 40 × 30, 60 × 40, 80 × 50 ou taille libre de 20 à 82 mm de large), nombre de copies, impression par la boîte d'impression du navigateur avec le pilote Xprinter (une étiquette par page, règle `@page` à la taille exacte). Les réglages sont mémorisés sur le poste ; chaque impression est tracée dans le journal d'audit.
+Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, choix de la taille (**80 × 80 mm par défaut** — autocollant maximal —, 50 × 30, 40 × 30, 60 × 40, 80 × 50 ou taille libre de 20 à 82 mm de large), nombre de copies, impression par la boîte d'impression du navigateur avec le pilote Xprinter (une étiquette par page, règle `@page` à la taille exacte). Les réglages sont mémorisés sur le poste ; chaque impression est tracée dans le journal d'audit.
 
-- **Réglage de la boîte d'impression** : imprimante *Xprinter XP-365B*, marges *Aucune*, échelle *100 %*, papier de la taille choisie (créer une fois ce format personnalisé dans le pilote).
+- **Réglage de la boîte d'impression** : imprimante *Xprinter XP-365B*, papier de la **même taille** que celle choisie (créer une fois ce format dans le pilote), marges *Aucune*, échelle *100 %* et **« En-têtes et pieds de page » décoché** (sinon la date, le titre et l'adresse du site s'impriment sur l'autocollant et un « 1/1 » apparaît). Le titre de la page imprimée est vide et l'étiquette est un peu plus basse que la page pour ne jamais produire une seconde feuille.
 - **Colis / commande** (Distribution) : bouton « Petit format 50 × 30 mm » dans la fenêtre des étiquettes colis. Même QR `AGE1|commande|n/N|code` que l'étiquette 100 × 150 (le scan de contrôle le reconnaît) ; ni téléphone ni montant.
 - **Produits** : bouton 🏷 par ligne et « Étiquettes QR » pour tout le catalogue (QR `AGE1P|code`) — aussi dans le catalogue Agro.
 - **Livreurs et motos** : bouton 🏷 (QR `AGE1L|id`, `AGE1M|immatriculation`).
 - **Transport** : véhicules (`AGE1V|immatriculation`). **Agro** : lots (`AGE1T|code`).
-- Test : `node tests/etiquettes.js` (12 contrôles).
+- Test : `node tests/etiquettes.js` (13 contrôles).
 
 ## Commandes : filtres
 
