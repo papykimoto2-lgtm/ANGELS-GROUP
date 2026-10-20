@@ -666,3 +666,7 @@ Moteur commun `etiquette-engine.js` (Distribution, Transport, Agro) : aperçu, c
 - **Livreurs et motos** : bouton 🏷 (QR `AGE1L|id`, `AGE1M|immatriculation`).
 - **Transport** : véhicules (`AGE1V|immatriculation`). **Agro** : lots (`AGE1T|code`).
 - Test : `node tests/etiquettes.js` (12 contrôles).
+
+## Commandes : filtres
+
+La page Commandes combine la recherche (n°, client, zone, quartier, repère, téléphone si non masqué), le statut, la période (aujourd'hui à l'année, dates précises), le livreur (ou « sans livreur en cours »), l'origine (vente propre ou vendeur), la zone, le paiement (soldées / à encaisser) et les commandes urgentes. Un compteur indique le nombre de commandes, le total et le reste à encaisser ; « Réinitialiser » remet les filtres à zéro. Test : `node tests/commandes-filtres.js`.
