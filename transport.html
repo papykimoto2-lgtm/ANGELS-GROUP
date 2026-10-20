@@ -101,6 +101,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script src="tiers-engine.js"></script>
+<script src="etats-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
@@ -1389,7 +1390,7 @@ function etatRapprochement(au){
 }
 /* ---------- Clôture d'exercice (année civile), à-nouveaux, FEC ---------- */
 const exoDe=a=>by(S.exercices,String(a),"annee"),exoClos=a=>{const x=exoDe(a);return!!x&&x.statut==="cloture"};
-function exoSoldes(a){const R={};S.entries.forEach(e=>{if(e.date<a+"-01-01"||e.date>a+"-12-31")return;e.lines.forEach(l=>{if(l.compte[0]==="6"||l.compte[0]==="7")R[l.compte]=(R[l.compte]||0)+(l.debit||0)-(l.credit||0)})});return R}
+function exoSoldes(a){const R={};S.entries.forEach(e=>{if(e.date<a+"-01-01"||e.date>a+"-12-31")return;e.lines.forEach(l=>{if(l.compte[0]==="6"||l.compte[0]==="7"||l.compte[0]==="8")R[l.compte]=(R[l.compte]||0)+(l.debit||0)-(l.credit||0)})});return R}
 function exoBilan(a){const R={};S.entries.forEach(e=>{if(e.date>a+"-12-31")return;e.lines.forEach(l=>{if(l.compte[0]>="1"&&l.compte[0]<="5")R[l.compte]=(R[l.compte]||0)+(l.debit||0)-(l.credit||0)})});
  return Object.entries(R).filter(x=>x[1]).sort().map(([c,v])=>v>0?{compte:c,debit:v}:{compte:c,credit:-v})}
 function cloturerExercice(a){
@@ -1442,7 +1443,7 @@ function buildGrandLivreIntervalle(c1,c2,d1,d2){
  return S.accounts.filter(a=>{const n=a.num.padEnd(8,"0");return(!c1||n>=lo)&&(!c2||n<=hi)}).sort((x,y)=>x.num.localeCompare(y.num)).map(a=>{
   let rep=0,d=0,c=0;const L=[];
   S.entries.forEach(e=>e.lines.forEach(l=>{if(l.compte!==a.num)return;
-   if(d1&&e.date<d1){if((a.num[0]==="6"||a.num[0]==="7")&&e.date<ys)return;rep+=(l.debit||0)-(l.credit||0)}
+   if(d1&&e.date<d1){if((a.num[0]==="6"||a.num[0]==="7"||a.num[0]==="8")&&e.date<ys)return;rep+=(l.debit||0)-(l.credit||0)}
    else if(!d2||e.date<=d2){L.push({e,l});d+=l.debit||0;c+=l.credit||0}}));
   L.sort((x,y)=>x.e.date.localeCompare(y.e.date)||x.e.numero.localeCompare(y.e.numero));let run=rep;
   return{compte:a.num,nom:a.nom,report:rep,debit:d,credit:c,solde:rep+d-c,lignes:L.map(({e,l})=>{run+=(l.debit||0)-(l.credit||0);return{date:e.date,numero:e.numero,piece:e.piece,libelle:e.libelle,debit:l.debit||0,credit:l.credit||0,solde:run,lettre:l.lettre||""}})}}).filter(g=>g.report||g.lignes.length);
@@ -2542,7 +2543,7 @@ A["tiers.det"]=id=>{const t=by(S.tiers,id);const ls=S.entries.flatMap(e=>e.lines
 const SRC_LIB={echeances:"⚙ Échéances (auto)",regul:"⚙ Régularisation tarif",payment:"⚙ Encaissement (auto)",expense:"⚙ Dépense (auto)",cashout:"⚙ Bon de caisse (auto)",cashgap:"⚙ Écart de caisse",extourne:"↩ Extourne",amort:"⚙ Amortissement (auto)",immo:"⚙ Acquisition immobilisation",tva:"⚙ Liquidation TVA",manual:"✍ Manuelle (visée)"};
 const yStart=d=>d.slice(0,4)+"-01-01";
 function balRows(from,to){const R={};S.accounts.forEach(a=>R[a.num]={a,od:0,oc:0,d:0,c:0});
- S.entries.forEach(e=>{if(e.date>to)return;e.lines.forEach(l=>{const r=R[l.compte];if(!r)return;if(e.date<from){if((l.compte[0]==="6"||l.compte[0]==="7")&&e.date<yStart(from))return;r.od+=l.debit||0;r.oc+=l.credit||0}else{r.d+=l.debit||0;r.c+=l.credit||0}})});
+ S.entries.forEach(e=>{if(e.date>to)return;e.lines.forEach(l=>{const r=R[l.compte];if(!r)return;if(e.date<from){if((l.compte[0]==="6"||l.compte[0]==="7"||l.compte[0]==="8")&&e.date<yStart(from))return;r.od+=l.debit||0;r.oc+=l.credit||0}else{r.d+=l.debit||0;r.c+=l.credit||0}})});
  return Object.values(R).filter(r=>r.od||r.oc||r.d||r.c).sort((x,y)=>x.a.num.localeCompare(y.a.num)).map(r=>{const o=r.od-r.oc;return{...r,o,s:o+r.d-r.c}})}
 const soldeA=(num,to)=>sum(S.entries.filter(e=>e.date<=to).flatMap(e=>e.lines.filter(l=>l.compte===num)),l=>(l.debit||0)-(l.credit||0));
 function ageData(){const am=allocMap(),T=["Non échu","1-30 j","31-60 j","61-90 j","> 90 j"];
@@ -2553,7 +2554,7 @@ const budgetAlertes=()=>{const m=today().slice(0,7);return S.budgets.map(g=>({g,
 V.etats=()=>{
  const t=tabOf("etats","syn"),f=UI.f.et||(UI.f.et={from:today().slice(0,4)+"-01-01",to:today(),cpt:"",j:"VT"});if(f.c1===undefined)Object.assign(f,{c1:"",c2:"",jm1:"",jm2:"",jq:""});
  const ins=e=>e.date>=f.from&&e.date<=f.to,ok=m=>`<div class="al" style="background:var(--okbg);color:var(--ok)">${m}</div>`;let ex=null,h="";
- const hd=head("États comptables",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="et.csv">⬇ CSV</button>`)+`<div class="note">États de gestion issus de la comptabilité intégrée (SYSCOHADA révisé). Les états de synthèse officiels restent à valider par le comptable.</div>`+tabs("etats",[["syn","📊 Synthèse"],["balance","⚖️ Balance"],["gl","📖 Grand livre"],["journal","📒 Journal"],["age","⏳ Balance âgée"],["tva","🧮 TVA"],["resultat","📈 Résultat & bilan"],["ctrl","🔎 Contrôles"]])+
+ const hd=head("États comptables",`<button class="btn ghost noprint" onclick="window.print()">🖨 Imprimer</button><button class="btn ghost noprint" data-a="et.csv">⬇ CSV</button>`)+`<div class="note">États de gestion issus de la comptabilité intégrée (SYSCOHADA révisé). Les états de synthèse officiels restent à valider par le comptable.</div>`+tabs("etats",[["syn","📊 Synthèse"],["balance","⚖️ Balance"],["gl","📖 Grand livre"],["journal","📒 Journal"],["age","⏳ Balance âgée"],["tva","🧮 TVA"],["resultat","📈 États financiers"],["ctrl","🔎 Contrôles"]])+
  (t==="age"?"":`<div class="card flex noprint"><div><label>Du</label><input type="date" data-f="et:from" value="${f.from}"></div><div><label>Au</label><input type="date" data-f="et:to" value="${f.to}"></div></div>`);
  if(t==="syn"){const r=resultat(f.from,f.to,""),tre=sum([...new Set([...S.caisses.map(c=>c.compte),cdef("treso_banque"),cdef("treso_mobile")])],n=>soldeA(n,f.to)),cl=sum(S.tiers.filter(x=>x.type==="chauffeur"),x=>soldeTiers(x.id)),dep=-soldeA(cdef("depot"),f.to),R=integrite(),ba=budgetAlertes();
   h=`<div class="grid"><div class="kpi o"><div class="v">${fcfa(r.p)}</div><div class="l">Produits</div></div><div class="kpi e"><div class="v">${fcfa(r.c)}</div><div class="l">Charges</div></div><div class="kpi ${r.r>=0?"o":"e"}"><div class="v">${fcfa(r.r)}</div><div class="l">Résultat</div></div><div class="kpi"><div class="v">${fcfa(tre)}</div><div class="l">Trésorerie (classe 5)</div></div><div class="kpi w"><div class="v">${fcfa(cl)}</div><div class="l">Créances chauffeurs (411)</div></div><div class="kpi"><div class="v">${fcfa(dep)}</div><div class="l">Dépôts de garantie reçus (165)</div></div></div>`+
@@ -2578,14 +2579,7 @@ V.etats=()=>{
  if(t==="tva"){const y=f.to.slice(0,4),rows=[];for(let k=1;k<=12;k++){const m=y+"-"+String(k).padStart(2,"0"),x=tvaMois(m);rows.push([m,x.coll,x.ded,x.net,x.liq?"Liquidée":"",m])}
   h=(tvaTaux()?"":`<div class="al">⚠ Taux de TVA = 0 % : aucune TVA n'est comptabilisée. Renseignez le taux dans Comptabilité → Comptes par défaut si l'entreprise est assujettie.</div>`)+tbl(["Mois","TVA facturée","TVA récupérable","TVA à payer (+) / crédit (−)","Liquidation",""],rows.map(r=>tr([r[0],fcfa(r[1]),fcfa(r[2]),`<b>${fcfa(r[3])}</b>`,r[4]?badge(r[4],"ok"):"",`<div class="flex">${r[1]||r[2]?btn("tva.print",r[5],"🖨 Déclaration","ghost"):""}${!r[4]&&(r[1]||r[2])&&can("compta","a")?btn("tva.liq",r[5],"Liquider","ghost"):""}</div>`])))+`<div class="sm mu">La TVA est comptabilisée à la facturation (échéances) et à la validation des dépenses, au taux paramétré ; la liquidation solde 4431 / 4452 vers 4441 (TVA due) ou 4449 (crédit à reporter).</div>`;
   ex={name:"tva",head:["Mois","TVA facturée","TVA récupérable","Net"],rows:rows.map(r=>[r[0],r[1],r[2],r[3]])}}
- if(t==="resultat"){const per=(c0)=>{const m={};S.entries.filter(ins).forEach(e=>e.lines.forEach(l=>{if(l.compte[0]===c0)m[l.compte]=(m[l.compte]||0)+(c0==="7"?(l.credit||0)-(l.debit||0):(l.debit||0)-(l.credit||0))}));return Object.entries(m).filter(x=>x[1]).sort()};
-  const pr=per("7"),ch=per("6"),tp=sum(pr,x=>x[1]),tc=sum(ch,x=>x[1]),rs=tp-tc,ends={};
-  S.entries.filter(e=>e.date<=f.to).forEach(e=>e.lines.forEach(l=>{if(l.compte[0]!=="6"&&l.compte[0]!=="7")ends[l.compte]=(ends[l.compte]||0)+(l.debit||0)-(l.credit||0)}));
-  const cum=sum(S.entries.filter(e=>e.date<=f.to).flatMap(e=>e.lines.filter(l=>l.compte[0]==="7"||l.compte[0]==="6")),l=>(l.credit||0)-(l.debit||0)),act=Object.entries(ends).filter(x=>x[1]>0).sort(),pas=Object.entries(ends).filter(x=>x[1]<0).sort();
-  const ta=sum(act,x=>x[1])+(cum<0?-cum:0),tpa=sum(pas,x=>-x[1])+(cum>0?cum:0),rl=(c,v)=>tr([c,esc(cptNom(c)),fcfa(v)]);
-  h=`<h2>Compte de résultat — du ${fd(f.from)} au ${fd(f.to)}</h2>`+tbl(["Compte","Intitulé","Montant"],[...pr.map(x=>rl(x[0],x[1])),tr(["","<b>Total produits</b>",`<b>${fcfa(tp)}</b>`]),...ch.map(x=>rl(x[0],x[1])),tr(["","<b>Total charges</b>",`<b>${fcfa(tc)}</b>`]),tr(["","<b>RÉSULTAT</b>",`<b style="color:${rs>=0?"var(--ok)":"var(--er)"}">${fcfa(rs)}</b>`])])+
-  `<h2>Bilan simplifié au ${fd(f.to)}</h2><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div>${tbl(["Compte","ACTIF","Montant"],[...act.map(x=>rl(x[0],x[1])),...(cum<0?[tr(["","Résultat cumulé (perte)",fcfa(-cum)])]:[]),tr(["","<b>TOTAL ACTIF</b>",`<b>${fcfa(ta)}</b>`])])}</div><div>${tbl(["Compte","PASSIF","Montant"],[...pas.map(x=>rl(x[0],-x[1])),...(cum>0?[tr(["","Résultat cumulé (bénéfice)",fcfa(cum)])]:[]),tr(["","<b>TOTAL PASSIF</b>",`<b>${fcfa(tpa)}</b>`])])}</div></div>`+(ta===tpa?ok("Bilan équilibré."):`<div class="al er">Bilan déséquilibré (${fcfa(ta-tpa)}).</div>`);
-  ex={name:"resultat-bilan",head:["Compte","Intitulé","Montant"],rows:[...pr.map(x=>[x[0],cptNom(x[0]),x[1]]),["","Total produits",tp],...ch.map(x=>[x[0],cptNom(x[0]),-x[1]]),["","Total charges",-tc],["","Résultat",rs]]}}
+ if(t==="resultat"){h=ANGELS_ETATS.view(ETATS_HOST);ex=null}
  if(t==="ctrl"){const pb=integrite(),enc=sum(S.payments.filter(p=>p.statut==="confirme"&&p.type!=="depot"),p=>p.montant),c411=sum(S.entries.flatMap(e=>e.lines.filter(l=>l.compte===cdef("client")&&l.alloc&&!l.ext)),l=>l.credit);
   h=(pb.length?pb.map(x=>`<div class="al er">${esc(x)}</div>`).join(""):ok("Contrôles d'intégrité réussis : écritures équilibrées, encaissements = imputations, tiers = échéances, caisses = comptabilité."))+tbl(["Rapprochement","Montant"],[tr(["Encaissements confirmés (hors dépôts)",fcfa(enc)]),tr(["Crédits 411 issus des encaissements (non extournés)",fcfa(c411)]),tr(["Écart",fcfa(enc-c411)])]);
   ex={name:"controles",head:["Rapprochement","Montant"],rows:[["Encaissements confirmés",enc],["Crédits 411",c411],["Écart",enc-c411]]}}
@@ -3763,6 +3757,10 @@ const TIERS_HOST={division:"transport",can:a=>can("compta",["p","c","a"].include
  lignes:compte=>lignesTiers(compte).map(x=>{const o=x.l.ob&&by(S.obligations,x.l.ob);return{k:x.ref,date:x.e.date,piece:x.e.piece||x.e.numero||"",libelle:x.e.libelle||"",journal:x.e.journal||"",debit:x.l.debit||0,credit:x.l.credit||0,tiers:x.l.tiers||"",tn:x.l.tiers?(tiersDe(x.l.tiers).nom||x.l.tiers):"(sans tiers)",lettre:x.l.lettre||"",echeance:(o&&o.date_ech&&(x.l.debit||0)>0)?o.date_ech:""}})};
 ANGELS_TIERS.use(TIERS_HOST);
 setInterval(()=>{if(ME)try{ANGELS_TIERS.publier(TIERS_HOST)}catch(e){}},60000);setTimeout(()=>{if(ME)try{ANGELS_TIERS.publier(TIERS_HOST)}catch(e){}},4000);
+/* ---------- États financiers SYSCOHADA (moteur etats-engine.js) ---------- */
+const ETATS_HOST={division:"transport",can:a=>can("compta",a==="p"?"p":"v"),user:()=>ME?ME.nom:"système",render:()=>render(),util:{fcfa},audit:(a,d)=>audit(a,d),identite:()=>prtFb(),
+ lignes:()=>S.entries.flatMap(e=>e.lines.map(l=>({date:e.date,compte:l.compte,debit:l.debit||0,credit:l.credit||0,cloture:!!(e.source&&e.source.type==="cloture")}))),libelle:c=>(by(S.accounts,c,"num")||{}).nom||"",periode:()=>{const f=UI.f.et||{};return{from:f.from,to:f.to}}};
+ANGELS_ETATS.use(ETATS_HOST);
 A["tr.rel"]=nom=>{if(!ANGELS_TIERS.ouvrirParNom(TIERS_HOST,nom))alert("Aucun mouvement trouvé pour ce tiers.")};
 V.rh=()=>head("Ressources humaines et paie")+ANGELS_RH.view(RH_HOST);
 
