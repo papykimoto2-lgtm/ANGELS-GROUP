@@ -20,7 +20,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("ET-2","Distribution → Produits : bouton « Étiquettes QR » (tout le catalogue) et bouton 🏷 sur chaque ligne",btn.tout&&btn.ligne,JSON.stringify(btn));
  await D.evaluate(()=>ACT.etiqProd(S.produits[0].id));const o1=await ov(D);
  const p0=await D.evaluate(()=>S.produits[0].code);
- chk("ET-3","étiquette produit : ouverte à 50 × 30 mm par défaut, contient le nom, le prix et le code ; QR « AGE1P|code »",!!o1&&/50 × 30 mm/.test(o1.n)&&/size:50mm 30mm/.test(o1.doc)&&o1.doc.includes(p0)&&await D.evaluate(()=>{const q=qrcode(0,"M");q.addData("AGE1P|"+S.produits[0].code);q.make();return document.getElementById("et-f").srcdoc.includes(q.createSvgTag({scalable:true,margin:0}).slice(60,200))||true}),JSON.stringify(o1&&o1.n));
+ chk("ET-3","étiquette produit : ouverte à 80 × 80 mm par défaut (autocollant maximal), contient le nom, le prix et le code ; QR « AGE1P|code »",!!o1&&/80 × 80 mm/.test(o1.n)&&/size:80mm 80mm/.test(o1.doc)&&o1.doc.includes(p0)&&await D.evaluate(()=>{const q=qrcode(0,"M");q.addData("AGE1P|"+S.produits[0].code);q.make();return document.getElementById("et-f").srcdoc.includes(q.createSvgTag({scalable:true,margin:0}).slice(60,200))||true}),JSON.stringify(o1&&o1.n));
  /* taille personnalisée + copies, mémorisation */
  await D.selectOption("#et-t","60x40");await D.fill("#et-c","3");await D.waitForTimeout(200);const o2=await ov(D);
  await D.selectOption("#et-t","perso");await D.fill("#et-w","200");await D.fill("#et-h","10");await D.waitForTimeout(200);const o3=await ov(D);
@@ -46,11 +46,13 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await D.evaluate(()=>document.getElementById("et-ov").remove());
  await D.evaluate(()=>{const c=S.commandes.find(x=>x.colis&&x.colis.length);labelsModal(c)});
  chk("ET-9","fenêtre « Étiquettes » des colis : bouton « Petit format 50 × 30 mm » à côté de l'impression 100 × 150",await D.evaluate(()=>!!document.querySelector('#modal [data-act="etiqColisPetit"]')));
+ const dim=await D.evaluate(()=>{const h=ANGELS_ETIQ.html([{qr:"AGE1|CMD-2026-000123|1/1|C76WW",titre:"CMD-2026-000123",l1:"Colis 1/1",l2:"Koumassi · Koumassi",code:"C76WW"}],{w:80,h:80});return{page:/@page\{size:80mm 80mm;margin:0\}/.test(h),haut:/height:79\.6mm/.test(h),titre:/<title> <\/title>/.test(h),vert:/class="et v"/.test(h)}});
+ chk("ET-13","80 × 80 mm : page à la taille exacte, étiquette légèrement plus basse que la page (pas de 2e feuille), titre vide (rien d'imprimé en en-tête), mise en page verticale avec grand QR",dim.page&&dim.haut&&dim.titre&&dim.vert,JSON.stringify(dim));
  /* Transport */
  const T=await open("transport");await T.evaluate(()=>{view="vehicules";render()});
  const tb=await T.evaluate(()=>document.querySelectorAll('[data-a="veh.etiq"]').length);
  await T.evaluate(()=>A["veh.etiq"](S.vehicles[0].id));const ot=await ov(T);const imm=await T.evaluate(()=>S.vehicles[0].immat);
- chk("ET-10","Transport → Véhicules : bouton 🏷 par véhicule, étiquette avec immatriculation et marque",tb>0&&!!ot&&ot.doc.includes(imm)&&/size:50mm 30mm/.test(ot.doc),tb+" "+JSON.stringify(ot&&ot.n));
+ chk("ET-10","Transport → Véhicules : bouton 🏷 par véhicule, étiquette avec immatriculation et marque",tb>0&&!!ot&&ot.doc.includes(imm)&&/size:80mm 80mm/.test(ot.doc),tb+" "+JSON.stringify(ot&&ot.n));
  /* Agro */
  const G=await open("agro");await G.evaluate(()=>{view="lots";render()});
  const gl=await G.evaluate(()=>document.querySelectorAll('[data-a="lot.etiq"]').length);
