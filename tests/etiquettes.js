@@ -50,6 +50,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("ET-13","80 × 80 mm : page à la taille exacte, étiquette légèrement plus basse que la page (pas de 2e feuille), titre vide (rien d'imprimé en en-tête), mise en page verticale avec grand QR",dim.page&&dim.haut&&dim.titre&&dim.vert,JSON.stringify(dim));
  const std=await D.evaluate(()=>{const c=S.commandes.find(x=>x.colis&&x.colis.length)||(()=>{const k=S.commandes[0];etiqueter(k,1);return k})();const h=labelsHTML(c);return{page:/@page\{size:80mm 80mm;margin:0\}/.test(h),haut:/height:79\.6mm/.test(h),ancien:/150mm/.test(h),qr:/<svg/.test(h),code:c.colis.every(k=>h.includes(k.tok)),titre:/<title> <\/title>/.test(h)}});
  chk("ET-14","étiquette colis standard : carrée 80 × 80 mm (plus de 100 × 150), QR, code court, sans titre de page, pas de 2e feuille",std.page&&std.haut&&!std.ancien&&std.qr&&std.code&&std.titre,JSON.stringify(std));
+ /* impression en fenêtre dédiée (pas de cadre intégré : sinon en-tête et pied de page du navigateur) */
+ const imp=await D.evaluate(()=>{const cap=[];const wo=window.open;window.open=()=>{const d={html:"",open(){},write(h){this.html+=h},close(){}};cap.push(d);return{document:d,focus(){},print(){},close(){}}};
+  ANGELS_ETIQ.ouvrir({titre:"t",items:[{qr:"AGE1P|X",titre:"Savon"}]});document.querySelector('#et-ov [data-et="p"]').click();document.getElementById("et-ov")&&document.getElementById("et-ov").remove();
+  const c=S.commandes.find(x=>x.colis&&x.colis.length);ACT.printLabels(c.id);window.open=wo;
+  return{n:cap.length,p1:/window\.print\(\)/.test(cap[0]&&cap[0].html)&&/@page\{size:80mm 80mm;margin:0\}/.test(cap[0].html)&&!/dashed/.test(cap[0].html),p2:/window\.print\(\)/.test(cap[1]&&cap[1].html)&&/@page\{size:80mm 80mm;margin:0\}/.test(cap[1].html)}});
+ chk("ET-15","impression dans une fenêtre dédiée (taille de page et marges nulles respectées, plus d'en-tête ni de pied de page du navigateur) pour les étiquettes QR et l'étiquette colis standard",imp.n===2&&imp.p1&&imp.p2||JSON.stringify(imp));
  /* Transport */
  const T=await open("transport");await T.evaluate(()=>{view="vehicules";render()});
  const tb=await T.evaluate(()=>document.querySelectorAll('[data-a="veh.etiq"]').length);
