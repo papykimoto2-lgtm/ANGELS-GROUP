@@ -4736,13 +4736,33 @@ Object.assign(ACT,{saveSec:()=>{if(CL.on)return toast("Disponible en mode démon
 /* ---------- Prestations : services vendus sans stock (livraison express, emballage, course spéciale…) ----------
    Une ligne de commande « prestation » porte prestation_id, aucune sortie de stock ; le prix est copié à la création (modifier le tarif ne change pas l'historique).
    Comptabilité : le chiffre d'affaires des prestations rejoint celui des frais de livraison (compte « ventes de services »). */
+/* ---------- Catalogue standard de prestations et de forfaits : installation en un clic (prix modifiables avant validation, codes déjà présents ignorés) ---------- */
+const CAT_STD=[
+ {t:"p",code:"PR-EXP",nom:"Livraison express",prix:2000,service:"express",desc:"Commande traitée en priorité, départ immédiat"},
+ {t:"p",code:"PR-COU",nom:"Course spéciale",prix:3000,service:"course",desc:"Déplacement spécifique à la demande du client"},
+ {t:"p",code:"PR-RET",nom:"Retour de colis",prix:1500,service:"retour",desc:"Collecte chez le client et retour au vendeur"},
+ {t:"p",code:"PR-COL",nom:"Collecte de colis chez l'expéditeur",prix:1000,service:"",desc:"Un livreur récupère le colis chez l'expéditeur"},
+ {t:"p",code:"PR-EMB",nom:"Emballage cadeau",prix:1000,service:"",desc:"Papier cadeau et ruban"},
+ {t:"f",code:"AB-PRO30",nom:"Abonnement Pro 30 livraisons",prix:45000,livraisons:30,desc:"30 livraisons par mois, sans frais de zone"},
+ {t:"f",code:"AB-PRO100",nom:"Abonnement Pro 100 livraisons",prix:120000,livraisons:100,desc:"100 livraisons par mois, sans frais de zone"}];
+function catStdForm(){const ex=c=>S.produits.some(x=>x.code===c)||(S.prestations||[]).some(x=>x.code===c)||(S.forfaits||[]).some(x=>x.code===c);
+ modal("📦 Catalogue standard de prestations et d'abonnements",`<div class="al warn sm">Les prix ci-dessous sont des <b>propositions à adapter</b> : modifiez-les avant de valider. Les éléments déjà présents (même code) sont ignorés.</div>
+ ${tbl(["","Prestation / forfait","Prix (F)","Sur le portail"],CAT_STD.map((x,i)=>{const d=ex(x.code);return`<tr><td><input type="checkbox" name="u${i}" style="width:auto" ${d?"disabled":"checked"}></td><td><b>${esc(x.nom)}</b><br><span class="sm mu">${esc(x.code)} · ${x.t==="f"?x.livraisons+" livraisons / mois":(SERVICES[x.service]?"service « "+SERVICES[x.service].l+" »":"supplément de commande")}${d?" · <b>déjà présent</b>":""}</span></td><td><input type="number" name="p${i}" min="0" value="${x.prix}" style="width:110px" ${d?"disabled":""}></td><td><input type="checkbox" name="o${i}" style="width:auto" ${d?"disabled":"checked"}></td></tr>`}),"")}
+ <div class="sm mu">« Sur le portail » rend l'élément visible aux clients (page « Programmer une livraison » pour les services, page « Abonnement professionnel » pour les forfaits).</div>`,
+ {label:"Installer la sélection",onSubmit:d=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err"),false;let np=0,nf=0;
+  try{CAT_STD.forEach((x,i)=>{if(!d["u"+i]||ex(x.code))return;const prix=Math.round(+d["p"+i]);if(!(prix>=0))throw new Error("Prix invalide pour "+x.nom);const on=!!d["o"+i];
+   if(x.t==="p"){S.prestations.push({id:uid("pr"),code:x.code,nom:x.nom,prix,desc:x.desc,actif:true,en_ligne:on,service:x.service});np++}
+   else{S.forfaits.push({id:uid("fo"),code:x.code,nom:x.nom,livraisons:x.livraisons,prix,desc:x.desc,actif:true,en_ligne:on});nf++}})}catch(e){toast(e.message,"err");return false}
+  if(!np&&!nf){toast("Rien à installer : sélection vide ou éléments déjà présents","err");return false}
+  audit("Catalogue standard installé",np+" prestation(s), "+nf+" forfait(s)");save();if(!CL.on)majPortail(false);render();toast(np+" prestation(s) et "+nf+" forfait(s) ajouté(s) — vérifiez les prix","ok");return true}})}
+Object.assign(ACT,{catStd:()=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err");catStdForm()}});
 VIEWS.prestations=()=>{
  if(CL.on)return`<h1>🛠️ Prestations</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
  const rows=(S.prestations||[]).map(p=>{const n=S.commandes.reduce((t,c)=>t+c.lignes.filter(l=>l.prestation_id===p.id).reduce((a,l)=>a+l.qte,0),0);
   return`<tr><td>${esc(p.code)}</td><td><b>${esc(p.nom)}</b>${p.desc?`<br><span class="sm mu">${esc(p.desc)}</span>`:""}</td><td>${fcfa(p.prix)}</td><td>${n}</td><td>${p.actif?badge("Actif","ok"):badge("Inactif","mu")}${p.en_ligne?" "+badge("🛒 En ligne","wa"):""}${SERVICES[p.service]?" "+badge("🚚 "+SERVICES[p.service].l,"mu"):""}</td><td><button class="btn sm ghost" data-act="editPresta" data-id="${p.id}">Modifier</button></td></tr>`});
- return`<div class="between"><h1>🛠️ Prestations</h1><button class="btn" data-act="newPresta">➕ Nouvelle prestation</button></div>
+ return`<div class="between"><h1>🛠️ Prestations</h1><div class="flex"><button class="btn ghost" data-act="catStd">📦 Catalogue standard</button><button class="btn" data-act="newPresta">➕ Nouvelle prestation</button></div></div>
  <p class="mu sm">Services vendus sans stock (livraison express, emballage cadeau, course spéciale…). Ajoutez-les aux commandes comme un produit ; cochez « Vendu en ligne » pour les proposer dans la boutique. Une prestation ne se supprime pas : désactivez-la.</p>
- ${tbl(["Code","Prestation","Prix","Quantité vendue","Statut",""],rows,"Aucune prestation : créez la première.")}`};
+ ${tbl(["Code","Prestation","Prix","Quantité vendue","Statut",""],rows,"Aucune prestation : créez la première ou installez le catalogue standard (📦).")}`};
 function prestaForm(p){
  modal(p?"Modifier la prestation":"Nouvelle prestation",`<div class="g2"><label>Code<input name="code" required maxlength="20" placeholder="PR-EXP" value="${esc(p?p.code:"")}"></label><label>Désignation<input name="nom" required maxlength="80" value="${esc(p?p.nom:"")}"></label></div>
  <div class="g2"><label>Prix (F)<input type="number" name="prix" min="0" required value="${p?p.prix:""}"></label><label>Description (facultatif)<input name="desc" maxlength="120" value="${esc(p?p.desc||"":"")}"></label></div>
@@ -4811,7 +4831,7 @@ function aboWeb(d){const ref=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpper
 VIEWS.abonnements=()=>{
  if(CL.on)return`<h1>🔁 Abonnements</h1><div class="card">Disponible en mode local pour le moment : le raccordement au serveur viendra avec le backend Livraison.</div>`;
  aboCycle();const k=ui.abo||"abos",cur=aboMois(ymd(new Date())),A=S.abonnements||[],act=A.filter(a=>a.statut==="actif"),mrr=act.reduce((t,a)=>t+a.forfait.prix,0),du=A.reduce((t,a)=>t+(a.statut==="resilie"&&!aboDu(a)?0:aboDu(a)),0),att=A.filter(a=>a.statut==="attente").length,w=can("admin","commercial");
- const T0=`<div class="between"><h1>🔁 Abonnements professionnels</h1>${w?`<div class="flex"><button class="btn" data-act="newAbo">➕ Nouvel abonnement</button><button class="btn ghost" data-act="newForfait">➕ Nouveau forfait</button></div>`:""}</div>
+ const T0=`<div class="between"><h1>🔁 Abonnements professionnels</h1>${w?`<div class="flex"><button class="btn" data-act="newAbo">➕ Nouvel abonnement</button><button class="btn ghost" data-act="newForfait">➕ Nouveau forfait</button><button class="btn ghost" data-act="catStd">📦 Catalogue standard</button></div>`:""}</div>
  <p class="mu sm">Un commerçant (client ou vendeur partenaire) souscrit un forfait de livraisons par mois : ses commandes du mois sont livrées sans frais de zone tant que le quota n'est pas consommé. Une facture mensuelle est émise et comptabilisée en prestations vendues.</p>
  <div class="grid">${kpi("Abonnements actifs",act.length)}${kpi("Revenu mensuel récurrent",fcfa(mrr))}${kpi("Factures à encaisser",fcfa(du),du?"w":"o")}${kpi("Demandes à activer",att,att?"w":"o")}</div>${tabs("abo",[["abos","Abonnements"],["forf","Forfaits"]])}`;
  if(k==="forf")return T0+tbl(["Code","Forfait","Livraisons / mois","Prix mensuel","Abonnés","Statut",""],(S.forfaits||[]).map(f=>`<tr><td>${esc(f.code)}</td><td><b>${esc(f.nom)}</b>${f.desc?`<br><span class="sm mu">${esc(f.desc)}</span>`:""}</td><td>${f.livraisons}</td><td>${fcfa(f.prix)}</td><td>${A.filter(a=>a.forfait_id===f.id&&a.statut==="actif").length}</td><td>${f.actif?badge("Actif","ok"):badge("Inactif","mu")}${f.en_ligne?" "+badge("🛒 En ligne","wa"):""}</td><td>${w?`<button class="btn sm ghost" data-act="editForfait" data-id="${f.id}">Modifier</button>`:""}</td></tr>`),"Aucun forfait : créez le premier (ex. « Pro 30 livraisons »).");
