@@ -35,5 +35,13 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("CF-3","un filtre actif affiche « Réinitialiser » et le compteur ; la réinitialisation remet tout à zéro",ui1.raz&&ui1.cnt&&ui2.vide&&ui2.raz&&ui2.n,JSON.stringify([ui1,ui2]));
  await D.check('[data-f="cu"]');await D.waitForTimeout(150);const cu1=await D.evaluate(()=>ui.cu);await D.uncheck('[data-f="cu"]');await D.waitForTimeout(150);const cu2=await D.evaluate(()=>ui.cu);
  chk("CF-4","case « Urgentes » : cochée = filtre actif, décochée = désactivé",cu1==="1"&&cu2==="",cu1+"|"+cu2);
+ const bd=await D.evaluate(()=>{const out={};const eg=()=>{const a=cmdRows().filter(c=>ui.fs||c.statut!=="annulee").map(c=>c.id).sort().join(),b=bordRows().map(c=>c.id).sort().join();return a===b};
+  out.base=eg();const c=S.commandes[0];ui.fs=c.statut;out.fs=eg()&&bordRows().every(x=>x.statut===c.statut);ui.fs="";
+  ui.cz=c.adr.zone;out.cz=eg()&&bordRows().every(x=>x.adr.zone===c.adr.zone);ui.cz="";
+  ui.cp="0";out.cp=eg();ui.cp="m";out.mois=eg();ui.cp="";ui.cpay="du";out.pay=eg()&&bordRows().every(x=>soldeCmd(x)>0);ui.cpay="";
+  ui.co="own";out.co=eg()&&bordRows().every(x=>!x.vendeur_id);ui.co="";
+  view="commandes";render();const h=document.getElementById("app").innerHTML;out.barre=/bordPrint/.test(h)&&!/data-f="bp"/.test(h)&&!/data-f="bo"/.test(h);
+  const sub=bordHtml().html;out.titre=/hors annulées/.test(sub);return out});
+ chk("CF-5","le bordereau de commandes suit exactement les filtres du tableau (statut, zone, période, paiement, origine) : mêmes commandes, plus de sélecteurs de période ni d'origine propres",Object.values(bd).every(Boolean)||JSON.stringify(bd));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();
