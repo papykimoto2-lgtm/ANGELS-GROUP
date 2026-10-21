@@ -2231,7 +2231,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  cpTxt:t=>{(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Lien copié","ok"),()=>prompt("Copiez ce lien :",t))},
  demoIn:(id,t)=>demoFill(t),
  tab:id=>{const[k,v]=id.split("|");ui[k]=v;render()},
- logout:()=>{if(CL.on){if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}return CL.logout()}if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}sessionStorage.removeItem("angels_me");ME=null;render()},
+ logout:()=>{if(CL.on){if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}return CL.logout()}if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}try{ANGELS_AUTH.trace(S,{app:"distribution",uid:ME.id,nom:ME.nom,role:ME.role,ev:"out"});save()}catch(e){}sessionStorage.removeItem("angels_me");ME=null;render()},
  closeModal,
  newCmd:formCmd,addLigne,delLigne:(_,t)=>{if(document.querySelectorAll(".lrow").length>1){t.closest(".lrow").remove();recalc()}},
  cmdDetail:id=>cmdDetail(id),
@@ -2361,13 +2361,14 @@ document.addEventListener("submit",e=>{
     r.then(x=>{if(x!==false&&ui.mid===mid)closeModal();else if(btn){btn.disabled=false;btn.textContent=lab}}).catch(err=>{toast(fixErr(err),"err");if(btn){btn.disabled=false;btn.textContent=lab}})}
    else if(r!==false&&ui.mid===mid)closeModal()}}
  if(e.target.id==="lf"){e.preventDefault();if(CL.on)return CL.login(e.target);const d=Object.fromEntries(new FormData(e.target)),u=usr(d.u),bt=e.target.querySelector("button");
-  const tr0=u&&((S.tries=S.tries||{})[u.id]||(S.tries[u.id]={n:0,until:0}));if(tr0&&Date.now()<tr0.until)return toast("Compte bloqué "+cfv("blocage_min")+" minute(s) (trop de tentatives)","err");
+  const tr0=u&&((S.tries=S.tries||{})[u.id]||(S.tries[u.id]={n:0,until:0}));if(tr0&&Date.now()<tr0.until){ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:"bloque",motif:"Compte bloqué après trop de tentatives"});try{save()}catch(e){}return toast("Compte bloqué "+cfv("blocage_min")+" minute(s) (trop de tentatives)","err")}
   if(u&&APPV&&u.role!=="vendeur")return toast("Cet espace est réservé aux vendeurs partenaires","err");
   if(bt)bt.disabled=true;
   (async()=>{let r={ok:false};try{if(u&&u.actif)r=await ANGELS_AUTH.connecter(u,d.pin)}catch(x){toast(x.message,"err");if(bt)bt.disabled=false;return}
    if(r.ok){
     if(r.legacy||u.chg){const ok=await ANGELS_AUTH.ouvrirChangement({titre:"Créez votre mot de passe",nom:u.nom,min:mdpMin(),obligatoire:true,intro:r.legacy?"Les codes PIN ne sont plus acceptés : choisissez un mot de passe personnel pour continuer.":"Votre mot de passe est temporaire : choisissez un mot de passe personnel pour continuer.",enregistrer:async n=>{await ANGELS_AUTH.appliquer(u,n,false);S.tries[u.id]={n:0,until:0};save()}});if(!ok){if(bt)bt.disabled=false;return toast("Connexion annulée","err")}audit("Mot de passe défini (première connexion)",u.nom)}
-    tr0.n=0;ME=u;sessionStorage.setItem("angels_me",u.id);view="dashboard";audit("Connexion",u.nom);save();render();return}
+    tr0.n=0;ME=u;sessionStorage.setItem("angels_me",u.id);view="dashboard";ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:"ok"});audit("Connexion",u.nom);save();render();return}
+   if(u)ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:u.actif?"ko":"inactif",motif:u.actif?"Mot de passe incorrect":"Compte désactivé"});
    if(tr0){tr0.n++;if(tr0.n>=+cfv("tentatives_max")){tr0.until=Date.now()+cfv("blocage_min")*6e4;tr0.n=0}try{save()}catch(e){}}
    if(bt)bt.disabled=false;toast("Utilisateur ou mot de passe incorrect","err")})()}});
 document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.f;if(k){ui[k]=e.target.type==="checkbox"?(e.target.checked?"1":""):e.target.value;render()}

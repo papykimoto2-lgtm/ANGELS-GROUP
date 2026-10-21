@@ -55,6 +55,26 @@
     if (f && u[f] === legacy(u.id, String(mdp))) return { ok: true, legacy: true };
     return { ok: false };
   }
+  /* ---------- Journal de connexion ----------
+     Une ligne par ouverture de session, échec, blocage, déconnexion ou accès à la gestion des comptes (Paramètres du hub), rangée dans l'état de l'application
+     (G.connexions), donc enregistrée et synchronisée avec elle. Jamais de mot de passe ni de donnée secrète : la personne, l'application, l'événement, l'appareil.
+     ev : ok (connexion), ko (mot de passe incorrect), bloque (tentative pendant un blocage), inactif (compte désactivé), out (déconnexion), demo (accès démo), param_ok / param_ko (gestion des comptes via le hub). */
+  var CAP_CX = 3000;
+  function appareil(ua) {
+    ua = String(ua || (G.navigator && G.navigator.userAgent) || "");
+    var nav = /SamsungBrowser/i.test(ua) ? "Samsung Internet" : /Edg\//i.test(ua) ? "Edge" : /OPR\/|Opera/i.test(ua) ? "Opera" : /Firefox/i.test(ua) ? "Firefox" : /Chrome|CriOS/i.test(ua) ? "Chrome" : /Safari/i.test(ua) ? "Safari" : "Navigateur";
+    var sys = /Windows/i.test(ua) ? "Windows" : /Android/i.test(ua) ? "Android" : /iPhone|iPad|iPod/i.test(ua) ? "iOS" : /Mac OS X|Macintosh/i.test(ua) ? "macOS" : /Linux/i.test(ua) ? "Linux" : "Système inconnu";
+    var typ = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua)) ? "tablette" : /Mobi|iPhone|Android/i.test(ua) ? "téléphone" : "ordinateur";
+    return typ + " · " + sys + " · " + nav;
+  }
+  function trace(St, e) {
+    if (!St || !e || !e.ev) return null;
+    var L = St.connexions = Array.isArray(St.connexions) ? St.connexions : [];
+    var x = { id: "cx" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: new Date().toISOString(), app: String(e.app || ""), uid: String(e.uid || ""), nom: String(e.nom || "").slice(0, 80), role: String(e.role || ""), ev: String(e.ev), motif: String(e.motif || "").slice(0, 120), app_: e.appareil || appareil() };
+    if (e.via) x.via = String(e.via);
+    L.push(x); if (L.length > CAP_CX) L.splice(0, L.length - CAP_CX);
+    return x;
+  }
   async function appliquer(u, mdp, temporaire) { u.pwd = await creer(mdp); delete u.h; delete u.pin_h; if (temporaire) u.chg = true; else delete u.chg; u.pwd_le = new Date().toISOString(); }
   var DEMO_MDP = "Demo@Angels2026", DEMO = {"v":2,"it":150000,"s":"YW5nZWxzLWRlbW8tMjAyNg==","h":"v3l6xZ/zqYp7e91ov33bbD69jUlngFx9y1GL/fA7DEM="};   /* comptes de démonstration (mot de passe « Demo@Angels2026 », haché) : à remplacer en production */
 
@@ -171,5 +191,5 @@
     });
   }
 
-  G.ANGELS_AUTH = { IT: IT, MIN_DEF: MIN_DEF, creer: creer, verifier: verifier, valider: valider, force: force, generer: generer, connecter: connecter, appliquer: appliquer, legacy: legacy, ouvrirChangement: ouvrirChangement, afficherTemp: afficherTemp, fermer: fermer, DEMO_MDP: DEMO_MDP, DEMO: DEMO, demoOn: demoOn, adminProd: adminProd, demoUsers: demoUsers, purgerDemo: purgerDemo };
+  G.ANGELS_AUTH = { IT: IT, MIN_DEF: MIN_DEF, creer: creer, verifier: verifier, valider: valider, force: force, generer: generer, connecter: connecter, trace: trace, appareil: appareil, appliquer: appliquer, legacy: legacy, ouvrirChangement: ouvrirChangement, afficherTemp: afficherTemp, fermer: fermer, DEMO_MDP: DEMO_MDP, DEMO: DEMO, demoOn: demoOn, adminProd: adminProd, demoUsers: demoUsers, purgerDemo: purgerDemo };
 })(typeof window !== "undefined" ? window : globalThis);
