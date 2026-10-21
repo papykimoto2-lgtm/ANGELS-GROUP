@@ -162,6 +162,23 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 @media(max-width:820px){
  main{padding:12px}.g2,.g3{grid-template-columns:1fr}
 }
+/* Espace vendeur simplifié : grosses tuiles, barre du bas, commande en 3 étapes */
+.vapp{min-height:100vh;min-height:100dvh;padding-bottom:84px;background:var(--bg,#f4f5fb)}
+.vtop{background:var(--b2);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50}
+.vtop b{flex:1;font-size:17px}.vtop button{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:10px;min-height:44px;padding:0 12px;font-size:14px;cursor:pointer}
+.vapp main{max-width:720px;margin:0 auto;padding:14px 16px}
+.vtiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.vtile{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;min-height:132px;border:0;border-radius:18px;background:#fff;color:var(--b2);box-shadow:0 2px 8px rgba(0,0,0,.1);font-size:17px;font-weight:800;text-align:center;text-decoration:none;cursor:pointer;padding:12px;position:relative}
+.vtile .vi{font-size:38px;line-height:1}.vtile small{font-weight:400;font-size:13px;color:#667}
+.vtile.main{grid-column:1/-1;background:var(--b2);color:#fff;min-height:110px;font-size:20px}.vtile.main small{color:#e5dcff}
+.vtile .vn{position:absolute;top:8px;right:10px;background:#e11d48;color:#fff;border-radius:999px;min-width:24px;height:24px;line-height:24px;font-size:13px}
+.vbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;background:#fff;border-top:1px solid #dde;padding-bottom:env(safe-area-inset-bottom)}
+.vbar button{flex:1;border:0;background:none;min-height:64px;font-size:12px;color:#556;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+.vbar button span{font-size:24px;line-height:1}.vbar button.on{color:var(--b2);font-weight:800}
+.vstep{display:none}.vstep.on{display:block}
+.vsteps{display:flex;gap:6px;margin-bottom:10px}.vsteps i{flex:1;height:6px;border-radius:3px;background:#dde}.vsteps i.on{background:var(--b2)}
+.vnav{display:flex;gap:8px;margin-top:10px}.vnav .btn{flex:1;min-height:48px;font-size:16px}
+.vapp .btn{min-height:44px}.vapp input,.vapp select{min-height:44px;font-size:16px}
 @media print{aside,.noprint{display:none}}
 </style>
 </head>
@@ -243,8 +260,9 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"rh",l:"Ressources humaines et paie",i:"🧑‍💼",g:"Administration",r:["admin","direction"]},
  {v:"utilisateurs",l:"Utilisateurs",i:"🔐",g:"Administration",r:["admin"]},
  {v:"params",l:"Paramètres",i:"⚙️",g:"Administration",r:["admin"]},
- {v:"mesCmd",l:"Mes commandes",i:"🛍️",g:"Mon espace",r:["vendeur"]},
- {v:"mesReg",l:"Mes règlements",i:"💳",g:"Mon espace",r:["vendeur"]}
+ {v:"vHome",l:"Accueil",i:"🏠",g:"Mon espace",r:["vendeur"]},
+ {v:"mesCmd",l:"Mes colis",i:"📦",g:"Mon espace",r:["vendeur"]},
+ {v:"mesReg",l:"Mon argent",i:"💰",g:"Mon espace",r:["vendeur"]}
 ];
 
 /* ---------- Accès aux données ---------- */
@@ -718,6 +736,7 @@ function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}re
 function render0(){
  if(!S&&!CL.on)return;
  if(!ME){$("#app").innerHTML=loginHTML();return}
+ if(ME.role==="vendeur"&&!ANGELS_ROLES.surcharge("distribution",S,ME.role)){if(!["vHome","mesCmd","mesReg"].includes(view))view="vHome";$("#app").innerHTML=vendeurHTML();return}
  if(ME.role==="livreur"){$("#app").innerHTML=livreurHTML()+sosBtnHTML;syncGPS();initMaps();setTimeout(offreCheck,0);return}
  const nav=NAV.filter(voirNav);if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(!nav.find(n=>n.v===view))view=nav[0].v;
  $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const n=nav.find(x=>x.v===view);return n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}${nav.map((n,k)=>(k===0||nav[k-1].g!==n.g?`<div class="gt">${n.g}</div>`:"")+`<a class="${n.v===view?"on":""}" data-act="nav" data-id="${n.v}">${n.i} ${n.l}${navBadge(n.v)}</a>`).join("")}<div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${VIEWS[view]()}</main></div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
@@ -2866,6 +2885,19 @@ function creerCmdVendeur(v,d){
  const c=creerCmd({vendeur_id:v.id,vendeur_encaisse:prods>0&&pv>=prods,paye_vendeur:pv,client_id:cl.id,adr:Object.assign({},ad),lignes:d.lignes.map(l=>({produit_id:null,desig:l.desig,qte:l.qte,pu:l.pu})),frais:(zone(d.zone)||{}).frais||0,remise:0,paiement:pv>0?"partiel":"livraison",acompte:pv,mode:pv>0?"Payé au vendeur":"Espèces",priorite:"normale",canal:"Vendeur partenaire",obs:d.obs||"",confirmer:false});
  setStatut(c,"attente","Commande déposée par le vendeur");return c}
 
+VIEWS.vHome=()=>{
+ const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché à une fiche vendeur. Contactez ANGEL\'S GROUP.</div>';
+ const mine=S.commandes.filter(c=>c.vendeur_id===v.id),d=vendDue(v),att=mine.filter(c=>c.statut==="attente").length,enc=mine.filter(c=>["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut)).length,w=String(S.config.whatsapp||"").replace(/\D/g,"");
+ return`<h1 style="margin:4px 0">Bonjour ${esc(v.nom)} 👋</h1><p class="mu" style="margin:0">Que voulez-vous faire ?</p>${instBox()}
+ <div class="vtiles"><button type="button" class="vtile main" data-act="newVCmd"><span class="vi">➕</span>Nouvelle commande<small>Un client à livrer ? Déposez-la ici</small></button>
+ <button type="button" class="vtile" data-act="nav" data-id="mesCmd"><span class="vi">📦</span>Mes colis<small>${enc} en cours · ${mine.filter(c=>c.statut==="livree").length} livrés</small>${att?`<span class="vn">${att}</span>`:""}</button>
+ <button type="button" class="vtile" data-act="nav" data-id="mesReg"><span class="vi">💰</span>Mon argent<small>À recevoir : <b>${fcfa(d.restant)}</b></small></button>
+ ${w?`<a class="vtile" href="https://wa.me/${esc(w)}" target="_blank" rel="noopener"><span class="vi">💬</span>Aide WhatsApp<small>Parler à ${ORG()}</small></a>`:""}
+ <button type="button" class="vtile" data-act="cmdLien"><span class="vi">🔗</span>Lien client<small>Le client donne sa position</small></button></div>`};
+function vendeurHTML(){
+ const tab=(v,i,l)=>`<button type="button" class="${view===v?"on":""}" data-act="nav" data-id="${v}"><span>${i}</span>${l}</button>`;
+ return`<div class="vapp"><div class="vtop"><b>${ORG()}</b><button type="button" data-act="mdpMe" aria-label="Mon mot de passe">🔑</button><button type="button" data-act="logout">Quitter</button></div><main>${VIEWS[view]()}</main>
+ <nav class="vbar" aria-label="Menu vendeur">${tab("vHome","🏠","Accueil")}<button type="button" data-act="newVCmd"><span>➕</span>Commander</button>${tab("mesCmd","📦","Colis")}${tab("mesReg","💰","Argent")}</nav></div>`}
 VIEWS.mesCmd=()=>{
  const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché à une fiche vendeur. Contactez ANGEL\'S GROUP.</div>';
  const mine=S.commandes.filter(c=>c.vendeur_id===v.id),d=vendDue(v),n=f=>mine.filter(f).length;
@@ -2922,21 +2954,30 @@ function vendForm(v){const u=v&&usr(v.user_id);
   else{const nu={id:uid("u"),nom:d.nom,role:"vendeur",actif:true,pwd:null,chg:true};rstUid=nu.id;S.users.push(nu);S.vendeurs.push({id:uid("v"),user_id:nu.id,nom:d.nom,tel:d.tel,commission_pct:+d.com||0});audit("Création vendeur partenaire",d.nom)}save();render();if(rstUid)mdpTemp(rstUid,v?"Mot de passe réinitialisé":"Compte vendeur créé")}})}
 function vCmdForm(){
  const v=vend(),vph=[];const row=()=>`<div class="vrow flex" style="margin-bottom:6px"><input class="vd" placeholder="Article" style="flex:2"><input class="vq" type="number" min="1" value="1" style="width:70px"><input class="vp" type="number" min="0" placeholder="Prix unitaire" style="width:110px"><button type="button" class="btn sm er vdel">✕</button></div>`;
- modal("Nouvelle commande à livrer",`<div class="sec">Client à livrer</div><div class="g2"><label>Nom du client <span class="mu sm">(vide = « Client divers »)</span><input name="nom"></label><label>Téléphone <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel"></label></div>
- <div class="g3"><label>Zone<select name="zone" id="v_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier<input name="quartier"></label><label>Point de repère<input name="repere"></label></div><label>Instructions d'accès<input name="ins"></label>
- <div class="sec">Articles (prix de vente au client)</div><div id="v_lignes">${row()}</div><button type="button" class="btn sm ghost" id="v_add">+ Ajouter un article</button>
+ const WZ=ME.role==="vendeur";
+ modal("Nouvelle commande à livrer",`${WZ?'<div class="vsteps"><i class="on"></i><i></i><i></i></div>':""}<div class="vstep on" data-s="1"><div class="sec">1. Client à livrer</div><div class="g2"><label>Nom du client <span class="mu sm">(vide = « Client divers »)</span><input name="nom"></label><label>Téléphone <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel"></label></div>
+ <div class="g3"><label>Zone<select name="zone" id="v_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier<input name="quartier"></label><label>Point de repère<input name="repere"></label></div><label>Instructions d'accès<input name="ins"></label></div>
+ <div class="vstep" data-s="2"><div class="sec">2. Articles (prix de vente au client)</div><div id="v_lignes">${row()}</div><button type="button" class="btn sm ghost" id="v_add">+ Ajouter un article</button>
+ <div class="sec">Photos / captures des articles (facultatif)</div><div class="wph" id="v_ph"></div><label class="btn sm ghost" style="display:inline-block;cursor:pointer">📷 Ajouter des photos<input type="file" id="v_phf" accept="image/*" multiple hidden></label> <span class="sm mu">jusqu'à 8 · le livreur et ${ORG()} les voient</span>
+</div>
+ <div class="vstep" data-s="3"><div class="sec">3. Paiement</div>
  <label>Paiement du client<select name="pay" id="v_pay"><option value="livraison">Tout chez le livreur ${ORG()} (articles + livraison)</option><option value="partiel">Partagé : une partie déjà payée chez moi, le reste au livreur</option><option value="paye">Articles entièrement payés chez moi — le livreur n'encaisse que la livraison</option></select></label>
  <label id="v_pvw" class="hide">Montant déjà payé chez moi (F)<input type="number" name="paye_vendeur" id="v_pv" min="1" step="1"></label><label>Note pour le livreur<input name="obs"></label>
  <div class="card" style="margin:0;background:#f7f8fd"><div class="between"><span>Articles <b id="v_p">0 F</b></span><span>Livraison <b id="v_f">0 F</b></span><span>Total client <b id="v_t">0 F</b></span></div><div class="between sm mu" style="margin-top:4px"><span>Le livreur encaisse <b id="v_s">0 F</b></span><span>Vous recevrez <b id="v_n">0 F</b> (commission ${v.commission_pct||0} %)</span></div></div>
- <div class="sec">Photos / captures des articles (facultatif)</div><div class="wph" id="v_ph"></div><label class="btn sm ghost" style="display:inline-block;cursor:pointer">📷 Ajouter des photos<input type="file" id="v_phf" accept="image/*" multiple hidden></label> <span class="sm mu">jusqu'à 8 · le livreur et ${ORG()} les voient</span>
- <div class="sm mu">Le tarif de livraison dépend de la zone. Vous pourrez envoyer au client un lien pour qu'il indique sa position exacte sur la carte.</div>`,
+ <div class="sm mu">Le tarif de livraison dépend de la zone. Vous pourrez envoyer au client un lien pour qu'il indique sa position exacte sur la carte.</div></div>`,
  {wide:true,label:"Déposer la commande",onSubmit:(d,f)=>{
+  if(WZ&&vStep()<3){vGo(1);return false}
   const lignes=[...f.querySelectorAll(".vrow")].map(r=>({desig:r.querySelector(".vd").value.trim(),qte:+r.querySelector(".vq").value,pu:+r.querySelector(".vp").value})).filter(l=>l.desig);
   if(!lignes.length||lignes.some(l=>!(l.qte>0)||!(l.pu>=0)||isNaN(l.pu)))return toast("Ajoutez au moins un article avec quantité et prix","err"),false;
   if(!d.quartier.trim()&&!d.repere.trim())return toast("Indiquez le quartier ou un point de repère","err"),false;
   if(CL.on)return CL.vendDepot(d,lignes,vph.slice());try{const c=creerCmdVendeur(v,Object.assign({},d,{lignes}));if(vph.length)c.photos=vph.slice();save();toast("Commande "+c.numero+" déposée. "+(ORGRAW())+" va la confirmer.","ok");render()}catch(e){toast(fixErr(e),"err");return false}}});
  {const paint=()=>{$("#v_ph").innerHTML=vph.map((p,k)=>`<span class="wthumb"><img alt="" src="${p}"><button type="button" data-k="${k}" title="Retirer">✕</button></span>`).join("");$("#v_ph").querySelectorAll("button").forEach(b=>b.onclick=()=>{vph.splice(+b.dataset.k,1);paint()})};
   $("#v_phf").onchange=async e=>{for(const f of [...e.target.files]){if(!/^image\//.test(f.type))continue;if(vph.length>=8){toast("Maximum 8 photos","err");break}try{vph.push(await imgResize(f,900,.72,250000))}catch(x){toast(x.message,"err")}}e.target.value="";paint()}}
+ let vs=1;const vStep=()=>vs;
+ const vShow=n=>{vs=n;document.querySelectorAll("#mf .vstep").forEach(e=>e.classList.toggle("on",+e.dataset.s===n));document.querySelectorAll("#mf .vsteps i").forEach((e,k)=>e.classList.toggle("on",k<n));const sb=document.querySelector("#mf .mf .btn:not(.ghost)");if(sb)sb.style.display=n===3?"":"none";const pv=document.getElementById("vprev");if(pv)pv.style.display=n>1?"":"none";const nx=document.getElementById("vnext");if(nx)nx.style.display=n<3?"":"none"};
+ const vGo=dir=>{const f=document.getElementById("mf");if(dir>0&&vs===1&&!f.quartier.value.trim()&&!f.repere.value.trim())return toast("Indiquez le quartier ou un point de repère","err");
+  if(dir>0&&vs===2&&![...f.querySelectorAll(".vrow")].some(r=>r.querySelector(".vd").value.trim()&&+r.querySelector(".vq").value>0&&r.querySelector(".vp").value!==""))return toast("Ajoutez au moins un article avec quantité et prix","err");vShow(Math.max(1,Math.min(3,vs+dir)))};
+ if(WZ){const nv=document.createElement("div");nv.className="vnav";nv.innerHTML='<button type="button" class="btn ghost" id="vprev">← Retour</button><button type="button" class="btn" id="vnext">Suivant →</button>';document.querySelector("#mf .mb").appendChild(nv);document.getElementById("vprev").onclick=()=>vGo(-1);document.getElementById("vnext").onclick=()=>vGo(1);vShow(1)}
  const calc=()=>{const rows=[...document.querySelectorAll(".vrow")],pr=rows.reduce((a,r)=>a+(+r.querySelector(".vq").value||0)*(+r.querySelector(".vp").value||0),0),fr=(zone($("#v_zone").value)||{}).frais||0,mode=$("#v_pay").value,pv=mode==="paye"?pr:mode==="partiel"?Math.min(pr,Math.max(0,+$("#v_pv").value||0)):0;
   $("#v_pvw").classList.toggle("hide",mode!=="partiel");
   $("#v_p").textContent=fcfa(pr);$("#v_f").textContent=fcfa(fr);$("#v_t").textContent=fcfa(pr+fr);$("#v_s").textContent=fcfa(pr+fr-pv);$("#v_n").textContent=pv>=pr&&pr>0?"— (tout payé chez vous)":fcfa((pr-pv)*(1-(+v.commission_pct||0)/100))+(pv?" pour la part encaissée par "+(ORGRAW())+"":"")};
