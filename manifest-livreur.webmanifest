@@ -5,7 +5,7 @@
   "description": "Application livreur : missions, actions de livraison, appel client via le pont, fonctionne hors ligne.",
   "lang": "fr",
   "start_url": "./livreur.html",
-  "scope": "./",
+  "scope": "./livreur.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b3b4c",
