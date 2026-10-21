@@ -4052,7 +4052,7 @@ function vigTick(){if(!ME||ME.role!=="livreur"||vigOpen||!S||!S.livreurs)return;
  const p=S.pos[lv.id];if(p&&isFinite(+p.lat)){if(!vigPos||Math.hypot(p.lat-vigPos.lat,p.lng-vigPos.lng)>.0005){if(vigPos)vigAct=Math.max(vigAct,Date.now());vigPos={lat:+p.lat,lng:+p.lng}}}
  if(Date.now()-vigAct>=c.inactif_min*60000)vigPrompt(lv,c)}
 setInterval(()=>{try{vigTick()}catch(e){}},15000);
-setInterval(()=>{try{if(ME&&S&&S.livreurs&&can("admin","superviseur","direction","caissier"))queteTick()}catch(e){}},60000);
+setInterval(()=>{try{if(ME&&S&&S.livreurs&&ME.role!=="livreur")queteTick()}catch(e){}},60000);
 setInterval(()=>{try{if(ME&&S&&S.livreurs&&ME.role!=="livreur"){if(planTick())render()}}catch(e){}},30000);
 setInterval(()=>{try{if(!ME||!S||!S.livreurs||!can("admin","superviseur"))return;const n=hzTick();if(n.length){n.forEach(e=>{try{notifOffre("📍 Moto hors zone",hzMsg(e),"hz-"+e.id)}catch(x){}toast("📍 "+hzMsg(e),"err")});try{localStorage.setItem("angels_son","1");sonnerie(true)}catch(x){}render()}}catch(e){}},15000);
 /* Bureau : livreur en mission ou disponible dont la position n'a pas bougé depuis N min pendant les heures de travail */
