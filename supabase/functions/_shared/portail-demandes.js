@@ -26,7 +26,7 @@ export function lireMarqueurs(message) {
     let o; try { o = decoder(m[2]); } catch { throw new Error("Demande illisible"); }
     const ref = String(o.f || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 12);
     if (ref.length < 3) throw new Error("Référence de demande absente");
-    out.push({ type: m[1], ref });
+    out.push({ type: m[1], ref, vendeur: m[1] === "BOUTIQUE" ? String(o.v || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60) : "" });
   }
   return out;
 }
@@ -47,7 +47,7 @@ export async function recevoir(db, cfg, req, ip, now = Date.now()) {
   const recues = [], doublons = [];
   for (const m of M) {
     if (await db.existe(m.ref)) { doublons.push(m.ref); continue; }
-    await db.inserer({ ref: m.ref, type: m.type, message, ip_hash: h }); recues.push(m.ref);
+    await db.inserer({ ref: m.ref, type: m.type, message, ip_hash: h, vendeur: m.vendeur || null }); recues.push(m.ref);
   }
   return rep(200, { ok: true, refs: recues.concat(doublons), doublons: doublons.length });
 }
@@ -58,6 +58,7 @@ export async function traiterBureau(db, cfg, req, adminKey) {
   const a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteListe(100) });
   if (a === "publier") return publierCatalogue(db, req);
+  if (a === "cle_vendeur") return cleVendeur(db, req);
   if (a === "acquitter") {
     const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
     if (ids.length) await db.acquitter(ids); return rep(200, { ok: true, acquittes: ids.length });
@@ -87,4 +88,30 @@ async function publierCatalogue(db, req) {
 export async function lireCatalogue(db) {
   const c = await db.lireCatalogue(); if (!c || !c.boutique) return rep(200, { ok: true, boutique: "", photos: {}, maj_le: null });
   return rep(200, { ok: true, boutique: c.boutique, photos: c.photos || {}, maj_le: c.maj_le });
+}
+
+/* ================= Vendeur partenaire (clé de relève) ================= */
+const idVendeur = (v) => String(v || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
+const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+/* Le bureau crée (ou renouvelle) la clé de relève d'un vendeur : montrée une seule fois, seule l'empreinte est gardée. L'ancienne clé cesse de fonctionner. */
+async function cleVendeur(db, req) {
+  const v = idVendeur(req.vendeur); if (!v) return err(400, "Vendeur absent");
+  const octets = crypto.getRandomValues(new Uint8Array(20)); let cle = "";
+  for (const o of octets) cle += ALPHA[o % ALPHA.length];
+  cle = cle.match(/.{1,5}/g).join("-");
+  await db.ecrireCleVendeur(v, await sha256hex("vendeur|" + cle));
+  return rep(200, { ok: true, cle });
+}
+/* Le vendeur relève SEULEMENT ses demandes (identifiant + clé) puis les acquitte : jamais celles d'un autre vendeur, jamais celles du bureau. */
+export async function traiterVendeur(db, req) {
+  const v = idVendeur(req.vendeur), cle = String(req.cle || "").trim().toUpperCase();
+  const h = v && cle ? await db.empreinteVendeur(v) : null;
+  if (!h || !egal(h, await sha256hex("vendeur|" + cle))) return err(401, "Clé de relève invalide");
+  const a = String(req.action || "");
+  if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteVendeur(v, 100) });
+  if (a === "acquitter") {
+    const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
+    if (ids.length) await db.acquitterVendeur(v, ids); return rep(200, { ok: true, acquittes: ids.length });
+  }
+  return err(400, "Action inconnue");
 }
