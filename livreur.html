@@ -39,6 +39,8 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-
 .dr{position:fixed;inset:0;z-index:30;display:flex;justify-content:flex-end}.dr .bk{position:absolute;inset:0;background:rgba(10,20,30,.55)}
 .dr nav{position:relative;background:#fff;width:min(86vw,340px);height:100%;padding:16px;overflow:auto;box-shadow:-8px 0 24px rgba(0,0,0,.25)}
 .mi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:14px 12px;margin-top:8px;border:1px solid var(--bd);border-radius:12px;background:#fff;font-weight:700;color:var(--b2);cursor:pointer}
+.kp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.kp>div{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:10px 12px}.kp b{display:block;font-size:20px}.kp span{font-size:12px;color:var(--mu)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{padding:8px 12px;border-radius:99px;border:1px solid var(--b);background:#fff;color:var(--b);font-weight:700;cursor:pointer}.chip.on{background:var(--b);color:#fff}
 .mi.on{background:#e3eef3;border-color:var(--b)}.mi.er{color:var(--er)}
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--b2);color:#fff;padding:10px 16px;border-radius:99px;z-index:40;max-width:90%}
 </style>
@@ -102,7 +104,7 @@ function sigMissions(){const nouv=missions.filter(m=>m.statut==="affectee").map(
 try{if(localStorage.getItem("angels_signal_dev")==null)ANGELS_SIGNAL.setDev({voice:false})}catch(e){}   /* lecture vocale des missions : coupée par défaut, activée par le livreur (bouton « voix ») */
 const voixIcone=()=>ANGELS_SIGNAL.dev().voice?"🗣":"🤐";
 const sonIcone=()=>{const d=ANGELS_SIGNAL.dev();return d.mute?"🔕":d.vol<=.5?"🔉":"🔊"};
-async function charger(){try{const{data,error}=await sb.from("pg_missions").select("livraison_ref,livreur_ref,commande_ref,statut,payload,position,maj_le").order("maj_le",{ascending:false});if(error)throw error;missions=data||[];erreur="";try{sigMissions()}catch(e){}lsSet(LS.c,{t:Date.now(),uid:user&&user.id,moi,missions})}catch(x){erreur=enLigne()?x.message:""}
+async function charger(){try{const{data,error}=await sb.from("pg_missions").select("livraison_ref,livreur_ref,commande_ref,statut,payload,position,maj_le").order("maj_le",{ascending:false});if(error)throw error;const tout=data||[];missions=recevoir(tout);erreur="";try{sigMissions()}catch(e){}lsSet(LS.c,{t:Date.now(),uid:user&&user.id,moi,missions:tout})}catch(x){erreur=enLigne()?x.message:""}
  if(!ouvert)vueMissions()}
 const adrTxt=a=>[a.zone,a.quartier].filter(Boolean).map(esc).join(" · ");
 const minAtt=t=>t?Math.max(0,Math.floor((Date.now()-Date.parse(t))/60000)):0;
@@ -148,6 +150,8 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  ${p.paye_vendeur>0?`<div class="sm mu">💳 ${fcfa(p.paye_vendeur)} déjà payés chez le fournisseur — vous n'encaissez que le reste.</div>`:""}
  ${act?`${posBloc(m,a,g)}${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
  ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
+let STATS=null,SP="s7";
+const recevoir=a=>{a=a||[];STATS=a.find(m=>m.statut==="stats")||null;return a.filter(m=>m.statut!=="stats")};
 /* ---------- Menu (☰) : commandes en cours + meilleur itinéraire, traitées récemment, GPS et compte ---------- */
 let PAGE="cours",MENU=false,GPSST="",ITIN={sel:null,res:null,busy:false};
 const gpsOn=()=>lsGet(LS.g,{on:true}).on!==false;
@@ -174,6 +178,18 @@ function itinCard(){const E=eligibles();if(!E.length)return"";
  ${R?`<div class="pill" style="margin-top:10px"><b>Ordre conseillé</b><ol style="margin:6px 0 0 18px;padding:0">${R.ordre.map((s,i)=>`<li>${esc(s.num)} — ${esc(s.lbl)}${s.km!=null?` <span class="mu sm">(≈ ${s.km.toFixed(1)} km${i?" depuis l'arrêt précédent":R.depart?" depuis vous":""})</span>`:s.lat==null?' <span class="mu sm">(position approximative)</span>':""}</li>`).join("")}</ol></div>
  <a class="btn ok" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="${R.url}">▶ Ouvrir l'itinéraire dans Google Maps</a>
  <div class="sm mu" style="margin-top:6px">Distances à vol d'oiseau : Google Maps choisit ensuite le meilleur trajet routier, trafic compris.${R.depart?"":" Position du téléphone indisponible : l'ordre part de la première commande."}</div>`:""}</div>`}
+const minTxt=v=>v?Math.round(v)+" min":"—";
+function statsHtml(){const P=((STATS||{}).payload||{}).p,j7=((STATS||{}).payload||{}).jours7||[],X=P&&P[SP],lab={j:"Aujourd'hui",s7:"7 jours",m30:"30 jours",mois:"Ce mois"};
+ const chips=`<div class="chips">${Object.keys(lab).map(k=>`<button type="button" class="chip ${SP===k?"on":""}" data-a="sp" data-r="${k}">${lab[k]}</button>`).join("")}</div>`;
+ if(!X)return`<h2 class="pg">Mes statistiques</h2><div class="card mu">Vos statistiques ne sont pas encore disponibles : le bureau les publie dès que votre compte est relié (quelques minutes après la première course ou la prochaine synchronisation).</div>`;
+ const mx=Math.max(1,...j7.map(d=>d.n));
+ return`<h2 class="pg">Mes statistiques</h2>${chips}
+ <div class="kp"><div><b>${X.livrees}</b><span>livraisons</span></div><div><b style="color:${X.echecs?"var(--er)":"inherit"}">${X.echecs}</b><span>échecs</span></div><div><b>${X.livrees+X.echecs?X.taux.toFixed(0)+" %":"—"}</b><span>réussite</span></div><div><b>${minTxt(X.duree)}</b><span>durée moyenne</span></div><div><b>${X.livrees?X.delais.toFixed(0)+" %":"—"}</b><span>dans les délais</span></div><div><b>${X.nnotes?X.note.toFixed(1)+" ★":"—"}</b><span>note des clients</span></div><div><b>${fcfa(X.encaisse)}</b><span>encaissé</span></div><div><b>${fcfa(X.gains)}</b><span>mes gains (commissions)</span></div></div>
+ <div class="card"><b>Activité</b><div class="sm mu">${X.jours} jour(s) travaillé(s)${X.moy?" · "+X.moy.toFixed(1)+" livraison(s) par jour":""}${X.best?" · meilleur jour : "+new Date(X.best[0]+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" ("+X.best[1]+")":""}</div></div>
+ ${X.motifs.length?`<div class="card"><b>Échecs : motifs fréquents</b>${X.motifs.map(m=>`<div class="between sm" style="margin-top:4px"><span>${esc(m[0])}</span><b>${m[1]}</b></div>`).join("")}</div>`:""}
+ ${X.zones.length?`<div class="card"><b>Zones les plus livrées</b>${X.zones.map(m=>`<div class="between sm" style="margin-top:4px"><span>${esc(m[0])}</span><b>${m[1]}</b></div>`).join("")}</div>`:""}
+ ${j7.length?`<div class="card"><b>7 derniers jours</b><div style="display:flex;gap:6px;align-items:flex-end;height:90px;margin-top:8px">${j7.map(d=>`<div style="flex:1;text-align:center;font-size:11px"><div style="height:${Math.round(d.n/mx*60)}px;background:var(--b);border-radius:4px 4px 0 0;min-height:2px"></div>${d.n}<br><span class="mu">${esc(d.l)}</span></div>`).join("")}</div></div>`:""}
+ <div class="sm mu" style="margin:6px 0">Statistiques calculées par le bureau à partir de vos courses terminées${STATS&&STATS.maj_le?" (mises à jour à "+new Date(STATS.maj_le).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+")":""}.</div>`}
 function reglagesHtml(){const st=GPSST==="granted"?'<span style="color:var(--ok)">✔ autorisé</span>':GPSST==="denied"?'<span style="color:var(--er)">✖ refusé</span> : autorisez la localisation dans les réglages du navigateur (icône à gauche de l\'adresse)':GPSST==="prompt"?"à demander":"inconnu";
  const sd=ANGELS_SIGNAL.dev();
  return`<h2 class="pg">GPS et compte</h2>
@@ -186,6 +202,7 @@ function reglagesHtml(){const st=GPSST==="granted"?'<span style="color:var(--ok)
 const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu"><div class="between"><b>${esc((moi&&moi.nom)||"Livreur")}</b><button class="btn ghost bg" data-a="menu" aria-label="Fermer le menu">✕</button></div>
  <button class="mi ${PAGE==="cours"?"on":""}" data-a="page" data-r="cours">📋 Commandes en cours et meilleur itinéraire<span class="bd">${n}</span></button>
  <button class="mi ${PAGE==="recent"?"on":""}" data-a="page" data-r="recent">✅ Traitées récemment<span class="bd">${f}</span></button>
+ <button class="mi ${PAGE==="stats"?"on":""}" data-a="page" data-r="stats">📊 Mes statistiques</button>
  <button class="mi ${PAGE==="reglages"?"on":""}" data-a="page" data-r="reglages">⚙ GPS, mot de passe et alertes</button>
  <button class="mi" data-a="incident">⚠ Signaler un incident</button>
  <button class="mi er" data-a="quitter">⏻ Déconnexion</button></nav></div>`;
@@ -194,6 +211,7 @@ function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.fil
  const alertes=`${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
  const corps=PAGE==="recent"?`<h2 class="pg">Traitées récemment</h2>${fin.length?fin.map(carte).join(""):'<div class="card mu">Aucune commande traitée récemment.</div>'}`
   :PAGE==="reglages"?reglagesHtml()
+  :PAGE==="stats"?statsHtml()
   :`<h2 class="pg">Commandes en cours</h2>${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${itinCard()}${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}`;
  $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml(act.length,fin.length):""}<div class="wrap">${PAGE==="reglages"?"":'<div class="inst"></div>'}${alertes}${corps}</div>`}
 document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.it!=null){ITIN.sel=ITIN.sel||new Set();if(t.checked){if(ITIN.sel.size>=10){t.checked=false;return toast("10 commandes au plus par itinéraire","err")}ITIN.sel.add(t.dataset.it)}else ITIN.sel.delete(t.dataset.it);ITIN.res=null}
@@ -218,7 +236,8 @@ const ACT={
  sons:()=>{const d=ANGELS_SIGNAL.dev();if(d.mute)ANGELS_SIGNAL.setDev({mute:false,vol:.5});else if(d.vol<=.5)ANGELS_SIGNAL.setDev({vol:1});else ANGELS_SIGNAL.setDev({mute:true});ANGELS_SIGNAL.jouer("bip",{rep:1,vib:false});vueMissions()},
  posclient:async r=>{const t=Date.now();const x=await envoyer(r,"incident",{nature:"Position du client",description:"Demande de la position GPS du client (envoyer le lien de partage)"},"Demande envoyée au bureau : vous pouvez partir, la position s'affichera ici.");if(x!==undefined){const P=lsGet(LS.p,{});P[r]=t;lsSet(LS.p,P)}vueMissions()},
  menu:()=>{MENU=!MENU;vueMissions()},
- page:r=>{PAGE=["cours","recent","reglages"].includes(r)?r:"cours";MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
+ sp:r=>{SP=["j","s7","m30","mois"].includes(r)?r:"s7";vueMissions()},
+ page:r=>{PAGE=["cours","recent","reglages","stats"].includes(r)?r:"cours";MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
  gpsact:()=>{if(!navigator.geolocation)return toast("GPS indisponible sur cet appareil","err");
   navigator.geolocation.getCurrentPosition(()=>{lsSet(LS.g,{on:true});GPSST="granted";toast("GPS activé : votre position est disponible","ok");suivi();vueMissions()},e=>{if(e&&e.code===1)GPSST="denied";toast(e&&e.code===1?"GPS refusé : autorisez la localisation dans les réglages du navigateur":"Position introuvable : sortez à l'air libre ou activez la localisation du téléphone","err");vueMissions()},{enableHighAccuracy:true,timeout:15000})},
  itincalc:async()=>{const E=eligibles().filter(m=>ITIN.sel&&ITIN.sel.has(m.livraison_ref));if(!E.length)return toast("Cochez au moins une commande","err");if(ITIN.busy)return;ITIN.busy=true;vueMissions();
@@ -252,7 +271,7 @@ async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data
  const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;if(!moi){await sb.auth.signOut();user=null;return vueLogin("Compte livreur inactif ou introuvable. Contactez le bureau.")}
  {const c0=lsGet(LS.c,null);if(c0&&c0.uid&&c0.uid!==user.id){[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}})}}
  await vider();await charger();suivi();clearInterval(timer);timer=setInterval(async()=>{await vider();await charger();suivi()},20000)}
-function hors(c){user={id:c.uid};moi=c.moi;missions=c.missions||[];erreur="";vueMissions();clearInterval(timer);timer=setInterval(()=>{if(enLigne())reprendre();else vueMissions()},20000)}
+function hors(c){user={id:c.uid};moi=c.moi;missions=recevoir(c.missions||[]);erreur="";vueMissions();clearInterval(timer);timer=setInterval(()=>{if(enLigne())reprendre();else vueMissions()},20000)}
 async function reprendre(){try{if(!sb){await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}})}await demarrer()}catch(e){}}
 addEventListener("online",()=>{reprendre()});addEventListener("offline",()=>{if(user)vueMissions()});
 (async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}

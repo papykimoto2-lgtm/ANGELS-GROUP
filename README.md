@@ -754,3 +754,8 @@ L'écran du livreur est désencombré par un menu ☰ : **Commandes en cours et 
 ## Centre de livraison en onglets
 
 Le Centre de livraison est organisé en 6 onglets avec compteurs : **📦 À affecter**, **🏍 Courses actives** (carte du livreur), **🧺 Collectes vendeurs**, **🔁 Tournées**, **👥 Livreurs**, **⚠ À traiter** (livraisons échouées et écarts d'encaissement). Les filtres date et lieu (zone, quartier, repère, n° de commande ou client) s'affichent sur « À affecter », « Courses actives » et « À traiter » ; la barre de zones sur « À affecter », « Courses actives » et « Tournées ». Test : `tests/centre-onglets.js`.
+
+## Statistiques livreur
+
+- **Centre de livraison → 📊 Statistiques** : par livreur et par période (aujourd'hui, 7/30 jours, ce mois, toutes les dates ou dates précises) : courses livrées, échecs, taux de réussite, durée moyenne (départ → livraison), livrées dans les délais de la zone, encaissé, commission, jours actifs, moyenne par jour, note des clients ; totaux, export CSV et fenêtre de détail (motifs d'échec, zones desservies, meilleur jour).
+- **Application livreur → ☰ → 📊 Mes statistiques** : mêmes indicateurs pour le livreur (aujourd'hui, 7 jours, 30 jours, ce mois), motifs d'échec, zones, graphique des 7 derniers jours. Le bureau les publie avec les missions (enregistrement « stats » invisible comme commande ; aucun changement du serveur). Test : `tests/stats-livreur.js`.
