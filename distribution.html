@@ -3001,6 +3001,7 @@ VIEWS.vHome=()=>{
  <button type="button" class="vtile" data-act="nav" data-id="mesReg"><span class="vi">💰</span>Mon argent<small>À recevoir : <b>${fcfa(d.restant)}</b></small></button>
  ${w?`<a class="vtile" href="https://wa.me/${esc(w)}" target="_blank" rel="noopener"><span class="vi">💬</span>Aide WhatsApp<small>Parler à ${ORG()}</small></a>`:""}
  <button type="button" class="vtile" data-act="nav" data-id="mesCmd"><span class="vi">📥</span>Demandes clients<small>${dem?dem+" à traiter":"Aucune pour l'instant"}</small>${dem?`<span class="vn">${dem}</span>`:""}</button>
+ <button type="button" class="vtile" data-act="waOpen"><span class="vi">📋</span>Coller un message client<small>WhatsApp reçu : commande préremplie</small></button>
  <button type="button" class="vtile" data-act="cmdLien"><span class="vi">🔗</span>Lien client<small>Le client donne sa position</small></button></div>`};
 function vendeurHTML(){
  const tab=(v,i,l)=>`<button type="button" class="${view===v?"on":""}" data-act="nav" data-id="${v}"><span>${i}</span>${l}</button>`;
