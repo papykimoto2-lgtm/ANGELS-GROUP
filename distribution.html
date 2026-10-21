@@ -2994,12 +2994,13 @@ function creerCmdVendeur(v,d){
 
 VIEWS.vHome=()=>{
  const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché à une fiche vendeur. Contactez ANGEL\'S GROUP.</div>';
- const mine=S.commandes.filter(c=>c.vendeur_id===v.id),d=vendDue(v),att=mine.filter(c=>c.statut==="attente").length,enc=mine.filter(c=>["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut)).length,w=String(S.config.whatsapp||"").replace(/\D/g,"");
+ const dem=demandesOf(v).length,mine=S.commandes.filter(c=>c.vendeur_id===v.id),d=vendDue(v),att=mine.filter(c=>c.statut==="attente").length,enc=mine.filter(c=>["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut)).length,w=String(S.config.whatsapp||"").replace(/\D/g,"");
  return`<h1 style="margin:4px 0">Bonjour ${esc(v.nom)} 👋</h1><p class="mu" style="margin:0">Que voulez-vous faire ?</p>${instBox()}
  <div class="vtiles"><button type="button" class="vtile main" data-act="newVCmd"><span class="vi">➕</span>Nouvelle commande<small>Un client à livrer ? Déposez-la ici</small></button>
  <button type="button" class="vtile" data-act="nav" data-id="mesCmd"><span class="vi">📦</span>Mes colis<small>${enc} en cours · ${mine.filter(c=>c.statut==="livree").length} livrés</small>${att?`<span class="vn">${att}</span>`:""}</button>
  <button type="button" class="vtile" data-act="nav" data-id="mesReg"><span class="vi">💰</span>Mon argent<small>À recevoir : <b>${fcfa(d.restant)}</b></small></button>
  ${w?`<a class="vtile" href="https://wa.me/${esc(w)}" target="_blank" rel="noopener"><span class="vi">💬</span>Aide WhatsApp<small>Parler à ${ORG()}</small></a>`:""}
+ <button type="button" class="vtile" data-act="nav" data-id="mesCmd"><span class="vi">📥</span>Demandes clients<small>${dem?dem+" à traiter":"Aucune pour l'instant"}</small>${dem?`<span class="vn">${dem}</span>`:""}</button>
  <button type="button" class="vtile" data-act="cmdLien"><span class="vi">🔗</span>Lien client<small>Le client donne sa position</small></button></div>`};
 function vendeurHTML(){
  const tab=(v,i,l)=>`<button type="button" class="${view===v?"on":""}" data-act="nav" data-id="${v}"><span>${i}</span>${l}</button>`;
@@ -3513,6 +3514,7 @@ function demandeCard(d){
  <div class="sm mu" style="margin-top:6px">${est?"Estimation client : "+fcfa(est)+(sans?" + articles sans prix":""):"Aucun prix indiqué"}</div>
  <div class="flex" style="margin-top:10px"><button class="btn ok" data-act="demTraiter" data-id="${d.id}">✔ Créer la commande</button><button class="btn er ghost" data-act="demRejeter" data-id="${d.id}">Refuser</button></div></div>`}
 function demandesSection(v){const L=demandesOf(v);
+ if(!L.length&&ME&&ME.role==="vendeur")return`<h2>📥 Demandes reçues de vos clients (0)</h2><p class="mu sm">Aucune demande pour l'instant. Partagez votre lien client (🔗 Lien client sur l'accueil) : les commandes de vos clients arriveront ici.</p>`;
  return L.length?`<h2>📥 Demandes reçues de vos clients (${L.length})</h2><p class="mu sm">Vos clients commandent eux-mêmes via votre lien. Vérifiez les articles et les prix, puis créez la commande : ${ORG()} confirme et livre.</p>${L.map(demandeCard).join("")}`:""}
 function demTraiter(id){const d=(S.demandes||[]).find(x=>x.id===id);if(!d)return;
  waOpen();const dr=draftDeDemande(d);dr.demande_id=d.id;

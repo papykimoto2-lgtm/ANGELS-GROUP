@@ -19,6 +19,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   document.getElementById("vnext").click();if(vis()!=="1")E.push("avance sans adresse");f().quartier.value="Cocody";document.getElementById("vnext").click();if(vis()!=="2")E.push("étape 2 refusée");
   document.getElementById("vnext").click();if(vis()!=="2")E.push("avance sans article");const r=document.querySelector(".vrow");r.querySelector(".vd").value="Robe";r.querySelector(".vp").value="5000";document.getElementById("vnext").click();if(vis()!=="3")E.push("étape 3 refusée");
   if(sb.style.display==="none")E.push("dépôt masqué à l'étape 3");f().requestSubmit();if(S.commandes.length!==n0+1)E.push("commande non créée ("+__T.slice(-1)+")");return E.length?E.join(" ; "):true});
+ await t("VS-6","tuile Demandes clients et section toujours visible",()=>{ME=S.users.find(u=>u.role==="vendeur"&&u.actif);view="vHome";render();const E=[];if(!document.body.innerText.includes("Demandes clients"))E.push("tuile");view="mesCmd";render();if(!document.body.innerText.includes("Demandes reçues de vos clients"))E.push("section");return E.length?E.join(";"):true});
  await t("VS-5","un autre rôle garde le gabarit complet",()=>{ME=S.users.find(u=>u.role==="admin"&&u.actif);view="commandes";render();return document.querySelector("aside")&&!document.querySelector(".vapp")?true:"gabarit"});
  console.log(errs.length?errs.join("\n"):"");console.log(`RÉSULTAT : ${ok} réussis, ${ko} échecs`);await b.close();srv.close();process.exit(ko||errs.length?1:0);
 })();
