@@ -744,3 +744,9 @@ Dans l'application livreur, chaque mission active sans position exacte du client
 ## Menu de l'application livreur (☰)
 
 L'écran du livreur est désencombré par un menu ☰ : **Commandes en cours et meilleur itinéraire** (page principale : montants à encaisser, choix de 1 à 10 commandes, ordre de passage le plus court calculé depuis la position du téléphone — plus proche voisin puis amélioration 2-opt, adresses sans position exacte en dernier — et ouverture dans Google Maps en mode moto avec étapes), **Traitées récemment**, **GPS, mot de passe et alertes** (activation du GPS et autorisation du téléphone, partage de la position pendant les courses activable/désactivable, changement du mot de passe, son et lecture vocale des nouvelles missions), **Signaler un incident** et **Déconnexion**. Test : `tests/livreur-menu.js`.
+
+## Code de réception : clients sans smartphone
+
+- **Fiche client** : case « Téléphone simple (sans smartphone) ». Ses notifications (dont le départ du livreur avec le code de réception) sont préparées en **SMS**, sans lien de suivi, avec le bouton « Envoyer (SMS) » mis en avant.
+- **Application livreur** : à côté de « Confirmer la livraison », le bouton **« Le client n'a pas reçu le code (ou n'a pas de smartphone) »** prévient le centre (action « incident / Code client », sans changement du serveur).
+- **Bureau** (Notifications → Demandes des livreurs) : « 📱 Envoyer le code par SMS » au client, appel du client, puis **« 🔑 Libérer le code au livreur »** après vérification par téléphone (motif demandé, tracé dans l'audit). Le code n'est publié au livreur qu'à ce moment ; il est alors prérempli à la confirmation et le serveur le vérifie comme d'habitude. Test : `tests/code-sans-smartphone.js`.
