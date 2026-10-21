@@ -253,6 +253,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"incidents",l:"Incidents & retours",i:"⚠️",g:"Livraison",r:["admin","superviseur","preparateur"]},
  {v:"finance",l:"Finance",i:"💰",g:"Argent",r:["admin","direction","caissier"]},
  {v:"caisse",l:"Caisse",i:"💵",g:"Argent",r:["admin","direction","caissier"]},
+ {v:"versements",l:"Versements vendeurs",i:"🏪",g:"Argent",r:["admin","direction","caissier"]},
  {v:"compta",l:"Comptabilité",i:"📚",g:"Argent",r:["admin","direction"]},
  {v:"etats",l:"États périodiques",i:"🧾",g:"Contrôle & documents",r:["admin","direction","superviseur","commercial","caissier"]},
  {v:"documents",l:"Documents",i:"📄",g:"Contrôle & documents",r:["admin","direction","commercial","caissier","superviseur"]},
@@ -2652,7 +2653,11 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  entMoto:id=>entretienModal(moto(id)),histMoto:id=>histMoto(moto(id)),
  newVend:()=>vendForm(),editVend:id=>vendForm(vendOf(id)),vCle:vendeurCleForm,vCleB:vendeurCleBureau,newVCmd:vCmdForm,vImport:vImportModal,
  csvModel:()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["ref;client;tel;zone;quartier;repere;article;qte;prix;paye_chez_moi\nA001;Mme Kouassi;(numéro);Cocody;Angré;Près de la pharmacie;Robe wax;2;12000;10000\nA001;Mme Kouassi;(numéro);Cocody;Angré;Près de la pharmacie;Sandales;1;8000;\nA002;M. Bamba;(numéro);Yopougon;Sicogi;Derrière l'école;Sac à main;1;15000;\n"],{type:"text/csv"}));a.download="modele_commandes.csv";a.click()},
- vReg:id=>vendReglerForm(id),vDet:id=>vendDetail(id),
+ vReg:id=>vendReglerForm(id),vDet:id=>vendDetail(id),versRel:id=>{const v=vendOf(id);if(v)versRelevé(v)},versRecu:id=>versRecu(id),versGroupe:()=>versGroupeForm(),
+ versTous:()=>{ui.versTous=!$("[data-act=versTous]").checked;render()},
+ versSel:id=>{const S2=new Set(ui.versSel||[]);S2.has(id)?S2.delete(id):S2.add(id);ui.versSel=[...S2];render()},
+ versCsv:()=>csvDown("versements_vendeurs",["Vendeur","Téléphone","Commission %","Commandes dues","À verser","≤ 7 j","8-30 j","> 30 j","En cours","Dernier versement","Date dernier versement"],versTous().map(e=>[e.v.nom,e.v.tel||"",e.v.commission_pct||0,e.du.length,e.reste,e.b.j7,e.b.j30,e.b.plus,e.attente,e.dernier?e.dernier.montant:"",e.dernier?ymd(e.dernier.ts):""])),
+ versEtat:()=>{const T=versTous().filter(e=>e.reste>0||e.attente);ANGELS_PRINT.ouvrir({division:"distribution",titre:"État des versements aux vendeurs",ref:"VERS-"+ymd(new Date()).replace(/-/g,""),date:ymd(new Date()),montant:T.reduce((a,e)=>a+e.reste,0),emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps:`<style>${RPT_CSS}</style><table><tr><th>Vendeur</th><th>Commandes dues</th><th class="n">À verser</th><th class="n">&gt; 30 j</th><th class="n">En cours</th></tr>${T.map(e=>`<tr><td>${esc(e.v.nom)}</td><td>${e.du.length}</td><td class="n">${fcfa(e.reste)}</td><td class="n">${fcfa(e.b.plus)}</td><td class="n">${fcfa(e.attente)}</td></tr>`).join("")||"<tr><td colspan=5>Aucun versement à faire</td></tr>"}<tr class="tot"><td>Total</td><td></td><td class="n">${fcfa(T.reduce((a,e)=>a+e.reste,0))}</td><td class="n">${fcfa(T.reduce((a,e)=>a+e.b.plus,0))}</td><td class="n">${fcfa(T.reduce((a,e)=>a+e.attente,0))}</td></tr></table>`})},
 
  lMap:id=>{if(ECO()&&!(ui.mapOpen&&ui.mapOpen[id])&&!confirm("Économie de données : afficher la carte télécharge environ 1 Mo. Continuer ?"))return;ACT.lMap0(id)},
  lMap0:id=>{ui.mapOpen=ui.mapOpen||{};ui.mapOpen[id]=!ui.mapOpen[id];render()},
@@ -3016,11 +3021,18 @@ VIEWS.mesCmd=()=>{
  ${demandesSection(v)}${vendCollectes(v)}
  <h2>Mes commandes</h2>${tbl(["Commande","Client / destination","Total client","Statut",""],mine.map(c=>`<tr><td><b>${c.numero}</b><br><span class="mu sm">${fdt(c.date)}</span></td><td>${esc(cli(c.client_id).nom)}<br><span class="mu sm">${esc(c.adr.zone)} · ${esc(c.adr.quartier||"")}</span></td><td>${fcfa(c.total)}<br><span class="mu sm">${c.vendeur_encaisse?"produits déjà payés":"à encaisser "+fcfa(soldeCmd(c))}</span></td><td>${sb(c)}</td><td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button>${canPhoto(c)||nPhotos(c)?` <button class="btn sm ghost" data-act="cmdPhotos" data-id="${c.id}" title="Photos de la commande">📷 ${nPhotos(c)||"+"}</button>`:""}</td></tr>`),"Aucune commande pour le moment")}`};
 VIEWS.mesReg=()=>{
- const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché.</div>';const d=vendDue(v);
- return`<h1>Mes règlements</h1><div class="grid">${kpi("Net acquis (livré et encaissé)",fcfa(d.acquis))}${kpi("Déjà réglé",fcfa(d.regle),"o")}${kpi("Reste à recevoir",fcfa(d.restant),d.restant?"w":"")}${kpi("En cours de livraison (à venir)",fcfa(d.attente))}</div>
- <p class="mu sm">Net = prix de vos articles − commission de ${v.commission_pct||0} %. Les frais de livraison reviennent à ${ORG()}. Un règlement est dû dès que la commande est livrée et entièrement payée par le client.</p>
- <h2>Commandes à régler / réglées</h2>${tbl(["Commande","Livrée le","Articles","Net pour vous"],d.elig.map(c=>`<tr><td>${c.numero}</td><td>${fdt((livsOf(c.id).filter(l=>l.statut==="livree").slice(-1)[0]||{}).fin_at||livreeLe(c))}</td><td class="sm">${c.lignes.map(l=>esc(l.qte+"× "+lname(l))).join(", ")}</td><td><b>${fcfa(d.net(c))}</b></td></tr>`),"Aucune commande livrée")}
- <h2>Règlements reçus</h2>${tbl(["Date","Montant","Mode","Note"],S.reglements.filter(r=>r.vendeur_id===v.id).slice().reverse().map(r=>`<tr><td>${fdt(r.ts)}</td><td><b>${fcfa(r.montant)}</b></td><td>${esc(r.mode)}</td><td class="sm">${esc(r.note||"")}</td></tr>`),"Aucun règlement")}`};
+ const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché.</div>';const e=versEtat(v),f=fcfa,age=e.plusAncien;
+ const chip=(k)=>`<span class="badge ${versLib[k][1]}">${versLib[k][0]}</span>`;
+ return`<h1>Mon argent</h1>
+ <div class="card" style="background:var(--b2);color:#fff;border:0"><div style="opacity:.85">Prochain versement</div><div style="font-size:34px;font-weight:800;margin:4px 0">${f(e.reste)}</div>
+  <div class="sm" style="opacity:.9">${e.reste>0?e.du.length+" commande(s) livrée(s) et encaissée(s)"+(age>7?" · la plus ancienne depuis "+age+" jours":""):"Rien à recevoir pour l'instant"}${e.avance>0?" · avance : "+f(e.avance):""}</div></div>
+ <div class="grid">${kpi("À venir (commandes en cours)",f(e.aVenir.reduce((a,x)=>a+x.net,0)))}${kpi("Livrées, paiement client en attente",f(e.encaiss.reduce((a,x)=>a+x.net,0)))}${kpi("Déjà reçu",f(e.regle),"o")}</div>
+ <div class="flex noprint" style="margin:8px 0"><button class="btn ghost" data-act="versRel" data-id="${v.id}">🖨 Mon relevé</button></div>
+ <h2>Commande par commande</h2>${e.L.length+e.aVenir.length+e.encaiss.length?`<div>${e.L.slice().reverse().map(x=>`<div class="card" style="margin:0 0 8px"><div class="between"><b>${esc(x.c.numero)}</b>${chip(x.statut)}</div><div class="sm mu">Livrée le ${x.livree?new Date(x.livree).toLocaleDateString("fr-FR"):"—"} · ${x.c.lignes.map(l=>esc(l.qte+"× "+lname(l))).join(", ")}</div><div class="between" style="margin-top:4px"><span class="sm">Pour vous : <b>${f(x.net)}</b></span>${x.reste>0?`<span class="sm">Reste : <b>${f(x.reste)}</b></span>`:""}</div></div>`).join("")}
+  ${e.encaiss.map(x=>`<div class="card" style="margin:0 0 8px"><div class="between"><b>${esc(x.c.numero)}</b><span class="badge mu">🕓 Paiement client en attente</span></div><div class="sm mu">Livrée : le versement est dû dès que le client a tout payé</div><div class="sm" style="margin-top:4px">Pour vous : <b>${f(x.net)}</b></div></div>`).join("")}
+  ${e.aVenir.map(x=>`<div class="card" style="margin:0 0 8px"><div class="between"><b>${esc(x.c.numero)}</b><span class="badge mu">🚚 En cours de livraison</span></div><div class="sm" style="margin-top:4px">Pour vous : <b>${f(x.net)}</b></div></div>`).join("")}</div>`:'<div class="card mu">Aucune commande pour l\'instant.</div>'}
+ <h2>Versements reçus</h2>${e.rg.length?e.rg.slice().reverse().map(r=>`<div class="card" style="margin:0 0 8px"><div class="between"><b>${f(r.montant)}</b><span class="sm mu">${new Date(r.ts).toLocaleDateString("fr-FR")}</span></div><div class="sm mu">${esc(r.mode||"")}${r.note?" · "+esc(r.note):""}</div><button class="btn sm ghost noprint" data-act="versRecu" data-id="${r.id}" style="margin-top:6px">🧾 Reçu</button></div>`).join(""):'<div class="card mu">Aucun versement reçu.</div>'}
+ <p class="mu sm">Net = prix de vos articles − ce que vous avez déjà encaissé − commission de ${v.commission_pct||0} %. Les frais de livraison reviennent à ${ORG()}.</p>`};
 /* --- Candidatures « devenir vendeur partenaire » reçues du portail (message WhatsApp avec marqueur [VENDEUR:…]) --- */
 const CAND_ST={attente:["À étudier","wa"],approuvee:["Approuvée","ok"],refusee:["Refusée","er"]};
 function candCreer(d){
@@ -3720,6 +3732,54 @@ function vendDetail(id){const v=vendOf(id),d=vendDue(v),rg=S.reglements.filter(r
  modal("Détail — "+v.nom,`<div class="pill">Net acquis <b>${fcfa(d.acquis)}</b> · déjà réglé <b>${fcfa(d.regle)}</b> · reste <b>${fcfa(d.restant)}</b></div>
  <h3 style="margin:10px 0 4px">Commandes livrées et encaissées</h3>${tbl(["Commande","Livrée le","Articles","Net pour le fournisseur"],d.elig.map(c=>`<tr><td>${esc(c.numero)}</td><td>${fdt(livreeLe(c))}</td><td class="sm">${c.lignes.map(l=>esc(l.qte+"× "+lname(l))).join(", ")}</td><td><b>${fcfa(d.net(c))}</b></td></tr>`),"Aucune")}
  <h3 style="margin:10px 0 4px">Règlements déjà faits</h3>${tbl(["Date","Montant","Mode","Note"],rg.map(r=>`<tr><td>${fdt(r.ts)}</td><td><b>${fcfa(r.montant)}</b></td><td>${esc(r.mode||"")}</td><td class="sm">${esc(r.note||"")}</td></tr>`),"Aucun règlement")}`,{label:"Fermer",onSubmit:()=>true,focus:false,wide:true})}
+/* ---------- État des versements aux vendeurs partenaires (finance et espace vendeur) ----------
+   Un seul calcul : les versements sont imputés sur les commandes les plus anciennes (livrées et entièrement encaissées), le reste est « à verser ». */
+const livDate=c=>{const l=(livsOf(c.id)||[]).filter(x=>x.statut==="livree").slice(-1)[0];return(l&&l.fin_at)||livreeLe(c)||c.date||null};
+const netCmdV=(v,c)=>Math.max(0,Math.round(((c.montant_produits||0)-(c.remise||0)-(c.paye_vendeur||0))*(1-(+v.commission_pct||0)/100)));
+function versEtat(v){
+ const d=vendDue(v),t=c=>{const x=livDate(c);return x?new Date(x).getTime():0},mine=S.commandes.filter(c=>c.vendeur_id===v.id);
+ let pool=d.regle;const L=d.elig.slice().sort((a,b)=>t(a)-t(b)).map(c=>{const net=d.net(c),paye=Math.min(net,Math.max(0,pool));pool-=paye;const reste=net-paye,tm=t(c);return{c,net,paye,reste,livree:tm||null,age:tm?Math.max(0,Math.floor((Date.now()-tm)/864e5)):0,statut:reste<=0?"regle":paye>0?"partiel":"du"}});
+ const du=L.filter(x=>x.reste>0),b={j7:0,j30:0,plus:0};du.forEach(x=>{if(x.age<=7)b.j7+=x.reste;else if(x.age<=30)b.j30+=x.reste;else b.plus+=x.reste});
+ const ENC=["confirmee","preparation","prete","affectee","en_cours"],base=c=>(c.montant_produits||0)-(c.remise||0)-(c.paye_vendeur||0),ids=new Set(d.elig.map(c=>c.id));
+ const aVenir=mine.filter(c=>ENC.includes(c.statut)&&base(c)>0).map(c=>({c,net:netCmdV(v,c)})),
+  encaiss=mine.filter(c=>c.statut==="livree"&&base(c)>0&&!ids.has(c.id)).map(c=>({c,net:netCmdV(v,c)}));
+ const rg=S.reglements.filter(r=>r.vendeur_id===v.id).slice().sort((a,b)=>String(a.ts).localeCompare(String(b.ts)));
+ return{v,d,L,du,b,reste:d.restant,regle:d.regle,acquis:d.acquis,aVenir,encaiss,attente:d.attente,rg,dernier:rg[rg.length-1]||null,plusAncien:du.length?Math.max(...du.map(x=>x.age)):0,avance:Math.max(0,pool)}}
+const versTous=()=>S.vendeurs.map(versEtat);
+const versLib={regle:["✅ Versée","ok"],partiel:["🔸 Versée en partie","wa"],du:["⏳ À verser","er"]};
+function versRelevé(v){   /* relevé imprimable d'un vendeur : commandes dues, à venir, versements reçus */
+ const e=versEtat(v),f=x=>fcfa(x);
+ const corps=`<p>Vendeur partenaire : <b>${esc(v.nom)}</b> · commission ${v.commission_pct||0} %</p>
+ <table><tr><th>Net acquis (livré et encaissé)</th><th>Déjà versé</th><th>Reste à verser</th><th>En cours (à venir)</th></tr><tr><td class="n">${f(e.acquis)}</td><td class="n">${f(e.regle)}</td><td class="n"><b>${f(e.reste)}</b></td><td class="n">${f(e.attente)}</td></tr></table>
+ <h2>Commandes livrées et encaissées</h2><table><tr><th>Commande</th><th>Livrée le</th><th>Net pour le vendeur</th><th>Versé</th><th>Reste</th></tr>${e.L.length?e.L.map(x=>`<tr><td>${esc(x.c.numero)}</td><td>${x.livree?new Date(x.livree).toLocaleDateString("fr-FR"):"—"}</td><td class="n">${f(x.net)}</td><td class="n">${f(x.paye)}</td><td class="n">${f(x.reste)}</td></tr>`).join(""):'<tr><td colspan="5">Aucune</td></tr>'}</table>
+ <h2>Versements reçus</h2><table><tr><th>Date</th><th>Montant</th><th>Mode</th><th>Note</th></tr>${e.rg.length?e.rg.map(r=>`<tr><td>${new Date(r.ts).toLocaleDateString("fr-FR")}</td><td class="n">${f(r.montant)}</td><td>${esc(r.mode||"")}</td><td>${esc(r.note||"")}</td></tr>`).join(""):'<tr><td colspan="4">Aucun</td></tr>'}</table>
+ <p style="font-size:11px">Net = prix des articles − montant déjà payé au vendeur − commission. Les frais de livraison reviennent à ${ORG()}.</p>`;
+ ANGELS_PRINT.ouvrir({division:"distribution",titre:"Relevé des versements — "+v.nom,ref:"VERS-"+String(v.id).slice(-6).toUpperCase()+"-"+ymd(new Date()).replace(/-/g,""),date:ymd(new Date()),montant:e.reste,emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps:`<style>${RPT_CSS}</style>${corps}`})}
+function versRecu(rid){   /* reçu d'un versement */
+ const r=S.reglements.find(x=>x.id===rid),v=r&&vendOf(r.vendeur_id);if(!r||!v)return;
+ const corps=`<p style="font-size:14px">Reçu de versement n° <b>${esc(String(r.id).slice(-6).toUpperCase())}</b> du ${new Date(r.ts).toLocaleDateString("fr-FR")}</p>
+ <p>${ORG()} a versé à <b>${esc(v.nom)}</b> la somme de</p><p style="font-size:22px;font-weight:800;text-align:center">${fcfa(r.montant)}</p>
+ <p>Mode : ${esc(r.mode||"—")}${r.note?" · Référence : "+esc(r.note):""}</p><p>Pour le règlement du prix de ses articles vendus et livrés (commission de ${v.commission_pct||0} % déduite).</p>
+ <div style="display:flex;justify-content:space-between;margin-top:40px"><div>Pour ${ORG()}<br><br>${esc(r.par||"")}</div><div>Le vendeur<br><br>${esc(v.nom)}</div></div>`;
+ ANGELS_PRINT.ouvrir({division:"distribution",titre:"Reçu de versement — "+v.nom,ref:"REC-"+String(r.id).slice(-8).toUpperCase(),date:ymd(r.ts),montant:r.montant,emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps})}
+VIEWS.versements=()=>{
+ const T=versTous(),seul=ui.versTous!==true,list=T.filter(e=>!seul||e.reste>0||e.aVenir.length).sort((a,b)=>b.reste-a.reste),sel=new Set((ui.versSel||[]).filter(id=>list.some(e=>e.v.id===id&&e.reste>0)));
+ const sum=f=>T.reduce((a,e)=>a+f(e),0),mois=ymd(new Date()).slice(0,7),verseMois=S.reglements.filter(r=>ymd(r.ts).slice(0,7)===mois).reduce((a,r)=>a+r.montant,0);
+ const jours=e=>e.dernier?Math.floor((Date.now()-new Date(e.dernier.ts).getTime())/864e5):null;
+ return`<div class="between"><h1>🏪 Versements aux vendeurs partenaires</h1><div class="flex noprint"><button class="btn ghost" data-act="versCsv">⬇ Export CSV</button><button class="btn ghost" data-act="versEtat">🖨 État imprimable</button></div></div>
+ <div class="grid">${kpi("Total à verser",fcfa(sum(e=>e.reste)),sum(e=>e.reste)?"w":"o")}${kpi("dont en retard de plus de 30 jours",fcfa(sum(e=>e.b.plus)),sum(e=>e.b.plus)?"e":"")}${kpi("En cours (livraison ou encaissement client)",fcfa(sum(e=>e.attente)))}${kpi("Versé ce mois-ci",fcfa(verseMois),"o")}</div>
+ <div class="flex noprint" style="margin:10px 0;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center;width:auto"><input type="checkbox" style="width:auto" data-act="versTous" ${seul?"checked":""}> Seulement les vendeurs à payer ou avec des commandes en cours</label>
+  ${cxCan()?`<button class="btn ok" data-act="versGroupe" ${sel.size?"":"disabled"}>💵 Régler la sélection (${sel.size})</button>`:""}</div>
+ ${tbl(["",'Vendeur',"Commandes dues","À verser","≤ 7 j","8-30 j","> 30 j","En cours","Dernier versement",""],list.map(e=>`<tr><td>${e.reste>0&&cxCan()?`<input type="checkbox" style="width:auto" data-act="versSel" data-id="${e.v.id}" ${sel.has(e.v.id)?"checked":""} aria-label="Sélectionner ${esc(e.v.nom)}">`:""}</td><td><b>${esc(e.v.nom)}</b><br><span class="sm mu">${esc(e.v.tel||"")} · commission ${e.v.commission_pct||0} %</span></td><td>${e.du.length}${e.plusAncien>30?`<br><span class="sm" style="color:var(--er)">la plus ancienne : ${e.plusAncien} j</span>`:""}</td><td><b style="color:${e.reste?"var(--er)":"var(--ok)"}">${fcfa(e.reste)}</b></td><td>${e.b.j7?fcfa(e.b.j7):"—"}</td><td>${e.b.j30?fcfa(e.b.j30):"—"}</td><td>${e.b.plus?`<b style="color:var(--er)">${fcfa(e.b.plus)}</b>`:"—"}</td><td>${e.attente?fcfa(e.attente):"—"}</td><td class="sm">${e.dernier?fcfa(e.dernier.montant)+"<br>il y a "+jours(e)+" j":"—"}</td><td class="noprint"><button class="btn sm ghost" data-act="vDet" data-id="${e.v.id}">Détail</button> <button class="btn sm ghost" data-act="versRel" data-id="${e.v.id}">🖨 Relevé</button> ${cxCan()&&e.reste>0?`<button class="btn sm ok" data-act="vReg" data-id="${e.v.id}">💵 Régler</button>`:""}</td></tr>`),"Aucun vendeur à payer")}
+ <p class="mu sm">Le net est calculé sur les commandes livrées et entièrement payées par le client : prix des articles − montant déjà payé au vendeur − commission. Chaque versement est imputé sur la commande la plus ancienne. Les vendeurs voient le même état dans « Mon argent ».</p>`};
+function versGroupeForm(){
+ const E=versTous().filter(e=>(ui.versSel||[]).includes(e.v.id)&&e.reste>0);if(!E.length)return toast("Sélectionnez au moins un vendeur à payer","err");
+ const tot=E.reduce((a,e)=>a+e.reste,0),c=cxCaissePrinc();
+ modal("Règlement groupé — "+E.length+" vendeur(s)",`<div class="pill">Total à verser : <b>${fcfa(tot)}</b></div>${tbl(["Vendeur","À verser"],E.map(e=>`<tr><td>${esc(e.v.nom)}</td><td><b>${fcfa(e.reste)}</b></td></tr>`))}
+ <div class="g2"><label>Mode<select name="mode">${opts(S.config.modes)}</select></label><label>Note / référence<input name="note"></label></div>
+ <div class="sm mu">Chaque vendeur est réglé de la totalité de son reste. Un paiement en espèces sort de la caisse${c?" « "+esc(c.nom)+" » (solde "+fcfa(cxSolde(c))+")":""}.</div>`,
+ {label:"Régler "+fcfa(tot),cls:"ok",onSubmit:async d=>{if(/^esp/i.test(d.mode)){const er=cxEspecesOk(tot);if(er)return toast(er,"err"),false}
+  for(const e of E){const v=vendOf(e.v.id),r=await reglerVendeur(v,vendDue(v).restant,d.mode,d.note);if(r===false)return false}ui.versSel=[];return true}})}
 /* Écrans */
 function cxCarte(c){const o=cxOpen(c),last=cxLast(c),sol=cxSolde(c),att=o?cxMvOf(o.id).filter(m=>m.statut==="en_attente").length:0;
  const ops=cxCan()?(o?`<button class="btn sm ok" data-act="cxBon" data-id="${c.id}|entree">📥 Entrée</button><button class="btn sm er" data-act="cxBon" data-id="${c.id}|sortie">📤 Sortie</button><button class="btn sm ghost" data-act="cxBr" data-id="${c.id}">📋 Brouillard</button><button class="btn sm ghost" data-act="cxRem" data-id="${c.id}">🏦 Remise</button><button class="btn sm ghost" data-act="cxReap" data-id="${c.id}">💱 Réappro</button><button class="btn sm" data-act="cxCloture" data-id="${c.id}">🔒 Clôturer</button>`:`<button class="btn sm ok" data-act="cxOuvrir" data-id="${c.id}">🔓 Ouvrir la caisse</button><button class="btn sm ghost" data-act="cxBr" data-id="${c.id}">📋 Brouillard</button><button class="btn sm ghost" data-act="cxReap" data-id="${c.id}">💱 Réappro</button>`):`<button class="btn sm ghost" data-act="cxBr" data-id="${c.id}">📋 Brouillard</button>`;
