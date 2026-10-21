@@ -105,6 +105,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="regul-engine.js"></script>
 <script src="prevision-engine.js"></script>
 <script src="inter-engine.js"></script>
+<script src="rapport-engine.js"></script>
 <script src="etiquette-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
@@ -3879,7 +3880,7 @@ barre();
 load();
 try{const id=sessionStorage.getItem("tr_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
 render();
-ANGELS_SYNC.init({app:"transport",nom:"Transport",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries","gps_pos","gps_alerts","alertes_etat"],qui:()=>ME?ME.nom:"poste"});
+ANGELS_RAPPORT.init({peut:()=>!!ME&&["admin","directeur"].includes(ME.role)});ANGELS_SYNC.init({app:"transport",nom:"Transport",ajout:["audit","connexions"],get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries","gps_pos","gps_alerts","alertes_etat"],qui:()=>ME?ME.nom:"poste"});
 fichiersCharger().then(()=>{if(S&&S.attachments.length&&!document.querySelector(".md"))render();try{majPortailVehicules()}catch(e){}});
 </script>
 </body>

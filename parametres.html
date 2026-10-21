@@ -89,6 +89,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <script src="roles-engine.js"></script>
 <script src="qrcode.js"></script>
 <script src="auth-engine.js"></script>
+<script src="rapport-engine.js"></script>
 <script src="print-engine.js"></script>
 <script>
 const $=s=>document.getElementById(s);
@@ -593,6 +594,25 @@ function cxDonnees(){const out={ent:[],users:[],verr:[]};
   (G.audit||[]).forEach(a=>{const t=a.ts||a.t,nom=a.user||a.u,ac=a.action||a.a;if(ac==="Connexion"&&t&&t<prem){const u=G.users.find(x=>x.nom===nom);L.push({id:"au"+t+nom,t,app,uid:u?u.id:"",nom,role:u?u.role:(a.role||a.r||""),ev:"ok",motif:"",app_:"",ancien:true})}});
   L.forEach(x=>out.ent.push(x));G.users.forEach(u=>out.users.push({app,uid:u.id,nom:u.nom,role:u.role,roleL:R.roles[u.role]||u.role,actif:u.actif!==false}))});
  return out}
+function rpCard(){const c=ANGELS_RAPPORT.cfg(),sv=ANGELS_RAPPORT.serveur();
+ return `<div class="note" id="rp-card" style="margin:10px 0;padding:12px 14px;border:1px solid var(--bd);border-radius:12px;background:var(--card)"><h3 style="margin:0 0 6px;font-size:14px">📨 Rapport quotidien au DG</h3>
+ <p class="note" style="margin:0 0 8px">Chaque jour à l'heure choisie, le rapport des dernières 24 h est préparé : un bandeau « Rapport prêt » avec le message WhatsApp déjà rédigé s'affiche sur les postes, et le serveur envoie le même rapport par e-mail${sv?"":" (synchronisation non activée sur cet appareil : réglage e-mail indisponible ici)"}.</p>
+ <div class="uf" style="gap:8px;flex-wrap:wrap"><label><input type="checkbox" data-rp="actif" ${c.actif?"checked":""}> Envoi quotidien actif</label>
+ <label>Heure<input type="time" data-rp="heure" value="${E(c.heure.length===4?"0"+c.heure:c.heure)}"></label>
+ <label>Nom du DG<input type="text" data-rp="nom" value="${E(c.nom)}" maxlength="60"></label>
+ <label>WhatsApp du DG<input type="tel" data-rp="tel" value="${E(c.tel)}" placeholder="07 00 00 00 00" maxlength="20"></label>
+ <label>E-mail(s) du DG<input type="text" data-rp="emails" value="${E(c.emails)}" placeholder="dg@exemple.com" maxlength="200"></label></div>
+ <div class="uf" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="tab" data-rpb="save">💾 Enregistrer</button><button type="button" class="tab" data-rpb="apercu">👁 Aperçu maintenant</button><button type="button" class="tab" data-rpb="wa">💬 WhatsApp maintenant</button><button type="button" class="tab" data-rpb="mail" ${sv?"":"disabled"}>✉ E-mail de test</button></div>
+ <div id="rp-msg" class="note" role="status" style="margin-top:6px"></div></div>`}
+async function rpAct(k){const R=ANGELS_RAPPORT,msg=t=>{const m=$("rp-msg");if(m)m.textContent=t};
+ document.querySelectorAll("#rp-card [data-rp]").forEach(i=>{R.setCfg({[i.dataset.rp]:i.type==="checkbox"?i.checked:i.value.trim()})});
+ try{if(k==="save"){msg("Enregistré sur cet appareil.");if(R.serveur()){await R.regler();msg("Enregistré ici et sur le serveur (e-mail quotidien à "+R.cfg().heure+").")}}
+  else if(k==="apercu"){const x=R.generer(Date.now(),true);R.voir(x.id)}
+  else if(k==="wa"){const x=R.generer(Date.now(),true);R.envoyerWA(x.id)}
+  else if(k==="mail"){const j=await R.tester();msg("E-mail de test envoyé à "+j.a+" adresse(s).")}}
+ catch(e){msg("⚠ "+e.message)}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-rpb]");if(b)rpAct(b.dataset.rpb)});
+document.addEventListener("change",e=>{const i=e.target;if(i.dataset&&i.dataset.rp&&i.closest("#rp-card"))ANGELS_RAPPORT.setCfg({[i.dataset.rp]:i.type==="checkbox"?i.checked:i.value.trim()})});
 function cxView(){const box=$("s-cx");if(!box)return;const D=cxDonnees(),jours=CX.per==="all"?0:+CX.per,seuil=jours?Date.now()-jours*864e5:0,dans=x=>!seuil||new Date(x.t).getTime()>=seuil;
  const apps=Object.keys(CXAPP).filter(a=>!CX.app||a===CX.app),cle=(a,u)=>a+"|"+u;
  const E_=D.ent.filter(x=>apps.includes(x.app)),pers={};
@@ -606,7 +626,7 @@ function cxView(){const box=$("s-cx");if(!box)return;const D=cxDonnees(),jours=C
  const tot=J.length,sel=CX.uid?P.find(p=>cle(p.app,p.uid)===CX.uid):null;
  const verr=D.verr.map(v=>`<div class="note" style="margin:6px 0">🔒 <b>${E(v.mod.nom)}</b> : ${v.raison==="absente"?"application pas encore utilisée sur cet appareil.":`déverrouillez-la pour voir son historique (mot de passe d'un administrateur de l'application).`} ${v.raison==="verrou"?`<button type="button" class="tab" data-cx="deverrouiller" data-m="${v.m}">Déverrouiller</button>`:""}</div>`).join("");
  box.innerHTML=`<h2 style="margin:6px 0 10px;font-size:16px">🔐 Historique de connexion par utilisateur</h2>
- <p class="note">Qui s'est connecté, quand, depuis quel appareil, et les tentatives refusées, pour Distributions, Transport et Agro. Chaque application se consulte après déverrouillage par un de ses administrateurs. Les connexions des livreurs sur l'application livreur sont suivies par le serveur et n'apparaissent pas ici.</p>${verr}
+ <p class="note">Qui s'est connecté, quand, depuis quel appareil, et les tentatives refusées, pour Distributions, Transport et Agro. Chaque application se consulte après déverrouillage par un de ses administrateurs. Les connexions des livreurs sur l'application livreur sont suivies par le serveur et n'apparaissent pas ici.</p>${rpCard()}${verr}
  <div class="uf" style="margin:10px 0;gap:8px;flex-wrap:wrap"><label>Application<select data-cx="app"><option value="">Toutes</option>${Object.entries(CXAPP).map(([k,v])=>`<option value="${k}" ${CX.app===k?"selected":""}>${v}</option>`).join("")}</select></label>
  <label>Période<select data-cx="per">${[["1","24 heures"],["7","7 jours"],["30","30 jours"],["90","90 jours"],["all","Tout"]].map(([k,v])=>`<option value="${k}" ${CX.per===k?"selected":""}>${v}</option>`).join("")}</select></label>
  <label>Événements<select data-cx="ev">${[["","Tous"],["ok","Connexions réussies"],["ko","Échecs et blocages"],["out","Déconnexions"]].map(([k,v])=>`<option value="${k}" ${CX.ev===k?"selected":""}>${v}</option>`).join("")}</select></label>
@@ -631,7 +651,7 @@ function pTab(t){if(!PTABS.some(x=>x[0]===t))t="users";PTAB=t;try{sessionStorage
  $("s-users").hidden=t!=="users";$("s-cx").hidden=t!=="connexions";if(t==="connexions")cxView();$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";$("s-imp").hidden=t!=="impression";$("s-cloud").hidden=t!=="cloud";if(t==="cloud")clView();if(t==="impression")iView();if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","connexions","medias","stats","acces","impression","cloud"].includes(t);$("s-ptl").hidden=!portail;
  document.querySelectorAll("#ptl .pp").forEach(p=>{p.hidden=p.dataset.pp!==t});const bar=document.querySelector("#pform>.uf");if(bar)bar.style.display=t==="publication"?"none":"flex"}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-pt]");if(b)pTab(b.dataset.pt)});
-pView();mView();pTab(PTAB);
+pView();mView();pTab(PTAB);ANGELS_RAPPORT.init({peut:()=>true});
 {const _uv=uView;uView=function(){_uv();if(typeof pView==="function"){pView();mView();if(typeof iView==="function")iView()}}}
 uView();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
