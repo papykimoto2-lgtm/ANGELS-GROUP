@@ -2,7 +2,8 @@
    Moteur commun (Distribution, application livreur) : sons synthétisés par le navigateur (aucun fichier), volume et sourdine propres à chaque appareil,
    répétition et vibration. Les règles (quels événements sonnent, avec quel son) sont définies par chaque application ; ce moteur ne fait que jouer.
 
-   ANGELS_SIGNAL.jouer(son, { rep, vib, force })   joue un son (rep : 1 à 5 répétitions) ; renvoie false si coupé ou si l'audio n'est pas encore débloqué
+   ANGELS_SIGNAL.jouer(son, { rep, vib, force, dire })   joue un son (rep : 1 à 5 répétitions) puis, si « dire » est fourni, lit ce texte à voix haute ; renvoie false si coupé ou si l'audio n'est pas encore débloqué
+   ANGELS_SIGNAL.parler(texte, { force })          lecture vocale seule (synthèse vocale du navigateur, voix française) ; false si coupée, non prise en charge ou désactivée sur l'appareil
    ANGELS_SIGNAL.tester(son)                       joue même en sourdine (bouton « Tester »)
    ANGELS_SIGNAL.dev() / setDev({ mute, vol, vib })   réglages de l'appareil (stockage local : « angels_signal_dev »)
    ANGELS_SIGNAL.pret()                            vrai quand le navigateur a autorisé le son (après un premier toucher de l'écran) */
@@ -20,9 +21,9 @@
 
   function dev() {
     var o = {}; try { o = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { o = {}; }
-    return { mute: o.mute === true, vol: clamp(+o.vol || 0.8, 0.1, 1), vib: o.vib !== false };
+    return { mute: o.mute === true, vol: clamp(+o.vol || 0.8, 0.1, 1), vib: o.vib !== false, voice: o.voice !== false, rate: clamp(+o.rate || 1, 0.7, 1.4) };
   }
-  function setDev(p) { var d = dev(); if (p && p.mute != null) d.mute = !!p.mute; if (p && p.vol != null) d.vol = clamp(+p.vol || 0.8, 0.1, 1); if (p && p.vib != null) d.vib = !!p.vib; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { } return d; }
+  function setDev(p) { var d = dev(); if (p && p.mute != null) d.mute = !!p.mute; if (p && p.vol != null) d.vol = clamp(+p.vol || 0.8, 0.1, 1); if (p && p.vib != null) d.vib = !!p.vib; if (p && p.voice != null) d.voice = !!p.voice; if (p && p.rate != null) d.rate = clamp(+p.rate || 1, 0.7, 1.4); try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { } return d; }
 
   function unlock() {
     try {
@@ -57,6 +58,19 @@
     else { note(880, 0, 0.35, "triangle", g); note(1175, 0.28, 0.6, "triangle", g); }   /* carillon */
   }
 
+  /* ---------- Lecture vocale ---------- */
+  function vocal() { return !!(G.speechSynthesis && G.SpeechSynthesisUtterance); }
+  function voixFr() { try { var L = G.speechSynthesis.getVoices() || []; return L.filter(function (v) { return /^fr/i.test(v.lang); }).sort(function (a, b) { return (/fr[-_]FR/i.test(b.lang) ? 1 : 0) - (/fr[-_]FR/i.test(a.lang) ? 1 : 0); })[0] || null; } catch (e) { return null; } }
+  if (vocal()) { try { G.speechSynthesis.getVoices(); if (G.speechSynthesis.addEventListener) G.speechSynthesis.addEventListener("voiceschanged", function () { G.speechSynthesis.getVoices(); }); } catch (e) { } }
+  function parler(txt, o) {
+    o = o || {}; if (!vocal()) return false; var d = dev();
+    if (!o.force && (d.mute || !d.voice)) return false;
+    txt = String(txt == null ? "" : txt).replace(/\s+/g, " ").trim(); if (!txt) return false;
+    try {
+      var u = new G.SpeechSynthesisUtterance(txt), v = voixFr(); u.lang = (v && v.lang) || "fr-FR"; if (v) u.voice = v; u.volume = d.vol; u.rate = d.rate;
+      G.speechSynthesis.cancel(); G.speechSynthesis.speak(u); return true;
+    } catch (e) { return false; }
+  }
   function jouer(son, o) {
     o = o || {}; var d = dev();
     if (!o.force && d.mute) return false;
@@ -64,9 +78,10 @@
     var id = DUREE[son] ? son : "carillon", n = clamp(Math.round(+o.rep || 1), 1, 5), vol = d.vol;
     for (var k = 0; k < n; k++) (function (k) { setTimeout(function () { try { une(id, vol); } catch (e) { } }, k * (DUREE[id] + 0.5) * 1000); })(k);
     if (o.vib !== false && d.vib && G.navigator && G.navigator.vibrate) { try { G.navigator.vibrate([250, 120, 250, 120, 450]); } catch (e) { } }
+    if (o.dire) setTimeout(function () { parler(o.dire, { force: !!o.force }); }, Math.round(n * (DUREE[id] + 0.5) * 1000) + 150);   /* la voix suit le son */
     return true;
   }
   function tester(son) { return jouer(son, { force: true, rep: 1 }); }
 
-  G.ANGELS_SIGNAL = { SONS: SONS, jouer: jouer, tester: tester, dev: dev, setDev: setDev, unlock: unlock, pret: function () { unlock(); return !!ctx && ctx.state === "running"; } };
+  G.ANGELS_SIGNAL = { SONS: SONS, jouer: jouer, parler: parler, vocal: vocal, tester: tester, dev: dev, setDev: setDev, unlock: unlock, pret: function () { unlock(); return !!ctx && ctx.state === "running"; } };
 })(window);

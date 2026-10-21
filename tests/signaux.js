@@ -9,7 +9,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const b=await chromium.launch(Object.assign({args:["--autoplay-policy=no-user-gesture-required"]},process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{}));const ctx=await b.newContext({viewport:{width:1200,height:1000}}),errs=[];let ok=0,ko=0;
  const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
  const D=await ctx.newPage();D.on("pageerror",e=>errs.push("distribution: "+e.message));D.on("dialog",x=>x.accept());await D.goto(base+"/distribution.html");await D.waitForTimeout(700);
- await D.evaluate(()=>{window.__calls=[];ANGELS_SIGNAL.jouer=(son,o)=>{__calls.push({son,rep:o&&o.rep,force:!!(o&&o.force)});return true};
+ await D.evaluate(()=>{window.__calls=[];ANGELS_SIGNAL.jouer=(son,o)=>{__calls.push({son,rep:o&&o.rep,force:!!(o&&o.force),dire:(o&&o.dire)||""});return true};
   window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)||ME};window.__as("admin");window.__T=[];toast=m=>{__T.push(m)};
   window.__new=(o)=>{const c=JSON.parse(JSON.stringify(S.commandes[0]));c.id="sg"+Math.random().toString(36).slice(2,7);c.numero="CMD-SG-"+S.commandes.length;delete c.web;Object.assign(c,o);S.commandes.unshift(c);return c};
   window.__go=()=>{__calls.length=0;__T.length=0;signalVerif();return __calls.map(x=>x.son+"x"+x.rep).join(",")};
@@ -76,6 +76,39 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   missions=[{livraison_ref:"L1",statut:"affectee"},{livraison_ref:"L2",statut:"affectee"}];sigMissions();
   return{premier:a,nouveau:b2,repete:calls.length}});
  chk("SG-18","application livreur : rien au premier chargement, « alerte forte » 3 fois à l'arrivée d'une nouvelle mission, une seule fois par mission",lv.premier===0&&lv.nouveau.join()==="alertex3"&&lv.repete===1,JSON.stringify(lv));
+ /* ---- lecture vocale des notifications ---- */
+ await D.evaluate(()=>{closeModal();__as("admin");view="params";ui.ptab="son";render()});
+ const v1=await D.evaluate(()=>({glob:!!document.querySelector("[data-sig='voix']"),coche:document.querySelector("[data-sig='voix']").checked,evts:document.querySelectorAll("[data-sig^='voix:']").length,desact:[...document.querySelectorAll("[data-sig^='voix:']")].every(x=>x.disabled),test:!!document.querySelector("[data-act='sigTestVoix']")}));
+ chk("SG-20","Paramètres → Signaux sonores : case « Lecture vocale des notifications » (décochée par défaut), colonne « Lire » par point (grisée tant que la lecture vocale est coupée), bouton « Tester la voix »",v1.glob&&!v1.coche&&v1.evts===7&&v1.desact&&v1.test,JSON.stringify(v1));
+ const v2=await D.evaluate(()=>{signalVerif();__new({cree_par:"Autre",statut:"attente"});__go();return window.__signaux.slice(-1)[0].dire});
+ chk("SG-21","lecture vocale coupée (par défaut) : le son joue, rien n'est lu",v2==="",v2);
+ await D.check("[data-sig='voix']");await D.waitForTimeout(200);
+ const v3=await D.evaluate(()=>({sauve:S.config.signal.voix===true,actives:[...document.querySelectorAll("[data-sig^='voix:']")].every(x=>!x.disabled&&x.checked),dire:(()=>{__new({cree_par:"Autre",statut:"attente"});__go();return window.__signaux.slice(-1)[0].dire})()}));
+ chk("SG-22","lecture vocale activée : enregistrée dans les paramètres partagés, cases « Lire » dégrisées et cochées, la notification est lue (« 1 nouvelle commande reçue »)",v3.sauve&&v3.actives&&v3.dire==="1 nouvelle commande reçue",JSON.stringify(v3));
+ const v4=await D.evaluate(()=>{__new({cree_par:"Autre",statut:"attente"});__new({cree_par:"Autre",statut:"attente"});__go();const a=window.__signaux.slice(-1)[0].dire;
+  const c=__new({cree_par:who(),statut:"en_cours"});__go();c.statut="echouee";c.hist.push({ts:now(),de:"en_cours",a:"echouee",par:"Livreur Z",note:""});__new({cree_par:"Autre",statut:"attente"});__go();const b2=window.__signaux.slice(-1)[0].dire;return[a,b2]});
+ chk("SG-23","pluriel correct (« 2 nouvelles commandes reçues ») ; plusieurs événements lus à la suite, le plus urgent d'abord",v4[0]==="2 nouvelles commandes reçues"&&/^Attention, 1 livraison échouée ou retour\. 1 nouvelle commande reçue$/.test(v4[1]),JSON.stringify(v4));
+ await D.evaluate(()=>{view="params";ui.ptab="son";render()});await D.uncheck("[data-sig='voix:cmd_arrivee']");
+ const v5=await D.evaluate(()=>{__new({cree_par:"Autre",statut:"attente"});__go();return window.__signaux.slice(-1)[0].dire});
+ chk("SG-24","« Lire » décoché pour un point : le son joue mais ce point n'est pas lu",v5==="",v5);
+ await D.evaluate(()=>{view="params";ui.ptab="son";render()});await D.check("[data-sig='voix:cmd_arrivee']");
+ await D.evaluate(()=>{__calls.length=0;ACT.sigTestVoix()});
+ const v6=await D.evaluate(()=>({n:__calls.length}));
+ chk("SG-25","bouton « Tester la voix » : ne plante pas, même sans voix installée",v6.n===0);
+ /* moteur réel */
+ const R2=await ctx.newPage();R2.on("pageerror",e=>errs.push("voix: "+e.message));await R2.goto(base+"/distribution.html");await R2.waitForTimeout(600);
+ const vr=await R2.evaluate(async()=>{const dits=[];speechSynthesis.speak=u=>dits.push({t:u.text,lang:u.lang,vol:u.volume,rate:u.rate});speechSynthesis.cancel=()=>{};
+  const A=ANGELS_SIGNAL,o={vocal:A.vocal()};A.setDev({mute:false,vol:0.6,voice:true,rate:1.2});
+  o.a=A.parler("Nouvelle commande");o.d1=dits.slice();A.setDev({voice:false});o.b=A.parler("coupée");o.c=A.parler("forcée",{force:true});A.setDev({voice:true,mute:true});o.d=A.parler("sourdine");o.n=dits.length;A.setDev({mute:false});
+  A.unlock();await new Promise(r=>setTimeout(r,200));A.jouer("bip",{rep:1,dire:"après le son"});o.avant=dits.length;await new Promise(r=>setTimeout(r,1500));o.apres=dits.length;o.dernier=dits[dits.length-1].t;return o});
+ chk("SG-26","moteur réel : voix française (fr-FR), volume et vitesse de la tablette appliqués ; rien si la voix est coupée sur l'appareil ou en sourdine (sauf « forcée » = test) ; la voix suit le son",vr.vocal&&vr.a===true&&vr.d1[0].lang.startsWith("fr")&&Math.abs(vr.d1[0].vol-0.6)<0.001&&Math.abs(vr.d1[0].rate-1.2)<0.001&&vr.b===false&&vr.c===true&&vr.d===false&&vr.n===2&&vr.avant===2&&vr.apres===3&&vr.dernier==="après le son",JSON.stringify(vr));
+ const dm=await D.evaluate(()=>{ANGELS_SIGNAL.setDev({mute:false,voice:true});ACT.sigDev();return{vo:!!document.querySelector("#modal [data-sigd='voice']"),rate:!!document.querySelector("#modal [data-sigd='rate']"),test:!!document.querySelector("#modal [data-act='sigTestVoix']")}});
+ chk("SG-27","« Sons de cette tablette » : case de lecture vocale, vitesse (lente / normale / rapide) et « Écouter la voix »",dm.vo&&dm.rate&&dm.test,JSON.stringify(dm));
+ await D.check("#modal [data-sigd='voice']");await D.uncheck("#modal [data-sigd='voice']");const dv2=await D.evaluate(()=>JSON.parse(localStorage.getItem("angels_signal_dev")||"{}").voice);
+ chk("SG-28","la lecture vocale se coupe sur l'appareil seulement (réglage local)",dv2===false,dv2);
+ const lvo=await L.evaluate(()=>{localStorage.removeItem("angels_signal_dev");const calls=[];ANGELS_SIGNAL.jouer=(s,o)=>{calls.push(o.dire);return true};toast=()=>{};SIGM.vus=null;const m=(...r)=>r.map(x=>({livraison_ref:x,statut:"affectee"}));
+  missions=m("A");sigMissions();missions=m("A","B");sigMissions();missions=m("A","B","C","D");sigMissions();return{calls,defVoix:ANGELS_SIGNAL.dev().voice,btn:/data-a="voix"/.test(String(vueMissions)),icone:typeof voixIcone==="function"}});
+ chk("SG-29","application livreur : nouvelle mission lue (« Nouvelle mission » / « 2 nouvelles missions »), rien au premier chargement, bouton voix pour l'activer ou la couper",JSON.stringify(lvo.calls)==='["Nouvelle mission","2 nouvelles missions"]'&&lvo.btn&&lvo.icone,JSON.stringify(lvo));
  const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8"),pg=["distribution","livreur"].every(f=>fs.readFileSync(path.join(root,f+".html"),"utf8").includes('<script src="signal-engine.js">'));
  chk("SG-19","moteur chargé par Distribution et l'application livreur, et mis en cache hors ligne",pg&&sw.includes('"signal-engine.js"'));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
