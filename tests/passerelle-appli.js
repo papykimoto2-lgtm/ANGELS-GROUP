@@ -50,7 +50,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await q.addInitScript(()=>{
   window.__sent=[];window.__missions=null;window.__chg=true;
   const sess=()=>({access_token:"JWT-TEST",user:{id:"u1",user_metadata:{chg:window.__chg}}});
-  const sb={auth:{signInWithPassword:async({email,password})=>{window.__login={email,password};return password==="bon"?{data:{},error:null}:{data:null,error:{message:"Invalid login credentials"}}},getSession:async()=>({data:{session:window.__in?sess():null}}),updateUser:async({password,data})=>{window.__upd={password,data};window.__chg=false;return{data:{},error:null}},signOut:async()=>{window.__in=false}},
+  const sb={auth:{signInWithPassword:async({email,password})=>{window.__login={email,password};(window.__tries=window.__tries||[]).push(password);return password==="bon"?{data:{},error:null}:{data:null,error:{message:"Invalid login credentials"}}},getSession:async()=>({data:{session:window.__in?sess():null}}),updateUser:async({password,data})=>{window.__upd={password,data};window.__chg=false;return{data:{},error:null}},signOut:async()=>{window.__in=false}},
    from:t=>({select:()=>{const r={order:async()=>({data:window.__missions,error:null}),maybeSingle:async()=>({data:{livreur_ref:"lv1",nom:"Koffi Yao"},error:null})};return r}})};
   window.supabase={createClient:()=>{return new Proxy(sb,{get:(o,k)=>{if(k==="auth"){const a=o.auth;return{...a,signInWithPassword:async x=>{const r=await a.signInWithPassword(x);if(!r.error)window.__in=true;return r}}}return o[k]}})}};
  });
@@ -62,6 +62,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await q.evaluate(m=>{window.__missions=[m]},MISSION);
  await q.fill("#li","koffi.yao");await q.fill("#lp","mauvais");await q.click("#fl button:not(.aa-e)");await q.waitForTimeout(300);
  chk("LV-1","mauvais mot de passe : refusé par le serveur avec un message clair",/incorrect/.test(await q.innerText("#app")),await q.innerText("#app"));
+ await q.evaluate(()=>{window.__tries=[]});await q.fill("#li","KOFFI YAO");await q.fill("#lp","mauvais ");await q.click("#fl button:not(.aa-e)");await q.waitForTimeout(300);
+ const tr=await q.evaluate(()=>window.__tries);
+ chk("LV-1b","espace ajoutée par le clavier après le mot de passe : second essai sans l'espace ; le message indique l'identifiant réellement envoyé (« KOFFI YAO » → koffi.yao)",tr.join("|")==="mauvais |mauvais"&&/identifiant envoyé : koffi\.yao/.test(await q.innerText("#app")),JSON.stringify(tr)+await q.innerText("#app"));
  await q.fill("#li","Koffi.Yao");await q.fill("#lp","bon");await q.click("#fl button:not(.aa-e)");await q.waitForTimeout(400);
  const lg=await q.evaluate(()=>window.__login);
  chk("LV-2","connexion par le serveur avec l'identifiant converti en adresse technique ; mot de passe temporaire → changement obligatoire avant toute mission",lg.email==="koffi.yao@users.angels-erp.app"&&await q.locator("#fc").count()===1&&!/CMD-0001/.test(await q.innerText("#app")),JSON.stringify(lg));
