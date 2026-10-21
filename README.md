@@ -728,3 +728,7 @@ Paramètres du hub → Connexions → carte **« Rapport quotidien au DG »** : 
 ## Installer l'interface livreur seule
 
 Distributions → Paramètres → **« Installer l'application des livreurs »** : lien, QR code, copie du lien ou du message, envoi WhatsApp (avec le mode d'emploi Android / iPhone). Le livreur ouvre le lien sur son téléphone et installe l'icône « Livreur » : le manifeste (`manifest-livreur.webmanifest`) est limité à `livreur.html`, l'application installée n'ouvre donc ni les commandes, ni la caisse, ni les autres applications du groupe. Il se connecte avec son compte livreur (passerelle). Test : `tests/livreur-install.js`.
+
+## Filtres date et lieu de livraison
+
+Tableau de bord : période (aujourd'hui, 7/30 jours, ce mois, mois dernier, toutes les dates ou dates précises) et champ **lieu de livraison** (zone, quartier ou repère, avec suggestions) s'ajoutent aux filtres zone, livreur et type de commande ; ils s'appliquent aux indicateurs de performance et financiers. Centre de livraison : mêmes filtres date et lieu sur « À affecter », « Courses actives » et « Livraisons échouées », avec « Effacer les filtres ». Test : `tests/livraison-filtres.js`.
