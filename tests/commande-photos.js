@@ -1,0 +1,43 @@
+/* Photos jointes dès l'enregistrement d'une nouvelle commande (captures, photo de l'article, du colis).
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/commande-photos.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];let ok=0,ko=0;
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(400);
+ await p.evaluate(()=>{window.__T=[];toast=(m,k)=>{__T.push(m)};ME=S.users.find(u=>u.role==="admin"&&u.actif);window.__cl=()=>S.clients.find(c=>!c.vendeur_id&&!c.divers&&c.adresses.length)});
+ const img=async col=>Buffer.from((await p.evaluate(c=>{const cv=document.createElement("canvas");cv.width=1200;cv.height=900;const x=cv.getContext("2d");x.fillStyle=c;x.fillRect(0,0,1200,900);x.fillStyle="#fff";x.font="80px sans-serif";x.fillText("Capture "+c,100,450);return cv.toDataURL("image/jpeg",.9).split(",")[1]},col)),"base64");
+ const f1=async n=>{const o=[];for(let i=0;i<n;i++)o.push({name:"p"+i+".jpg",mimeType:"image/jpeg",buffer:await img(["#cc3333","#3366cc","#33aa55","#aa33aa","#ff9900","#00aaff","#111111","#888888","#ff00ff","#00ffcc"][i])});return o};
+ await p.evaluate(()=>formCmd());
+ const s1=await p.evaluate(()=>({champ:!!document.getElementById("f_phf"),libelle:/Photos jointes/.test(document.getElementById("modal").innerText)}));
+ chk("CP-1","nouvelle commande : zone « Photos jointes (facultatif) » avec bouton d'ajout de photos / captures",s1.champ&&s1.libelle,JSON.stringify(s1));
+ await p.setInputFiles("#f_phf",await f1(3));await p.waitForFunction(()=>document.querySelectorAll("#f_ph .wthumb").length===3,null,{timeout:8000});
+ const s2=await p.evaluate(()=>({n:document.querySelectorAll("#f_ph .wthumb").length,cpt:document.getElementById("f_phn").textContent,jpeg:[...document.querySelectorAll("#f_ph img")].every(i=>/^data:image\/jpeg;base64,/.test(i.src)),taille:Math.max(...[...document.querySelectorAll("#f_ph img")].map(i=>i.src.length))}));
+ chk("CP-2","3 photos ajoutées d'un coup : miniatures, compteur « 3/8 », redimensionnées en JPEG de taille raisonnable",s2.n===3&&s2.cpt==="3"&&s2.jpeg&&s2.taille<250000,JSON.stringify(s2));
+ await p.click('#f_ph .wthumb:nth-child(2) button');
+ const s3=await p.evaluate(()=>({n:document.querySelectorAll("#f_ph .wthumb").length,cpt:document.getElementById("f_phn").textContent}));
+ chk("CP-3","retirer une photo (✕) avant l'enregistrement",s3.n===2&&s3.cpt==="2",JSON.stringify(s3));
+ await p.setInputFiles("#f_phf",await f1(10));await p.waitForTimeout(2500);
+ const s4=await p.evaluate(()=>({n:document.querySelectorAll("#f_ph .wthumb").length,msg:__T.some(m=>/Maximum 8/.test(m))}));
+ chk("CP-4","au plus 8 photos par commande : les suivantes sont ignorées avec un message",s4.n===8&&s4.msg,JSON.stringify(s4));
+ await p.click('#f_ph .wthumb:nth-child(1) button');
+ for(let i=0;i<4;i++)await p.click('#f_ph .wthumb:nth-child(1) button');
+ const s5=await p.evaluate(()=>{const cl=__cl(),f=document.getElementById("mf");const sel=document.getElementById("f_client");sel.value=cl.id;sel.dispatchEvent(new Event("change",{bubbles:true}));const n=S.commandes.length;
+  return{n:document.querySelectorAll("#f_ph .wthumb").length,avant:n}});
+ await p.evaluate(()=>{document.getElementById("mf").requestSubmit()});await p.waitForTimeout(500);
+ const s7=await p.evaluate(a=>{const c=S.commandes[0];return{nouvelle:S.commandes.length===a+1,nb:(c.photos||[]).length,jpeg:(c.photos||[]).every(x=>/^data:image\/jpeg;base64,/.test(x)),n:nPhotos(c),audit:S.audit.some(x=>/Photos jointes à la création/.test(x.action)),num:c.numero}},s5.avant);
+ chk("CP-5","créer la commande : les photos restantes (3) sont enregistrées sur la commande, tracées dans le journal d'audit, comptées par « Photos jointes »",s7.nouvelle&&s7.nb===s5.n&&s7.nb===3&&s7.jpeg&&s7.n===3&&s7.audit,JSON.stringify(s7));
+ await p.evaluate(()=>cmdDetail(S.commandes[0].id));
+ const s8=await p.evaluate(()=>[...document.querySelectorAll("#modal button")].some(b=>/Photos jointes \(3\)/.test(b.textContent)));
+ chk("CP-6","la fiche de la commande affiche les vignettes et propose « Photos jointes (3) » (galerie et agrandissement existants)",s8&&await p.evaluate(()=>document.querySelectorAll("#modal img[data-act=cmdPhotos]").length===3));
+ await p.evaluate(()=>{closeModal();formCmd()});await p.setInputFiles("#f_phf",[]);
+ await p.evaluate(()=>{const cl=__cl();const sel=document.getElementById("f_client");sel.value=cl.id;sel.dispatchEvent(new Event("change",{bubbles:true}));document.getElementById("mf").requestSubmit()});await p.waitForTimeout(400);
+ chk("CP-7","sans photo, la commande se crée comme avant (aucune photo)",await p.evaluate(()=>{const c=S.commandes[0];return !c.photos||c.photos.length===0}));
+ chk("CP-8","modification d'une commande existante : pas de doublon de la zone photos (elles se gèrent par « Photos jointes »)",await p.evaluate(()=>{closeModal();formCmd(S.commandes[0]);return !document.getElementById("f_phf")}));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();

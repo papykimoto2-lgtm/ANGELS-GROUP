@@ -19,6 +19,18 @@ try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document
 body{margin:0;font:14px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
 button,input,select,textarea{font:inherit;color:inherit}
 .hide{display:none!important}
+/* saisie rapide des commandes */
+.sr-lab{font-size:12px;color:var(--mu);font-weight:600;margin-bottom:4px}
+.sr-box{position:relative}.sr-box input[type=search]{width:100%;min-height:48px;font-size:16px;border:1px solid var(--bd);border-radius:12px;padding:10px 14px;background:var(--card)}
+.sr-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.2);max-height:50vh;overflow:auto}
+.sr-it{padding:12px 14px;min-height:50px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;border-bottom:1px solid var(--bd)}.sr-it:last-child{border-bottom:0}.sr-it.on,.sr-it:hover{background:var(--bbg)}.sr-act{font-weight:700;color:var(--b)}
+.sr-chosen{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--okbg);border:1px solid var(--ok);border-radius:12px;padding:8px 12px;min-height:48px}
+.sr-adc{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}.sr-card{border:2px solid var(--bd);background:var(--card);border-radius:12px;padding:10px 14px;min-height:48px;text-align:left;cursor:pointer;font-weight:600}.sr-card.on{border-color:var(--b);background:var(--bbg)}
+.sr-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.sr-chip{border:1px solid var(--bd);background:var(--card);border-radius:99px;padding:8px 14px;min-height:42px;cursor:pointer;font-weight:600}.sr-chip:active{background:var(--bbg)}
+.qb{width:42px;height:42px;border-radius:50%;border:1px solid var(--bd);background:var(--card);font-size:20px;line-height:1;cursor:pointer;flex:none}.lrow{flex-wrap:wrap;align-items:center}.lrow .l_tot{min-width:84px;text-align:right}
+@media(max-width:640px){.lrow .l_prod,.lrow .l_desig{flex:1 1 100%!important}.lrow .l_pu{width:96px!important}}
+.sr-flash{background:var(--okbg);transition:background .5s}.sr-err{color:var(--er);font-size:13px;font-weight:600;margin-top:4px}.bad{outline:2px solid var(--er);outline-offset:1px;border-radius:10px}
+.sr-info{background:var(--wabg);border:1px solid var(--wa);border-radius:10px;padding:8px 10px;margin-top:6px;font-size:13px}.sr-foot{margin-right:auto;font-size:16px;align-self:center}
 .shell{display:flex;min-height:100vh}
 aside{width:230px;background:var(--b2);color:#fff;padding:14px 10px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
 aside .brand{font-weight:800;font-size:16px;padding:6px 8px 12px;line-height:1.2}
@@ -1502,24 +1514,29 @@ function formCmd(edit){
  EDIT_CMD=edit||null;const niv=edit?cmdNiveau(edit):"full",vm=can("vendeur"),vm0=vm&&vend()?vend():null,vid0=edit?(edit.vendeur_id||""):"";
  if(edit&&!niv){toast("Cette commande ne peut plus être modifiée","err");return}
  const full=niv==="full",orig=!vm&&full&&!CL.on&&S.vendeurs.length&&(!edit||(["brouillon","attente","confirmee"].includes(edit.statut)&&!colOf(edit.id)&&paye(edit)===0));
- modal(edit?"✏ Modifier la commande "+edit.numero:"Nouvelle commande",`<label class="${full?"":"hide"}" style="background:#fff8e1;border:1px solid #f0c36d;border-radius:10px;padding:8px 10px">📅 Date de la commande <span class="mu sm">(aujourd'hui par défaut ; choisissez une date passée pour enregistrer une commande antérieure)</span><input type="date" name="date" id="f_date" value="${edit?cxJour(new Date(edit.date)):cxJour()}" max="${cxJour()}" ${full?"required":""}></label>${edit?`<div class="pill">${niv==="leger"?"Livraison en cours : seuls le client, l'adresse et les observations sont modifiables.":"Le paiement déjà enregistré reste inchangé (Déjà payé : <b>"+fcfa(paye(edit))+"</b>)."} Toute modification est tracée dans l'historique.</div>`:""}${orig?`<label>Origine de la commande<select name="vendeur" id="f_vend"><option value="">🏠 ANGEL'S GROUP — vente propre (produits du stock)</option>${S.vendeurs.map(v=>`<option value="${v.id}" ${v.id===vid0?"selected":""}>🤝 Vendeur partenaire — ${esc(v.nom)}</option>`).join("")}</select></label><div class="sm mu" id="f_vhint" style="margin:-6px 0 8px"></div>`:(vm0?`<input type="hidden" name="vendeur" id="f_vend" value="${vm0.id}">`:(edit&&edit.vendeur_id?`<input type="hidden" name="vendeur" id="f_vend" value="${edit.vendeur_id}">`:""))}
- <div class="g2"><label>Client<select name="client" id="f_client">${clientOpts(edit?vid0:(vm0?vm0.id:""))}</select></label>
- <label>Adresse de livraison<select name="adresse" id="f_adr"></select></label></div>
+ const cph=[];   /* photos jointes dès la création (captures de la demande, photos de l'article, du colis…) */
+ modal(edit?"✏ Modifier la commande "+edit.numero:"Nouvelle commande",`<label class="${full?"":"hide"}" style="background:#fff8e1;border:1px solid #f0c36d;border-radius:10px;padding:6px 10px;font-size:12px">📅 Date de la commande <span class="mu sm">(aujourd'hui ; une date passée enregistre une commande antérieure)</span><input type="date" name="date" id="f_date" value="${edit?cxJour(new Date(edit.date)):cxJour()}" max="${cxJour()}" ${full?"required":""}></label>${edit?`<div class="pill">${niv==="leger"?"Livraison en cours : seuls le client, l'adresse et les observations sont modifiables.":"Le paiement déjà enregistré reste inchangé (Déjà payé : <b>"+fcfa(paye(edit))+"</b>)."} Toute modification est tracée dans l'historique.</div>`:""}${orig?`<label>Origine de la commande<select name="vendeur" id="f_vend"><option value="">🏠 ANGEL'S GROUP — vente propre (produits du stock)</option>${S.vendeurs.map(v=>`<option value="${v.id}" ${v.id===vid0?"selected":""}>🤝 Vendeur partenaire — ${esc(v.nom)}</option>`).join("")}</select></label><div class="sm mu" id="f_vhint" style="margin:-6px 0 8px"></div>`:(vm0?`<input type="hidden" name="vendeur" id="f_vend" value="${vm0.id}">`:(edit&&edit.vendeur_id?`<input type="hidden" name="vendeur" id="f_vend" value="${edit.vendeur_id}">`:""))}
+ <div id="sr_cl"><div class="sr-lab">Client</div><div class="sr-box"><input type="search" id="f_cq" placeholder="Taper le nom ou le téléphone du client…" autocomplete="off" inputmode="search" enterkeyhint="next" aria-label="Rechercher ou créer le client" aria-controls="f_cl" aria-expanded="false"><div class="sr-list" id="f_cl" role="listbox" hidden></div></div><div class="sr-chosen hide" id="f_cchip"></div><select name="client" id="f_client" class="hide" tabindex="-1" aria-hidden="true">${clientOpts(edit?vid0:(vm0?vm0.id:""))}</select></div>
+ <div id="sr_ad" style="margin-top:10px"><div class="sr-lab" id="f_adlab">Adresse de livraison</div><div id="f_adc" class="sr-adc"></div><select name="adresse" id="f_adr" class="hide" tabindex="-1" aria-hidden="true"></select></div>
  <div class="g2 hide" id="newcl"><label>Nom du client <span class="mu sm" id="f_nomopt"></span><input name="n_nom"></label><label>Téléphone <span class="mu sm" id="f_telopt"></span><input name="n_tel" inputmode="tel"></label></div>
- <div class="hide" id="newadr"><div class="g3"><label>Zone de livraison *<select name="a_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier <span class="mu sm">(ou repère)</span><input name="a_q" autocomplete="off"></label><label>Point de repère <span class="mu sm">(ou quartier)</span><input name="a_rep" autocomplete="off" placeholder="Ex. face à la pharmacie"></label></div><div class="g2"><label>Instructions d'accès<input name="a_ins" placeholder="Ex. portail bleu, 2e étage"></label><label>Nom de l'adresse<input name="a_lib" maxlength="40" placeholder="Domicile, bureau, boutique… (facultatif)"></label></div><div class="sm mu" style="margin-top:-4px">Indiquez au moins le quartier <b>ou</b> un point de repère : le livreur s'en sert pour trouver le client. La position GPS peut être demandée ensuite au client (lien du portail).</div></div>
+ <div class="hide" id="newadr"><div class="g3"><label>Zone de livraison *<select name="a_zone">${opts(S.config.zones.map(z=>z.nom))}</select></label><label>Quartier <span class="mu sm">(ou repère)</span><input name="a_q" autocomplete="off" list="dl_q"><datalist id="dl_q">${srQuartiers()}</datalist></label><label>Point de repère <span class="mu sm">(ou quartier)</span><input name="a_rep" autocomplete="off" placeholder="Ex. face à la pharmacie"></label></div><div class="g2"><label>Instructions d'accès<input name="a_ins" placeholder="Ex. portail bleu, 2e étage"></label><label>Nom de l'adresse<input name="a_lib" maxlength="40" placeholder="Domicile, bureau, boutique… (facultatif)"></label></div><div class="sm mu" style="margin-top:-4px">Indiquez au moins le quartier <b>ou</b> un point de repère : le livreur s'en sert pour trouver le client. La position GPS peut être demandée ensuite au client (lien du portail).</div></div>
  <div class="pill sm hide" id="f_adrinfo"></div>
- <div id="f_lourd" class="${full?"":"hide"}"><div class="sec">Produits et prestations</div><div id="lignes"></div><button type="button" class="btn sm ghost" data-act="addLigne">+ Ajouter une ligne</button>
+ <div id="f_lourd" class="${full?"":"hide"}"><div class="sec">Produits et prestations</div><div id="sr_prod"><div class="sr-box"><input type="search" id="f_pq" placeholder="🔎 Ajouter un article : tapez le nom ou le code…" autocomplete="off" enterkeyhint="done" aria-label="Rechercher un produit ou une prestation à ajouter" aria-controls="f_pl"><div class="sr-list" id="f_pl" role="listbox" hidden></div></div><div id="f_freq" class="sr-chips"></div></div><div id="lignes"></div><button type="button" class="btn sm ghost" data-act="addLigne">+ Ajouter une ligne</button>
  <div class="g3"><label>Frais de livraison <span id="f_eta" class="mu sm"></span><input type="number" name="frais" id="f_frais" min="0" value="${edit?edit.frais:0}" ${vm?"readonly":""}></label><label>Remise<input type="number" name="remise" id="f_remise" min="0" value="${edit?edit.remise:0}" ${vm?"readonly":""}></label><label>Priorité<select name="priorite"><option value="normale">Normale</option><option value="urgente" ${edit&&edit.priorite==="urgente"?"selected":""}>Urgente</option><option value="programmee" ${edit&&edit.priorite==="programmee"?"selected":""}>Programmée</option></select></label></div>
  <div class="g3 ${edit?"hide":""}" id="f_payrow"><label>Paiement<select name="paiement" id="f_pay"><option value="livraison">À la livraison</option><option value="avance">Payé d'avance</option><option value="partiel">Paiement partiel</option></select></label>
  <label>Acompte versé<input type="number" name="acompte" id="f_acompte" min="0" value="0" disabled></label><label>Mode de paiement<select name="mode">${opts(S.config.modes)}</select></label></div>
  <div class="hide" id="f_vpayrow"><div class="g3"><label>Articles payés au vendeur<select name="vpay" id="f_vpay"><option value="rien">Rien — le livreur encaisse tout</option><option value="paye">Payés en totalité chez le vendeur</option><option value="partiel">Payés en partie chez le vendeur</option></select></label><label>Montant déjà payé au vendeur<input type="number" name="vmontant" id="f_vmontant" min="0" value="0" disabled></label><label>Frais de livraison<span class="mu sm"> (encaissés par le livreur)</span><input disabled value="voir ci-dessus"></label></div></div></div>
  <div class="g3"><label class="${full?"":"hide"}">Canal<select name="canal">${opts(["Téléphone","WhatsApp","Vente en ligne","Commande directe","Autre"],edit?edit.canal:undefined)}</select></label><label>Observations<input name="obs" value="${edit?esc(edit.obs||""):""}" placeholder="Ex. colis sans nom : « sac rouge, Mme Koné »"></label></div>
+ ${edit||CL.on?"":`<div class="sec">📷 Photos jointes (facultatif)</div><div class="wph" id="f_ph"></div><label class="btn sm ghost" style="display:inline-block;cursor:pointer;margin:0">📷 Ajouter des photos / captures<input type="file" id="f_phf" accept="image/*" multiple hidden></label> <span class="sm mu"><b id="f_phn">0</b>/${PH_MAX} · capture d'écran de la demande du client, photo de l'article, du colis… (visibles ensuite dans « Photos jointes » de la commande)</span>`}
  ${edit?"":`<label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="confirmer" checked style="width:auto"> Confirmer immédiatement</label>`}
  <div class="card" style="margin:0;background:#f7f8fd ${full?"":";display:none"}"><div class="between"><span>Produits : <b id="t_prod">0 F</b></span><span>Total à payer : <b id="t_tot" style="font-size:18px">0 F</b></span></div><div class="between sm mu"><span>Solde à encaisser à la livraison</span><b id="t_solde">0 F</b></div></div>`,
- {wide:true,label:edit?"💾 Enregistrer les modifications":"Créer la commande",onSubmit:(d,f)=>{if(CL.on)return CL.creerCommande(d,f);
+ {wide:true,label:edit?"💾 Enregistrer les modifications":"Créer la commande",onSubmit:(d,f)=>{if(CL.on)return CL.creerCommande(d,f);try{srErrRaz()}catch(e){}
   try{
   const vd=(d.vendeur?vendOf(d.vendeur):null);if(d.vendeur&&!vd)throw new Error("Vendeur partenaire introuvable");
   const R=resoudreClient(d,vd,edit),cl=R.cl,ad=R.ad;
+  if(!edit){const rec=!R.neuf&&S.commandes.find(x=>x.client_id===cl.id&&x.statut!=="annulee"&&Date.now()-new Date(x.saisie_le||x.date)<15*60000);
+   if(rec&&!confirm("⚠ Une commande ("+rec.numero+") vient d'être saisie pour ce client (il y a "+Math.max(1,Math.round((Date.now()-new Date(rec.saisie_le||rec.date))/60000))+" min).\n\nCréer quand même une nouvelle commande ?"))return false;
+   if(R.neuf&&digits(cl.tel).length&&digits(cl.tel).length<8&&!confirm("Le numéro « "+cl.tel+" » semble incomplet (moins de 8 chiffres).\n\nContinuer quand même ?")){srErr('[name="n_tel"]',"Numéro incomplet : vérifiez-le");return false}}
   const dt=full?(d.date||cxJour()):null;if(full){if(dt>cxJour())throw new Error("La date de la commande ne peut pas être dans le futur");
    if(dt<cxJour()&&!(edit&&dt===cxJour(new Date(edit.date)))&&!confirm("📅 Cette commande est datée du "+new Date(dt+"T12:00:00").toLocaleDateString("fr-FR")+", avant aujourd'hui.\n\nElle sera classée et comptée à cette date (la saisie réelle d'aujourd'hui est conservée dans l'historique). Continuer ?"))return false}
   let lignes=null;
@@ -1538,25 +1555,126 @@ function formCmd(edit){
    vp={vendeur_id:vd.id,vendeur_encaisse:prods>0&&pv>=prods,paye_vendeur:pv}}
   if(R.neuf)S.clients.push(cl);if(R.adNeuve)cl.adresses.push(ad);
   const c=creerCmd(vd?Object.assign({client_id:cl.id,adr:Object.assign({},ad),lignes,frais:d.frais,remise:d.remise,paiement:vp.paye_vendeur>0?"partiel":"livraison",acompte:vp.paye_vendeur,mode:vp.paye_vendeur>0?"Payé au vendeur":"Espèces",priorite:d.priorite,canal:d.canal,obs:d.obs,date:dt,confirmer:!!d.confirmer},vp):{client_id:cl.id,adr:Object.assign({},ad),lignes,frais:d.frais,remise:d.remise,paiement:d.paiement,acompte:d.acompte,mode:d.mode,priorite:d.priorite,canal:d.canal,obs:d.obs,date:dt,confirmer:!!d.confirmer});
-  save();toast("Commande "+c.numero+" créée"+(vd?" · rattachée à "+vd.nom:""),"ok");render();return true
-  }catch(e){toast(fixErr(e),"err");return false}}});
+  if(cph.length){c.photos=cph.slice();audit("Photos jointes à la création",c.numero+" — "+cph.length+" photo(s)")}
+  save();toast("Commande "+c.numero+" créée"+(vd?" · rattachée à "+vd.nom:"")+(cph.length?" · "+cph.length+" photo(s)":""),"ok");render();return true
+  }catch(e){try{srErreur(e.message)}catch(x){}toast(fixErr(e),"err");return false}}});
+ {const bx=$("#f_phf");if(bx){const paint=()=>{$("#f_ph").innerHTML=cph.map((p,k)=>`<span class="wthumb"><img alt="Photo ${k+1}" src="${p}"><button type="button" data-k="${k}" title="Retirer cette photo" aria-label="Retirer la photo ${k+1}">✕</button></span>`).join("");$("#f_ph").querySelectorAll("button").forEach(b=>b.onclick=()=>{cph.splice(+b.dataset.k,1);paint()});$("#f_phn").textContent=cph.length};
+  bx.onchange=async e=>{for(const f of [...e.target.files]){if(!/^image\//.test(f.type))continue;if(cph.length>=PH_MAX){toast("Maximum "+PH_MAX+" photos par commande","err");break}try{cph.push(await imgResize(f,900,.72,250000))}catch(x){toast(x.message,"err")}}e.target.value="";paint()}}}
  FRAIS_AUTO=!edit;if(edit)$("#f_client").value=edit.client_id;
  fillAdr();if(edit){(edit.lignes||[]).forEach(l=>addLigne(l));if(!(edit.lignes||[]).length)addLigne()}else addLigne();
- FRAIS_AUTO=true;if(edit&&edit.vendeur_id)vendHint();recalc()}
+ FRAIS_AUTO=true;if(edit&&edit.vendeur_id)vendHint();recalc();try{srInit(edit,vm0)}catch(e){console.error(e)}}
+/* ---------- Saisie rapide d'une commande ----------
+   Couche d'aide posée sur le formulaire (les champs « client », « adresse » et les lignes restent ceux du formulaire, seulement mieux présentés) :
+   client trouvé en tapant (nom ou téléphone) ou créé à la volée, adresses connues en cartes ou saisie directe, produits et prestations ajoutés par recherche ou en un geste
+   (articles fréquents), quantités avec boutons + et −, total toujours visible, erreurs affichées sur le champ concerné, numéro déjà connu et double saisie signalés. */
+const SR={i:-1,items:[]};
+const srDern=c=>{const l=S.commandes.filter(x=>x.client_id===c.id).sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];return l?"dernière commande "+new Date(l.date).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})+(l.adr&&l.adr.zone?" · "+l.adr.zone:""):(c.adresses&&c.adresses[0]?c.adresses[0].zone:"")};
+function srClients(q){const n=normTxt(q),dg=digits(q);
+ let L=[...document.querySelectorAll("#f_client option")].filter(o=>o.value&&o.value[0]!=="_").map(o=>cli(o.value)).filter(Boolean);
+ if(n||dg.length>=3){L=L.filter(c=>(n&&normTxt(c.nom).includes(n))||(dg.length>=3&&(digits(c.tel)+" "+digits(c.tel2||"")).includes(dg)));
+  L.sort((a,b)=>(normTxt(a.nom).startsWith(n)?0:1)-(normTxt(b.nom).startsWith(n)?0:1)||a.nom.localeCompare(b.nom))}
+ else{const last={};S.commandes.forEach(c=>{if(String(c.date)>(last[c.client_id]||""))last[c.client_id]=String(c.date)});L.sort((a,b)=>(last[b.id]||"").localeCompare(last[a.id]||""))}
+ return L.slice(0,6)}
+function srClRender(){const q=$("#f_cq").value.trim(),box=$("#f_cl"),L=srClients(q);SR.items=[];
+ L.forEach(c=>SR.items.push({k:"c",id:c.id,h:`<span><b>${esc(c.nom)}</b>${c.tel&&!masqueOn()?` <span class="mu">· ${esc(c.tel)}</span>`:""}</span><span class="sm mu">${esc(srDern(c))}</span>`}));
+ SR.items.push({k:"new",h:`<span class="sr-act">➕ ${q?"Créer « "+esc(q)+" » comme nouveau client":"Nouveau client"}</span>`});
+ SR.items.push({k:"div",h:`<span class="sr-act">👤 Client divers (nom inconnu)</span>`});
+ if(SR.i>=SR.items.length||SR.i<0)SR.i=0;
+ box.innerHTML=SR.items.map((x,i)=>`<div class="sr-it ${i===SR.i?"on":""}" role="option" data-i="${i}" aria-selected="${i===SR.i}">${x.h}</div>`).join("");box.hidden=false;$("#f_cq").setAttribute("aria-expanded","true")}
+function srClClose(){const b=$("#f_cl");if(b){b.hidden=true;$("#f_cq")&&$("#f_cq").setAttribute("aria-expanded","false")}}
+function srPick(it){const sel=$("#f_client"),raw=$("#f_cq").value.trim();
+ sel.value=it.k==="c"?it.id:it.k==="new"?"__new":"__div";sel.dispatchEvent(new Event("change",{bubbles:true}));srClClose();
+ if(it.k!=="c"){const tel=/^[\d\s.+()-]{6,}$/.test(raw),nm=document.querySelector('[name="n_nom"]'),tl=document.querySelector('[name="n_tel"]');
+  if(raw){if(tel&&tl)tl.value=raw;else if(nm&&it.k==="new")nm.value=raw}$("#f_cq").value="";srSync();(raw&&!tel?tl:nm)&&(raw&&!tel?tl:nm).focus()}
+ else{$("#f_cq").value="";srSync();const q=$("#f_pq");if(q&&!q.closest("[hidden]"))q.focus()}}
+function srSync(){const sel=$("#f_client"),chip=$("#f_cchip"),inp=$("#f_cq");if(!sel||!chip)return;const v=sel.value,c=cli(v);
+ if(!v){chip.classList.add("hide");inp.parentElement.classList.remove("hide");return}
+ inp.parentElement.classList.add("hide");chip.classList.remove("hide");
+ chip.innerHTML=`<span>${v==="__new"?"➕ <b>Nouveau client</b> — complétez ci-dessous":v==="__div"?"👤 <b>Client divers</b> — nom facultatif":`✔ <b>${esc(c?c.nom:"?")}</b>${c&&c.tel&&!masqueOn()?` <span class="mu">· ${esc(c.tel)}</span>`:""}`}</span><button type="button" class="btn sm ghost" data-sr="chclient">Changer</button>`}
+function srAdr(){const sel=$("#f_adr"),box=$("#f_adc");if(!sel||!box)return;const cv=$("#f_client").value,real=[...sel.options].filter(o=>o.value&&o.value!=="__new");
+ const nw=$("#newadr");
+ if(!cv){box.innerHTML='<div class="sm mu">Choisissez d\'abord le client : ses adresses connues apparaîtront ici ; sinon vous saisirez l\'adresse directement.</div>';return}
+ if(!real.length){box.innerHTML='<div class="sm mu">Aucune adresse enregistrée : saisissez l\'adresse de livraison ci-dessous.</div>';if(nw)nw.classList.remove("hide");return}
+ box.innerHTML=real.map(o=>`<button type="button" class="sr-card ${o.value===sel.value?"on":""}" data-adr="${esc(o.value)}" aria-pressed="${o.value===sel.value}">${esc(o.textContent)}</button>`).join("")+`<button type="button" class="sr-card ${sel.value==="__new"?"on":""}" data-adr="__new" aria-pressed="${sel.value==="__new"}">➕ Autre adresse</button>`}
+/* produits et prestations */
+function srCatalogue(){const L=[];S.produits.filter(p=>p.actif).forEach(p=>L.push({k:p.id,id:p.id,nom:p.nom,code:p.code||"",prix:p.prix,stock:p.stock,svc:false}));
+ if(!CL.on)(S.prestations||[]).filter(x=>x.actif).forEach(x=>L.push({k:"svc:"+x.id,id:x.id,nom:x.nom,code:x.code||"",prix:x.prix,svc:true}));return L}
+function srFreq(){const f={};S.commandes.slice(0,300).forEach(c=>(c.lignes||[]).forEach(l=>{const k=l.produit_id||(l.prestation_id?"svc:"+l.prestation_id:"");if(k)f[k]=(f[k]||0)+(+l.qte||1)}));return f}
+function srProdRender(){const q=normTxt($("#f_pq").value),box=$("#f_pl"),fr=srFreq();let L=srCatalogue();
+ if(q)L=L.filter(x=>normTxt(x.nom+" "+x.code).includes(q));L.sort((a,b)=>(normTxt(a.nom).startsWith(q)?0:1)-(normTxt(b.nom).startsWith(q)?0:1)||(fr[b.k]||0)-(fr[a.k]||0)||a.nom.localeCompare(b.nom));
+ SR.pitems=L.slice(0,8);if(SR.pi>=SR.pitems.length||SR.pi<0)SR.pi=0;
+ box.innerHTML=SR.pitems.length?SR.pitems.map((x,i)=>`<div class="sr-it ${i===SR.pi?"on":""}" role="option" data-i="${i}"><span><b>${esc(x.nom)}</b>${x.svc?' <span class="mu sm">prestation</span>':""}</span><span class="sm">${fcfa(x.prix)}${x.svc?"":` · <span style="color:var(--${x.stock<=0?"er":"mu"})">${x.stock<=0?"rupture":"stock "+x.stock}</span>`}</span></div>`).join(""):'<div class="sr-it mu">Aucun article ne correspond.</div>';box.hidden=false}
+function srAddProd(x){let rows=[...document.querySelectorAll(".lrow")];const def=rows.length===1&&rows[0].dataset.def==="1"?rows[0]:null;if(def){def.remove();rows=[]}   /* la ligne vide par défaut, intacte, cède la place au premier article choisi */
+ const same=rows.find(r=>{const s=r.querySelector(".l_prod");return s&&s.value===x.k});let qte=1;
+ if(same){const qn=same.querySelector(".l_qte");qn.value=(+qn.value||0)+1;qte=+qn.value;same.classList.add("sr-flash");setTimeout(()=>same.classList.remove("sr-flash"),600)}
+ else addLigne({produit_id:x.svc?null:x.id,prestation_id:x.svc?x.id:null,qte:1,pu:x.prix})
+ if(!x.svc&&x.stock!=null&&qte>x.stock)toast("⚠ Stock insuffisant pour « "+x.nom+" » ("+x.stock+" disponible)","err");
+ recalc();$("#f_pq").value="";$("#f_pl").hidden=true;$("#f_pq").focus()}
+function srFreqChips(){const el=$("#f_freq");if(!el)return;const fr=srFreq();let L=srCatalogue().filter(x=>fr[x.k]).sort((a,b)=>fr[b.k]-fr[a.k]).slice(0,8);
+ if(!L.length)L=srCatalogue().filter(x=>!x.svc).slice(0,6);
+ el.innerHTML=L.length?`<span class="sm mu">Fréquents :</span> `+L.map(x=>`<button type="button" class="sr-chip" data-k="${esc(x.k)}">${esc(x.nom)} <span class="mu">${fcfa(x.prix)}</span></button>`).join(""):""}
+function srVend(){const v=$("#f_vend")&&$("#f_vend").value,b=$("#sr_prod");if(b)b.classList.toggle("hide",!!v)}
+function srDecor(){document.querySelectorAll("#lignes .lrow").forEach(r=>{if(r.dataset.dec)return;r.dataset.dec="1";const q=r.querySelector(".l_qte");if(!q)return;
+ q.style.width="56px";q.inputMode="numeric";q.setAttribute("aria-label","Quantité");
+ const m=document.createElement("button"),p=document.createElement("button");m.type=p.type="button";m.className=p.className="qb";m.textContent="−";p.textContent="+";m.dataset.q="-1";p.dataset.q="1";m.setAttribute("aria-label","Une unité de moins");p.setAttribute("aria-label","Une unité de plus");
+ q.before(m);q.after(p);const t=document.createElement("b");t.className="l_tot";r.insertBefore(t,r.querySelector("[data-act=delLigne]"));recalc()})}
+/* erreurs affichées sur le champ concerné */
+function srErr(sel,msg){const el=typeof sel==="string"?document.querySelector(sel):sel;if(!el)return false;srErrRaz();el.classList.add("bad");
+ const m=document.createElement("div");m.className="sr-err";m.setAttribute("role","alert");m.textContent=msg;(el.closest("label")||el.parentElement).appendChild(m);el.scrollIntoView({block:"center",behavior:"smooth"});try{el.focus({preventScroll:true})}catch(e){}return true}
+function srErrRaz(){document.querySelectorAll("#mf .bad").forEach(x=>x.classList.remove("bad"));document.querySelectorAll("#mf .sr-err").forEach(x=>x.remove())}
+function srErreur(msg){msg=String(msg||"");
+ if(/Choisissez un client|Nom et téléphone/.test(msg)){const v=$("#f_client").value;return srErr(v==="__new"||v==="__div"?(document.querySelector('[name="n_nom"]').value.trim()?'[name="n_tel"]':'[name="n_nom"]'):"#f_cq",msg)}
+ if(/quartier|repère/.test(msg))return srErr('[name="a_q"]',msg);
+ if(/zone/i.test(msg)&&!/Frais/.test(msg))return srErr('[name="a_zone"]',msg);
+ if(/adresse/i.test(msg)&&$("#f_adc"))return srErr($("#f_adc"),msg);
+ if(/produit|prestation|article|ligne/i.test(msg))return srErr($("#sr_prod").classList.contains("hide")?"#lignes":"#f_pq",msg);
+ return false}
+/* numéro déjà connu */
+function srTel(){const t=document.querySelector('[name="n_tel"]');if(!t)return;const dg=digits(t.value);let info=$("#f_telinfo");if(!info){info=document.createElement("div");info.id="f_telinfo";info.className="sr-info hide";t.closest("label").appendChild(info)}
+ const c=dg.length>=8?S.clients.find(x=>!x.divers&&digits(x.tel)===dg&&(!$("#f_vend")||!$("#f_vend").value?!x.vendeur_id:x.vendeur_id===$("#f_vend").value)):null;
+ if(c){info.classList.remove("hide");info.innerHTML=`Ce numéro est déjà celui de <b>${esc(c.nom)}</b> <button type="button" class="btn sm" data-sr="useclient" data-id="${c.id}">Utiliser ce client</button>`}else info.classList.add("hide")}
+function srInit(edit,vm0){
+ const sel=$("#f_client");if(!sel||!$("#f_cq"))return;srSync();srAdr();srFreqChips();srVend();srDecor();
+ const l=$("#lignes");if(l){new MutationObserver(srDecor).observe(l,{childList:true});const r=l.querySelector(".lrow");if(r&&!edit)r.dataset.def="1"}
+ if(!edit&&!srClients("").length&&!sel.value){sel.value="__new";sel.dispatchEvent(new Event("change",{bubbles:true}));srSync();const n=document.querySelector('[name="n_nom"]');if(n)n.focus()}
+ else if(!edit&&!sel.value)$("#f_cq").focus();
+ if(l)l.addEventListener("input",e=>{const r=e.target.closest(".lrow");if(r&&r.dataset.def)delete r.dataset.def});
+ const hb=$("#mf .mf");if(hb&&!$("#f_foot")){const s=document.createElement("span");s.id="f_foot";s.className="sr-foot";hb.prepend(s);recalc()}}
+document.addEventListener("input",e=>{const t=e.target;if(!t||!$("#f_cq"))return;
+ if(t.id==="f_cq"){SR.i=0;srClRender()}else if(t.id==="f_pq"){SR.pi=0;srProdRender()}else if(t.name==="n_tel")srTel();
+ if(t.closest&&t.closest("#mf")&&t.classList&&t.classList.contains("bad")){t.classList.remove("bad");const m=(t.closest("label")||t.parentElement).querySelector(".sr-err");if(m)m.remove()}});
+document.addEventListener("focusin",e=>{if(e.target&&e.target.id==="f_cq")srClRender();else if(e.target&&e.target.id==="f_pq"&&$("#f_pq").value)srProdRender()});
+document.addEventListener("keydown",e=>{const t=e.target;if(!t||!t.id)return;
+ if(t.id==="f_cq"||t.id==="f_pq"){const cl=t.id==="f_cq",L=cl?SR.items:SR.pitems,k=cl?"i":"pi";
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();SR[k]=(SR[k]+(e.key==="ArrowDown"?1:-1)+L.length)%L.length;cl?srClRender():srProdRender()}
+  else if(e.key==="Enter"){e.preventDefault();const it=L[Math.max(0,SR[k])];if(it)cl?srPick(it):srAddProd(it)}
+  else if(e.key==="Escape"){e.stopPropagation();cl?srClClose():($("#f_pl").hidden=true)}}});
+document.addEventListener("mousedown",e=>{const it=e.target.closest&&e.target.closest("#f_cl .sr-it,#f_pl .sr-it");if(it){e.preventDefault();const i=+it.dataset.i;if(it.closest("#f_cl")){if(SR.items[i])srPick(SR.items[i])}else if(SR.pitems&&SR.pitems[i])srAddProd(SR.pitems[i]);return}
+ if($("#f_cl")&&!(e.target.closest&&e.target.closest(".sr-box"))){srClClose();const p=$("#f_pl");if(p)p.hidden=true}});
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-sr],[data-adr],.sr-chip,.qb");if(!t||!$("#mf")||!$("#f_cq"))return;
+ if(t.dataset.sr==="chclient"){const s=$("#f_client");s.value="";s.dispatchEvent(new Event("change",{bubbles:true}));srSync();$("#f_cq").focus()}
+ else if(t.dataset.sr==="useclient"){const s=$("#f_client");s.value=t.dataset.id;s.dispatchEvent(new Event("change",{bubbles:true}));srSync()}
+ else if(t.dataset.adr){const s=$("#f_adr");s.value=t.dataset.adr;s.dispatchEvent(new Event("change",{bubbles:true}));srAdr()}
+ else if(t.classList.contains("sr-chip")){const x=srCatalogue().find(y=>y.k===t.dataset.k);if(x)srAddProd(x)}
+ else if(t.classList.contains("qb")){const q=t.parentElement.querySelector(".l_qte");q.value=Math.max(1,(+q.value||1)+(+t.dataset.q));q.dispatchEvent(new Event("input",{bubbles:true}))}});
+/* quartiers déjà connus : proposés à la frappe, et la zone se renseigne seule quand elle est sans ambiguïté */
+function srQuartiers(){const m={};S.clients.forEach(c=>(c.adresses||[]).forEach(a=>{if(a.quartier)m[a.quartier.trim()]=1}));return Object.keys(m).sort((a,b)=>a.localeCompare(b)).slice(0,300).map(q=>`<option value="${esc(q)}"></option>`).join("")}
+function srZoneDe(q){const n=normTxt(q),z={};if(!n)return null;S.clients.forEach(c=>(c.adresses||[]).forEach(a=>{if(normTxt(a.quartier)===n&&a.zone)z[a.zone]=1}));const k=Object.keys(z);return k.length===1?k[0]:null}
+document.addEventListener("change",e=>{const t=e.target;if(t&&t.name==="a_q"&&$("#f_cq")){const z=srZoneDe(t.value),s=document.querySelector('[name="a_zone"]');if(z&&s&&s.value!==z&&[...s.options].some(o=>o.value===z)){s.value=z;autoFrais();toast("Zone « "+z+" » proposée d'après ce quartier","ok")}}});
 let FRAIS_AUTO=true;
 function vendHint(){const v=$("#f_vend")&&$("#f_vend").value?vendOf($("#f_vend").value):null,h=$("#f_vhint");if(!h)return;
  h.textContent=v?"Commande du vendeur partenaire « "+v.nom+" » (commission "+(v.commission_pct||0)+" %) : articles du vendeur saisis librement, aucune sortie du stock ANGEL'S ; une fois confirmée, la collecte chez le vendeur est à planifier ; le règlement du vendeur se fait dans Caisse.":"Vente propre d'ANGEL'S GROUP : produits du catalogue, sortie du stock."}
 function vendChange(){const vid=$("#f_vend")?$("#f_vend").value:"",v=vid?vendOf(vid):null;
  $("#f_client").innerHTML=clientOpts(vid);
  $("#f_payrow").classList.toggle("hide",!!v||!!EDIT_CMD);$("#f_vpayrow").classList.toggle("hide",!v||!!EDIT_CMD);
- vendHint();$("#lignes").innerHTML="";addLigne();fillAdr();recalc()}
+ vendHint();$("#lignes").innerHTML="";addLigne();fillAdr();recalc();try{srSync();srVend()}catch(e){}}
 function fillAdr(){const v=$("#f_client").value,cl=cli(v),sel=$("#f_adr"),isNew=v==="__new"||v==="__div",e=EDIT_CMD,meme=!!(e&&cl&&cl.id===e.client_id);
  let h=cl?cl.adresses.map(a=>`<option value="${a.id}" ${a.defaut?"selected":""}>${esc(a.libelle)} — ${esc(a.zone)} ${esc(a.quartier||"")}</option>`).join("")+'<option value="__new">➕ Nouvelle adresse</option>':'<option value="__new">Saisir l\'adresse ci-dessous</option>';
  if(meme&&!cl.adresses.some(a=>a.id===e.adr.id))h=`<option value="__cur">Adresse de la commande — ${esc(e.adr.zone)} ${esc(e.adr.quartier||"")}</option>`+h;
  sel.innerHTML=h;if(meme)sel.value=cl.adresses.some(a=>a.id===e.adr.id)?e.adr.id:"__cur";
  $("#newcl").classList.toggle("hide",!isNew);$("#f_nomopt").textContent=v==="__div"?"(facultatif)":"";$("#f_telopt").textContent=v==="__div"?"(facultatif)":"";
  $("#newadr").classList.toggle("hide",!(isNew||sel.value==="__new"));
- autoFrais();adrInfo()}
+ autoFrais();adrInfo();try{srAdr()}catch(e){}}
 function adrInfo(){const e=$("#f_adrinfo");if(!e)return;const v=$("#f_client").value,cl=cli(v),sv=$("#f_adr").value,ed=EDIT_CMD;
  let a=null;if(cl&&sv&&sv!=="__new")a=sv==="__cur"&&ed?ed.adr:cl.adresses.find(x=>x.id===sv);
  if(!a){e.classList.add("hide");return}
@@ -1572,13 +1690,14 @@ function addLigne(pre){if(pre&&pre.target)pre=null;const d=document.createElemen
  if(pre){const sel=d.querySelector(".l_prod"),k=pre.produit_id||(pre.prestation_id?"svc:"+pre.prestation_id:"");if(k&&[...sel.options].some(o=>o.value===k))sel.value=k;d.querySelector(".l_qte").value=pre.qte;d.querySelector(".l_pu").value=pre.pu}recalc()}
 function recalc(){const rows=[...document.querySelectorAll(".lrow")];const prods=rows.reduce((a,r)=>a+(+r.querySelector(".l_qte").value||0)*(+r.querySelector(".l_pu").value||0),0);
  const tot=Math.max(0,prods+(+$("#f_frais").value||0)-(+$("#f_remise").value||0));const pay=$("#f_pay").value;
+ rows.forEach(r=>{const t=r.querySelector(".l_tot");if(t)t.textContent=fcfa((+r.querySelector(".l_qte").value||0)*(+r.querySelector(".l_pu").value||0))});const ft=$("#f_foot");if(ft)ft.innerHTML="Total à payer <b>"+fcfa(tot)+"</b>";
  $("#f_acompte").disabled=pay!=="partiel";const vp=$("#f_vpay")&&$("#f_vend")&&$("#f_vend").value?$("#f_vpay").value:"";if($("#f_vmontant"))$("#f_vmontant").disabled=vp!=="partiel";
  const ac=vp?(vp==="paye"?prods:vp==="partiel"?Math.min(+$("#f_vmontant").value||0,prods):0):pay==="avance"?tot:pay==="partiel"?Math.min(+$("#f_acompte").value||0,tot):0;
  $("#t_prod").textContent=fcfa(prods);$("#t_tot").textContent=fcfa(tot);$("#t_solde").textContent=fcfa(tot-ac)}
 document.addEventListener("change",e=>{
  if(e.target&&e.target.id==="tm_z"&&$("#mf")){const z=e.target.value;document.querySelectorAll("#mf .tmrow").forEach(r=>{const on=!z||r.dataset.z===z;r.style.display=on?"flex":"none";if(!on){const k=r.querySelector("input");if(k)k.checked=false}});return}
  if(!$("#mf")||!$("#f_client"))return;const t=e.target;
- if(t.id==="f_vend")vendChange();else if(t.id==="f_client")fillAdr();else if(t.id==="f_adr")adrChange()
+ if(t.id==="f_vend")vendChange();else if(t.id==="f_client"){fillAdr();try{srSync();srClClose()}catch(e){}}else if(t.id==="f_adr")adrChange()
  else if(t.matches(".l_prod")){t.closest(".lrow").querySelector(".l_pu").value=t.selectedOptions[0].dataset.p;recalc()}
  else if(t.name==="a_zone")autoFrais();
  if(t.matches("#f_pay,#f_vpay,#f_frais,#f_remise"))recalc()});
@@ -1613,6 +1732,7 @@ function cmdDetail(id){
  <div class="pill">Produits ${fcfa(c.montant_produits)} + livraison ${fcfa(c.frais)} − remise ${fcfa(c.remise)} = <b>${fcfa(c.total)}</b><br>Déjà payé : ${fcfa(paye(c))} · Reste dû : <b>${fcfa(soldeCmd(c))}</b> (${c.paiement==="avance"?"payé d'avance":c.paiement==="partiel"?"paiement partiel":"à la livraison"})</div>
  ${c.paye_vendeur>0?`<div class="pill">💳 Payé chez le fournisseur : <b>${fcfa(c.paye_vendeur)}</b> · reste à encaisser par le livreur : <b>${fcfa(soldeCmd(c))}</b></div>`:(c.vendeur_id?`<div class="pill">💳 Paiement : le client règle tout au livreur (${fcfa(soldeCmd(c))})</div>`:"")}
  ${c.obs?`<div class="pill">Observations : ${esc(c.obs)}</div>`:""}
+ ${c.photos&&c.photos.length?`<div class="flex" style="gap:6px;margin:6px 0;flex-wrap:wrap">${c.photos.slice(0,6).map(p=>`<img alt="Photo jointe — agrandir" src="${p}" data-act="cmdPhotos" data-id="${c.id}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:zoom-in">`).join("")}${c.photos.length>6?`<span class="sm mu">+${c.photos.length-6}</span>`:""}</div>`:""}
  ${verifBloc(c)}${ijBlocC(c)}
  ${act&&!can("vendeur")?`<div class="pill"><b>Mission en cours</b> : ${esc(liv(act.livreur_id).nom)} · ${lb(act)} · code client <b style="font-size:18px">${act.code}</b> ${cl.tel?`<a class="btn sm ghost" target="_blank" rel="noopener" href="${waLink(cl.tel,`${ORG()} — votre livraison ${c.numero} arrive. Code de confirmation à donner au livreur : ${act.code}`)}">Envoyer le code (WhatsApp)</a>`:'<span class="sm mu">(client divers : donnez le code au livreur par téléphone)</span>'}</div>`:""}
  ${ls.length&&!can("vendeur")?`<div class="sec">Livraisons (${ls.length})</div>${tbl(["Tentative","Livreur","Statut","Encaissé","Détail"],ls.map(l=>`<tr><td>#${l.tentative}</td><td>${esc(liv(l.livreur_id).nom)}</td><td>${lb(l)}</td><td>${l.montant_encaisse!=null?fcfa(l.montant_encaisse):"—"}</td><td class="sm">${esc(l.motif_echec||l.motif||"")}${l.recu_par?"Reçu par "+esc(l.recu_par):""}</td></tr>`))}`:""}
