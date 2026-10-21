@@ -10,14 +10,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
  /* bureau : un vendeur partenaire avec son lien (l'identifiant du vendeur est dans le lien) */
  const D=await ctx.newPage();D.on("pageerror",e=>errs.push("D:"+e.message));D.on("dialog",d=>d.accept());await D.goto(base+"/distribution.html");await D.waitForTimeout(600);
- const info=await D.evaluate(async()=>{ME=S.users.find(u=>u.role==="vendeur");const v=vend();v.tel=v.tel||"0708080808";await cmdLien(false);await new Promise(r=>setTimeout(r,200));const link=[...document.querySelectorAll("input[readonly]")].map(i=>i.value).find(x=>/commander\//.test(x));return{link,id:v.id,nom:v.nom,tel:v.tel}});
- const tok=(info.link||"").split("#/commander/")[1]||"",pay=tok?JSON.parse(Buffer.from(tok.replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8")):{};
- chk("CLV-1","le lien de commande du vendeur contient l'identifiant du vendeur",pay.i===info.id&&pay.v===info.nom,JSON.stringify(pay));
+ const info=await D.evaluate(async()=>{ME=S.users.find(u=>u.role==="vendeur");const v=vend();v.tel=v.tel||"0708080808";await cmdLien(false);await new Promise(r=>setTimeout(r,200));const link=[...document.querySelectorAll("input[readonly]")].map(i=>i.value).find(x=>/commander/.test(x));return{link,id:v.id,nom:v.nom,tel:v.tel}});
+ const url=new URL(info.link||"http://x/"),pay={i:url.searchParams.get("ref"),v:url.searchParams.get("boutique"),t:url.searchParams.get("tel")};
+ chk("CLV-1","le lien de commande du vendeur est court et lisible (nom de la boutique, téléphone, référence) et contient l'identifiant du vendeur",pay.i===info.id&&pay.v===info.nom&&url.pathname==="/commander"&&(info.link||"").length<130&&!/eyJ|#\/commander\//.test(info.link||""),JSON.stringify([pay,(info.link||"").length]));
  /* client : page publique du portail */
  let posted=null;
  await ctx.route("**/functions/v1/portail-demande",async rt=>{const rq=rt.request();posted=JSON.parse(rq.postData()||"{}");rt.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify({ok:true,refs:["X"],doublons:0})})});
  const P=await ctx.newPage();P.on("pageerror",e=>errs.push("P:"+e.message));await P.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});
- await P.goto(base+"/portail.html#/commander/"+tok);await P.waitForTimeout(900);
+ await P.goto(base+"/portail.html"+url.search);await P.waitForTimeout(900);
  await P.fill(".c_d","Sac à main noir");await P.fill(".c_q","2");await P.fill(".c_p","15000");await P.fill("#c_nom","Awa Client");await P.fill("#c_tel","0701020304");
  await P.selectOption("#c_zone",{index:1});await P.fill("#c_q","Riviera");await P.fill("#c_rep","Pharmacie");await P.click("#c_send");await P.waitForTimeout(500);
  const direct=await P.locator("[data-direct]").count();
