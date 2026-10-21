@@ -727,7 +727,7 @@ Paramètres du hub → Connexions → carte **« Rapport quotidien au DG »** : 
 
 ## Installer l'interface livreur seule
 
-Distributions → Paramètres → **« Installer l'application des livreurs »** : lien, QR code, copie du lien ou du message, envoi WhatsApp (avec le mode d'emploi Android / iPhone). Le livreur ouvre le lien sur son téléphone et installe l'icône « Livreur » : le manifeste (`manifest-livreur.webmanifest`) est limité à `livreur.html`, l'application installée n'ouvre donc ni les commandes, ni la caisse, ni les autres applications du groupe. Il se connecte avec son compte livreur (passerelle). Test : `tests/livreur-install.js`.
+Distributions → Paramètres → onglet **Livreurs & GPS** → **« Installer l'application des livreurs »** : lien, QR code, copie du lien ou du message, envoi WhatsApp (avec le mode d'emploi Android / iPhone). Le livreur ouvre le lien sur son téléphone et installe l'icône « Livreur » : le manifeste (`manifest-livreur.webmanifest`) est limité à `livreur.html`, l'application installée n'ouvre donc ni les commandes, ni la caisse, ni les autres applications du groupe. Il se connecte avec son compte livreur (passerelle). Test : `tests/livreur-install.js`.
 
 ## Filtres date et lieu de livraison
 
