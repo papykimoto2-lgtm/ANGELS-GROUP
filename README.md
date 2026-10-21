@@ -732,3 +732,7 @@ Distributions → Paramètres → onglet **Livreurs & GPS** → **« Installer l
 ## Filtres date et lieu de livraison
 
 Tableau de bord : période (aujourd'hui, 7/30 jours, ce mois, mois dernier, toutes les dates ou dates précises) et champ **lieu de livraison** (zone, quartier ou repère, avec suggestions) s'ajoutent aux filtres zone, livreur et type de commande ; ils s'appliquent aux indicateurs de performance et financiers. Centre de livraison : mêmes filtres date et lieu sur « À affecter », « Courses actives » et « Livraisons échouées », avec « Effacer les filtres ». Test : `tests/livraison-filtres.js`.
+
+## Commandes des clients par le lien du vendeur partenaire
+
+Le lien « Lien de commande de vos clients » contient maintenant l'identifiant du vendeur. Quand le client valide sa commande sur la page publique, le bouton **Envoyer directement** transmet la commande au serveur (fonction `portail-demande`, marqueur `[BOUTIQUE:…]` portant le vendeur) ; le bureau la relève (Vente en ligne → Réception directe des demandes du portail → Activer) et elle apparaît dans l'espace du vendeur, sous « Demandes reçues de vos clients », à vérifier puis transformer en commande. Un ancien lien sans identifiant fonctionne aussi (vendeur retrouvé par son téléphone). Les captures d'écran, trop lourdes, partent toujours par WhatsApp. Test : `tests/commande-lien-vendeur.js`.
