@@ -67,7 +67,7 @@ const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",l
 const ACTIFS=["affectee","acceptee","en_cours"];
 let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null;
 /* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
-const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps"},DUREE_CACHE=48*36e5;
+const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan"},DUREE_CACHE=48*36e5;
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const cache=()=>{const c=lsGet(LS.c,null);return c&&c.t&&c.uid&&Date.now()-c.t<DUREE_CACHE?c:null};
 const file=()=>lsGet(LS.f,[]),rejets=()=>lsGet(LS.r,[]),enFile=ref=>file().filter(f=>f.ref===ref),enLigne=()=>navigator.onLine!==false;
@@ -207,10 +207,10 @@ function vigFerme(){VIG.open=false;clearInterval(VIG.tm);const e=document.getEle
 function vigPrompt(v){VIG.open=true;let reste=v.reponse_s;const el=document.createElement("div");el.id="vig";el.style.cssText="position:fixed;inset:0;z-index:9600;background:rgba(122,16,16,.96);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center";
  el.innerHTML=`<div style="font-size:48px">🛡️</div><b style="font-size:22px">Êtes-vous en sécurité ?</b><div>Aucune activité depuis ${v.inactif_min} min. Sans réponse, une alerte SOS part avec votre position dans <b id="vig_t">${reste}</b> s.</div><button type="button" class="btn ok" id="vig_ok" style="max-width:320px">✔ Je vais bien</button><button type="button" class="btn ghost" id="vig_p" style="max-width:320px">⏸ Pause 30 min</button><button type="button" class="btn er" id="vig_s" style="max-width:320px;background:#fff;color:#b3121e">🆘 J'ai un problème : alerter</button>`;
  document.body.appendChild(el);try{ANGELS_SIGNAL.jouer("alerte",{rep:6})}catch(e){}try{navigator.vibrate&&navigator.vibrate([500,200,500])}catch(e){}
- $("#vig_ok").onclick=()=>{VIG.act=Date.now();vigFerme()};$("#vig_p").onclick=()=>{VIG.act=Date.now()+30*60000-v.inactif_min*60000;vigFerme();toast("Pause de 30 min","ok")};
+ $("#vig_ok").onclick=()=>{VIG.act=Date.now();vigFerme()};$("#vig_p").onclick=async()=>{vigFerme();if(!(await pauseApp(30))){VIG.act=Date.now()+30*60000-v.inactif_min*60000;toast("Pause de 30 min","ok")}};
  $("#vig_s").onclick=()=>{vigFerme();sosEnvoyer("autre","Le livreur demande de l'aide depuis la vérification de sécurité",false)};
  VIG.tm=setInterval(()=>{reste--;const t=document.getElementById("vig_t");if(t)t.textContent=Math.max(0,reste);if(reste<=0){vigFerme();VIG.act=Date.now();sosEnvoyer("autre","⚠ ALERTE AUTOMATIQUE : aucune réponse après "+v.inactif_min+" min d'inactivité pendant les heures de travail. Vol, accident ou malaise possible : appelez-le.",true)}},1000)}
-function vigTick(){if(!user||VIG.open||ouvert)return;const r=REG(),v=r.vigilance;if(!v||!v.actif||!vigHeures(v))return;if(!(missions.some(m=>ACTIFS.includes(m.statut))||r.dispo))return;if(Date.now()-VIG.act>=v.inactif_min*60000)vigPrompt(v)}
+function vigTick(){if(!user||VIG.open||ouvert)return;const r=REG(),v=r.vigilance;if(!v||!v.actif||pauseActive())return;{const P=PLN();if(P.actif){const j=(P.jours||[]).find(x=>x.date===ymdL(Date.now())),dans=j&&j.creneaux.some(c=>c.reserve&&c.statut!=="absent"&&tsC(j.date,c.debut)<=Date.now()&&Date.now()<tsFin(j.date,c));if(!dans&&!missions.some(m=>ACTIFS.includes(m.statut)))return}else if(!vigHeures(v))return}if(!(missions.some(m=>ACTIFS.includes(m.statut))||r.dispo))return;if(Date.now()-VIG.act>=v.inactif_min*60000)vigPrompt(v)}
 setInterval(()=>{try{vigTick()}catch(e){}},15000);
 /* Position : avertit au-delà de la vitesse autorisée et hors du périmètre ; un déplacement compte comme une activité */
 function secuPos(p){const r=REG(),c={lat:p.coords.latitude,lng:p.coords.longitude},v=p.coords.speed!=null&&p.coords.speed>=0?p.coords.speed*3.6:0;
@@ -229,6 +229,36 @@ function bonusHtml(){const B=PL().bonus;if(!B)return"";const prog=(B.quetes||[])
  return`<div class="card"><b>🔥 Zones chaudes</b>${(B.boosts||[]).length?(B.boosts).map(b=>`<div class="between sm" style="margin-top:4px"><span>${boostOk(b)?"🔥 ":""}${esc(b.zone==="*"?"Toutes zones":b.zone)} · ${b.jours.map(j=>JC[j]).join(" ")} ${esc(b.debut)}–${esc(b.fin)}</span><b>+${fcfa(b.montant)}</b></div>`).join(""):'<div class="sm mu">Aucune zone chaude programmée.</div>'}</div>
  <div class="card"><b>🎯 Mes quêtes</b>${prog.length?prog.map(q=>`<div style="margin-top:6px"><div class="between sm"><span>${q.fait?"✅ ":""}${esc(q.nom)}${q.zone&&q.zone!=="*"?" ("+esc(q.zone)+")":""}</span><b>${fcfa(q.montant)}</b></div>${barre(q.progres/q.cible)}<div class="sm mu" style="margin-top:-4px">${q.progres} / ${q.cible} livraison(s)</div></div>`).join(""):'<div class="sm mu">Aucune quête en cours.</div>'}
   <div class="sm" style="margin-top:8px">Bonus gagnés : zones <b>${fcfa(B.zone)}</b> + quêtes <b>${fcfa(B.quetes_acquises)}</b>${B.paye?" · déjà payé "+fcfa(B.paye):""} · reste à recevoir <b>${fcfa(B.reste)}</b></div></div>`}
+/* ---------- Planning (créneaux réservés) et pauses ---------- */
+const ymdL=d=>{const x=new Date(d);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")};
+const hmin=h=>vigMin(h),tsC=(d,h)=>{const x=new Date(d+"T00:00:00");x.setHours(Math.floor(hmin(h)/60),hmin(h)%60,0,0);return x.getTime()};
+const tsFin=(d,c)=>{const f=tsC(d,c.fin);return f<=tsC(d,c.debut)?f+864e5:f};
+const PLN=()=>PL().planning||{};
+const pauseLocale=()=>{const z=lsGet(LS.z,null);return z&&new Date(z.fin).getTime()>Date.now()?z:null};
+const pauseActive=()=>{const z=pauseLocale();if(z)return z;const p=PLN().pause;return p&&new Date(p.fin).getTime()>Date.now()?p:null};
+const enAttente=()=>lsGet(LS.l,[]).filter(x=>Date.now()-x.t<10*60000&&(!STATS||!STATS.maj_le||x.t>Date.parse(STATS.maj_le)));
+async function planEnvoyer(desc,ok){const x=await envoyer(refSos(),"incident",{nature:"PLANNING",description:desc},ok);return x}
+async function plReserverApp(op,cid,date){if(enAttente().some(x=>x.cid===cid&&x.date===date))return;
+ const x=await planEnvoyer((op==="RES"?"RES":"ANN")+"|"+cid+"|"+date,op==="RES"?"Demande de réservation envoyée au bureau":"Annulation envoyée au bureau");
+ if(x!==undefined){const L=enAttente();L.push({op,cid,date,t:Date.now()});lsSet(LS.l,L)}vueMissions()}
+async function pauseApp(min){const P=PLN(),restant=(P.pause_max_min||0)-(P.pause_jour||0)-(lsGet(LS.z,{}).min&&lsGet(LS.z,{}).t>Date.parse((STATS||{}).maj_le||0)?lsGet(LS.z,{}).min:0);
+ if(missions.some(m=>m.statut==="en_cours"))return toast("Terminez d'abord la course en cours","err"),false;
+ if(min>restant)return toast("Pause limitée : il vous reste "+Math.max(0,restant)+" min aujourd'hui","err"),false;
+ lsSet(LS.z,{fin:new Date(Date.now()+min*60000).toISOString(),min,t:Date.now()});VIG.act=Date.now();
+ await planEnvoyer("PAUSE|"+min,"Pause de "+min+" min : le bureau est prévenu");vueMissions();return true}
+async function reprendreApp(){try{localStorage.removeItem(LS.z)}catch(e){}VIG.act=Date.now();await planEnvoyer("REPRISE","Bonne reprise !");vueMissions()}
+const pauseBandeau=()=>{const z=pauseActive();return z?`<div class="al" style="background:#fff3e0;color:#7a4300">⏸ <b>En pause</b> jusqu'à ${heureC(Date.parse(z.fin))} : aucune mission ne vous est confiée. <a href="#" data-a="reprise">▶ Reprendre</a></div>`:""};
+function planHtml(){const P=PLN(),z=pauseActive(),restant=Math.max(0,(P.pause_max_min||0)-(P.pause_jour||0)),att=enAttente();
+ if(!PL().p)return`<h2 class="pg">Planning et pauses</h2><div class="card mu">Pas encore disponible : le bureau publie vos données dès que votre compte est relié.</div>`;
+ const pause=`<div class="card"><b>⏸ Pause</b>${z?`<div class="al" style="margin-top:6px">En pause jusqu'à <b>${heureC(Date.parse(z.fin))}</b>.</div><button class="btn ok" data-a="reprise">▶ Reprendre le travail</button>`
+  :`<div class="sm mu" style="margin:4px 0 8px">Pendant une pause, vous ne recevez pas de mission. Il vous reste <b>${restant} min</b> aujourd'hui (maximum ${P.pause_max_min||0} min).</div><div class="chips">${[15,30,45,60].map(m=>`<button type="button" class="chip" data-a="pause" data-r="${m}" ${m>restant?"disabled":""}>${m} min</button>`).join("")}</div>`}</div>`;
+ if(!P.actif)return`<h2 class="pg">Planning et pauses</h2>${pause}<div class="card mu">La réservation de créneaux n'est pas activée par le bureau.</div>`;
+ const jours=(P.jours||[]).map(j=>`<h3 style="margin:14px 0 4px">${j.date===ymdL(Date.now())?"Aujourd'hui":esc(new Date(j.date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}))}</h3>${j.creneaux.map(c=>{
+  const pas=tsFin(j.date,c)<=Date.now(),en=att.find(x=>x.cid===c.cid&&x.date===j.date),tard=tsC(j.date,c.debut)-Date.now()<(P.annulation_h||0)*36e5,res=en?en.op==="RES":c.reserve;
+  return`<div class="card" style="margin:6px 0"><div class="between"><span><b>${esc(c.nom)}</b> <span class="mu sm">${esc(c.debut)}–${esc(c.fin)}</span></span><span class="sm">${res?'<b style="color:#118a4b">✔ Réservé</b>':c.places>0?c.places+" place(s)":'<span class="mu">Complet</span>'}</span></div>
+   ${c.statut==="absent"?'<div class="sm" style="color:var(--er)">Marqué absent</div>':""}
+   ${en?'<div class="sm" style="color:#b86e00;margin-top:4px">⏳ En attente de confirmation du bureau</div>':pas?"":res?(tard?`<div class="sm mu" style="margin-top:4px">Annulation impossible à moins de ${P.annulation_h} h : prévenez le bureau.</div>`:`<button class="btn ghost" data-a="plan" data-r="ANN|${esc(c.cid)}|${j.date}">✖ Annuler ma réservation</button>`):c.places>0?`<button class="btn" data-a="plan" data-r="RES|${esc(c.cid)}|${j.date}">📅 Réserver ce créneau</button>`:""}</div>`}).join("")}`).join("");
+ return`<h2 class="pg">Planning et pauses</h2>${pause}<h2 class="pg" style="margin-top:14px">Créneaux de travail</h2>${jours||'<div class="card mu">Aucun créneau proposé pour le moment.</div>'}<div class="sm mu" style="margin:6px 0">Annulation libre jusqu'à ${P.annulation_h||0} h avant le début. Le bureau confirme chaque demande.</div>`}
 function gainsHtml(){const P=PL(),X=P.p,A=P.argent,Q=P.prime,M=P.moto,R=P.regles||{};
  if(!X)return`<h2 class="pg">Mes gains et ma prime</h2><div class="card mu">Pas encore disponible : le bureau publie vos chiffres dès que votre compte est relié.</div>`;
  const g=k=>fcfa((X[k]||{}).gains||0),mois=X.mois||{};
@@ -271,6 +301,7 @@ function reglagesHtml(){const st=GPSST==="granted"?'<span style="color:var(--ok)
 const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu"><div class="between"><b>${esc((moi&&moi.nom)||"Livreur")}</b><button class="btn ghost bg" data-a="menu" aria-label="Fermer le menu">✕</button></div>
  <button class="mi ${PAGE==="cours"?"on":""}" data-a="page" data-r="cours">📋 Commandes en cours et meilleur itinéraire<span class="bd">${n}</span></button>
  <button class="mi ${PAGE==="recent"?"on":""}" data-a="page" data-r="recent">✅ Traitées récemment<span class="bd">${f}</span></button>
+ <button class="mi ${PAGE==="plan"?"on":""}" data-a="page" data-r="plan">📅 Planning et pauses</button>
  <button class="mi ${PAGE==="gains"?"on":""}" data-a="page" data-r="gains">💰 Mes gains et ma prime</button>
  <button class="mi ${PAGE==="stats"?"on":""}" data-a="page" data-r="stats">📊 Mes statistiques</button>
  <button class="mi ${PAGE==="reglages"?"on":""}" data-a="page" data-r="reglages">⚙ GPS, mot de passe et alertes</button>
@@ -278,11 +309,12 @@ const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><na
  <button class="mi er" data-a="quitter">⏻ Déconnexion</button></nav></div>`;
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
- const alertes=`${boostBandeau()}${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
+ const alertes=`${pauseBandeau()}${boostBandeau()}${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
  const corps=PAGE==="recent"?`<h2 class="pg">Traitées récemment</h2>${fin.length?fin.map(carte).join(""):'<div class="card mu">Aucune commande traitée récemment.</div>'}`
   :PAGE==="reglages"?reglagesHtml()
   :PAGE==="stats"?statsHtml()
   :PAGE==="gains"?gainsHtml()
+  :PAGE==="plan"?planHtml()
   :`<h2 class="pg">Commandes en cours</h2>${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${itinCard()}${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}`;
  $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml(act.length,fin.length):""}<div class="wrap">${PAGE==="reglages"?"":'<div class="inst"></div>'}${alertes}${corps}</div><button type="button" class="sosb" data-a="sos" aria-label="Alerte SOS">🆘<small>SOS</small></button>`}
 document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.it!=null){ITIN.sel=ITIN.sel||new Set();if(t.checked){if(ITIN.sel.size>=10){t.checked=false;return toast("10 commandes au plus par itinéraire","err")}ITIN.sel.add(t.dataset.it)}else ITIN.sel.delete(t.dataset.it);ITIN.res=null}
@@ -304,12 +336,13 @@ const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse
 const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
 const ACT={
  sos:()=>sosOuvrir(),
+ plan:r=>{const a=String(r).split("|");if(a.length===3)plReserverApp(a[0],a[1],a[2])},pause:r=>pauseApp(+r),reprise:()=>reprendreApp(),
  voix:()=>{const d=ANGELS_SIGNAL.dev();ANGELS_SIGNAL.setDev({voice:!d.voice});if(!d.voice)ANGELS_SIGNAL.parler("Lecture vocale activée",{force:true});vueMissions()},
  sons:()=>{const d=ANGELS_SIGNAL.dev();if(d.mute)ANGELS_SIGNAL.setDev({mute:false,vol:.5});else if(d.vol<=.5)ANGELS_SIGNAL.setDev({vol:1});else ANGELS_SIGNAL.setDev({mute:true});ANGELS_SIGNAL.jouer("bip",{rep:1,vib:false});vueMissions()},
  posclient:async r=>{const t=Date.now();const x=await envoyer(r,"incident",{nature:"Position du client",description:"Demande de la position GPS du client (envoyer le lien de partage)"},"Demande envoyée au bureau : vous pouvez partir, la position s'affichera ici.");if(x!==undefined){const P=lsGet(LS.p,{});P[r]=t;lsSet(LS.p,P)}vueMissions()},
  menu:()=>{MENU=!MENU;vueMissions()},
  sp:r=>{SP=["j","s7","m30","mois"].includes(r)?r:"s7";vueMissions()},
- page:r=>{PAGE=["cours","recent","reglages","stats","gains"].includes(r)?r:"cours";MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
+ page:r=>{PAGE=["cours","recent","reglages","stats","gains","plan"].includes(r)?r:"cours";MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
  gpsact:()=>{if(!navigator.geolocation)return toast("GPS indisponible sur cet appareil","err");
   navigator.geolocation.getCurrentPosition(()=>{lsSet(LS.g,{on:true});GPSST="granted";toast("GPS activé : votre position est disponible","ok");suivi();vueMissions()},e=>{if(e&&e.code===1)GPSST="denied";toast(e&&e.code===1?"GPS refusé : autorisez la localisation dans les réglages du navigateur":"Position introuvable : sortez à l'air libre ou activez la localisation du téléphone","err");vueMissions()},{enableHighAccuracy:true,timeout:15000})},
  itincalc:async()=>{const E=eligibles().filter(m=>ITIN.sel&&ITIN.sel.has(m.livraison_ref));if(!E.length)return toast("Cochez au moins une commande","err");if(ITIN.busy)return;ITIN.busy=true;vueMissions();
