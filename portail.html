@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0e7490">
 <meta name="description" content="Site et boutique en ligne : commandez, découvrez nos activités, devenez vendeur partenaire, contactez-nous.">
+<meta property="og:type" content="website"><meta property="og:site_name" content="ANGEL'S GROUP"><meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Commander en ligne — ANGEL'S GROUP"><meta property="og:description" content="Passez votre commande en 2 minutes. Livraison à moto. Aucun paiement ni mot de passe demandé sur cette page.">
+<meta property="og:image" content="https://angelsgroups.vercel.app/icons/hub-512.png"><meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest-portail.webmanifest">
 <link rel="icon" type="image/png" href="icons/hub-192.png">
 <link rel="apple-touch-icon" href="icons/hub-apple-180.png">
@@ -431,7 +434,13 @@ async function suiviRendre(){
  else if(r.etat==="ko")el.innerHTML='<div class="card"><span class="cert ko">Lien non authentique</span><h3 style="margin-top:10px">Ne tenez pas compte de ce lien</h3><p class="mu">La signature de ce lien ne correspond pas : il a été modifié ou n\'a pas été émis par l\'entreprise. Contactez-nous directement.</p></div>';
  else{el.innerHTML=suiviCarte(r.d,r.etat);const m=document.getElementById("sv_map");if(m)carteSuivi(m,r.d.dst,r.d.pos);else{el.insertAdjacentHTML("beforeend",'<div class="card" style="margin-top:14px"><h3>Carte</h3><p class="mu">'+(["livree","annulee","echouee","retour_cours","retour_recu"].includes(r.d.s)?"Livraison terminée : la carte ne s\'affiche que pendant le trajet.":"La position du livreur s\'affichera ici dès que votre commande sera en route (nouveau lien reçu par WhatsApp).")+'</p><div class="svmap" id="sv_zone" role="img" aria-label="Carte de la zone de livraison"></div></div>');const z=document.getElementById("sv_zone");if(z)carteZone(z)}}}
 /* Commande par lien : « commande libre » chez un vendeur partenaire, ou boutique préremplie pour un client */
-function commanderTok(){let o=null;try{o=unb64(jetonDe())}catch(e){}if(!o||typeof o!=="object")return null;
+/* Zones proposées quand le lien n'en contient pas et que le bureau n'a pas publié sa liste (mêmes noms que les zones par défaut de l'application Distributions) */
+const ZONES_DEFAUT=["Plateau","Cocody","Marcory","Treichville","Adjamé","Koumassi","Attécoubé","Abobo","Yopougon","Port-Bouët","Bingerville","Anyama","Songon","Grand-Bassam","Dabou","Bonoua","Azaguié","Alépé","Sikensi","Jacqueville","Assinie","Autre localité (tarif à convenir)"];
+/* Lien court et lisible (…/commander?boutique=Yoyoo+Boutique&tel=0585656086 ou ?client=Marie&tel=…&zone=Cocody) : aucun bloc codé, rien d'inquiétant à cliquer.
+   Les anciens liens (#/commander/<code>) continuent de fonctionner. */
+function lienCourt(){const q=new URLSearchParams(location.search),b=cutS(q.get("boutique"),80),cl=cutS(q.get("client"),80),t=digits(q.get("tel")).slice(0,20);if(!b&&!cl)return null;
+ return{org:"",w:"",v:b,i:cutS(q.get("ref"),60),t,z:[],c:cl?{n:cl,t,z:cutS(q.get("zone"),60),q:cutS(q.get("quartier"),120),r:cutS(q.get("repere"),200)}:null}}
+function commanderTok(){let o=null;const j=jetonDe();if(!j)return lienCourt();try{o=unb64(j)}catch(e){}if(!o||typeof o!=="object")return null;
  return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),i:cutS(o.i,60),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
 function commanderRendre(){
  const el=document.getElementById("cm"),o=commanderTok();if(!el)return;
@@ -439,8 +448,8 @@ function commanderRendre(){
  if(!o.v){ST.pre=o.c;location.replace("#/boutique");return}
  if(ST.cs==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre commande à <b>"+esc(o.v)+"</b>. Il la vérifie, confirme le prix et organise la livraison par "+esc(o.org||T.nom)+".",ST.cmsg,ST.cref,"cmd",o.t||o.w,ST.cdm||"");return}
  const L=ST.cl||(ST.cl=[{d:"",q:1,p:""}]),c=o.c||{};
- const zs=o.z.length?o.z:(T.shop?T.shop.zones.map(z=>z.nom):[]);
- el.innerHTML=`<div class="card"><div class="mu">${esc(o.org||T.nom)}</div><h3 style="margin:2px 0 6px">Commander chez ${esc(o.v)}</h3><p class="mu">Décrivez votre commande et votre adresse : elle part sur WhatsApp, rien n'est livré avant la validation de ${esc(o.v)}.</p>
+ const zs=o.z.length?o.z:(T.shop&&T.shop.zones&&T.shop.zones.length?T.shop.zones.map(z=>z.nom):ZONES_DEFAUT);
+ el.innerHTML=`<div class="card"><div class="mu">${esc(o.org||T.nom)}</div><h3 style="margin:2px 0 6px">Commander chez ${esc(o.v)}</h3><p class="mu" style="margin:0 0 8px">🔒 Lien officiel ${esc(o.org||T.nom)} · <b>aucun paiement, mot de passe ou code</b> n'est demandé ici.</p><p class="mu">Décrivez votre commande et votre adresse : elle part sur WhatsApp, rien n'est livré avant la validation de ${esc(o.v)}.</p>
  <h3>1. Articles</h3>${L.map((l,i)=>`<div class="lgn"><label>Article<input class="c_d" data-i="${i}" maxlength="120" value="${esc(l.d)}"></label><label>Qté<input class="c_q" data-i="${i}" type="number" min="1" max="99" value="${esc(l.q)}"></label><label>Prix (F) si connu<input class="c_p" data-i="${i}" inputmode="numeric" value="${esc(l.p)}"></label>${L.length>1?`<button type="button" class="chip" data-cl="del" data-i="${i}" aria-label="Retirer">−</button>`:"<span></span>"}</div>`).join("")}
  ${L.length<20?'<button type="button" class="chip" data-cl="add">+ Ajouter un article</button>':""}
  <h3>2. Vous</h3><div class="fg"><label>Votre nom<input id="c_nom" maxlength="80" autocomplete="name" value="${esc(c.n||"")}"></label><label>Téléphone / WhatsApp<input id="c_tel" inputmode="tel" autocomplete="tel" value="${esc(c.t||"")}"></label></div>
@@ -620,6 +629,7 @@ document.addEventListener("click",e=>{
 addEventListener("storage",ev=>{if(ev.key===KEY){T=charger();rendre()}});try{new BroadcastChannel("angels_portail").onmessage=()=>{T=charger();Promise.all([lireMedias(),lireVehicules()]).then(([m,v])=>{MED=m;VEH=v;rendre()})}}catch(e){}
 addEventListener("hashchange",()=>{if(/[#&]p=/.test(location.hash)){T=charger();location.hash="#/accueil"}else rendre()});
 if(/[#&]p=/.test(location.hash)){T=charger();history.replaceState(null,"",location.pathname+"#/accueil")}
+if(!location.hash&&/[?&](boutique|client)=/.test(location.search))history.replaceState(null,"",location.pathname+location.search+"#/commander");
 rendre();Promise.all([lireMedias(),lireVehicules()]).then(([m,v])=>{MED=m;VEH=v;rendre()}).catch(()=>{});
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

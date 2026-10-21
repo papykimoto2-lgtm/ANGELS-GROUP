@@ -127,6 +127,10 @@
     {
       "source": "/.well-known/assetlinks.json",
       "destination": "/assetlinks.json"
+    },
+    {
+      "source": "/commander",
+      "destination": "/portail.html"
     }
   ]
 }
