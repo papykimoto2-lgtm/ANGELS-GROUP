@@ -60,6 +60,23 @@
           "value": "public, max-age=3600"
         }
       ]
+    },
+    {
+      "source": "/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -106,6 +123,10 @@
     {
       "source": "/verifier",
       "destination": "/verifier.html"
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "destination": "/assetlinks.json"
     }
   ]
 }

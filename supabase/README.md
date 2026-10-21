@@ -96,3 +96,8 @@ Fonction `rapport-connexions` (`verify_jwt: false`, clés propres) : construit l
 2. Secrets de la fonction : `SYNC_KEY` (la même que la synchronisation), `CRON_KEY` (16 caractères au moins, propre à la planification), `RESEND_API_KEY`, `RAPPORT_DE` (expéditeur vérifié chez Resend, ex. `Angel's Group <rapports@votre-domaine>`).
 3. Déployer `rapport-connexions`, activer les extensions `pg_cron` et `pg_net`, puis exécuter une fois : `select public.rapport_dg_planifier('https://<projet>.supabase.co/functions/v1/rapport-connexions', '<CRON_KEY>');` (passage chaque heure pleine ; l'envoi n'a lieu qu'une fois par jour, après l'heure choisie, heure d'Abidjan).
 4. Dans Paramètres du hub → Connexions : adresses du DG, heure, **Enregistrer**, puis **E-mail de test**.
+
+## Notifications push du livreur (Web Push / VAPID) et application Android
+
+Migration `011_push.sql` (table `pg_push`, sans accès direct), fonctions `push-abonner` (jeton du livreur vérifié dans la fonction) et `push-envoyer` (`--no-verify-jwt`, protégée par `ADMIN_KEY`).
+Secrets : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (clés générées par `node tools/gen-vapid.js` ; la clé publique va aussi dans `passerelle-config.js`). Procédure complète, test et application Android (TWA) : `android/README.md`. Tests : `node tests/push.js`.

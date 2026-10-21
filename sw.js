@@ -55,15 +55,19 @@ self.addEventListener("fetch", e => {
   e.respondWith(caches.match(r, { ignoreSearch: true }).then(m => m || fetch(r).then(res => { if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); } return res; })));
 });
 
-/* Alertes de course (Livraison) : un clic sur la notification rouvre l'application ; « push » est prêt pour l'envoi serveur (Web Push) */
+/* Notifications push (Web Push, serveur) et alertes de course : la charge utile est { t: titre, b: texte, tag, u: lien relatif } ;
+   un toucher sur la notification rouvre l'application (ou la fenêtre déjà ouverte) à la page voulue. */
 self.addEventListener("notificationclick", e => {
   e.notification.close();
+  const rel = (e.notification.data && e.notification.data.u) || "livreur.html";
+  const cible = new URL(rel, self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => {
-    for (const c of cs) { if ("focus" in c) return c.focus(); }
-    return self.clients.openWindow("./");
+    for (const c of cs) { if (c.url.split("?")[0] === cible.split("?")[0] && "focus" in c) return c.focus(); }
+    for (const c of cs) { if ("focus" in c && "navigate" in c) return c.focus().then(w => (w && w.navigate ? w.navigate(cible) : w)); }
+    return self.clients.openWindow(cible);
   }));
 });
 self.addEventListener("push", e => {
-  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { titre: "Nouvelle course", corps: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.titre || "🏍️ Nouvelle course", { body: d.corps || "Ouvrez l'application pour répondre.", tag: d.tag || "course", renotify: true, requireInteraction: true, vibrate: [400, 150, 400, 150, 800], icon: "icons/icon-192.png", badge: "icons/icon-192.png" }));
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { t: "ANGEL'S GROUP", b: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.t || d.titre || "🏍️ ANGEL'S GROUP", { body: d.b || d.corps || "Ouvrez l'application pour répondre.", tag: d.tag || "course", renotify: true, requireInteraction: true, vibrate: [400, 150, 400, 150, 800], icon: "icons/livreur-192.png", badge: "icons/livreur-192.png", data: { u: d.u || "livreur.html" } }));
 });
