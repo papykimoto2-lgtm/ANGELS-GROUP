@@ -149,6 +149,7 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  <div style="margin-top:6px"><b>${esc(p.client_nom)}</b><br>📍 ${adrTxt(a)}${a.repere?`<br><span class="mu">${esc(a.repere)}</span>`:""}${a.instructions?`<br><i>${esc(a.instructions)}</i>`:""}${p.obs?`<br><span class="sm mu">${esc(p.obs)}</span>`:""}</div>
  ${act?`<div class="pill sm">${(p.lignes||[]).map(l=>esc(l.qte+" × "+l.desig)).join("<br>")}</div>`:""}
  <div class="pill between"><span>${(p.lignes||[]).reduce((s,x)=>s+(+x.qte||0),0)} article(s)${p.nb_colis?" · "+p.nb_colis+" colis":""}</span><b>${p.montant_attendu>0?fcfa(p.montant_attendu):"Déjà payé"}</b></div>
+ ${(()=>{const b=act?boostZone(a.zone):0;return b?`<div class="sm" style="color:#b86e00;margin-top:4px">🔥 Zone chaude : +${fcfa(b)} sur cette course</div>`:""})()}
  ${p.paye_vendeur>0?`<div class="sm mu">💳 ${fcfa(p.paye_vendeur)} déjà payés chez le fournisseur — vous n'encaissez que le reste.</div>`:""}
  ${act?`${posBloc(m,a,g)}${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
  ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
@@ -218,11 +219,22 @@ function secuPos(p){const r=REG(),c={lat:p.coords.latitude,lng:p.coords.longitud
  if(!VIG.pos||hav(VIG.pos,c)>.05){if(VIG.pos)VIG.act=Math.max(VIG.act,Date.now());VIG.pos=c}}
 /* ---------- Mes gains et ma prime ---------- */
 const barre=v=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,Math.round(v*100)))}%"></i></div>`;
+/* Zones chaudes : actives selon le jour et l'heure du téléphone */
+function boostOk(b,d){d=d||new Date();const m=d.getHours()*60+d.getMinutes(),a=vigMin(b.debut),f=vigMin(b.fin),J=b.jours||[],j=d.getDay();return a<=f?J.includes(j)&&m>=a&&m<f:(J.includes(j)&&m>=a)||(J.includes((j+6)%7)&&m<f)}
+const boostsActifs=()=>((PL().bonus||{}).boosts||[]).filter(b=>boostOk(b));
+const boostZone=z=>boostsActifs().filter(b=>b.zone==="*"||b.zone===z).reduce((m,b)=>Math.max(m,+b.montant),0);
+const JC=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+function boostBandeau(){const A=boostsActifs();return A.length?`<div class="al" style="background:#fff3e0;color:#7a4300">🔥 <b>Zones chaudes en ce moment</b> : ${A.map(b=>esc(b.zone==="*"?"Toutes zones":b.zone)+" +"+fcfa(b.montant)+"/course jusqu'à "+esc(b.fin)).join(" · ")}</div>`:""}
+function bonusHtml(){const B=PL().bonus;if(!B)return"";const prog=(B.quetes||[]);
+ return`<div class="card"><b>🔥 Zones chaudes</b>${(B.boosts||[]).length?(B.boosts).map(b=>`<div class="between sm" style="margin-top:4px"><span>${boostOk(b)?"🔥 ":""}${esc(b.zone==="*"?"Toutes zones":b.zone)} · ${b.jours.map(j=>JC[j]).join(" ")} ${esc(b.debut)}–${esc(b.fin)}</span><b>+${fcfa(b.montant)}</b></div>`).join(""):'<div class="sm mu">Aucune zone chaude programmée.</div>'}</div>
+ <div class="card"><b>🎯 Mes quêtes</b>${prog.length?prog.map(q=>`<div style="margin-top:6px"><div class="between sm"><span>${q.fait?"✅ ":""}${esc(q.nom)}${q.zone&&q.zone!=="*"?" ("+esc(q.zone)+")":""}</span><b>${fcfa(q.montant)}</b></div>${barre(q.progres/q.cible)}<div class="sm mu" style="margin-top:-4px">${q.progres} / ${q.cible} livraison(s)</div></div>`).join(""):'<div class="sm mu">Aucune quête en cours.</div>'}
+  <div class="sm" style="margin-top:8px">Bonus gagnés : zones <b>${fcfa(B.zone)}</b> + quêtes <b>${fcfa(B.quetes_acquises)}</b>${B.paye?" · déjà payé "+fcfa(B.paye):""} · reste à recevoir <b>${fcfa(B.reste)}</b></div></div>`}
 function gainsHtml(){const P=PL(),X=P.p,A=P.argent,Q=P.prime,M=P.moto,R=P.regles||{};
  if(!X)return`<h2 class="pg">Mes gains et ma prime</h2><div class="card mu">Pas encore disponible : le bureau publie vos chiffres dès que votre compte est relié.</div>`;
  const g=k=>fcfa((X[k]||{}).gains||0),mois=X.mois||{};
  return`<h2 class="pg">Mes gains et ma prime</h2>
  <div class="kp"><div><b>${g("j")}</b><span>gagné aujourd'hui</span></div><div><b>${g("s7")}</b><span>7 jours</span></div><div><b>${g("m30")}</b><span>30 jours</span></div><div><b>${g("mois")}</b><span>ce mois</span></div></div>
+ ${boostBandeau()}${bonusHtml()}
  ${A?`<div class="card"><b>💰 Argent à reverser au bureau</b><div style="font-size:26px;font-weight:800;margin:4px 0;color:${A.solde>0?"var(--er)":"var(--ok)"}">${fcfa(A.solde)}</div>
   <div class="sm">📦 Montant collecté (produits) : <b>${fcfa(A.produits)}</b><br>🛵 Frais de livraison collectés : <b>${fcfa(A.frais)}</b>${A.gardes?`<br>➖ Frais gardés par vous : <b>${fcfa(A.gardes)}</b>`:""}${A.rev?`<br>➖ Déjà reversé : <b>${fcfa(A.rev)}</b>`:""}${A.attente?`<br>⏳ ${fcfa(A.attente)} déclaré, en validation par la caisse`:""}</div>
   ${A.solde>0?`<div class="sm mu" style="margin-top:6px">Remettez les espèces au caissier, ou envoyez par Mobile Money${(A.comptes||[]).length?" à : "+A.comptes.map(esc).join(" · "):""} puis prévenez le bureau avec la référence de la transaction.</div>`:""}</div>`:""}
@@ -266,7 +278,7 @@ const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><na
  <button class="mi er" data-a="quitter">⏻ Déconnexion</button></nav></div>`;
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
- const alertes=`${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
+ const alertes=`${boostBandeau()}${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
  const corps=PAGE==="recent"?`<h2 class="pg">Traitées récemment</h2>${fin.length?fin.map(carte).join(""):'<div class="card mu">Aucune commande traitée récemment.</div>'}`
   :PAGE==="reglages"?reglagesHtml()
   :PAGE==="stats"?statsHtml()
