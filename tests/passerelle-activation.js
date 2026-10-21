@@ -31,10 +31,18 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const essai=async m=>{mode=m;return p.evaluate(async()=>{view="params";ui.ptab="liv";render();$("#p_apurl").value="https://x.supabase.co/functions/v1";$("#p_apkey").value="k";await ACT.pgTest();return document.getElementById("pg_res").textContent})};
  const t401=await essai("401"),t404=await essai("404"),tnet=await essai("net"),tok=await essai("ok");
  chk("PGA-5","« Tester la passerelle » : clé refusée (401), fonction introuvable (404), serveur injoignable, succès : chaque cas a son message précis",/Clé refusée \(401\).*ADMIN_KEY/.test(t401)&&/introuvable \(404\)/.test(t404)&&/injoignable/.test(tnet)&&/Passerelle OK/.test(tok),JSON.stringify([t401,t404,tnet,tok]));
- mode="ok";const cr=await p.evaluate(async()=>{S.config.appel_pont={url:"https://x.supabase.co/functions/v1",cle_admin:"k"};S.config.passerelle_actif=true;ANGELS_AUTH.afficherTemp=async()=>{};
+ mode="ok";const cr=await p.evaluate(async()=>{S.config.appel_pont={url:"https://x.supabase.co/functions/v1",cle_admin:"k"};S.config.passerelle_actif=true;window.__at=ANGELS_AUTH.afficherTemp;ANGELS_AUTH.afficherTemp=async()=>{};
   const avant=S.livreurs.filter(l=>!l.ident_serveur).length;view="params";ui.ptab="liv";render();window.confirm=()=>true;await ACT.pgComptes();
   return{avant,apres:S.livreurs.filter(l=>!l.ident_serveur&&!l.archive).length,idents:S.livreurs.map(l=>l.ident_serveur).filter(Boolean).length,msg:document.getElementById("pg_res").textContent}});
  chk("PGA-6","« Créer les comptes serveur manquants » : un compte par livreur actif sans compte, identifiant mémorisé, aucun doublon au second appel",cr.avant>0&&cr.apres===0&&creer.length===cr.avant&&/compte\(s\) créé/.test(cr.msg),JSON.stringify([cr,creer.length]));
+ /* fenêtre d'identifiants du livreur : identifiant visible, message prêt, envoi WhatsApp vers son numéro */
+ const wa=await p.evaluate(async()=>{ANGELS_AUTH.afficherTemp=window.__at;S.config.appel_pont={url:"https://x.supabase.co/functions/v1",cle_admin:"k"};S.config.passerelle_actif=true;const lv=S.livreurs[0];lv.tel="07 08 09 10 11";delete lv.ident_serveur;
+  const f=window.fetch;window.fetch=async(u,o)=>{const b=JSON.parse(o.body);return{ok:true,status:200,json:async()=>({ok:true,ident:b.ident||"x",mdp:"Tmp-Abc123-xyz"})}};
+  let url="";window.open=u=>{url=u;return null};const pr=passCompte(lv,false);await new Promise(r=>setTimeout(r,300));
+  const o={id:(document.getElementById("aa-id")||{}).textContent,mdp:(document.getElementById("aa-m")||{}).textContent,btn:!!document.getElementById("aa-wa")&&!!document.getElementById("aa-cm")};
+  document.getElementById("aa-wa").click();document.getElementById("aa-ok").click();await pr;window.fetch=f;o.url=url;o.ident=lv.ident_serveur;return o});
+ const dec=decodeURIComponent(wa.url||"");
+ chk("PGA-7","fenêtre du compte livreur : identifiant affiché, boutons « Copier le message » et « Envoyer par WhatsApp » ; le message part vers le numéro du livreur avec le lien, l'identifiant et le mot de passe temporaire",wa.btn&&wa.id===wa.ident&&wa.mdp==="Tmp-Abc123-xyz"&&/^https:\/\/wa\.me\/225\d{10}\?text=/.test(wa.url)&&dec.includes("livreur.html")&&dec.includes("Identifiant : "+wa.ident)&&dec.includes("Mot de passe temporaire : Tmp-Abc123-xyz"),JSON.stringify(wa));
  chk("PGA-4","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

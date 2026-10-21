@@ -183,9 +183,15 @@
   function afficherTemp(o) {
     return new Promise(function (res) {
       var h = '<h2 id="aa-t">' + esc(o.titre || "Mot de passe temporaire") + "</h2><p><b>" + esc(o.nom) + "</b> : communiquez ce mot de passe de vive voix ou par message privé. Il ne sera plus affiché ; " + esc(o.nom) + " devra le remplacer à la première connexion.</p>" +
-        '<div class="mdp" id="aa-m">' + esc(o.mdp) + '</div><div class="er" id="aa-e" style="color:#1b6e3d" role="status"></div><div class="ft"><button type="button" id="aa-cp">Copier</button><button type="button" class="p" id="aa-ok">J\'ai noté le mot de passe</button></div>';
+        (o.ident ? '<p style="margin:6px 0 2px">Identifiant : <b id="aa-id">' + esc(o.ident) + "</b></p>" : "") +
+        '<div class="mdp" id="aa-m">' + esc(o.mdp) + '</div><div class="er" id="aa-e" style="color:#1b6e3d" role="status"></div><div class="ft"><button type="button" id="aa-cp">Copier</button>' +
+        (o.msg ? '<button type="button" id="aa-cm">Copier le message</button><button type="button" id="aa-wa">💬 Envoyer par WhatsApp</button>' : "") + '<button type="button" class="p" id="aa-ok">J\'ai noté le mot de passe</button></div>';
       var e = ov(h, null);
       e.querySelector("#aa-cp").onclick = function () { var er = e.querySelector("#aa-e"); try { navigator.clipboard.writeText(o.mdp).then(function () { er.textContent = "Copié."; }, function () { er.textContent = "Copie impossible : recopiez-le à la main."; }); } catch (x) { er.textContent = "Copie impossible : recopiez-le à la main."; } };
+      if (o.msg) {
+        e.querySelector("#aa-cm").onclick = function () { var er = e.querySelector("#aa-e"); try { navigator.clipboard.writeText(o.msg).then(function () { er.textContent = "Message copié."; }, function () { er.textContent = "Copie impossible : recopiez-le à la main."; }); } catch (x) { er.textContent = "Copie impossible : recopiez-le à la main."; } };
+        e.querySelector("#aa-wa").onclick = function () { var n = String(o.tel || "").replace(/\D/g, ""); try { window.open("https://wa.me/" + n + "?text=" + encodeURIComponent(o.msg), "_blank", "noopener"); } catch (x) { } };
+      }
       e.querySelector("#aa-ok").onclick = function () { fermer(); res(true); };
       setTimeout(function () { try { e.querySelector("#aa-ok").focus(); } catch (x) { } }, 30);
     });
