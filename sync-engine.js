@@ -86,7 +86,7 @@
     var arr = S[l.coll], i = -1, n; for (n = 0; n < arr.length; n++) if (arr[n] && arr[n].id === l.id) { i = n; break; }
     if (l.supprime) { if (i >= 0) { arr.splice(i, 1); chg = true; } delete B.map[key]; return chg; }
     if (i >= 0) { chg = JSON.stringify(arr[i]) !== JSON.stringify(l.data); if (chg) remplacer(arr[i], l.data); } else { arr.push(l.data); chg = true; }
-    B.map[key] = [l.rev, h(JSON.stringify(i >= 0 ? arr[i] : arr[arr.length - 1])), "enreg"]; return chg;
+    B.map[key] = [l.rev, h(JSON.stringify(i >= 0 ? arr[i] : arr[arr.length - 1])), P.ajout.indexOf(l.coll) >= 0 ? "ajout" : "enreg"]; return chg;   /* un journal reçu reste un journal : jamais renvoyé comme enregistrement à supprimer */
   }
   function avis(m, t) {
     try { if (P.toast) return P.toast(m, t); var d = document.createElement("div"); d.setAttribute("role", "status"); d.textContent = m; d.style.cssText = "position:fixed;left:50%;bottom:54px;transform:translateX(-50%);z-index:9100;max-width:90vw;padding:10px 16px;border-radius:12px;font:600 13px Arial,sans-serif;color:#fff;background:" + (t === "err" ? "#c62828" : "#0b3b4c") + ";box-shadow:0 4px 16px rgba(0,0,0,.3)"; document.body.appendChild(d); setTimeout(function () { d.remove(); }, 9000); } catch (e) { }
@@ -146,7 +146,7 @@
   async function pousser(c, tout) {
     var S = P.get(), cur = photo(S), ops = [], dels = 0, total = Object.keys(B.map).length, key;
     for (key in cur) { var e = cur[key], b = B.map[key]; if (!b) ops.push({ coll: e.coll, id: e.id, kind: e.kind, base: 0, data: e.data, _h: e.hash }); else if (tout || b[1] !== e.hash) ops.push({ coll: e.coll, id: e.id, kind: e.kind, base: b[0], data: e.data, _h: e.hash }); }
-    for (key in B.map) { if (!(key in cur)) { var m = B.map[key]; if (m[2] === "enreg") { var p = key.indexOf("|"); ops.push({ coll: key.slice(0, p), id: key.slice(p + 1), kind: "enreg", base: m[0], del: true }); dels++; } else if (m[2] === "trop" || m[2] === "doc") delete B.map[key]; } }
+    for (key in B.map) { if (!(key in cur)) { var m = B.map[key]; if (m[2] === "enreg") { var p = key.indexOf("|"); ops.push({ coll: key.slice(0, p), id: key.slice(p + 1), kind: "enreg", base: m[0], del: true }); dels++; } else if (m[2] === "trop" || m[2] === "doc" || m[2] === "ajout") delete B.map[key]; } }
     if (dels >= 20 && dels >= total * 0.5) {
       var go = false; try { go = confirm("SUPPRESSION MASSIVE — " + P.nom + "\n\nCe poste a supprimé " + dels + " enregistrements d'un coup (sur " + total + ").\n\nOK = supprimer aussi sur le serveur et les autres postes\nAnnuler = restaurer ces données depuis le serveur"); } catch (e2) { }
       if (!go) { B = { cursor: 0, map: {}, boot: false }; sauverBase(); st.err = "Suppression annulée : restauration depuis le serveur"; return "restaurer"; }
@@ -164,6 +164,7 @@
         B.map[k] = [a.rev, o._h, o.kind];
       });
       r.rejets.forEach(function (j) {
+        if (P.ajout.indexOf(j.coll) >= 0) { delete B.map[j.coll + "|" + j.id]; return; }   /* un journal ne se conteste pas : rien à signaler */
         var k = j.coll + "|" + j.id, o = hs[k], sv = j.serveur;
         appliquer(S2, { coll: j.coll, id: j.id, data: sv.data, rev: sv.rev, supprime: !!sv.supprime }); if (sv.supprime) delete B.map[k];
         msgs.push((j.coll === "_doc" ? "réglage « " + j.id + " »" : j.coll + " " + ((o && o.data && (o.data.numero || o.data.nom)) || j.id)) + (sv.par ? " (par " + sv.par + ")" : ""));
