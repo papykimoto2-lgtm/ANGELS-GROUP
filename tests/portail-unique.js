@@ -51,12 +51,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  // commande
  await pp.goto(base+"/portail.html#/boutique");await pp.waitForTimeout(400);
  const cmd=await pp.evaluate(async t=>{const out={};const e=id=>document.getElementById(id);document.getElementById("b_send").click();out.v1=e("b_err").textContent;
-  document.querySelector('.bp[data-c="'+t.code+'"] [data-b="+"]').click();document.querySelector('.bp[data-c="'+t.code+'"] [data-b="+"]').click();
+  const bq=()=>document.querySelector('.bp[data-c="'+t.code+'"] [data-b="add"],.bp[data-c="'+t.code+'"] [data-b="+"]');bq().click();bq().click();
   e("b_send").click();out.v2=e("b_err").textContent;e("b_nom").value="Awa Koné";e("b_tel").value="0102030405";e("b_send").click();out.v3=e("b_err").textContent;
   e("b_zone").value=t.zone;e("b_zone").dispatchEvent(new Event("change"));e("b_send").click();out.v4=e("b_err").textContent;e("b_q").value="Cocody";
   document.querySelector('[name=b_pm][value=mm]').click();e("b_send").click();out.v5=e("b_err").textContent;e("b_rf").value="MP260101.1234";e("b_send").click();
   out.msg=(document.querySelector("#shop textarea.msg")||{}).value||"";out.wa=(document.querySelector("#shop a.go")||{}).href||"";return out},tok);
- chk("PTL-7","commande en ligne : contrôles pas à pas (produit, nom, téléphone, zone, adresse, référence Mobile Money) puis message WhatsApp avec marqueur [BOUTIQUE:…] vers le numéro publié",/produit/.test(cmd.v1)&&/nom/.test(cmd.v2)&&/zone/.test(cmd.v3)&&/quartier|repère/.test(cmd.v4)&&/Mobile Money/.test(cmd.v5)&&/\[BOUTIQUE:[A-Za-z0-9_-]+\]/.test(cmd.msg)&&/wa\.me\/2250707000000/.test(cmd.wa),JSON.stringify(cmd).slice(0,600));
+ chk("PTL-7","commande en ligne : contrôles pas à pas (produit, nom, téléphone, zone, adresse, référence Mobile Money) puis message WhatsApp avec marqueur [BOUTIQUE:…] vers le numéro publié",/panier|article/.test(cmd.v1)&&/nom/.test(cmd.v2)&&/zone/.test(cmd.v3)&&/quartier|repère/.test(cmd.v4)&&/Mobile Money/.test(cmd.v5)&&/\[BOUTIQUE:[A-Za-z0-9_-]+\]/.test(cmd.msg)&&/wa\.me\/2250707000000/.test(cmd.wa),JSON.stringify(cmd).slice(0,600));
  const imp=await pd.evaluate(m=>{ME=S.users.find(u=>u.role==="admin");const r=webImporter(m);const c=S.commandes.find(c=>c.numero===r.ok[0].numero);return{ok:r.ok.length,ko:r.ko,canal:c.canal,total:c.total,mm:c.web&&c.web.pm}},cmd.msg);
  chk("PTL-8","la commande du portail s'importe dans Distributions (canal « Vente en ligne », Mobile Money à vérifier, prix recalculés)",imp.ok===1&&imp.ko.length===0&&imp.canal==="Vente en ligne"&&imp.mm==="mm",JSON.stringify(imp));
  // candidature
