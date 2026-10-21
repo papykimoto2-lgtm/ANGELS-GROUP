@@ -693,3 +693,5 @@ Moteur `signal-engine.js` (Distribution et application livreur) : cinq sons synt
 - **Chaque tablette** (menu → « 🔔 Sons de cette tablette », tous les rôles) : sourdine, volume, vibration, écoute des sons. Ces réglages restent sur l'appareil (`angels_signal_dev`).
 - **Application livreur** : « alerte forte » trois fois à l'arrivée d'une nouvelle mission (rien au premier chargement) ; le bouton haut-parleur de l'en-tête fait défiler coupé / moyen / fort.
 - Les navigateurs n'autorisent le son qu'après un toucher de l'écran : il suffit de toucher une fois après l'ouverture (un message le rappelle si besoin). Le portail, Transport et Agro ne sonnent pas pour l'instant. Tests : `node tests/signaux.js` (19 contrôles).
+
+**Bordereau de commandes** : il n'a plus de période ni d'origine propres ; il reprend exactement les commandes du tableau (recherche, statut, dates, livreur, origine, zone, paiement, urgentes), sans les annulées sauf filtre « Annulée ». Le titre du bordereau imprimé rappelle les filtres actifs.
