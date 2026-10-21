@@ -75,5 +75,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("PA-6","bureau : file d'envoi (sans compte serveur, doublon, type ou envoi désactivé ignorés)",d.sansCompte&&d.queue&&d.dedup&&d.type&&d.off,JSON.stringify(d));
  chk("PA-7","bureau : déclencheurs (mission affectée, message du centre seulement, SOS pris en charge)",d.mission&&d.chat&&d.chatSens&&d.sos,JSON.stringify(d));
  chk("PA-8","bureau : envoi par la passerelle (clé admin, champs minimaux), 3 essais puis abandon, notifications périmées ignorées, réglages",d.flush&&d.abandon&&d.perime&&d.params,JSON.stringify(d));
+ {const w={};vm.runInNewContext(fs.readFileSync(path.join(root,"passerelle-config.js"),"utf8"),{window:w});const k=String((w.ANGELS_PASSERELLE||{}).vapid||""),buf=Buffer.from(k.replace(/-/g,"+").replace(/_/g,"/"),"base64");
+  chk("PA-10","configuration : clé publique VAPID présente (point P-256 non compressé de 65 octets) et clé privée absente de la page",buf.length===65&&buf[0]===4&&!/PRIVATE|privat/i.test(fs.readFileSync(path.join(root,"passerelle-config.js"),"utf8").replace(/Jamais la clé privée\./,"")),k.length+" car.")}
  chk("PA-9","aucune erreur JS",errs.length===0,errs.join("|"));
  console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0)})();
