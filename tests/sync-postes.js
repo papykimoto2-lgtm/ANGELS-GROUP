@@ -74,6 +74,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await B2.waitForTimeout(2300);await cyc(B2).catch(()=>{});await B2.waitForTimeout(800);
  const apres=await B2.evaluate(()=>S.commandes.length),srvCmd=[...db.D.rows.values()].filter(r=>r.app==="distribution"&&r.coll==="commandes"&&!r.supprime).length;
  chk("SYP-10","suppression massive sur un poste : confirmation demandée ; en cas de refus, rien n'est supprimé sur le serveur et le poste retrouve ses données",/SUPPRESSION MASSIVE/.test(dlgMsg)&&srvCmd===avant&&apres===avant,JSON.stringify({dlgMsg:dlgMsg.slice(0,40),avant,apres,srvCmd}));
+ /* 14. journal d'audit : reçu d'un autre poste puis purgé localement (limite de taille) : jamais renvoyé comme suppression ni signalé comme conflit */
+ {const X1=await poste("X1",true,cfg.syncKey);await X1.p.goto(base+"/distribution.html");await att(X1.p,()=>ANGELS_SYNC.etat().etat==="ok",12000);const X2=await poste("X2",false,cfg.syncKey);await X2.p.goto(base+"/distribution.html");await att(X2.p,()=>ANGELS_SYNC.etat().etat==="ok",12000);const av=vus.length;await X1.p.evaluate(()=>{for(let i=0;i<5;i++)audit("Test journal",String(i)+Date.now());save()});await cyc(X1.p);await cyc(X2.p);
+  const recu=await X2.p.evaluate(()=>S.audit.filter(x=>x.action==="Test journal").length),srvN=()=>[...db.D.rows.values()].filter(r=>r.app==="distribution"&&r.coll==="audit"&&!r.supprime).length,n0=srvN();
+  await X2.p.evaluate(()=>{S.audit.splice(0,S.audit.length);save()});await cyc(X2.p);await cyc(X1.p);
+  const dels=vus.slice(av).flatMap(b=>b.ops||[]).filter(o=>o.coll==="audit"&&o.del).length,toast=await X2.p.evaluate(()=>document.body.innerText.includes("Modification simultanée"));
+  chk("SYP-14","journal d'audit reçu puis purgé sur un poste : aucune suppression envoyée au serveur, aucune alerte « modification simultanée », le journal du serveur est intact",recu>=5&&n0>=5&&dels===0&&!toast&&srvN()===n0,JSON.stringify({recu,n0,n1:srvN(),dels,toast}));await X1.ctx.close();await X2.ctx.close()}
  await A.ctx.close();await B.ctx.close();
 
  /* 9. mêmes comptes sur plusieurs postes : KESSIE créé séparément sur deux postes de production = un seul compte */
