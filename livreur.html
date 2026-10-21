@@ -67,7 +67,7 @@ const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",l
 const ACTIFS=["affectee","acceptee","en_cours"];
 let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null;
 /* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
-const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan",m:"ang_lv_chat",v:"ang_lv_chatvu"},DUREE_CACHE=48*36e5;
+const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan",m:"ang_lv_chat",v:"ang_lv_chatvu",n:"ang_lv_push",d:"ang_lv_pushinv"},DUREE_CACHE=48*36e5;
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const cache=()=>{const c=lsGet(LS.c,null);return c&&c.t&&c.uid&&Date.now()-c.t<DUREE_CACHE?c:null};
 const file=()=>lsGet(LS.f,[]),rejets=()=>lsGet(LS.r,[]),enFile=ref=>file().filter(f=>f.ref===ref),enLigne=()=>navigator.onLine!==false;
@@ -323,12 +323,33 @@ function statsHtml(){const P=((STATS||{}).payload||{}).p,j7=((STATS||{}).payload
  ${X.zones.length?`<div class="card"><b>Zones les plus livrées</b>${X.zones.map(m=>`<div class="between sm" style="margin-top:4px"><span>${esc(m[0])}</span><b>${m[1]}</b></div>`).join("")}</div>`:""}
  ${j7.length?`<div class="card"><b>7 derniers jours</b><div style="display:flex;gap:6px;align-items:flex-end;height:90px;margin-top:8px">${j7.map(d=>`<div style="flex:1;text-align:center;font-size:11px"><div style="height:${Math.round(d.n/mx*60)}px;background:var(--b);border-radius:4px 4px 0 0;min-height:2px"></div>${d.n}<br><span class="mu">${esc(d.l)}</span></div>`).join("")}</div></div>`:""}
  <div class="sm mu" style="margin:6px 0">Statistiques calculées par le bureau à partir de vos courses terminées${STATS&&STATS.maj_le?" (mises à jour à "+new Date(STATS.maj_le).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+")":""}.</div>`}
+/* ---------- Notifications push : missions, messages du centre et alertes même application fermée (navigateur installé ou application Android) ---------- */
+const VAPID=()=>String((window.ANGELS_PASSERELLE||{}).vapid||"").trim();
+const pushOk=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const cleVapid=b=>{const p="=".repeat((4-b.length%4)%4),r=atob((b+p).replace(/-/g,"+").replace(/_/g,"/")),o=new Uint8Array(r.length);for(let i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o};
+let PUSHST="";   /* "", "actif", "inactif", "refuse", "indispo", "bureau" */
+async function pushEtat(){if(!pushOk())return PUSHST="indispo";if(!VAPID())return PUSHST="bureau";if(Notification.permission==="denied")return PUSHST="refuse";
+ try{const reg=await navigator.serviceWorker.ready,s=await reg.pushManager.getSubscription();PUSHST=s&&Notification.permission==="granted"?"actif":"inactif"}catch(e){PUSHST="inactif"}return PUSHST}
+async function pushActiver(){if(!pushOk()||!VAPID())return toast("Notifications push non disponibles","err"),false;
+ try{const perm=await Notification.requestPermission();if(perm!=="granted"){PUSHST=perm==="denied"?"refuse":"inactif";toast("Notifications refusées : autorisez-les dans les réglages du navigateur","err");return false}
+  const reg=await navigator.serviceWorker.ready;let s=await reg.pushManager.getSubscription();if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:cleVapid(VAPID())});
+  await api("push-abonner",{action:"abonner",subscription:s.toJSON()});lsSet(LS.n,{on:true,t:Date.now()});PUSHST="actif";toast("Notifications activées : vous serez prévenu même application fermée","ok");return true}
+ catch(x){toast("Activation impossible : "+(x&&x.message||x),"err");return false}}
+async function pushCouper(){try{const reg=await navigator.serviceWorker.ready,s=await reg.pushManager.getSubscription();if(s){try{await api("push-abonner",{action:"desabonner",endpoint:s.endpoint})}catch(e){}await s.unsubscribe()}}catch(e){}lsSet(LS.n,{on:false,t:Date.now()});PUSHST="inactif";toast("Notifications coupées","ok")}
+/* À chaque connexion : si déjà autorisé, on rafraîchit l'abonnement (il peut changer) une fois par jour */
+async function pushEntretien(){try{if(!pushOk()||!VAPID()||Notification.permission!=="granted"||!sb)return;const n=lsGet(LS.n,{});if(n.on===false||(n.t&&Date.now()-n.t<864e5))return;const reg=await navigator.serviceWorker.ready;let s=await reg.pushManager.getSubscription();if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:cleVapid(VAPID())});await api("push-abonner",{action:"abonner",subscription:s.toJSON()});lsSet(LS.n,{on:true,t:Date.now()})}catch(e){}}
+function pushBandeau(){if(PUSHST!=="inactif"||!VAPID()||lsGet(LS.d,0)||Notification.permission==="denied")return"";return`<div class="al" style="background:#e3f2fd;color:#0b3b4c">🔔 <b>Activez les notifications</b> pour recevoir vos missions et les messages du centre même application fermée. <a href="#" data-a="pushon">Activer</a> · <a href="#" data-a="pushnon">Plus tard</a></div>`}
+function pushCarte(){const E={actif:`<span style="color:var(--ok)">✔ actives</span>`,inactif:"désactivées",refuse:`<span style="color:var(--er)">✖ refusées</span> : autorisez-les dans les réglages du navigateur`,indispo:"non disponibles sur cet appareil",bureau:"non configurées par le bureau",""
+:"vérification…"}[PUSHST]||"";
+ return`<div class="card"><b>🔔 Notifications sur le téléphone</b><div class="sm mu" style="margin:4px 0 8px">Missions, messages du centre et alertes, même quand l'application est fermée.</div><div>État : ${E}</div>
+  ${PUSHST==="actif"?'<button class="btn ghost" data-a="pushoff">🔕 Couper les notifications</button><button class="btn ghost" data-a="pushtest">🔔 Tester</button>':PUSHST==="inactif"?'<button class="btn" data-a="pushon">🔔 Activer les notifications</button>':""}</div>`}
 function reglagesHtml(){const st=GPSST==="granted"?'<span style="color:var(--ok)">✔ autorisé</span>':GPSST==="denied"?'<span style="color:var(--er)">✖ refusé</span> : autorisez la localisation dans les réglages du navigateur (icône à gauche de l\'adresse)':GPSST==="prompt"?"à demander":"inconnu";
  const sd=ANGELS_SIGNAL.dev();
  return`<h2 class="pg">GPS et compte</h2>
  <div class="card"><b>📍 GPS</b><div class="sm mu" style="margin:4px 0 8px">Votre position n'est partagée avec le bureau que pendant une course en cours, et sert au calcul du meilleur itinéraire.</div>
   <div>Autorisation du téléphone : ${st}</div><button class="btn" data-a="gpsact">📍 Activer le GPS</button>
   <label class="chk" style="margin-top:12px"><input type="checkbox" data-gp="1" ${gpsOn()?"checked":""}><span>Partager ma position avec le bureau pendant les courses</span></label></div>
+ ${pushCarte()}
  <div class="card"><b>🔑 Compte</b><button class="btn ghost" data-a="mdp">Changer mon mot de passe</button></div>
  <div class="card"><b>🔔 Alertes des nouvelles missions</b><button class="btn ghost" data-a="sons">${sonIcone()} Son : ${sd.mute?"coupé":sd.vol<=.5?"moyen":"fort"} (toucher pour changer)</button><button class="btn ghost" data-a="voix">${voixIcone()} Lecture vocale : ${sd.voice?"activée":"coupée"}</button></div>
  <div class="inst"></div>`}
@@ -344,7 +365,7 @@ const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><na
  <button class="mi er" data-a="quitter">⏻ Déconnexion</button></nav></div>`;
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
- const alertes=`${chatBandeau()}${pauseBandeau()}${boostBandeau()}${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
+ const alertes=`${pushBandeau()}${chatBandeau()}${pauseBandeau()}${boostBandeau()}${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
  const corps=PAGE==="recent"?`<h2 class="pg">Traitées récemment</h2>${fin.length?fin.map(carte).join(""):'<div class="card mu">Aucune commande traitée récemment.</div>'}`
   :PAGE==="reglages"?reglagesHtml()
   :PAGE==="stats"?statsHtml()
@@ -372,6 +393,8 @@ const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse
 const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
 const ACT={
  sos:()=>sosOuvrir(),
+ pushon:async()=>{await pushActiver();vueMissions()},pushoff:async()=>{await pushCouper();vueMissions()},pushnon:()=>{lsSet(LS.d,1);vueMissions()},
+ pushtest:async()=>{try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("🔔 Test",{body:"Les notifications fonctionnent sur ce téléphone.",tag:"test",icon:"icons/livreur-192.png",data:{u:"livreur.html"}})}catch(e){toast("Test impossible : "+e.message,"err")}},
  msgc:r=>msgClient(r),chatsend:()=>{const i=document.getElementById("chin");if(i)chatEnvoyer(i.value)},chatq:r=>chatEnvoyer(QCH[+r]),
  plan:r=>{const a=String(r).split("|");if(a.length===3)plReserverApp(a[0],a[1],a[2])},pause:r=>pauseApp(+r),reprise:()=>reprendreApp(),
  voix:()=>{const d=ANGELS_SIGNAL.dev();ANGELS_SIGNAL.setDev({voice:!d.voice});if(!d.voice)ANGELS_SIGNAL.parler("Lecture vocale activée",{force:true});vueMissions()},
@@ -379,7 +402,7 @@ const ACT={
  posclient:async r=>{const t=Date.now();const x=await envoyer(r,"incident",{nature:"Position du client",description:"Demande de la position GPS du client (envoyer le lien de partage)"},"Demande envoyée au bureau : vous pouvez partir, la position s'affichera ici.");if(x!==undefined){const P=lsGet(LS.p,{});P[r]=t;lsSet(LS.p,P)}vueMissions()},
  menu:()=>{MENU=!MENU;vueMissions()},
  sp:r=>{SP=["j","s7","m30","mois"].includes(r)?r:"s7";vueMissions()},
- page:r=>{PAGE=["cours","recent","reglages","stats","gains","plan","chat"].includes(r)?r:"cours";if(PAGE==="chat")lsSet(LS.v,Math.max(Date.now(),...CHAT().map(m=>Date.parse(m.ts)||0)));MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
+ page:r=>{PAGE=["cours","recent","reglages","stats","gains","plan","chat"].includes(r)?r:"cours";if(PAGE==="reglages")pushEtat().then(()=>{if(PAGE==="reglages"&&!ouvert&&user)vueMissions()});if(PAGE==="chat")lsSet(LS.v,Math.max(Date.now(),...CHAT().map(m=>Date.parse(m.ts)||0)));MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
  gpsact:()=>{if(!navigator.geolocation)return toast("GPS indisponible sur cet appareil","err");
   navigator.geolocation.getCurrentPosition(()=>{lsSet(LS.g,{on:true});GPSST="granted";toast("GPS activé : votre position est disponible","ok");suivi();vueMissions()},e=>{if(e&&e.code===1)GPSST="denied";toast(e&&e.code===1?"GPS refusé : autorisez la localisation dans les réglages du navigateur":"Position introuvable : sortez à l'air libre ou activez la localisation du téléphone","err");vueMissions()},{enableHighAccuracy:true,timeout:15000})},
  itincalc:async()=>{const E=eligibles().filter(m=>ITIN.sel&&ITIN.sel.has(m.livraison_ref));if(!E.length)return toast("Cochez au moins une commande","err");if(ITIN.busy)return;ITIN.busy=true;vueMissions();
@@ -412,7 +435,7 @@ async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data
  if(user.user_metadata&&user.user_metadata.chg){const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;return vueChangement()}
  const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;if(!moi){await sb.auth.signOut();user=null;return vueLogin("Compte livreur inactif ou introuvable. Contactez le bureau.")}
  {const c0=lsGet(LS.c,null);if(c0&&c0.uid&&c0.uid!==user.id){[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}})}}
- await vider();await charger();suivi();clearInterval(timer);timer=setInterval(async()=>{await vider();await charger();suivi()},20000)}
+ await vider();await charger();suivi();pushEtat().then(()=>{pushEntretien();if(user&&!ouvert)vueMissions()});clearInterval(timer);timer=setInterval(async()=>{await vider();await charger();suivi()},20000)}
 function hors(c){user={id:c.uid};moi=c.moi;missions=recevoir(c.missions||[]);erreur="";vueMissions();clearInterval(timer);timer=setInterval(()=>{if(enLigne())reprendre();else vueMissions()},20000)}
 async function reprendre(){try{if(!sb){await loadSb();sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}})}await demarrer()}catch(e){}}
 addEventListener("online",()=>{reprendre()});addEventListener("offline",()=>{if(user)vueMissions()});
