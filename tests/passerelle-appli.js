@@ -93,7 +93,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await q.evaluate(()=>{window.__sent.length=0});await q.click('[data-a="appeler"]');await q.waitForTimeout(300);
  const ap=await q.evaluate(()=>window.__sent[0]);
  chk("LV-8","appel du client : demande au pont avec la clé d'appel de la mission, jamais de numéro",ap&&ap.u.endsWith("/functions/v1/appel-pont")&&ap.b.commande==="CMD-0001"&&ap.b.cle==="c".repeat(32)&&!/tel|numero/i.test(JSON.stringify(ap.b)),JSON.stringify(ap));
- await q.click('[data-a="quitter"]');await q.waitForTimeout(200);
+ await q.click('[data-a="menu"]');await q.waitForTimeout(150);await q.click('nav [data-a="quitter"]');await q.waitForTimeout(200);
  chk("LV-9","déconnexion : retour à l'écran de connexion, missions effacées de l'écran",await q.locator("#fl").count()===1&&!/CMD-0001/.test(await q.content()));
  await b.close();srv.close();console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs"+(errs.length?" ; erreurs page : "+errs.join(" | "):""));process.exit(ko||errs.length?1:0);
 })();

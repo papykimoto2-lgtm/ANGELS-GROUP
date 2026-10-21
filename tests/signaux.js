@@ -107,7 +107,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await D.check("#modal [data-sigd='voice']");await D.uncheck("#modal [data-sigd='voice']");const dv2=await D.evaluate(()=>JSON.parse(localStorage.getItem("angels_signal_dev")||"{}").voice);
  chk("SG-28","la lecture vocale se coupe sur l'appareil seulement (réglage local)",dv2===false,dv2);
  const lvo=await L.evaluate(()=>{localStorage.removeItem("angels_signal_dev");const calls=[];ANGELS_SIGNAL.jouer=(s,o)=>{calls.push(o.dire);return true};toast=()=>{};SIGM.vus=null;const m=(...r)=>r.map(x=>({livraison_ref:x,statut:"affectee"}));
-  missions=m("A");sigMissions();missions=m("A","B");sigMissions();missions=m("A","B","C","D");sigMissions();return{calls,defVoix:ANGELS_SIGNAL.dev().voice,btn:/data-a="voix"/.test(String(vueMissions)),icone:typeof voixIcone==="function"}});
+  missions=m("A");sigMissions();missions=m("A","B");sigMissions();missions=m("A","B","C","D");sigMissions();return{calls,defVoix:ANGELS_SIGNAL.dev().voice,btn:/data-a="voix"/.test(String(reglagesHtml)),icone:typeof voixIcone==="function"}});
  chk("SG-29","application livreur : nouvelle mission lue (« Nouvelle mission » / « 2 nouvelles missions »), rien au premier chargement, bouton voix pour l'activer ou la couper",JSON.stringify(lvo.calls)==='["Nouvelle mission","2 nouvelles missions"]'&&lvo.btn&&lvo.icone,JSON.stringify(lvo));
  const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8"),pg=["distribution","livreur"].every(f=>fs.readFileSync(path.join(root,f+".html"),"utf8").includes('<script src="signal-engine.js">'));
  chk("SG-19","moteur chargé par Distribution et l'application livreur, et mis en cache hors ligne",pg&&sw.includes('"signal-engine.js"'));
