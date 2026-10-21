@@ -2126,10 +2126,12 @@ async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localSt
   S.pass_err=""
  }catch(e){S.pass_err=String(e&&e.message||e).slice(0,160)}finally{_passBusy=false}
  if(chg){try{save()}catch(e){}}}
+/* Message prêt à envoyer au livreur (WhatsApp) : application, identifiant et mot de passe temporaire à changer à la première connexion */
+const lvAccesMsg=(lv,ident,mdp)=>"Bonjour "+lv.nom+", voici votre accès à l'application Livreur "+ORG()+" :\n1) Ouvrez ce lien sur votre téléphone (Chrome ou Safari) : "+new URL("livreur.html",location.href).href+"\n2) Touchez « Installer l'application » (Android) ou Partager > Sur l'écran d'accueil (iPhone).\n3) Connectez-vous :\nIdentifiant : "+ident+"\nMot de passe temporaire : "+mdp+"\nVous choisirez votre propre mot de passe à la première connexion. Ne le partagez avec personne.";
 async function passCompte(lv,reset){const P=PASS();if(!P)return false;
  try{if(!reset){const base=(lv.nom||"livreur").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,".").replace(/^\.|\.$/g,"");let r;for(let i=0;i<5&&!r;i++){try{r=await passPost(P,"mission-sync",{action:"compte-creer",livreur_ref:lv.id,nom:lv.nom,ident:base+(i?String(Math.floor(100+Math.random()*900)):"")})}catch(e){if(!/existe|refus/.test(e.message)||/déjà un compte/.test(e.message)||i===4)throw e}}
-   lv.ident_serveur=r.ident;save();await ANGELS_AUTH.afficherTemp({titre:"Compte livreur (serveur) créé",nom:lv.nom+" — identifiant : "+r.ident,mdp:r.mdp})}
-  else{const r=await passPost(P,"mission-sync",{action:"compte-reset",livreur_ref:lv.id});await ANGELS_AUTH.afficherTemp({titre:"Mot de passe (serveur) réinitialisé",nom:lv.nom+(lv.ident_serveur?" — identifiant : "+lv.ident_serveur:""),mdp:r.mdp})}
+   lv.ident_serveur=r.ident;save();await ANGELS_AUTH.afficherTemp({titre:"Compte livreur (serveur) créé",nom:lv.nom,ident:r.ident,mdp:r.mdp,tel:telWA(lv.tel),msg:lvAccesMsg(lv,r.ident,r.mdp)})}
+  else{const r=await passPost(P,"mission-sync",{action:"compte-reset",livreur_ref:lv.id});await ANGELS_AUTH.afficherTemp({titre:"Mot de passe (serveur) réinitialisé",nom:lv.nom,ident:lv.ident_serveur||"",mdp:r.mdp,tel:telWA(lv.tel),msg:lvAccesMsg(lv,lv.ident_serveur||"(votre identifiant)",r.mdp)})}
   return true}catch(e){toast("Compte serveur : "+e.message,"err");return false}}
 /* Mots de passe : l'administrateur ne choisit jamais le mot de passe d'un autre ; un mot de passe temporaire est généré, montré une fois, et doit être changé à la première connexion. */
 async function mdpTemp(uid_,titre){const mdp=ANGELS_AUTH.generer(),u0=usr(uid_);if(!u0)return;const pwd=await ANGELS_AUTH.creer(mdp);const u=usr(uid_);if(!u)return;u.pwd=pwd;u.chg=true;delete u.pin_h;if(S.tries)delete S.tries[u.id];save();await ANGELS_AUTH.afficherTemp({titre:titre||"Mot de passe temporaire",nom:u.nom,mdp});render()}
