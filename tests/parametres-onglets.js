@@ -21,7 +21,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await ps.goto(base+"/parametres.html");await ps.waitForTimeout(400);
  const vis=()=>ps.evaluate(()=>({tabs:[...document.querySelectorAll("#ptabs .tab")].map(b=>b.dataset.pt),on:[...document.querySelectorAll("#ptabs .tab.on")].map(b=>b.dataset.pt),users:!document.getElementById("s-users").hidden,ptl:!document.getElementById("s-ptl").hidden,med:!document.getElementById("s-med").hidden,panels:[...document.querySelectorAll("#ptl .pp")].filter(p=>!p.hidden&&p.offsetParent!==null).map(p=>p.dataset.pp).filter((x,i,a)=>a.indexOf(x)===i)}));
  const v0=await vis();
- chk("ONG-1","11 onglets ; ouverture sur « Utilisateurs et rôles » : seul ce contenu est affiché",v0.tabs.join()==="users,identite,accueil,boutique,contact,medias,stats,acces,impression,cloud,publication"&&v0.on.join()==="users"&&v0.users&&!v0.ptl&&!v0.med,JSON.stringify(v0));
+ chk("ONG-1","12 onglets (dont Connexions) ; ouverture sur « Utilisateurs et rôles » : seul ce contenu est affiché",v0.tabs.join()==="users,connexions,identite,accueil,boutique,contact,medias,stats,acces,impression,cloud,publication"&&v0.on.join()==="users"&&v0.users&&!v0.ptl&&!v0.med,JSON.stringify(v0));
  const res={};
  for(const t of ["identite","accueil","boutique","contact","medias","stats","acces","publication"]){await ps.click('#ptabs [data-pt="'+t+'"]');res[t]=await vis()}
  const want={identite:["identite"],accueil:["accueil"],boutique:["boutique"],contact:["contact"],publication:["publication"]};

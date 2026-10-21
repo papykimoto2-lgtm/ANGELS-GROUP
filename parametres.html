@@ -25,6 +25,7 @@ main{padding:0 16px 40px;margin-top:-16px}
 .card h2{margin:0;font-size:17px}
 .card .ic{font-size:30px}
 .card p{margin:0;color:var(--mu);font-size:13px}
+.cxk{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.cxk>div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;min-width:150px}.cxk b{display:block;font-size:24px}.cxk span{font-size:12px;color:var(--mu)}
 .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .kp div{background:var(--bg);border-radius:10px;padding:8px;text-align:center}
 .kp b{display:block;font-size:19px}
@@ -68,6 +69,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <section id="ptl"></section>
 </div><div id="s-stats" hidden><h2 style="margin:6px 0 10px;font-size:16px">📊 Statistiques portail</h2><p class="note">Activité commerciale venue du portail : commandes de la boutique en ligne et candidatures de vendeurs partenaires, lues dans les données de Distributions de cet appareil. Le portail est un site public sans serveur : le nombre de visites n'est pas mesuré.</p><section id="pstat"></section></div>
 <div id="s-acces" hidden><h2 style="margin:6px 0 10px;font-size:16px">🔑 Accès portail (tous acteurs)</h2><p class="note">Toutes les personnes en lien avec le portail : clients de la boutique en ligne, candidats vendeurs et vendeurs partenaires. Contactez-les sur WhatsApp et gérez l'accès des vendeurs partenaires (activation / désactivation du compte, après déverrouillage de Distributions dans l'onglet Utilisateurs).</p><section id="pacc"></section></div>
+<div id="s-cx" hidden></div>
 <div id="s-imp" hidden><h2 style="margin:6px 0 10px;font-size:16px">🖨️ Impression — en-tête, logo par division, pied de page et QR de sécurité</h2><p class="note">Moteur d'impression commun à Distributions, Transport et Agro : chaque document imprimé porte l'en-tête de la division qui l'émet (logo, raison sociale, RCCM, NCC, siège), un pied de page et un QR code de sécurité signé que l'on contrôle sur la page de vérification.</p><section id="pimp"></section></div>
 <div id="s-cloud" hidden><h2 style="margin:6px 0 10px;font-size:16px">☁️ Cloud / Supabase</h2><p class="note">Connexion du groupe à son projet Supabase : comptes des livreurs vérifiés par le serveur, passerelle livreur (numéros des clients retirés des téléphones) et pont téléphonique. Sans configuration, les applications fonctionnent en mode local (données stockées dans l'appareil). Seule la clé <b>anonyme</b> (publique) se saisit ici ; la clé d'administration reste dans Distributions → Paramètres.</p>
 <div class="two" style="margin-top:12px"><div class="pan"><h4>☁️ Connexion Supabase</h4><div class="uf" style="display:block"><label>URL du projet Supabase<input id="cl-url" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="none" style="width:100%"></label><label style="margin-top:8px">Clé anonyme (anon key)<input id="cl-key" placeholder="eyJh…" autocomplete="off" autocapitalize="none" style="width:100%"></label></div><div id="cl-badge" style="margin:8px 0;font-size:13px"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="sb" data-cl="save">💾 Enregistrer</button><button type="button" class="sb g" data-cl="test">🔌 Tester</button><button type="button" class="sb g" data-cl="clear">🗑️ Effacer</button><button type="button" class="sb g" data-cl="def">↩ Projet par défaut</button></div><div id="cl-res" style="margin-top:10px;font-size:13px"></div></div>
@@ -87,6 +89,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <script src="roles-engine.js"></script>
 <script src="qrcode.js"></script>
 <script src="auth-engine.js"></script>
+<script src="rapport-engine.js"></script>
 <script src="print-engine.js"></script>
 <script>
 const $=s=>document.getElementById(s);
@@ -174,8 +177,8 @@ document.addEventListener("submit",e=>{const f=e.target;if(f.id==="ugate"){e.pre
   (async()=>{let r={ok:false};try{if(u)r=await ANGELS_AUTH.connecter(u,pwd)}catch(x){UMSG={er:1,t:x.message};return uView()}
    if(r.ok&&r.legacy){UMSG={er:1,t:"Les codes PIN ne sont plus acceptés : ouvrez l'application et connectez-vous une fois pour créer votre mot de passe."}}
    else if(r.ok&&u.chg){UMSG={er:1,t:"Votre mot de passe est temporaire : ouvrez l'application et connectez-vous une fois pour le remplacer."}}
-   else if(r.ok){TRY[m]={n:0,until:0};AUTH[m]={id:u.id,nom:u.nom,exp:Date.now()+DUREE};UMSG=null}
-   else{tr.n++;if(tr.n>=5){tr.n=0;tr.until=Date.now()+60000}UMSG={er:1,t:"Administrateur ou mot de passe incorrect."}}
+   else if(r.ok){TRY[m]={n:0,until:0};AUTH[m]={id:u.id,nom:u.nom,exp:Date.now()+DUREE};UMSG=null;cxHub(m,G,u,"param_ok")}
+   else{cxHub(m,G,u||{id:String(d.get("u")||""),nom:(G.users.find(x=>x.id===d.get("u"))||{}).nom||"",role:""},"param_ko","Mot de passe incorrect");tr.n++;if(tr.n>=5){tr.n=0;tr.until=Date.now()+60000}UMSG={er:1,t:"Administrateur ou mot de passe incorrect."}}
    uView()})();return}
  if(f.id==="uadd"){e.preventDefault();const d=new FormData(f),mdp=ANGELS_AUTH.generer();
   (async()=>{const rec=await ANGELS_AUTH.creer(mdp);let nom0="";
@@ -575,14 +578,80 @@ document.addEventListener("click",ev=>{const b=ev.target.closest("[data-cl]");if
  if(k==="save"){try{const c=clValide($("cl-url").value,$("cl-key").value);localStorage.setItem(CL_K,JSON.stringify(c));clView();clMsg("Configuration Supabase enregistrée.")}catch(e){clMsg(e.message,1)}}
  else if(k==="clear"){if(!confirm("Effacer la configuration Supabase ? Les applications passeront en mode local."))return;localStorage.setItem(CL_K,JSON.stringify({off:true}));$("cl-url").value=$("cl-key").value="";clView();clMsg("Configuration effacée : mode local activé.")}
  else if(k==="def"){localStorage.removeItem(CL_K);clView();clMsg("Projet par défaut rétabli.")}});
-const PTABS=[["users","👥 Utilisateurs et rôles"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["impression","🖨️ Impression"],["cloud","☁️ Cloud / Supabase"],["publication","🚀 Publication"]];
+/* ---------- Historique de connexion par utilisateur ----------
+   Lit le journal « connexions » de chaque application (Distributions, Transport, Agro), enregistré avec son état. Chaque application se consulte après déverrouillage par un de ses administrateurs
+   (même règle que la gestion des comptes). Les connexions antérieures au journal sont reprises du journal d'audit de l'application (« Connexion »). */
+const APPN={dist:"distribution",trans:"transport",agro:"agro"},CXAPP={distribution:"Distributions",transport:"Transport",agro:"Agro"},CX={app:"",uid:"",ev:"",per:"30",n:100};
+const CXEV={ok:["Connexion","ok"],demo:["Connexion (accès démo)","ok"],out:["Déconnexion","mu"],ko:["Échec : mot de passe incorrect","er"],bloque:["Tentative pendant un blocage","er"],inactif:["Compte désactivé","er"],param_ok:["Gestion des comptes via le hub","ok"],param_ko:["Gestion des comptes : échec","er"]};
+const cxOk=e=>e==="ok"||e==="demo"||e==="param_ok",cxKo=e=>e==="ko"||e==="bloque"||e==="inactif"||e==="param_ko";
+const cxDt=t=>t?new Date(t).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"medium"}):"—";
+function cxHub(m,G,u,ev,motif){try{ANGELS_AUTH.trace(G,{app:APPN[m],uid:u.id||"",nom:u.nom||"",role:u.role||"",ev,motif,via:"hub"});localStorage.setItem(RL[m].key,JSON.stringify(G))}catch(e){}}
+function cxDonnees(){const out={ent:[],users:[],verr:[]};
+ MODS.forEach(mod=>{const m=mod.id,R=RL[m],G=uEtat(m),app=APPN[m];
+  if(!G){out.verr.push({m,mod,raison:"absente"});return}
+  if(!uSess(m)){out.verr.push({m,mod,raison:"verrou"});return}
+  rlSync(R,G);const L=(G.connexions||[]).map(x=>Object.assign({},x,{app:x.app||app})),prem=L.length?L.map(x=>x.t).sort()[0]:"9999";
+  (G.audit||[]).forEach(a=>{const t=a.ts||a.t,nom=a.user||a.u,ac=a.action||a.a;if(ac==="Connexion"&&t&&t<prem){const u=G.users.find(x=>x.nom===nom);L.push({id:"au"+t+nom,t,app,uid:u?u.id:"",nom,role:u?u.role:(a.role||a.r||""),ev:"ok",motif:"",app_:"",ancien:true})}});
+  L.forEach(x=>out.ent.push(x));G.users.forEach(u=>out.users.push({app,uid:u.id,nom:u.nom,role:u.role,roleL:R.roles[u.role]||u.role,actif:u.actif!==false}))});
+ return out}
+function rpCard(){const c=ANGELS_RAPPORT.cfg(),sv=ANGELS_RAPPORT.serveur();
+ return `<div class="note" id="rp-card" style="margin:10px 0;padding:12px 14px;border:1px solid var(--bd);border-radius:12px;background:var(--card)"><h3 style="margin:0 0 6px;font-size:14px">📨 Rapport quotidien au DG</h3>
+ <p class="note" style="margin:0 0 8px">Chaque jour à l'heure choisie, le rapport des dernières 24 h est préparé : un bandeau « Rapport prêt » avec le message WhatsApp déjà rédigé s'affiche sur les postes, et le serveur envoie le même rapport par e-mail${sv?"":" (synchronisation non activée sur cet appareil : réglage e-mail indisponible ici)"}.</p>
+ <div class="uf" style="gap:8px;flex-wrap:wrap"><label><input type="checkbox" data-rp="actif" ${c.actif?"checked":""}> Envoi quotidien actif</label>
+ <label>Heure<input type="time" data-rp="heure" value="${E(c.heure.length===4?"0"+c.heure:c.heure)}"></label>
+ <label>Nom du DG<input type="text" data-rp="nom" value="${E(c.nom)}" maxlength="60"></label>
+ <label>WhatsApp du DG<input type="tel" data-rp="tel" value="${E(c.tel)}" placeholder="07 00 00 00 00" maxlength="20"></label>
+ <label>E-mail(s) du DG<input type="text" data-rp="emails" value="${E(c.emails)}" placeholder="dg@exemple.com" maxlength="200"></label></div>
+ <div class="uf" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="tab" data-rpb="save">💾 Enregistrer</button><button type="button" class="tab" data-rpb="apercu">👁 Aperçu maintenant</button><button type="button" class="tab" data-rpb="wa">💬 WhatsApp maintenant</button><button type="button" class="tab" data-rpb="mail" ${sv?"":"disabled"}>✉ E-mail de test</button></div>
+ <div id="rp-msg" class="note" role="status" style="margin-top:6px"></div></div>`}
+async function rpAct(k){const R=ANGELS_RAPPORT,msg=t=>{const m=$("rp-msg");if(m)m.textContent=t};
+ document.querySelectorAll("#rp-card [data-rp]").forEach(i=>{R.setCfg({[i.dataset.rp]:i.type==="checkbox"?i.checked:i.value.trim()})});
+ try{if(k==="save"){msg("Enregistré sur cet appareil.");if(R.serveur()){await R.regler();msg("Enregistré ici et sur le serveur (e-mail quotidien à "+R.cfg().heure+").")}}
+  else if(k==="apercu"){const x=R.generer(Date.now(),true);R.voir(x.id)}
+  else if(k==="wa"){const x=R.generer(Date.now(),true);R.envoyerWA(x.id)}
+  else if(k==="mail"){const j=await R.tester();msg("E-mail de test envoyé à "+j.a+" adresse(s).")}}
+ catch(e){msg("⚠ "+e.message)}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-rpb]");if(b)rpAct(b.dataset.rpb)});
+document.addEventListener("change",e=>{const i=e.target;if(i.dataset&&i.dataset.rp&&i.closest("#rp-card"))ANGELS_RAPPORT.setCfg({[i.dataset.rp]:i.type==="checkbox"?i.checked:i.value.trim()})});
+function cxView(){const box=$("s-cx");if(!box)return;const D=cxDonnees(),jours=CX.per==="all"?0:+CX.per,seuil=jours?Date.now()-jours*864e5:0,dans=x=>!seuil||new Date(x.t).getTime()>=seuil;
+ const apps=Object.keys(CXAPP).filter(a=>!CX.app||a===CX.app),cle=(a,u)=>a+"|"+u;
+ const E_=D.ent.filter(x=>apps.includes(x.app)),pers={};
+ D.users.filter(u=>apps.includes(u.app)).forEach(u=>{pers[cle(u.app,u.uid)]={app:u.app,uid:u.uid,nom:u.nom,role:u.roleL,actif:u.actif,ok:0,ko:0,der:"",app_:"",dko:""}});
+ E_.forEach(x=>{const k=cle(x.app,x.uid||("n:"+x.nom));const p=pers[k]||(pers[k]={app:x.app,uid:x.uid||("n:"+x.nom),nom:x.nom||"?",role:x.role||"",actif:null,ok:0,ko:0,der:"",app_:"",dko:""});
+  if(cxOk(x.ev)&&x.ev!=="param_ok"){if(x.t>p.der){p.der=x.t;p.app_=x.app_||""}}if(cxKo(x.ev)&&x.t>p.dko)p.dko=x.t;if(dans(x)){if(cxOk(x.ev)&&x.ev!=="param_ok")p.ok++;else if(cxKo(x.ev))p.ko++}});
+ const P=Object.values(pers).sort((a,b)=>(b.der||"").localeCompare(a.der||"")||a.nom.localeCompare(b.nom));
+ const ok=E_.filter(x=>dans(x)&&(x.ev==="ok"||x.ev==="demo")).length,ko=E_.filter(x=>dans(x)&&cxKo(x.ev)).length,jam=P.filter(p=>!p.der&&p.actif!==false).length,act=P.filter(p=>p.ok>0).length;
+ const j24=Date.now()-864e5,alertes=P.filter(p=>E_.filter(x=>x.app===p.app&&(x.uid||("n:"+x.nom))===p.uid&&cxKo(x.ev)&&new Date(x.t).getTime()>=j24).length>=3);
+ let J=E_.filter(x=>dans(x)&&(!CX.uid||cle(x.app,x.uid||("n:"+x.nom))===CX.uid)&&(!CX.ev||(CX.ev==="ok"?(x.ev==="ok"||x.ev==="demo"):CX.ev==="ko"?cxKo(x.ev):x.ev==="out"))).sort((a,b)=>b.t.localeCompare(a.t));
+ const tot=J.length,sel=CX.uid?P.find(p=>cle(p.app,p.uid)===CX.uid):null;
+ const verr=D.verr.map(v=>`<div class="note" style="margin:6px 0">🔒 <b>${E(v.mod.nom)}</b> : ${v.raison==="absente"?"application pas encore utilisée sur cet appareil.":`déverrouillez-la pour voir son historique (mot de passe d'un administrateur de l'application).`} ${v.raison==="verrou"?`<button type="button" class="tab" data-cx="deverrouiller" data-m="${v.m}">Déverrouiller</button>`:""}</div>`).join("");
+ box.innerHTML=`<h2 style="margin:6px 0 10px;font-size:16px">🔐 Historique de connexion par utilisateur</h2>
+ <p class="note">Qui s'est connecté, quand, depuis quel appareil, et les tentatives refusées, pour Distributions, Transport et Agro. Chaque application se consulte après déverrouillage par un de ses administrateurs. Les connexions des livreurs sur l'application livreur sont suivies par le serveur et n'apparaissent pas ici.</p>${rpCard()}${verr}
+ <div class="uf" style="margin:10px 0;gap:8px;flex-wrap:wrap"><label>Application<select data-cx="app"><option value="">Toutes</option>${Object.entries(CXAPP).map(([k,v])=>`<option value="${k}" ${CX.app===k?"selected":""}>${v}</option>`).join("")}</select></label>
+ <label>Période<select data-cx="per">${[["1","24 heures"],["7","7 jours"],["30","30 jours"],["90","90 jours"],["all","Tout"]].map(([k,v])=>`<option value="${k}" ${CX.per===k?"selected":""}>${v}</option>`).join("")}</select></label>
+ <label>Événements<select data-cx="ev">${[["","Tous"],["ok","Connexions réussies"],["ko","Échecs et blocages"],["out","Déconnexions"]].map(([k,v])=>`<option value="${k}" ${CX.ev===k?"selected":""}>${v}</option>`).join("")}</select></label>
+ <button type="button" class="tab" data-cx="csv">⬇ Exporter (CSV)</button>${CX.uid?`<button type="button" class="tab" data-cx="tous">✖ Tous les utilisateurs</button>`:""}</div>
+ <div class="cxk"><div><b>${ok}</b><span>connexions réussies</span></div><div><b style="color:${ko?"#c62828":"inherit"}">${ko}</b><span>échecs et blocages</span></div><div><b>${act}</b><span>utilisateurs connectés</span></div><div><b>${jam}</b><span>comptes jamais connectés</span></div></div>
+ ${alertes.length?`<div class="umsg er" role="alert">⚠ Plusieurs échecs de connexion en 24 h : ${alertes.map(p=>"<b>"+E(p.nom)+"</b> ("+E(CXAPP[p.app])+")").join(", ")}. Vérifiez qu'il s'agit bien de la personne concernée ; réinitialisez son mot de passe si besoin.</div>`:""}
+ <h3 style="margin:14px 0 6px;font-size:14px">Par utilisateur</h3><div class="tw"><table class="ut"><thead><tr><th>Utilisateur</th><th>Application</th><th>Profil</th><th>Dernière connexion</th><th>Appareil</th><th>Connexions</th><th>Échecs</th><th></th></tr></thead><tbody>${P.length?P.map(p=>`<tr${CX.uid===cle(p.app,p.uid)?' style="background:#e8f4f8"':""}><td><b>${E(p.nom)}</b>${p.actif===false?' <span class="note" style="margin:0">(désactivé)</span>':p.actif===null?' <span class="note" style="margin:0">(compte supprimé)</span>':""}</td><td>${E(CXAPP[p.app]||p.app)}</td><td>${E(p.role)}</td><td>${p.der?cxDt(p.der):'<span style="color:#b86e00">Jamais</span>'}</td><td class="sm">${E(p.app_||"—")}</td><td>${p.ok}</td><td${p.ko?' style="color:#c62828;font-weight:700"':""}>${p.ko}</td><td><button type="button" class="tab" data-cx="user" data-k="${E(cle(p.app,p.uid))}">Historique</button></td></tr>`).join(""):`<tr><td colspan="8" class="note">Aucun utilisateur à afficher : déverrouillez une application ci-dessus.</td></tr>`}</tbody></table></div>
+ <h3 style="margin:14px 0 6px;font-size:14px" id="cx-j">Journal${sel?" — "+E(sel.nom)+" ("+E(CXAPP[sel.app]||"")+")":""} <span class="note" style="margin:0">${tot} événement(s)</span></h3><div class="tw"><table class="ut"><thead><tr><th>Date et heure</th><th>Utilisateur</th><th>Application</th><th>Événement</th><th>Appareil</th></tr></thead><tbody>${J.slice(0,CX.n).map(x=>{const e=CXEV[x.ev]||[x.ev,"mu"];return`<tr><td class="nw">${cxDt(x.t)}</td><td><b>${E(x.nom||"?")}</b></td><td>${E(CXAPP[x.app]||x.app)}</td><td><span style="color:${e[1]==="er"?"#c62828":e[1]==="ok"?"#118a4b":"#6b7390"};font-weight:700">${E(e[0])}</span>${x.motif&&x.ev!=="ko"?" · "+E(x.motif):""}${x.ancien?' <span class="note" style="margin:0">(repris de l\'audit)</span>':""}</td><td class="sm">${E(x.app_||"—")}</td></tr>`}).join("")||`<tr><td colspan="5" class="note">Aucun événement sur cette sélection.</td></tr>`}</tbody></table></div>
+ ${tot>CX.n?`<p><button type="button" class="tab" data-cx="plus">Afficher 100 de plus (${tot-CX.n} restants)</button></p>`:""}`;
+ box._J=J}
+function cxCsv(){const J=($("s-cx")||{})._J||[],q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"',L=[["Date","Utilisateur","Application","Événement","Détail","Appareil"].map(q).join(";")].concat(J.map(x=>[x.t,x.nom,CXAPP[x.app]||x.app,(CXEV[x.ev]||[x.ev])[0],x.motif||"",x.app_||""].map(q).join(";")));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download="connexions_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove()}
+document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.cx;if(!k||!["app","per","ev"].includes(k))return;CX[k]=e.target.value;CX.n=100;if(k==="app")CX.uid="";cxView()});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-cx]");if(!b||b.tagName==="SELECT")return;const k=b.dataset.cx;
+ if(k==="user"){CX.uid=b.dataset.k;CX.n=100;cxView();const j=$("cx-j");if(j)j.scrollIntoView({behavior:"smooth",block:"start"})}
+ else if(k==="tous"){CX.uid="";CX.n=100;cxView()}else if(k==="plus"){CX.n+=100;cxView()}else if(k==="csv")cxCsv()
+ else if(k==="deverrouiller"){UM=b.dataset.m;try{sessionStorage.setItem("hub_umod",UM)}catch(x){}pTab("users");uView()}});
+const PTABS=[["users","👥 Utilisateurs et rôles"],["connexions","🔐 Connexions"],["identite","🎨 Identité"],["accueil","🏠 Accueil et contenu"],["boutique","🛒 Boutique et vendeurs"],["contact","📞 Contact et légal"],["medias","🖼️ Médias"],["stats","📊 Statistiques portail"],["acces","🔑 Accès portail"],["impression","🖨️ Impression"],["cloud","☁️ Cloud / Supabase"],["publication","🚀 Publication"]];
 let PTAB=(()=>{try{const t=sessionStorage.getItem("angels_param_tab");return PTABS.some(x=>x[0]===t)?t:"users"}catch(e){return"users"}})();
 function pTab(t){if(!PTABS.some(x=>x[0]===t))t="users";PTAB=t;try{sessionStorage.setItem("angels_param_tab",t)}catch(e){}
  $("ptabs").innerHTML=PTABS.map(x=>`<button type="button" role="tab" aria-selected="${x[0]===t}" class="tab ${x[0]===t?"on":""}" data-pt="${x[0]}">${x[1]}</button>`).join("");
- $("s-users").hidden=t!=="users";$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";$("s-imp").hidden=t!=="impression";$("s-cloud").hidden=t!=="cloud";if(t==="cloud")clView();if(t==="impression")iView();if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","medias","stats","acces","impression","cloud"].includes(t);$("s-ptl").hidden=!portail;
+ $("s-users").hidden=t!=="users";$("s-cx").hidden=t!=="connexions";if(t==="connexions")cxView();$("s-med").hidden=t!=="medias";$("s-stats").hidden=t!=="stats";$("s-acces").hidden=t!=="acces";$("s-imp").hidden=t!=="impression";$("s-cloud").hidden=t!=="cloud";if(t==="cloud")clView();if(t==="impression")iView();if(t==="stats")sView();if(t==="acces")aView();const portail=!["users","connexions","medias","stats","acces","impression","cloud"].includes(t);$("s-ptl").hidden=!portail;
  document.querySelectorAll("#ptl .pp").forEach(p=>{p.hidden=p.dataset.pp!==t});const bar=document.querySelector("#pform>.uf");if(bar)bar.style.display=t==="publication"?"none":"flex"}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-pt]");if(b)pTab(b.dataset.pt)});
-pView();mView();pTab(PTAB);
+pView();mView();pTab(PTAB);ANGELS_RAPPORT.init({peut:()=>true});
 {const _uv=uView;uView=function(){_uv();if(typeof pView==="function"){pView();mView();if(typeof iView==="function")iView()}}}
 uView();
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});

@@ -104,6 +104,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="regul-engine.js"></script>
 <script src="prevision-engine.js"></script>
 <script src="inter-engine.js"></script>
+<script src="rapport-engine.js"></script>
 <script src="etiquette-engine.js"></script>
 <script>ANGELS_PRINT.hook({division:"agro",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
@@ -2113,12 +2114,12 @@ A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n")
 const showNav=n=>{const ov=ANGELS_ROLES.surcharge("agro",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
 async function login(id,mdp){
  const u=by(S.users,id);if(!u)return"Compte inconnu.";const t=S.tries[u.id]||{n:0,until:0};
- if(Date.now()<t.until)return"Compte bloqué "+stv("blocage_min")+" minute(s) (trop de tentatives).";if(!u.actif)return"Compte désactivé.";
+ if(Date.now()<t.until){ANGELS_AUTH.trace(S,{app:"agro",uid:u.id,nom:u.nom,role:u.role,ev:"bloque",motif:"Compte bloqué après trop de tentatives"});try{save()}catch(e){}return"Compte bloqué "+stv("blocage_min")+" minute(s) (trop de tentatives)."}if(!u.actif){ANGELS_AUTH.trace(S,{app:"agro",uid:u.id,nom:u.nom,role:u.role,ev:"inactif",motif:"Compte désactivé"});try{save()}catch(e){}return"Compte désactivé."}
  let r;try{r=await ANGELS_AUTH.connecter(u,mdp)}catch(e){return e.message}
  if(r.ok){
   if(r.legacy||u.chg){const ok=await ANGELS_AUTH.ouvrirChangement({titre:"Créez votre mot de passe",nom:u.nom,min:mdpMin(),obligatoire:true,intro:r.legacy?"Les codes PIN ne sont plus acceptés : choisissez un mot de passe personnel pour continuer.":"Votre mot de passe est temporaire : choisissez un mot de passe personnel pour continuer.",enregistrer:async n=>{await ANGELS_AUTH.appliquer(u,n,false);S.tries[u.id]={n:0,until:0};try{save()}catch(e){}}});if(!ok)return"Connexion annulée.";ouvrirSession(u,false);atomic(()=>audit("Mot de passe défini (première connexion)"),true);return null}
   ouvrirSession(u,false);return null}
- t.n++;if(t.n>=stv("tentatives_max")){t.until=Date.now()+stv("blocage_min")*6e4;t.n=0}S.tries[u.id]=t;try{save()}catch(e){}return"Utilisateur ou mot de passe incorrect.";
+ ANGELS_AUTH.trace(S,{app:"agro",uid:u.id,nom:u.nom,role:u.role,ev:"ko",motif:"Mot de passe incorrect"});t.n++;if(t.n>=stv("tentatives_max")){t.until=Date.now()+stv("blocage_min")*6e4;t.n=0}S.tries[u.id]=t;try{save()}catch(e){}return"Utilisateur ou mot de passe incorrect.";
 }
 /* ---------- Connexion : présentation, accès par profil, couleurs du logiciel ---------- */
 const THEMES=[["turquoise","Turquoise","#0e7490"],["bleu","Bleu","#1a3aa8"],["emeraude","Vert émeraude","#0f7b5f"],["orange","Orange énergie","#c9500a"],["violet","Violet","#6a32c9"],["or","Nuit & or","#15171d"]],THEME_DEF="emeraude";
@@ -2136,7 +2137,7 @@ const demoOK=()=>ANGELS_AUTH.demoOn()&&S.settings.acces_demo!==false;
 const HERO=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">ANGEL'S GROUP</div><h1>Chaque lot suivi, chaque œuf compté, chaque franc tracé.</h1><p>Le logiciel de gestion de votre élevage avicole — du poussin à la vente.</p><ul><li><span class="i">🐔</span><div><b>Suivi quotidien des lots</b>Mortalité, aliment, eau, poids et ponte jour par jour.</div></li><li><span class="i">💉</span><div><b>Prophylaxie et délai d'attente</b>Calendrier vaccinal, traitements, vente bloquée si nécessaire.</div></li><li><span class="i">🥚</span><div><b>Couvoir et conditionnement</b>Œufs bruts, plateaux, cartons par calibre.</div></li><li><span class="i">🌽</span><div><b>Aliments et stock</b>Fabrication, coût moyen pondéré, inventaires.</div></li><li><span class="i">🧾</span><div><b>Ventes, créances et SYSCOHADA</b>Encaissements, relances, comptabilité en partie double.</div></li></ul><div class="sanix" style="margin-top:18px;font-size:12px;opacity:.85">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</div></div>`;
 function demoFill(b){const f=document.getElementById("lf");if(!f)return;const d=f.closest("details");if(d)d.open=true;f.u.value=b.dataset.id;(f.p||f.pin).value=ANGELS_AUTH.DEMO_MDP;document.querySelectorAll(".pcard").forEach(c=>c.classList.toggle("on",c===b));const s=f.querySelector("button:not(.aa-e)");if(s)s.focus()}
 const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["direction","📊","Direction","Tableau de bord, validations"],["chef","🧑‍🌾","Chef d'exploitation","Lots, santé, couvoir"],["soigneur","🐔","Soigneur","Suivi quotidien, soins"],["magasinier","📦","Magasinier","Stock, achats, aliments"],["commercial","📞","Commercial","Ventes, clients"],["caissier","💰","Caissier","Encaissements, caisse"],["comptable","📒","Comptable","Comptabilité, états"]];
-function ouvrirSession(u,demo){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("ag_me",u.id)}catch(x){}view="dash";atomic(()=>{audit(demo?"Connexion (accès démo)":"Connexion");dotationsAuto()},true)}
+function ouvrirSession(u,demo){S.tries[u.id]={n:0,until:0};ME=u;try{sessionStorage.setItem("ag_me",u.id)}catch(x){}view="dash";atomic(()=>{ANGELS_AUTH.trace(S,{app:"agro",uid:u.id,nom:u.nom,role:u.role,ev:demo?"demo":"ok"});audit(demo?"Connexion (accès démo)":"Connexion");dotationsAuto()},true)}
 function loginHTML(){
  const act=S.users.filter(u=>u.actif),demo=demoOK(),cards=DEMO_P.map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-a="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
  const form=`<form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${esc(ROLES[u.role])}</option>`).join("")}</select></label><label style="margin-top:10px">Mot de passe<input name="p" type="password" autocomplete="current-password" required></label><p id="le" class="mu sm"></p><button class="btn" style="width:100%">Se connecter</button><p class="mu sm">Mot de passe oublié ? Demandez sa réinitialisation à l'administrateur.</p></form>`;
@@ -2158,7 +2159,7 @@ function render(){
  app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">${"🐔 "+ORG()+"<small>"+ORGACT()+"</small>"}</div>${clkBox()}${nav}<a href="index.html">🏠 Hub groupe</a><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="mdp.me">Mon mot de passe</a><br><a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
  populateDatalistPlanComptable();
 }
-A.out=()=>{atomic(()=>audit("Déconnexion"),true);ME=null;try{sessionStorage.removeItem("ag_me")}catch(x){}render()};A.bg=()=>$("#sb").classList.toggle("open");
+A.out=()=>{atomic(()=>{if(ME)ANGELS_AUTH.trace(S,{app:"agro",uid:ME.id,nom:ME.nom,role:ME.role,ev:"out"});audit("Déconnexion")},true);ME=null;try{sessionStorage.removeItem("ag_me")}catch(x){}render()};A.bg=()=>$("#sb").classList.toggle("open");
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t||!S||t.tagName==="INPUT")return;const fn=A[t.dataset.a];if(fn){e.preventDefault();fn(t.dataset.id,t,e)}});
 document.addEventListener("change",e=>{const t=e.target;if(!S||!t.dataset.f)return;const[k,p]=t.dataset.f.split(":");(UI.f[k]=UI.f[k]||{})[p]=t.value;render()});
 window.addEventListener("storage",e=>{if(e.key===KEY&&e.newValue&&!document.querySelector(".md")){try{S=JSON.parse(e.newValue);if(ME)ME=by(S.users,ME.id);if(ME&&!ME.actif)ME=null;render()}catch(x){}}});
@@ -2187,7 +2188,7 @@ barre();
 load();
 try{const id=sessionStorage.getItem("ag_me");if(id){const u=by(S.users,id);if(u&&u.actif)ME=u}}catch(e){}
 render();
-ANGELS_SYNC.init({app:"agro",nom:"Agro",get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries"],qui:()=>ME?ME.nom:"poste"});
+ANGELS_RAPPORT.init({peut:()=>!!ME&&["admin","direction"].includes(ME.role)});ANGELS_SYNC.init({app:"agro",nom:"Agro",ajout:["audit","connexions"],get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries"],qui:()=>ME?ME.nom:"poste"});
 </script>
 </body>
 </html>

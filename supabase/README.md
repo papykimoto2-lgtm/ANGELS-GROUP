@@ -87,3 +87,12 @@ Le portail utilise `passerelle-config.js` (adresse publique) : sans fonction dé
 | `functions/portail-catalogue/` | **Public**, GET seulement : le portail lit le catalogue publié (`--no-verify-jwt`, cache 30 s) |
 
 Mise en service : appliquer la migration 009, redéployer `portail-sync` (nouvelle action) et déployer `portail-catalogue` avec `--no-verify-jwt`. Tests : `node tests/portail-demandes.js`.
+
+## Rapport quotidien des connexions au DG (e-mail à 11 h)
+
+Fonction `rapport-connexions` (`verify_jwt: false`, clés propres) : construit le rapport des dernières 24 h à partir des collections « connexions » et « users » de `sync_enreg` et l'envoie par e-mail (Resend).
+
+1. Migration `010_rapport_connexions.sql` (table `rapport_dg`, fonction `rapport_dg_planifier`).
+2. Secrets de la fonction : `SYNC_KEY` (la même que la synchronisation), `CRON_KEY` (16 caractères au moins, propre à la planification), `RESEND_API_KEY`, `RAPPORT_DE` (expéditeur vérifié chez Resend, ex. `Angel's Group <rapports@votre-domaine>`).
+3. Déployer `rapport-connexions`, activer les extensions `pg_cron` et `pg_net`, puis exécuter une fois : `select public.rapport_dg_planifier('https://<projet>.supabase.co/functions/v1/rapport-connexions', '<CRON_KEY>');` (passage chaque heure pleine ; l'envoi n'a lieu qu'une fois par jour, après l'heure choisie, heure d'Abidjan).
+4. Dans Paramètres du hub → Connexions : adresses du DG, heure, **Enregistrer**, puis **E-mail de test**.
