@@ -695,3 +695,7 @@ Moteur `signal-engine.js` (Distribution et application livreur) : cinq sons synt
 - Les navigateurs n'autorisent le son qu'après un toucher de l'écran : il suffit de toucher une fois après l'ouverture (un message le rappelle si besoin). Le portail, Transport et Agro ne sonnent pas pour l'instant. Tests : `node tests/signaux.js` (19 contrôles).
 
 **Bordereau de commandes** : il n'a plus de période ni d'origine propres ; il reprend exactement les commandes du tableau (recherche, statut, dates, livreur, origine, zone, paiement, urgentes), sans les annulées sauf filtre « Annulée ». Le titre du bordereau imprimé rappelle les filtres actifs.
+
+## Photos à l'enregistrement d'une commande
+
+Le formulaire **Nouvelle commande** (Distribution) a une zone « 📷 Photos jointes (facultatif) » : on ajoute d'un coup plusieurs photos ou captures d'écran (appareil photo de la tablette ou galerie) — capture de la demande du client, photo de l'article, du colis… —, jusqu'à 8, redimensionnées en JPEG (900 px) ; chaque vignette se retire avec ✕ avant l'enregistrement. Elles sont enregistrées avec la commande (journal d'audit « Photos jointes à la création »), visibles en vignettes dans la fiche de la commande et dans « Photos jointes (n) » (galerie, agrandissement, ajout ou retrait tant que la commande n'est pas terminée). La modification d'une commande existante passe toujours par « Photos jointes ». Mode serveur (CL) : non disponible pour l'instant. Test : `node tests/commande-photos.js` (8 contrôles).
