@@ -78,6 +78,18 @@ Mise en service (rien n'est déployé automatiquement) :
 Le portail utilise `passerelle-config.js` (adresse publique) : sans fonction déployée, l'envoi direct échoue proprement et WhatsApp reste proposé. Tests : `node tests/portail-demandes.js`.
 
 
+## Demandes de clients relevées par le vendeur partenaire (clé de relève)
+
+Les demandes envoyées depuis le lien de commande d'un vendeur portent son identifiant. Le bureau remet au vendeur une **clé de relève** (*Vendeurs partenaires → 🔑 Clé de relève*, affichée une seule fois, seule son empreinte est stockée). Avec cette clé, l'appareil du vendeur relève **uniquement ses demandes** toutes les 30 s et les importe dans « Demandes clients ». Une demande destinée à un vendeur qui a une clé n'est plus relevée par le bureau.
+
+| Élément | Rôle |
+|---|---|
+| `migrations/012_portail_vendeurs.sql` | Colonne `vendeur` sur `pd_demandes`, table `pd_vendeurs` (RLS sans politique, aucun droit pour `anon` / `authenticated`) |
+| `functions/portail-sync/` (action `cle_vendeur`) | Le bureau crée ou renouvelle la clé d'un vendeur (clé d'administration) |
+| `functions/portail-vendeur/` | **Public** (`--no-verify-jwt`) : le vendeur relève (`lister`) et acquitte (`acquitter`) ses demandes avec identifiant + clé |
+
+Mise en service : appliquer la migration 012, redéployer `portail-sync` et déployer `portail-vendeur` avec `--no-verify-jwt`. **Non déployée automatiquement.** Test : `node tests/portail-vendeur.js` (14 contrôles).
+
 ## Catalogue public du portail (mise à jour automatique pour les visiteurs)
 
 | Fichier | Rôle |
