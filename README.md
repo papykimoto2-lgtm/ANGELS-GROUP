@@ -750,3 +750,7 @@ L'écran du livreur est désencombré par un menu ☰ : **Commandes en cours et 
 - **Fiche client** : case « Téléphone simple (sans smartphone) ». Ses notifications (dont le départ du livreur avec le code de réception) sont préparées en **SMS**, sans lien de suivi, avec le bouton « Envoyer (SMS) » mis en avant.
 - **Application livreur** : à côté de « Confirmer la livraison », le bouton **« Le client n'a pas reçu le code (ou n'a pas de smartphone) »** prévient le centre (action « incident / Code client », sans changement du serveur).
 - **Bureau** (Notifications → Demandes des livreurs) : « 📱 Envoyer le code par SMS » au client, appel du client, puis **« 🔑 Libérer le code au livreur »** après vérification par téléphone (motif demandé, tracé dans l'audit). Le code n'est publié au livreur qu'à ce moment ; il est alors prérempli à la confirmation et le serveur le vérifie comme d'habitude. Test : `tests/code-sans-smartphone.js`.
+
+## Centre de livraison en onglets
+
+Le Centre de livraison est organisé en 6 onglets avec compteurs : **📦 À affecter**, **🏍 Courses actives** (carte du livreur), **🧺 Collectes vendeurs**, **🔁 Tournées**, **👥 Livreurs**, **⚠ À traiter** (livraisons échouées et écarts d'encaissement). Les filtres date et lieu (zone, quartier, repère, n° de commande ou client) s'affichent sur « À affecter », « Courses actives » et « À traiter » ; la barre de zones sur « À affecter », « Courses actives » et « Tournées ». Test : `tests/centre-onglets.js`.
