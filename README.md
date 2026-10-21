@@ -348,6 +348,7 @@ Chaque module lit désormais ses réglages dans son écran Paramètres (aucune v
 
 ## Espace vendeur installable (Livraison)
 - Lien dédié : `/vendeur` (ou `distribution.html?app=vendeur`). Le vendeur l'ouvre sur son téléphone, puis « Installer l'espace vendeur » (Android) ou Partager → « Sur l'écran d'accueil » (iPhone).
+- **Interface simplifiée** : le vendeur arrive sur un accueil à grosses tuiles (Nouvelle commande, Mes colis, Mon argent, Aide WhatsApp, Lien client), avec barre du bas (Accueil, Commander, Colis, Argent) et sans menu latéral. La commande se dépose en **3 étapes** (client, articles et photos, paiement). Test : `tests/vendeur-simple.js`.
 - Application distincte à l'écran d'accueil : nom « Espace vendeur », icône violette, manifeste `manifest-vendeur.webmanifest` (id propre), partage WhatsApp → saisie de commande conservé.
 - Connexion réservée aux comptes **vendeur** (les autres profils sont refusés) ; seul le profil vendeur est proposé en démonstration.
 - Les données restent celles du mode utilisé : en mode local elles vivent sur l'appareil ; le partage entre le téléphone du vendeur et le bureau suppose le mode serveur (Supabase).

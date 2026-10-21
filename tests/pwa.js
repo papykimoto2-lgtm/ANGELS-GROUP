@@ -85,8 +85,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   t("PWA-V6","un compte non vendeur est refusé dans l'espace vendeur",refus.me===null?true:JSON.stringify(refus));
   await vp.reload();await vp.waitForSelector("#lf",{state:"attached"});
  await vp.evaluate(()=>{const u=S.users.find(x=>x.role==="vendeur"),f=document.getElementById("lf");f.u.value=u.id;(f.pin||f.p).value="Demo@Angels2026";f.requestSubmit()});await vp.waitForTimeout(1500);
-  const ok2=await vp.evaluate(()=>({role:ME&&ME.role,txt:document.body.innerText.includes("Mes commandes")}));
-  t("PWA-V7","le vendeur se connecte et arrive sur ses commandes",ok2.role==="vendeur"&&ok2.txt?true:JSON.stringify(ok2));
+  const ok2=await vp.evaluate(()=>({role:ME&&ME.role,txt:document.body.innerText.includes("Nouvelle commande")}));
+  t("PWA-V7","le vendeur se connecte et arrive sur son accueil simplifié",ok2.role==="vendeur"&&ok2.txt?true:JSON.stringify(ok2));
   const lien=await vp.evaluate(()=>document.body.innerText.includes("Accueil groupe"));
   t("PWA-V8","espace vendeur : pas de lien vers l'accueil du groupe",lien===false?true:"lien présent");
   await vp.close()}
