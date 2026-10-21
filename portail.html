@@ -221,16 +221,16 @@ const waNum=()=>telWA(T.contact.whatsapp||(T.shop&&T.shop.w)||"");
 function lienWA(msg){const n=waNum();return n?"https://wa.me/"+n+"?text="+encodeURIComponent(msg):""}
 /* Envoi direct au bureau (fonction serveur « portail-demande ») : seulement si la passerelle est configurée ; WhatsApp reste toujours disponible */
 const portailDirect=()=>{const c=window.ANGELS_PASSERELLE;return c&&/^https:\/\//.test(c.url||"")?c.url.replace(/\/+$/,"")+"/functions/v1/portail-demande":""};
-async function envoiDirect(btn){const card=btn.closest(".card"),st=card.querySelector("#dir_st"),ta=card.querySelector("textarea"),u=portailDirect();if(!u||!ta)return;btn.disabled=true;st.textContent="Envoi en cours…";
- try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:ta.value})}),j=await r.json().catch(()=>({}));
+async function envoiDirect(btn){const card=btn.closest(".card"),st=card.querySelector("#dir_st"),ta=card.querySelector("textarea"),u=portailDirect();if(!u||!ta)return;btn.disabled=true;const dm=btn.dataset.dm&&ST.cdm?ST.cdm:ta.value;st.textContent="Envoi en cours…";
+ try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:dm})}),j=await r.json().catch(()=>({}));
   if(r.ok&&j.ok){if(card.closest("#shop"))panierVider();card.querySelector("h3").textContent="Demande envoyée ✔";btn.remove();st.textContent="Nous avons bien reçu votre demande (réf. "+(j.refs&&j.refs[0]||"")+"). Nous vous recontactons très vite."+(j.doublons?" (Elle avait déjà été reçue.)":"");st.style.color="var(--ok,#118a4b)";return}
   st.textContent=(j.erreur||"Envoi impossible")+" — utilisez WhatsApp ci-dessous.";st.style.color="#b42318";btn.disabled=false}
  catch(e){st.textContent="Pas de connexion au serveur — utilisez WhatsApp ci-dessous.";st.style.color="#b42318";btn.disabled=false}}
-function envoi(titre,msg,ref,back,num){ // dernière étape : envoi direct (si disponible), WhatsApp, ou copie du message si aucun numéro n'est publié
- const dir=!!portailDirect()&&/\[(BOUTIQUE|LIVRAISON|ABONNEMENT):/.test(msg);
+function envoi(titre,msg,ref,back,num,dmsg){ // dernière étape : envoi direct (si disponible), WhatsApp, ou copie du message si aucun numéro n'est publié
+ const dir=!!portailDirect()&&(!!dmsg||/\[(BOUTIQUE|LIVRAISON|ABONNEMENT):/.test(msg));
  const u=num?"https://wa.me/"+telWA(num)+"?text="+encodeURIComponent(msg):lienWA(msg);return `<div class="card" style="align-items:center;text-align:center"><div class="ic" style="color:var(--c)"><svg class="i" viewBox="0 0 24 24" style="width:44px;height:44px" aria-hidden="true">${ICO.send}</svg></div><h3>Dernière étape</h3><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(ref)}</b></p><p class="mu">${titre}</p>
  ${num?`<p class="mu" style="font-size:13px">Le message sera envoyé au <b>${esc(num)}</b>${digits(num)!==digits(waNum())?" — ce numéro n'est pas celui publié par l'entreprise : vérifiez-le avant d'envoyer.":"."}</p>`:""}
- ${dir?`<button type="button" class="go" data-direct="1" style="width:100%;justify-content:center">${ico("send")}Envoyer directement à ${esc(T.nom)}</button><p class="mu" id="dir_st" role="status" style="font-size:13px">Envoi instantané, sans passer par WhatsApp. Vous pouvez aussi utiliser WhatsApp ci-dessous.</p>`:""}
+ ${dir?`<button type="button" class="go" data-direct="1"${dmsg?' data-dm="1"':""} style="width:100%;justify-content:center">${ico("send")}Envoyer directement à ${esc(T.nom)}</button><p class="mu" id="dir_st" role="status" style="font-size:13px">Envoi instantané, sans passer par WhatsApp. Vous pouvez aussi utiliser WhatsApp ci-dessous.</p>`:""}
  ${u?`<a class="go" href="${esc(u)}" target="_blank" rel="noopener">${ico("chat")}Envoyer sur WhatsApp</a>`:'<div class="empty">Numéro WhatsApp non publié : copiez le message ci-dessous et envoyez-le.</div>'}
  <button type="button" class="chip" data-cp="1">${ico("copy")}Copier le message</button><textarea class="msg" readonly rows="6" style="width:100%;font-size:12px">${esc(msg)}</textarea><button type="button" class="chip" data-vue="${back}">← Nouvelle demande</button></div>`}
 document.addEventListener("click",e=>{if(ST.vs==="cmd"&&e.target.closest&&e.target.closest("#shop a.go"))panierVider()});   /* le client ouvre WhatsApp avec son message : le panier est vidé */
@@ -432,12 +432,12 @@ async function suiviRendre(){
  else{el.innerHTML=suiviCarte(r.d,r.etat);const m=document.getElementById("sv_map");if(m)carteSuivi(m,r.d.dst,r.d.pos);else{el.insertAdjacentHTML("beforeend",'<div class="card" style="margin-top:14px"><h3>Carte</h3><p class="mu">'+(["livree","annulee","echouee","retour_cours","retour_recu"].includes(r.d.s)?"Livraison terminée : la carte ne s\'affiche que pendant le trajet.":"La position du livreur s\'affichera ici dès que votre commande sera en route (nouveau lien reçu par WhatsApp).")+'</p><div class="svmap" id="sv_zone" role="img" aria-label="Carte de la zone de livraison"></div></div>');const z=document.getElementById("sv_zone");if(z)carteZone(z)}}}
 /* Commande par lien : « commande libre » chez un vendeur partenaire, ou boutique préremplie pour un client */
 function commanderTok(){let o=null;try{o=unb64(jetonDe())}catch(e){}if(!o||typeof o!=="object")return null;
- return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
+ return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),i:cutS(o.i,60),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
 function commanderRendre(){
  const el=document.getElementById("cm"),o=commanderTok();if(!el)return;
  if(!o){el.innerHTML='<div class="empty">Lien de commande illisible : demandez-en un nouveau à la personne qui vous l\'a envoyé.</div>';return}
  if(!o.v){ST.pre=o.c;location.replace("#/boutique");return}
- if(ST.cs==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre commande à <b>"+esc(o.v)+"</b>. Il la vérifie, confirme le prix et organise la livraison par "+esc(o.org||T.nom)+".",ST.cmsg,ST.cref,"cmd",o.t||o.w);return}
+ if(ST.cs==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre commande à <b>"+esc(o.v)+"</b>. Il la vérifie, confirme le prix et organise la livraison par "+esc(o.org||T.nom)+".",ST.cmsg,ST.cref,"cmd",o.t||o.w,ST.cdm||"");return}
  const L=ST.cl||(ST.cl=[{d:"",q:1,p:""}]),c=o.c||{};
  const zs=o.z.length?o.z:(T.shop?T.shop.zones.map(z=>z.nom):[]);
  el.innerHTML=`<div class="card"><div class="mu">${esc(o.org||T.nom)}</div><h3 style="margin:2px 0 6px">Commander chez ${esc(o.v)}</h3><p class="mu">Décrivez votre commande et votre adresse : elle part sur WhatsApp, rien n'est livré avant la validation de ${esc(o.v)}.</p>
@@ -457,6 +457,8 @@ function commanderRendre(){
   const ref=ref6(),ls=lg.map(l=>({d:l.d.trim().slice(0,120),q:Math.max(1,Math.min(99,parseInt(l.q)||1)),p:l.p===""||isNaN(+String(l.p).replace(/\s/g,""))?null:Math.max(0,Math.round(+String(l.p).replace(/\s/g,"")))}));
   const pay={f:ref,n:val("c_nom"),t:val("c_tel"),z:val("c_zone"),q:val("c_q"),r:val("c_rep"),m:val("c_note"),a:ST.cgps?ST.cgps.lat:null,o:ST.cgps?ST.cgps.lng:null,l:ls.map(l=>[l.d,l.q,l.p])};
   ST.cmsg=`Commande — ${o.v} (réf. ${ref})\nNom : ${pay.n}\nTél : ${pay.t}\nZone : ${pay.z}${pay.q?" · "+pay.q:""}${pay.r?" · "+pay.r:""}\n${ST.cgps?"Position : https://maps.google.com/?q="+ST.cgps.lat+","+ST.cgps.lng+"\n":""}Articles :\n${ls.map(l=>"- "+l.q+" x "+l.d+(l.p!=null?" ("+F(l.p)+")":"")).join("\n")}${pay.m?"\nMessage : "+pay.m:""}\n(Captures d'écran à envoyer dans cette conversation)\n[ANGELS:${b64(pay)}]`;
+  /* Envoi direct au serveur : la commande arrive dans l'espace du vendeur ; le message WhatsApp reste disponible (et sert aux captures d'écran) */
+  {const pv=Object.assign({},pay,{v:o.i||"",vt:o.t||"",vn:o.v||"",m:String(pay.m||"").slice(0,300)}),dm="Commande vendeur "+o.v+" (réf. "+ref+")\n[BOUTIQUE:"+b64(pv)+"]";ST.cdm=dm.length<=5800?dm:""}
   ST.cref=ref;ST.cs="fin";commanderRendre()}}
 
 /* ---------- Programmer une livraison : scan d'un QR code, formulaire, QR à partager ---------- */

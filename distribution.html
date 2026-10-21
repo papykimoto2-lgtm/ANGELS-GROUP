@@ -3198,7 +3198,7 @@ async function demRejeter(id){const d=(S.demandes||[]).find(x=>x.id===id);if(!d)
    toast("Demande refusée","ok");render();return true}catch(e){toast(fixErr(e),"err");return false}},{label:"Refuser",cls:"er"})}
 async function cmdLien(renew){const v=vend();if(!v)return;let link;
  try{if(CL.on){const t=await CL.rpc("creer_lien_commande",{p_renouveler:!!renew});link=location.href.split("#")[0].split("?")[0]+"#commande="+t}else{if(!String(v.tel||"").replace(/\D/g,""))return toast("Renseignez d'abord le téléphone WhatsApp du vendeur (fiche vendeur)","err");
-   link=portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,z:S.config.zones.map(z=>z.nom)}))}}catch(e){return toast(fixErr(e),"err")}
+   link=portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,i:v.id,z:S.config.zones.map(z=>z.nom)}))}}catch(e){return toast(fixErr(e),"err")}
  const msg=`Bonjour ! Passez votre commande chez ${v.nom} en ligne (articles, captures, quantités, position de livraison) : ${link}`;
  modal("Lien de commande de vos clients",`<p class="sm mu">Partagez ce lien ou ce QR code (WhatsApp, statut, boutique). Vos clients y décrivent leur commande : articles, captures d'écran, quantités, prix s'ils le connaissent, et leur position de livraison. Rien n'est livré avant votre validation.${CL.on?"":` <b>Sans serveur</b> : la commande du client vous arrive sur WhatsApp, <b>au ${esc(v.tel||"numéro de votre fiche")}</b> ; collez-la dans « Saisie depuis WhatsApp » et tout est prérempli, position GPS comprise. Le client y joint ses captures d'écran s'il le peut.`}</p>
  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:150px;height:150px;background:#fff;padding:6px;border-radius:8px">${qrSvg(link)}</div><div style="flex:1;min-width:200px"><label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label></div></div>
@@ -3244,7 +3244,7 @@ function renderOrder(p,submit){
   const b=$("#o_send");b.disabled=true;
   try{const r=await submit(pl);
    if(r.wa){const can=!!(r.files&&r.files.length&&navigator.canShare&&navigator.canShare({files:r.files}));
-    app.innerHTML=`<div class="login"><div class="card" style="text-align:center;max-width:460px"><div style="font-size:42px">📲</div><h2>Dernière étape</h2><p>Votre commande est prête. ${can?`Touchez le bouton, choisissez <b>WhatsApp</b> puis la conversation de <b>${esc(p.vendeur)}</b> : votre message et vos ${r.files.length} capture(s) partent ensemble.</p><button type="button" class="btn ok" id="o_share" style="width:100%;font-size:17px">📲 Envoyer message + captures</button><p class="sm" style="margin-top:10px"><a target="_blank" rel="noopener" href="${esc(r.wa)}">Envoyer le texte seulement</a></p>`:`Touchez le bouton pour l'envoyer à <b>${esc(p.vendeur)}</b> sur WhatsApp${r.files&&r.files.length?`, puis <b>joignez vos captures d'écran</b> dans la conversation (votre téléphone ne permet pas de les joindre automatiquement)`:""}.</p><a class="btn ok" style="display:block;text-decoration:none;font-size:17px" target="_blank" rel="noopener" href="${esc(r.wa)}">📲 Envoyer ma commande sur WhatsApp</a>`}<p class="mu sm" style="margin-top:12px">Référence <b>${esc(r.ref)}</b> · ${esc(p.vendeur)} vérifie les prix puis vous confirme la livraison.</p></div></div>`;
+    app.innerHTML=`<div class="login"><div class="card" style="text-align:center;max-width:460px"><div style="font-size:42px">📲</div><h2>${r.direct?"Commande enregistrée ✔":"Dernière étape"}</h2>${r.direct?`<p>${esc(p.vendeur)} a bien reçu votre commande (réf. <b>${esc(r.ref)}</b>) et va vous contacter pour confirmer.</p><p class="mu sm">Vous pouvez aussi la lui envoyer sur WhatsApp${r.files&&r.files.length?", avec vos captures d'écran":""} :</p>`:""}<p>${r.direct?"":"Votre commande est prête. "}${can?`Touchez le bouton, choisissez <b>WhatsApp</b> puis la conversation de <b>${esc(p.vendeur)}</b> : votre message et vos ${r.files.length} capture(s) partent ensemble.</p><button type="button" class="btn ok" id="o_share" style="width:100%;font-size:17px">📲 Envoyer message + captures</button><p class="sm" style="margin-top:10px"><a target="_blank" rel="noopener" href="${esc(r.wa)}">Envoyer le texte seulement</a></p>`:`Touchez le bouton pour l'envoyer à <b>${esc(p.vendeur)}</b> sur WhatsApp${r.files&&r.files.length?`, puis <b>joignez vos captures d'écran</b> dans la conversation (votre téléphone ne permet pas de les joindre automatiquement)`:""}.</p><a class="btn ok" style="display:block;text-decoration:none;font-size:17px" target="_blank" rel="noopener" href="${esc(r.wa)}">📲 Envoyer ma commande sur WhatsApp</a>`}<p class="mu sm" style="margin-top:12px">Référence <b>${esc(r.ref)}</b> · ${esc(p.vendeur)} vérifie les prix puis vous confirme la livraison.</p></div></div>`;
     if(can)$("#o_share").onclick=()=>navigator.share({files:r.files,text:r.msg,title:"Commande "+p.vendeur}).catch(()=>{});return}
    app.innerHTML=`<div class="login"><div class="card" style="text-align:center;max-width:460px"><div style="font-size:42px">✅</div><h2>Commande envoyée</h2><p>Référence <b style="font-size:20px;letter-spacing:2px">${esc(r.ref)}</b></p><p class="mu">${esc(p.vendeur)} va vérifier votre commande et vous contacter pour confirmer les prix et la livraison.</p>${gp?`<a class="btn ok" style="display:block;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${telWA(gp)}?text=${encodeURIComponent("Bonjour, je viens d'envoyer une commande chez "+p.vendeur+" (réf. "+r.ref+")")}">💬 Contacter ${esc(p.org)}</a>`:""}</div></div>`}
   catch(e){b.disabled=false;err(fixErr(e))}}
@@ -3260,7 +3260,11 @@ function bootOrderStandalone(o){
   const ref=Math.random().toString(36).slice(2,8).toUpperCase(),f=n=>new Intl.NumberFormat("fr-FR").format(n).replace(/\s/g," ")+" F";
   const pay={f:ref,n:pl.nom,t:pl.tel,z:pl.zone,q:pl.quartier,r:pl.repere,m:pl.note||"",a:pl.lat,o:pl.lng,l:pl.lignes.map(l=>[l.desig,l.qte,l.pu])};
   const msg=`🛒 Commande — ${o.v||""} (réf. ${ref})\nNom : ${pl.nom}\nTél : ${pl.tel}\nZone : ${pl.zone}${pl.quartier?" · "+pl.quartier:""}${pl.repere?" · "+pl.repere:""}\n${pl.lat!=null?"📍 https://maps.google.com/?q="+pl.lat+","+pl.lng+"\n":""}Articles :\n${pl.lignes.map(l=>"- "+l.qte+" x "+l.desig+(l.pu!=null?" ("+f(l.pu)+")":"")).join("\n")}${pl.note?"\nMessage : "+pl.note:""}\n${files.length?"("+files.length+" capture(s) d'écran jointe(s))":"(Captures d'écran à envoyer dans cette conversation)"}\n[ANGELS:${b64(pay)}]`;
-  return{ok:true,ref,files,msg,wa:"https://wa.me/"+(telWA(tel))+"?text="+encodeURIComponent(msg)}})}
+  /* Envoi direct au serveur : la commande arrive dans l'espace du vendeur sans attendre WhatsApp (les captures, trop lourdes, partent toujours par WhatsApp) */
+  let direct=false;const pg=window.ANGELS_PASSERELLE,url=pg&&/^https:\/\//.test(pg.url||"")?pg.url.replace(/\/+$/,"")+"/functions/v1/portail-demande":"";
+  if(url){try{const pv=Object.assign({},pay,{v:o.i||"",vt:o.t||"",vn:o.v||"",m:String(pay.m||"").slice(0,300)}),dm="🛒 Commande vendeur "+(o.v||"")+" (réf. "+ref+")\n[BOUTIQUE:"+b64(pv)+"]";
+    if(dm.length<=5800){const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:dm})}),j=await r.json().catch(()=>({}));direct=!!(r.ok&&j.ok)}}catch(e){direct=false}}
+  return{ok:true,ref,files,msg,direct,wa:"https://wa.me/"+(telWA(tel))+"?text="+encodeURIComponent(msg)}})}
 function bootOrderLocal(vid){
  try{const o=unb64(vid);if(o&&o.v&&Array.isArray(o.z))return bootOrderStandalone(o)}catch(e){}
  let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}
@@ -5205,11 +5209,28 @@ function progCreer(d){
  setStatut(c,"attente","Programmation de livraison reçue du portail");
  c.web={ref,at:now(),pm:"esp",pay:null,tt:null};c.prog={date:dat,creneau:cren,collecte:{zone:cz,quartier:cq,repere:cr,gps:cg},dest:{nom:dn,tel:dt},desc,paye:pc,service:sv?{code:sv.code,kind:sv.service,nom:sv.nom}:null,retour_de:rt||"",retour_cmd:orig?orig.id:null};
  audit("Programmation de livraison importée",c.numero+" — "+jour+" "+CRENEAU_L[cren]+(sv?" — "+sv.nom:""));return{numero:c.numero,nom,total:c.total,notes:[]}}
+/* Commande d'un client passée par le lien du vendeur partenaire (envoi direct) : devient une demande « nouvelle » dans l'espace du vendeur, à vérifier puis transformer en commande. */
+function vendDemCreer(d){
+ const dig=x=>String(x||"").replace(/\D/g,"").slice(-8),norm=x=>String(x||"").trim().toLowerCase();
+ let v=d.v?S.vendeurs.find(x=>x.id===d.v):null;
+ if(!v&&dig(d.vt).length>=8){const c=S.vendeurs.filter(x=>dig(x.tel)===dig(d.vt));if(c.length===1)v=c[0]}
+ if(!v&&d.vn){const c=S.vendeurs.filter(x=>norm(x.nom)===norm(d.vn));if(c.length===1)v=c[0]}
+ if(!v)throw new Error("vendeur introuvable ("+String(d.vn||"?").slice(0,40)+") : le lien est peut-être ancien ou le vendeur a été supprimé");
+ const ref=String(d.f||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,12);
+ if(ref.length<3)throw new Error("référence absente");
+ if((S.demandes||[]).some(x=>x.ref===ref))throw new Error("commande "+ref+" déjà importée");
+ const L=(Array.isArray(d.l)?d.l:[]).slice(0,30).map(x=>({desig:String(x[0]||"").trim().slice(0,120),qte:Math.max(1,Math.min(9999,Math.round(+x[1])||1)),pu:x[2]==null||x[2]===""||isNaN(+x[2])?null:Math.max(0,Math.round(+x[2])),img:null})).filter(x=>x.desig);
+ if(!L.length)throw new Error("aucun article");
+ const tel=String(d.t||"").replace(/[^0-9+]/g,"");if(tel.replace(/\D/g,"").length<8)throw new Error("téléphone du client invalide");
+ S.demandes=S.demandes||[];
+ S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien"});
+ audit("Commande client reçue par le lien du vendeur",v.nom+" — "+String(d.n||"Client").slice(0,40)+" (réf. "+ref+")");
+ return{numero:ref,nom:String(d.n||"Client"),total:0,notes:[]}}
 function webImporter(text){
  const mk=[...String(text).matchAll(/\[(BOUTIQUE|LIVRAISON|ABONNEMENT):([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};
  if(!mk.length)throw new Error("Aucune commande dans ce texte (le marqueur [BOUTIQUE:…], [LIVRAISON:…] ou [ABONNEMENT:…] est absent)");
  mk.forEach(m=>{let d;try{d=unb64(m[2])}catch(e){res.ko.push("message illisible");return}
-  try{res.ok.push(m[1]==="LIVRAISON"?progCreer(d):m[1]==="ABONNEMENT"?aboWeb(d):webCreer(d))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
+  try{res.ok.push(m[1]==="LIVRAISON"?progCreer(d):m[1]==="ABONNEMENT"?aboWeb(d):(m[1]==="BOUTIQUE"&&d&&(d.v||d.vt||d.vn)?vendDemCreer(d):webCreer(d)))}catch(e){res.ko.push((String(d&&d.n||"Client").slice(0,40))+" ("+String(d&&d.f||"?").slice(0,12)+") : "+e.message)}});
  return res}
 /* ---------- Demandes du portail reçues directement (fonctions serveur portail-demande / portail-sync) ----------
    Le portail peut transmettre la demande du client au serveur au lieu de WhatsApp. Le bureau relève la file, importe chaque message avec les mêmes contrôles que l'import manuel
