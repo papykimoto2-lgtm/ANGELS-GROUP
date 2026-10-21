@@ -56,7 +56,7 @@ const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",l
 const ACTIFS=["affectee","acceptee","en_cours"];
 let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null;
 /* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
-const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej"},DUREE_CACHE=48*36e5;
+const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem"},DUREE_CACHE=48*36e5;
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const cache=()=>{const c=lsGet(LS.c,null);return c&&c.t&&c.uid&&Date.now()-c.t<DUREE_CACHE?c:null};
 const file=()=>lsGet(LS.f,[]),rejets=()=>lsGet(LS.r,[]),enFile=ref=>file().filter(f=>f.ref===ref),enLigne=()=>navigator.onLine!==false;
@@ -111,6 +111,15 @@ function ctBloc(m){const p=m.payload||{},k=p.contact||{},r=esc(m.livraison_ref);
  else if(k.statut==="echec")h+=`<div class="al er">⛔ Le centre vous autorise à déclarer l'échec (client injoignable)${k.autorise_note?" : "+esc(k.autorise_note):""}.</div>`;
  if(k.statut!=="attente"&&k.statut!=="echec")h+=`<button class="btn wa" data-a="norep" data-r="${r}">☎ Le client ne répond pas — prévenir le centre</button>`;
  const man=ctManque(p);if(man.length&&k.statut!=="echec")h+=`<div class="sm mu">Avant un échec « client injoignable » : ${man.map(esc).join(" ; ")}.</div>`;return h}
+/* Position du client : jamais bloquante. Connue → itinéraire direct (départ = position actuelle du livreur, mode moto, trafic pris en compte par l'application de cartes) ; inconnue → itinéraire vers la zone et possibilité de la demander au bureau */
+const posDem=r=>lsGet(LS.p,{})[r]||0;
+const itineraire=(a,g)=>g&&isFinite(+g.lat)&&isFinite(+g.lng)?`https://www.google.com/maps/dir/?api=1&destination=${+g.lat},${+g.lng}&travelmode=two-wheeler&dir_action=navigate`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "))}&travelmode=two-wheeler`;
+function posBloc(m,a,g){const r=esc(m.livraison_ref);
+ if(g&&isFinite(+g.lat)&&isFinite(+g.lng))return`<a class="btn" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="${itineraire(a,g)}">🗺 Itinéraire vers la position du client</a><div class="sm" style="color:#118a4b;margin:4px 0 0">📍 Position exacte du client enregistrée : Google Maps choisit le meilleur trajet depuis votre position.</div>`;
+ const t=posDem(m.livraison_ref),vieux=t&&Date.now()-t>15*60000;
+ return`<a class="btn ghost" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="${itineraire(a,null)}">🗺 Itinéraire vers la zone</a>`+
+  (t?`<div class="sm" style="color:#b86e00;margin:4px 0 0">📍 Position demandée au bureau à ${new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}. Vous pouvez partir sans attendre : l'itinéraire exact s'affichera ici dès réception.${vieux?` <a href="#" data-a="posclient" data-r="${r}">Redemander</a>`:""}</div>`
+  :`<button class="btn ghost" data-a="posclient" data-r="${r}">📍 Demander la position du client</button><div class="sm mu" style="margin:4px 0 0">Facultatif : le bureau envoie un lien au client pour qu'il partage sa position. Vous n'avez pas à attendre pour partir.</div>`)}
 function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
  if(m.statut==="affectee")b=`<button class="btn ok" data-a="accepter" data-r="${esc(m.livraison_ref)}">✔ Accepter</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`;
  else if(m.statut==="acceptee")b=!p.collecte_at?`<button class="btn" data-a="prise" data-r="${esc(m.livraison_ref)}">📦 Colis pris en charge</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`:`<button class="btn ok" data-a="demarrer" data-r="${esc(m.livraison_ref)}">🏍 Démarrer la course</button>`;
@@ -124,7 +133,7 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  ${act?`<div class="pill sm">${(p.lignes||[]).map(l=>esc(l.qte+" × "+l.desig)).join("<br>")}</div>`:""}
  <div class="pill between"><span>${(p.lignes||[]).reduce((s,x)=>s+(+x.qte||0),0)} article(s)${p.nb_colis?" · "+p.nb_colis+" colis":""}</span><b>${p.montant_attendu>0?fcfa(p.montant_attendu):"Déjà payé"}</b></div>
  ${p.paye_vendeur>0?`<div class="sm mu">💳 ${fcfa(p.paye_vendeur)} déjà payés chez le fournisseur — vous n'encaissez que le reste.</div>`:""}
- ${act?`<a class="btn ghost" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${dest}">🗺 Itinéraire</a>${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
+ ${act?`${posBloc(m,a,g)}${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
  ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
@@ -149,6 +158,7 @@ const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="
 const ACT={
  voix:()=>{const d=ANGELS_SIGNAL.dev();ANGELS_SIGNAL.setDev({voice:!d.voice});if(!d.voice)ANGELS_SIGNAL.parler("Lecture vocale activée",{force:true});vueMissions()},
  sons:()=>{const d=ANGELS_SIGNAL.dev();if(d.mute)ANGELS_SIGNAL.setDev({mute:false,vol:.5});else if(d.vol<=.5)ANGELS_SIGNAL.setDev({vol:1});else ANGELS_SIGNAL.setDev({mute:true});ANGELS_SIGNAL.jouer("bip",{rep:1,vib:false});vueMissions()},
+ posclient:async r=>{const t=Date.now();const x=await envoyer(r,"incident",{nature:"Position du client",description:"Demande de la position GPS du client (envoyer le lien de partage)"},"Demande envoyée au bureau : vous pouvez partir, la position s'affichera ici.");if(x!==undefined){const P=lsGet(LS.p,{});P[r]=t;lsSet(LS.p,P)}vueMissions()},
  accepter:r=>envoyer(r,"accepter",{},"Mission acceptée"),
  demarrer:r=>envoyer(r,"demarrer",{},"Course démarrée"),
  refuser:r=>formModal("Mission impossible",`<label>Motif<select name="motif">${motifsOpt(mission(r))}</select></label><label>Précision (facultatif)<input name="p"></label>`,"Refuser",d=>envoyer(r,"refuser",{motif:d.motif+(d.p?" — "+d.p:"")},"Mission refusée")),
@@ -163,7 +173,7 @@ const ACT={
  rejOk:id=>{lsSet(LS.r,rejets().filter(x=>x.id!==id));vueMissions()},
  quitter:async()=>{if(file().length&&!confirm(file().length+" action(s) n'ont pas encore été envoyées au serveur. Se déconnecter les PERDRA. Continuer ?"))return;arreter();try{if(sb)await sb.auth.signOut()}catch(e){}[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});user=null;vueLogin()}
 };
-document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const f=ACT[b.dataset.a];if(f)f(b.dataset.r)});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const f=ACT[b.dataset.a];if(f){if(b.tagName==="A")e.preventDefault();f(b.dataset.r)}});
 
 /* ---------- Position (uniquement pendant une course en cours) ---------- */
 function suivi(){const enCours=missions.find(m=>m.statut==="en_cours");if(!enCours||!navigator.geolocation){if(watch!=null){navigator.geolocation.clearWatch(watch);watch=null}return}
