@@ -78,7 +78,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const ui=await q.evaluate(()=>({txt:document.getElementById("app").innerText,html:document.getElementById("app").innerHTML}));
  chk("LV-4","mission affichée sans numéro de téléphone ni code ; bouton d'appel masqué ; montant à encaisser visible",/CMD-0001/.test(ui.txt)&&/30 000 F/.test(ui.txt)&&!/0707|tel:|wa\.me|whatsapp/i.test(ui.html)&&/Appeler le client \(numéro masqué\)/.test(ui.txt)&&!/code/i.test(ui.txt.replace(/Code donné/g,"")),ui.txt);
  await q.click('[data-a="accepter"]');await q.waitForTimeout(300);
- const s1=await q.evaluate(()=>window.__sent);
+ const s1=(await q.evaluate(()=>window.__sent)).filter(x=>!/\/livreurs-liste$/.test(x.u));   /* la liste déroulante de l'écran de connexion lit « livreurs-liste » : hors du périmètre de ce contrôle */
  chk("LV-5","accepter : envoyé au serveur avec le jeton de la session et la clé publique, jamais de numéro",s1.length===1&&s1[0].u.endsWith("/functions/v1/mission-action")&&s1[0].auth==="Bearer JWT-TEST"&&/^eyJ/.test(s1[0].apikey)&&s1[0].b.type==="accepter"&&s1[0].b.livraison_ref==="l1",JSON.stringify(s1));
  await q.evaluate(m=>{m.statut="en_cours";m.payload.collecte_at=new Date().toISOString();window.__missions=[m]},MISSION);
  await q.evaluate(()=>{window.__sent.length=0});await q.evaluate(()=>{document.querySelector("#app")});

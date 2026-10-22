@@ -202,3 +202,11 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
   await db.ajouterEvenement({ livraison_ref: ref, livreur_ref: c.livreur_ref, type, donnees: ev });
   return rep(200, { ok: true, statut: maj.statut });
 }
+
+/* Liste des livreurs actifs pour l'écran de connexion (liste déroulante). Publique par nature (appelée avant toute connexion) :
+   seuls l'identifiant de connexion et le nom sont exposés, jamais téléphone, mission ni identifiant interne ; désactivable (LISTE_LIVREURS_LOGIN=0). */
+export async function listerLivreurs(db, cfg) {
+  if (cfg && cfg.listeLogin === false) return rep(200, { ok: true, livreurs: [] });
+  const L = (await db.livreursActifs()) || [];
+  return rep(200, { ok: true, livreurs: L.filter((x) => x && x.ident && x.actif !== false).slice(0, 200).map((x) => ({ ident: String(x.ident).toLowerCase(), nom: String(x.nom || "").slice(0, 80) })) });
+}

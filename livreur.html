@@ -48,7 +48,7 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-
 .cmb{position:relative;display:block}.cmb input{padding-right:44px}
 .cmbb{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;font-size:20px;color:var(--mu,#64748b);cursor:pointer;border-radius:10px}
 .cmbl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;margin:0;padding:4px;list-style:none;background:var(--card,#fff);border:1.5px solid var(--b,#0e7490);border-radius:12px;box-shadow:0 10px 28px rgba(15,40,60,.22);max-height:240px;overflow:auto}
-.cmbl li{padding:12px 12px;border-radius:9px;cursor:pointer;display:flex;flex-direction:column;gap:1px;font-size:15px}.cmbl li small{color:var(--mu,#64748b);font-size:12px}
+.cmbl li{padding:12px 12px;border-radius:9px;cursor:pointer;display:flex;flex-direction:column;gap:1px;font-size:15px}.cmbl li em{font-style:normal;font-weight:600;color:var(--b,#0e7490);font-size:12px}.cmbl li small{color:var(--mu,#64748b);font-size:12px}
 .cmbl li:hover,.cmbl li:focus{background:var(--soft,#eaf3f6)}
 </style>
 <link rel="stylesheet" href="champs.css">
@@ -92,14 +92,20 @@ const ferme=()=>{try{camStop();clearInterval(PVPOLL)}catch(e){}const o=$(".ov");
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
 
 /* ---------- Connexion ---------- */
-function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><div class="cf"><label for="li">Identifiant</label><span class="cmb"><input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required role="combobox" aria-expanded="false" aria-controls="lvl"><button type="button" id="lvb" class="cmbb aa-e" aria-label="Choisir le livreur enregistré sur cet appareil" hidden>▾</button><ul id="lvl" class="cmbl" role="listbox" hidden></ul></span></div><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></div>`;
- try{const L=lsGet(LS.x,[]).slice(0,1),ul=$("#lvl"),bt=$("#lvb"),inp=$("#li");
-  if(L.length){bt.hidden=false;ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("");
-   const ouvre=v=>{ul.hidden=!v;inp.setAttribute("aria-expanded",v?"true":"false")};
-   bt.onclick=()=>ouvre(ul.hidden);inp.addEventListener("focus",()=>{if(!inp.value)ouvre(true)});
-   ul.onclick=e=>{const li=e.target.closest("li[data-i]");if(!li)return;inp.value=li.dataset.i;ouvre(false);$("#lp").focus()};
-   document.addEventListener("click",e=>{if(!e.target.closest(".cmb"))ouvre(false)});
-   inp.addEventListener("input",()=>ouvre(false))}}catch(e){}
+function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><div class="cf"><label for="li">Identifiant</label><span class="cmb"><input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required role="combobox" aria-expanded="false" aria-controls="lvl"><button type="button" id="lvb" class="cmbb aa-e" aria-label="Choisir un livreur dans la liste" hidden>▾</button><ul id="lvl" class="cmbl" role="listbox" hidden></ul></span></div><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></div>`;
+ /* Liste déroulante des livreurs : ceux de la base (fonction « livreurs-liste », identifiant + nom seulement), le livreur enregistré sur cet appareil en tête ; hors ligne : celui de l'appareil */
+ try{const ul=$("#lvl"),bt=$("#lvb"),inp=$("#li"),ouvre=v=>{ul.hidden=!v;inp.setAttribute("aria-expanded",v?"true":"false")};
+  const remplir=L=>{if(!L.length){bt.hidden=true;ul.hidden=true;return}bt.hidden=false;
+   ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}${o.loc?` <em>· enregistré ici</em>`:""}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("")};
+  const loc=lsGet(LS.x,[]).slice(0,1).map(o=>Object.assign({},o,{loc:true}));remplir(loc);
+  bt.onclick=()=>ouvre(ul.hidden);inp.addEventListener("focus",()=>{if(!inp.value&&!bt.hidden)ouvre(true)});
+  ul.onclick=e=>{const li=e.target.closest("li[data-i]");if(!li)return;inp.value=li.dataset.i;ouvre(false);$("#lp").focus()};
+  document.addEventListener("click",e=>{if(!e.target.closest(".cmb"))ouvre(false)});
+  inp.addEventListener("input",()=>ouvre(false));
+  if(CFG.url){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),4000);
+   fetch(FN+"livreurs-liste",{cache:"no-store",signal:ac.signal}).then(r=>r.json()).then(j=>{clearTimeout(to);if(!j||!j.ok||!Array.isArray(j.livreurs)||!j.livreurs.length)return;
+    const me=loc[0]&&loc[0].i,L=j.livreurs.filter(x=>x&&x.ident).map(x=>({i:String(x.ident),n:String(x.nom||""),loc:x.ident===me}));
+    L.sort((p,q)=>(q.loc?1:0)-(p.loc?1:0));remplir(L)}).catch(()=>{})}}catch(e){}
  try{const q=new URLSearchParams(location.search).get("id"),i=identDe(q||"")||lsGet(LS.i,"");if(i){$("#li").value=i;$("#lp").focus()}}catch(e){}
  $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button:not(.aa-e)");b.disabled=true;try{await loadSb();sb=sb||window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});const em=emailDe($("#li").value),pw=$("#lp").value;let{error}=await sb.auth.signInWithPassword({email:em,password:pw});
    /* le clavier du téléphone ajoute souvent une espace après le dernier mot : on réessaie sans les espaces de début et de fin */

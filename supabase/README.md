@@ -133,3 +133,10 @@ Secrets : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (clés géné
 - **Secret** : la signature des liens utilise `PORTAIL_SEL`, à défaut `ADMIN_KEY` ; sans secret, la signature est « indisponible » (503) et les liens restent non signés.
 - **Déploiement** : les fonctions sont déployées « à plat » (fichiers `index` + modules partagés au même niveau, imports `./…`) ; `portail-demande`, `portail-vendeur` et `portail-sync` sont publiées en un seul fichier `index.ts`. **Redéployer après toute modification de `functions/_shared/`**, puis lancer les recettes (`node tests/portail-*.js`, `node tests/livraison-preuve.js`, `node tests/anti-fraude-qr.js`).
 - **À planifier** si `pg_cron` est activé : `select public.purge_pd_photos();`, `select public.purge_pd_scans();`.
+
+## Liste des livreurs à la connexion (`livreurs-liste`)
+| Fonction | Accès |
+|---|---|
+| `functions/livreurs-liste/` | **Public** (`--no-verify-jwt`, GET) : renvoie les livreurs actifs (identifiant de connexion + nom, 200 au plus) pour la liste déroulante de l'écran de connexion du livreur ; ni téléphone, ni missions |
+
+Mise en service : `supabase functions deploy livreurs-liste --no-verify-jwt`. **Non déployée automatiquement** ; tant qu'elle ne l'est pas, la liste ne propose que le livreur enregistré sur l'appareil. Désactivable : `supabase secrets set LISTE_LIVREURS_LOGIN=0` (la liste revient vide). Test : `node tests/livreurs-liste.js` (6 contrôles).

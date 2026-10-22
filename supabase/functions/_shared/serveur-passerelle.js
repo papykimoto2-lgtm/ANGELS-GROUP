@@ -1,7 +1,7 @@
 /* Adaptateur Supabase de la passerelle livreur (clé « service role » : jamais exposée au navigateur). */
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-export const cfgPasserelle = () => ({ adminKey: Deno.env.get("ADMIN_KEY"), essaisCodeMax: +(Deno.env.get("ESSAIS_CODE_MAX") || 5) });
+export const cfgPasserelle = () => ({ adminKey: Deno.env.get("ADMIN_KEY"), essaisCodeMax: +(Deno.env.get("ESSAIS_CODE_MAX") || 5), listeLogin: Deno.env.get("LISTE_LIVREURS_LOGIN") !== "0" });
 
 export function client() { return createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false, autoRefreshToken: false } }); }
 
@@ -9,6 +9,7 @@ export function dbPasserelle(sb = client()) {
   const ok = (r) => { if (r.error) throw new Error(r.error.message); return r.data; };
   const t = (n) => sb.from(n);
   return {
+    livreursActifs: async () => ok(await t("pg_livreurs").select("ident,nom").eq("actif", true).order("nom").limit(200)) || [],
     livreursConnus: async () => (ok(await t("pg_livreurs").select("livreur_ref").eq("actif", true)) || []).map((x) => x.livreur_ref),
     refsAvecEvenementsEnAttente: async () => (ok(await t("pg_evenements").select("livraison_ref").eq("traite", false)) || []).map((x) => x.livraison_ref),
     ecrireMission: async (m) => ok(await t("pg_missions").upsert(m, { onConflict: "livraison_ref" })),
