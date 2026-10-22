@@ -246,6 +246,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"produits",l:"Produits & stock",i:"📦",g:"Stock & préparation",r:["admin","commercial","preparateur"]},
  {v:"journal",l:"Journal des mouvements",i:"📒",g:"Stock & préparation",r:["admin","direction","superviseur","commercial","preparateur"]},
  {v:"inventaire",l:"Inventaire",i:"📋",g:"Stock & préparation",r:["admin","direction","superviseur","commercial","preparateur"]},
+ {v:"expeditions",l:"Expéditions",i:"🚚",g:"Livraison",r:["admin","superviseur","commercial","preparateur"]},
  {v:"livraisons",l:"Centre de livraison",i:"🏍️",g:"Livraison",r:["admin","superviseur"]},
  {v:"livreurs",l:"Livreurs & motos",i:"🛵",g:"Livraison",r:["admin","superviseur"]},
  {v:"incidents",l:"Incidents & retours",i:"⚠️",g:"Livraison",r:["admin","superviseur","preparateur"]},
@@ -261,6 +262,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"params",l:"Paramètres",i:"⚙️",g:"Administration",r:["admin"]},
  {v:"vHome",l:"Accueil",i:"🏠",g:"Mon espace",r:["vendeur"]},
  {v:"mesCmd",l:"Mes colis",i:"📦",g:"Mon espace",r:["vendeur"]},
+ {v:"vExp",l:"Mes expéditions",i:"🚚",g:"Mon espace",r:["vendeur"]},
  {v:"mesReg",l:"Mon argent",i:"💰",g:"Mon espace",r:["vendeur"]}
 ];
 
@@ -740,7 +742,7 @@ function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}re
 function render0(){
  if(!S&&!CL.on)return;
  if(!ME){$("#app").innerHTML=loginHTML();return}
- if(ME.role==="vendeur"&&!ANGELS_ROLES.surcharge("distribution",S,ME.role)){if(!["vHome","mesCmd","mesReg"].includes(view))view="vHome";$("#app").innerHTML=vendeurHTML();return}
+ if(ME.role==="vendeur"&&!ANGELS_ROLES.surcharge("distribution",S,ME.role)){if(!["vHome","mesCmd","mesReg","vExp"].includes(view))view="vHome";$("#app").innerHTML=vendeurHTML();return}
  if(ME.role==="livreur"){$("#app").innerHTML=livreurHTML()+sosBtnHTML;syncGPS();initMaps();setTimeout(offreCheck,0);return}
  const nav=NAV.filter(voirNav);if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(!nav.find(n=>n.v===view))view=nav[0].v;
  $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const n=nav.find(x=>x.v===view);return n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}${nav.map((n,k)=>(k===0||nav[k-1].g!==n.g?`<div class="gt">${n.g}</div>`:"")+`<a class="${n.v===view?"on":""}" data-act="nav" data-id="${n.v}">${n.i} ${n.l}${navBadge(n.v)}</a>`).join("")}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${VIEWS[view]()}</main></div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
@@ -2878,20 +2880,6 @@ function expMaj(){
  if(!ex)autoFrais();recalc()}
 document.addEventListener("change",e=>{if(e.target&&["f_portee","f_dest","f_poids"].includes(e.target.id))expMaj()});
 function expCheck(d){if(!d.portee||d.portee==="local")return;if(!PORTEE_L[d.portee])throw new Error("Portée invalide");const x=destOf(d.dest);if(!x||x.portee!==d.portee||x.actif===false)throw new Error("Choisissez une destination valide");if(!(+d.poids>0))throw new Error("Indiquez le poids du colis (kg)")}
-function expAppliquer(c,d){
- if(!d.portee||d.portee==="local")return;const x=destOf(d.dest),kg=+d.poids;
- c.frais=fraisExp(x,kg);calcCmd(c);   /* tarif recalculé côté logique : le champ du formulaire n'est pas une source de confiance */
- c.exp={portee:d.portee,dest_id:x.id,dest:x.nom,pays:x.pays,poids:kg,transporteur:String(d.transp||"").trim(),bordereau:"",delai_j:x.delai_j,docs:expDocs(d.portee).map(n=>({n,ok:false})),suivi:[{ts:now(),par:who(),note:"Envoi créé"}]};
- c.adr=Object.assign({},c.adr,{zone:x.nom});audit("Expédition "+PORTEE_L[d.portee],c.numero+" → "+x.nom+" ("+x.pays+") · "+kg+" kg · "+fcfa(c.frais))}
-function expBloc(c){
- const e=c.exp;if(!e)return"";const ok=e.docs.filter(x=>x.ok).length;
- return`<div class="card" style="margin:8px 0"><div class="between"><b>📦 Expédition ${esc(PORTEE_L[e.portee])}</b><span class="badge ${e.docs.length&&ok<e.docs.length?"wa":"ok"}">${e.docs.length?ok+"/"+e.docs.length+" documents":"Sans formalités"}</span></div>
- <div class="sm" style="margin-top:6px">Destination : <b>${esc(e.dest)}</b> (${esc(e.pays)}) · ${e.poids} kg · délai ≈ ${e.delai_j} j<br>Transporteur : ${esc(e.transporteur||"—")} · Bordereau : <b>${esc(e.bordereau||"—")}</b></div>
- ${e.docs.map((x,i)=>`<div class="sm" style="padding:2px 0">${x.ok?"✅":"⬜"} ${esc(x.n)}${can("admin","superviseur","commercial")?` <a href="#" data-act="expDoc" data-id="${c.id}|${i}">${x.ok?"retirer":"marquer fourni"}</a>`:""}</div>`).join("")}
- ${e.suivi.slice(-4).map(s=>`<div class="sm mu">· ${fdt(s.ts)} — ${esc(s.note)}</div>`).join("")}
- ${can("admin","superviseur","commercial")?`<button class="btn sm ghost" style="margin-top:6px" data-act="expSuivi" data-id="${c.id}">✏ Transporteur, bordereau, suivi</button>`:""}</div>`}
-function expSuiviForm(c){const e=c.exp;modal("Suivi d'expédition — "+c.numero,`<div class="g2"><label>Transporteur / agence<input name="t" value="${esc(e.transporteur||"")}"></label><label>N° de bordereau / lettre de voiture<input name="b" value="${esc(e.bordereau||"")}"></label></div><label>Point de suivi<input name="n" placeholder="Ex. Colis remis à l'agence, passé la frontière…"></label>`,
- {label:"Enregistrer",onSubmit:d=>{e.transporteur=String(d.t||"").trim();e.bordereau=String(d.b||"").trim();if(String(d.n||"").trim())e.suivi.push({ts:now(),par:who(),note:String(d.n).trim()});audit("Suivi expédition",c.numero+" — "+(d.n||"mise à jour"));save();render();return true}})}
 function destForm(x){modal(x?"Modifier la destination":"Nouvelle destination",`<div class="g2"><label>Ville<input name="nom" required value="${esc(x?x.nom:"")}"></label><label>Pays<input name="pays" required value="${esc(x?x.pays:"Côte d'Ivoire")}"></label></div>
  <label>Portée<select name="portee">${PORTEES.filter(p=>p[0]!=="local").map(p=>`<option value="${p[0]}" ${x&&x.portee===p[0]?"selected":""}>${p[1]}</option>`).join("")}</select></label>
  <div class="g3"><label>Tarif de base (F, 1er kg)<input type="number" name="base" min="0" required value="${x?x.base:0}"></label><label>Par kg supplémentaire (F)<input type="number" name="par_kg" min="0" required value="${x?x.par_kg:0}"></label><label>Délai (jours)<input type="number" name="delai" min="1" required value="${x?x.delai_j:2}"></label></div>
@@ -2899,15 +2887,146 @@ function destForm(x){modal(x?"Modifier la destination":"Nouvelle destination",`<
  {onSubmit:d=>{if(!can("admin","superviseur"))throw new Error("Accès refusé");const r={nom:d.nom.trim(),pays:d.pays.trim(),portee:d.portee,base:Math.max(0,+d.base||0),par_kg:Math.max(0,+d.par_kg||0),delai_j:Math.max(1,+d.delai||1),actif:!!d.actif};
   if(!r.nom||!r.pays||!PORTEE_L[r.portee])throw new Error("Ville, pays et portée obligatoires");if(x)Object.assign(x,r);else S.config.destinations.push(Object.assign({id:uid("d")},r));audit("Destination",r.nom+" ("+r.pays+")");save();render()}})}
 const destsParam=()=>`<h2>Destinations hors Abidjan (national, sous-régional, international)</h2>${tbl(["Destination","Portée","Base (1er kg)","Par kg en plus","Délai",""],(S.config.destinations||[]).map(x=>`<tr><td><b>${esc(x.nom)}</b><br><span class="sm mu">${esc(x.pays)}</span></td><td>${esc(PORTEE_L[x.portee])}${x.actif===false?" · inactive":""}</td><td>${fcfa(x.base)}</td><td>${fcfa(x.par_kg)}</td><td>${x.delai_j} j</td><td><button class="btn sm ghost" data-act="editDest" data-id="${x.id}">Modifier</button></td></tr>`))}<button class="btn ghost" data-act="newDest">➕ Destination</button>`;
-function expTab(){
- const L=S.commandes.filter(c=>c.exp&&!["annulee","retour_recu"].includes(c.statut)).sort((a,b)=>String(b.date).localeCompare(String(a.date))),f=ui.expP||"";
- const V=L.filter(c=>!f||c.exp.portee===f);
- return`<div class="between"><h2>Expéditions (${V.length})</h2><select data-f="expP" style="width:auto"><option value="">Toutes les portées</option>${PORTEES.filter(p=>p[0]!=="local").map(p=>`<option value="${p[0]}" ${f===p[0]?"selected":""}>${p[1]}</option>`).join("")}</select></div>
- ${tbl(["Commande","Destination","Poids · frais","Transporteur · bordereau","Documents","Statut",""],V.map(c=>{const e=c.exp,ok=e.docs.filter(x=>x.ok).length;return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${esc(cli(c.client_id).nom)}</span></td><td>${esc(e.dest)}<br><span class="sm mu">${esc(e.pays)} · ${esc(PORTEE_L[e.portee])}</span></td><td>${e.poids} kg<br>${fcfa(c.frais)}</td><td class="sm">${esc(e.transporteur||"—")}<br>${esc(e.bordereau||"—")}</td><td>${e.docs.length?badge(ok+"/"+e.docs.length,ok<e.docs.length?"wa":"ok"):"—"}</td><td>${badge(ST[c.statut],STC[c.statut]||"")}</td><td><button class="btn sm" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button></td></tr>`}),"Aucune expédition")}`}
-Object.assign(ACT,{newDest:()=>destForm(),editDest:id=>destForm(destOf(id)),expSuivi:id=>expSuiviForm(cmd(id)),
- expDoc:(id)=>{const[i,k]=String(id).split("|"),c=cmd(i);if(!c||!c.exp||!can("admin","superviseur","commercial"))return;const x=c.exp.docs[+k];if(!x)return;x.ok=!x.ok;c.exp.suivi.push({ts:now(),par:who(),note:"Document « "+x.n+" » "+(x.ok?"fourni":"retiré")});save();cmdDetail(c.id)}});
+Object.assign(ACT,{newDest:()=>destForm(),editDest:id=>destForm(destOf(id))});
+/* ---------- Module Expédition : dossiers d'expédition (clients, transferts entre sites, transporteurs externes) ----------
+   Distinct de la livraison (livreurs, tournées, preuves de remise) : l'expédition prépare et suit le départ, l'acheminement, la réception et les frais.
+   Lien avec les commandes : le dossier reprend client, adresse et produits (pas de double saisie) ; une commande à portée nationale / sous-régionale / internationale crée son dossier automatiquement. */
+const EXP_TYPES=[["client","Marchandises aux clients"],["transfert","Transfert dépôt / point de vente"],["transporteur","Transporteur externe"]],EXP_TYPE_L=Object.fromEntries(EXP_TYPES);
+const EXS={brouillon:["Brouillon","mu"],preparation:["En préparation","wa"],prete:["Prête à expédier",""],expediee:["Expédiée","wa"],transit:["En transit","wa"],arrivee:["Arrivée à destination",""],en_livraison:["En cours de livraison","wa"],livree:["Livrée","ok"],livree_part:["Livrée partiellement","wa"],echec:["Échec de livraison","er"],retour_cours:["Retour en cours","wa"],retournee:["Retournée","mu"],annulee:["Annulée","mu"]};
+const EXTR={brouillon:["preparation","annulee"],preparation:["prete","annulee"],prete:["expediee","preparation","annulee"],expediee:["transit","arrivee","echec"],transit:["arrivee","echec","retour_cours"],arrivee:["en_livraison","livree","livree_part","echec"],en_livraison:["livree","livree_part","echec"],echec:["prete","retour_cours"],retour_cours:["retournee"],livree:[],livree_part:[],retournee:[],annulee:[]};
+const EXT_FINAL=["livree","livree_part","retournee","annulee"],EXT_OUVERT=s=>!EXT_FINAL.includes(s);
+const EXMODES=["Route","Aérien","Maritime","Ferroviaire","Véhicule de l'entreprise","Autre"];
+const EXRO=()=>can("admin","superviseur","commercial","preparateur"),EXRW=()=>can("admin","superviseur","preparateur");
+const expOf=id=>(S.expeditions||[]).find(e=>e.id===id);
+const expFraisTot=e=>Object.values(e.frais||{}).reduce((a,v)=>a+(+v||0),0);
+const expRetard=e=>EXT_OUVERT(e.statut)&&["expediee","transit","arrivee","en_livraison"].includes(e.statut)&&e.eta&&e.eta<cxJour();
+function numExp(){S.seq.exp=(S.seq.exp||0)+1;return"EXP-"+new Date().getFullYear()+"-"+String(S.seq.exp).padStart(4,"0")}
+function expCreer(o){
+ if(!EXRO()&&!can("vendeur"))throw new Error("Droits insuffisants pour créer une expédition");
+ if(!EXP_TYPE_L[o.type])throw new Error("Type d'expédition invalide");
+ const dn=o.dest||{};if(!String(dn.nom||"").trim())throw new Error("Le destinataire est obligatoire");
+ const cids=(o.commande_ids||[]).filter(Boolean);cids.forEach(id=>{const c=cmd(id);if(!c)throw new Error("Commande introuvable");if(can("vendeur")&&(!vend()||c.vendeur_id!==vend().id))throw new Error("Cette commande ne vous appartient pas")});
+ const e={id:uid("x"),numero:numExp(),type:o.type,statut:"brouillon",commande_ids:cids,origine:String(o.origine||S.config.org||"").trim(),dest:{nom:String(dn.nom).trim(),tel:String(dn.tel||"").trim(),adresse:String(dn.adresse||"").trim(),ville:String(dn.ville||"").trim(),pays:String(dn.pays||"Côte d'Ivoire").trim()},
+  colis:[],transporteur:String(o.transporteur||"").trim(),mode:o.mode||"Route",responsable:o.responsable||"",livreur_id:o.livreur_id||"",depart_prevu:o.depart_prevu||"",eta:o.eta||"",depart_reel:null,bordereau:"",
+  frais:{transport:Math.max(0,+(o.frais&&o.frais.transport)||0),manutention:0,emballage:0,autres:0},docs:(o.docs||[]).map(n=>({n,ok:false})),reception:null,cloture_le:null,obs:String(o.obs||"").trim(),
+  hist:[{ts:now(),par:who(),de:null,a:"brouillon",note:o.note||"Création"}],cree_par:who(),date:now()};
+ const nb=Math.max(0,Math.min(200,Math.round(+o.nb_colis||0)));for(let i=1;i<=nb;i++)e.colis.push({ref:e.numero+"-C"+i,desc:"",poids:nb?Math.round((+o.poids||0)/nb*100)/100:0,volume:nb?Math.round((+o.volume||0)/nb*1000)/1000:0});
+ (S.expeditions=S.expeditions||[]).unshift(e);cids.forEach(id=>{const c=cmd(id);c.exp_id=c.exp_id||e.id});audit("Expédition créée",e.numero+" — "+EXP_TYPE_L[e.type]+" → "+e.dest.nom);return e}
+function expNotif(e,txt){   /* message préparé pour le client de la première commande liée (envoi par WhatsApp / SMS depuis Notifications) */
+ const c=cmd((e.commande_ids||[])[0]),cl=c&&cli(c.client_id);if(!cl||!cl.tel||e.type!=="client"&&e.type!=="transporteur")return;
+ S.notifs.push({id:uid("n"),ts:now(),commande_id:c.id,event:"exp",canal:cl.sans_smartphone?"SMS":"WhatsApp",tel:cl.tel,nom:cl.nom,message:cl.nom+", "+txt.replace("{ref}",e.numero)+" — "+S.config.org,statut:"a_envoyer"})}
+const EXN={expediee:"votre expédition {ref} est partie.",arrivee:"votre expédition {ref} est arrivée à destination.",livree:"votre expédition {ref} a été livrée.",livree_part:"votre expédition {ref} a été livrée partiellement : nous vous contactons pour les différences.",echec:"la livraison de votre expédition {ref} n'a pas abouti. Nous vous recontactons."};
+function expStatut(e,to,note,x){
+ if(!EXRW()&&!(EXRO()&&["brouillon","annulee"].includes(to)))throw new Error("Droits insuffisants");
+ if(!EXTR[e.statut].includes(to))throw new Error("Transition interdite : "+EXS[e.statut][0]+" → "+EXS[to][0]);
+ if(to==="prete"&&(!e.colis.length||!e.dest.nom))throw new Error("Ajoutez au moins un colis avant de déclarer l'expédition prête");
+ if(to==="expediee"){if(!e.transporteur&&!e.livreur_id&&!e.responsable)throw new Error("Désignez un transporteur, un livreur ou un responsable");if(!(x&&x.depart)&&!e.depart_reel)throw new Error("Indiquez la date de départ")}
+ if(["livree","livree_part"].includes(to)){const r=x&&x.reception;if(!r||!String(r.nom||"").trim())throw new Error("Nom du réceptionnaire obligatoire");if(to==="livree_part"&&!String(r.obs||"").trim())throw new Error("Décrivez les différences constatées")}
+ if(to==="annulee"&&!String(note||"").trim())throw new Error("Motif d'annulation obligatoire");if(["echec","retour_cours"].includes(to)&&!String(note||"").trim())throw new Error("Motif obligatoire");
+ e.hist.push({ts:now(),par:who(),de:e.statut,a:to,note:String(note||"")});e.statut=to;
+ if(to==="expediee")e.depart_reel=(x&&x.depart)||e.depart_reel;if(x&&x.reception)e.reception=Object.assign({ts:now(),par:who()},x.reception);
+ if(EXN[to])expNotif(e,EXN[to]);audit("Expédition "+EXS[to][0],e.numero+(note?" — "+note:""));return true}
+function expCloturer(e){
+ if(!can("admin","superviseur"))throw new Error("Seuls l'administrateur et le superviseur clôturent");if(!EXT_FINAL.includes(e.statut)||e.statut==="annulee")throw new Error("Seule une expédition livrée ou retournée peut être clôturée");
+ if(e.cloture_le)throw new Error("Déjà clôturée");const manque=e.docs.filter(d=>!d.ok);if(manque.length)throw new Error("Documents manquants : "+manque.map(d=>d.n).join(", "));
+ if(["livree","livree_part"].includes(e.statut)&&!e.reception)throw new Error("Réception non enregistrée");e.cloture_le=now();e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Clôture"});audit("Expédition clôturée",e.numero)}
+function expParCmd(c){return(S.expeditions||[]).filter(e=>(e.commande_ids||[]).includes(c.id))}
+function expAppliquer(c,d){   /* commande à portée hors Abidjan : tarif recalculé ici, dossier d'expédition créé et lié */
+ if(!d.portee||d.portee==="local")return;const x=destOf(d.dest),kg=+d.poids;
+ c.frais=fraisExp(x,kg);calcCmd(c);
+ const cl=cli(c.client_id),e=expCreer({type:"transporteur",commande_ids:[c.id],dest:{nom:cl.nom,tel:cl.tel,adresse:[c.adr.quartier,c.adr.repere].filter(Boolean).join(" · "),ville:x.nom,pays:x.pays},transporteur:d.transp,nb_colis:1,poids:kg,frais:{transport:c.frais},docs:d.portee==="national"?[]:expDocs(d.portee),eta:"",note:"Créée avec la commande "+c.numero+" ("+PORTEE_L[d.portee]+")"});
+ c.exp={portee:d.portee,dest_id:x.id,dest:x.nom,pays:x.pays,poids:kg,delai_j:x.delai_j,exp_id:e.id};
+ c.adr=Object.assign({},c.adr,{zone:x.nom});audit("Expédition "+PORTEE_L[d.portee],c.numero+" → "+x.nom+" ("+x.pays+") · "+kg+" kg · "+fcfa(c.frais))}
+function expBloc(c){
+ const L=expParCmd(c);if(!L.length&&!c.exp)return"";
+ return`<div class="card" style="margin:8px 0"><b>📦 ${c.exp?"Expédition "+esc(PORTEE_L[c.exp.portee])+" · "+esc(c.exp.dest)+" ("+esc(c.exp.pays)+")":"Expédition"}</b>
+ ${L.map(e=>`<div class="sm" style="padding:3px 0"><b>${esc(e.numero)}</b> · ${badge(EXS[e.statut][0],EXS[e.statut][1])} · ${esc(EXP_TYPE_L[e.type])}${e.bordereau?" · bordereau "+esc(e.bordereau):""} <a href="#" data-act="expOuvrir" data-id="${e.id}">ouvrir le dossier</a></div>`).join("")}
+ ${!L.length&&EXRW()?`<button class="btn sm ghost" data-act="expDepuisCmd" data-id="${c.id}">➕ Créer le dossier d'expédition</button>`:""}</div>`}
+function expForm(c0){
+ const cs=S.commandes.filter(c=>!["annulee","brouillon","livree"].includes(c.statut)&&!c.exp_id).slice(0,200),ch=c0||null,cl=ch&&cli(ch.client_id);
+ modal("Nouvelle expédition",`<div class="g2"><label>Type d'expédition<select name="type">${EXP_TYPES.map(t=>`<option value="${t[0]}" ${ch&&ch.exp?(t[0]==="transporteur"?"selected":""):""}>${t[1]}</option>`).join("")}</select></label>
+ <label>Commande liée <span class="mu sm">(facultatif)</span><select name="cmd" id="x_cmd"><option value="">— Saisie manuelle —</option>${cs.map(c=>`<option value="${c.id}" ${ch&&ch.id===c.id?"selected":""}>${esc(c.numero)} · ${esc((cli(c.client_id)||{}).nom||"")}</option>`).join("")}</select></label></div>
+ <div class="g2"><label>Destinataire *<input name="nom" required value="${esc(cl?cl.nom:"")}"></label><label>Téléphone<input name="tel" inputmode="tel" value="${esc(cl?cl.tel:"")}"></label></div>
+ <div class="g3"><label>Adresse<input name="adresse" value="${esc(ch?[ch.adr.quartier,ch.adr.repere].filter(Boolean).join(" · "):"")}"></label><label>Ville de destination<input name="ville" value="${esc(ch?ch.adr.zone:"")}"></label><label>Pays<input name="pays" value="Côte d'Ivoire"></label></div>
+ <div class="g3"><label>Origine (dépôt / agence)<input name="origine" value="${esc(S.config.org)}"></label><label>Transporteur / agence<input name="transp"></label><label>Mode de transport<select name="mode">${opts(EXMODES)}</select></label></div>
+ <div class="g3"><label>Nombre de colis<input type="number" name="nb" min="0" max="200" value="1"></label><label>Poids total (kg)<input type="number" name="poids" min="0" step="0.1" value="1"></label><label>Volume total (m³)<input type="number" name="vol" min="0" step="0.01" value="0"></label></div>
+ <div class="g3"><label>Départ prévu<input type="date" name="dep"></label><label>Arrivée estimée<input type="date" name="eta"></label><label>Frais de transport (F)<input type="number" name="ft" min="0" value="${ch?ch.frais:0}"></label></div><label>Observations<input name="obs"></label>`,
+ {label:"Créer le dossier",onSubmit:d=>{try{const c=d.cmd?cmd(d.cmd):null,e=expCreer({type:d.type,commande_ids:c?[c.id]:[],origine:d.origine,dest:{nom:d.nom,tel:d.tel,adresse:d.adresse,ville:d.ville,pays:d.pays},transporteur:d.transp,mode:d.mode,nb_colis:d.nb,poids:d.poids,volume:d.vol,depart_prevu:d.dep,eta:d.eta,frais:{transport:d.ft},obs:d.obs,docs:d.type==="transporteur"&&d.pays&&!/ivoire/i.test(d.pays)?["Facture commerciale","Liste de colisage"]:[]});
+  save();toast("Expédition "+e.numero+" créée","ok");render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}})}
+function expDetail(id){
+ const e=expOf(id);if(!e)return;const ok=EXRW(),ed=ok&&EXT_OUVERT(e.statut),tot=expFraisTot(e);
+ const B=[];if(ok)EXTR[e.statut].forEach(to=>B.push(`<button class="btn ${to==="annulee"||to==="echec"?"er ghost":to==="retour_cours"?"wa":"ok"}" data-act="expTo" data-id="${e.id}|${to}">${EXS[to][0]}</button>`));
+ if(can("admin","superviseur")&&EXT_FINAL.includes(e.statut)&&e.statut!=="annulee"&&!e.cloture_le)B.push(`<button class="btn" data-act="expClore" data-id="${e.id}">🔒 Clôturer</button>`);
+ modal(e.numero+" — "+esc(e.dest.nom),`<div class="pill">${badge(EXS[e.statut][0],EXS[e.statut][1])} ${e.cloture_le?badge("Clôturée","mu"):""} ${expRetard(e)?badge("En retard","er"):""} · ${esc(EXP_TYPE_L[e.type])}<br>De <b>${esc(e.origine||"—")}</b> vers <b>${esc([e.dest.nom,e.dest.ville,e.dest.pays].filter(Boolean).join(", "))}</b>${e.dest.tel?" · "+esc(e.dest.tel):""}${e.dest.adresse?"<br>"+esc(e.dest.adresse):""}</div>
+ <div class="sm" style="margin:6px 0">Transport : <b>${esc(e.transporteur||"—")}</b> (${esc(e.mode)}) · Bordereau : <b>${esc(e.bordereau||"—")}</b> · Départ prévu ${e.depart_prevu||"—"} · réel ${e.depart_reel||"—"} · Arrivée estimée ${e.eta||"—"}${e.livreur_id&&liv(e.livreur_id)?" · Livreur : "+esc(liv(e.livreur_id).nom):""}${e.responsable?" · Responsable : "+esc(e.responsable):""}
+ ${(e.commande_ids||[]).length?"<br>Commandes : "+e.commande_ids.map(i=>cmd(i)?`<a href="#" data-act="cmdDetail" data-id="${i}">${esc(cmd(i).numero)}</a>`:"").join(", "):""}</div>
+ <h3 style="margin:8px 0 4px">Colis (${e.colis.length} · ${e.colis.reduce((a,c)=>a+(+c.poids||0),0).toFixed(1)} kg · ${e.colis.reduce((a,c)=>a+(+c.volume||0),0).toFixed(2)} m³)</h3>
+ ${tbl(["Référence","Contenu","Poids","Volume",""],e.colis.map((c,i)=>`<tr><td>${esc(c.ref)}</td><td class="sm">${esc(c.desc||"—")}</td><td>${c.poids} kg</td><td>${c.volume} m³</td><td>${ed&&["brouillon","preparation","prete"].includes(e.statut)?`<a href="#" data-act="expColisDel" data-id="${e.id}|${i}">retirer</a>`:""}</td></tr>`),"Aucun colis")}
+ ${ed&&["brouillon","preparation","prete"].includes(e.statut)?`<button class="btn sm ghost" data-act="expColis" data-id="${e.id}">➕ Colis</button>`:""}
+ <h3 style="margin:8px 0 4px">Frais : ${fcfa(tot)}</h3><div class="sm">Transport ${fcfa(e.frais.transport)} · manutention ${fcfa(e.frais.manutention)} · emballage ${fcfa(e.frais.emballage)} · autres ${fcfa(e.frais.autres)} ${ed?`<a href="#" data-act="expEdit" data-id="${e.id}">modifier transport, frais, bordereau</a>`:""}</div>
+ ${e.docs.length?`<h3 style="margin:8px 0 4px">Documents</h3>${e.docs.map((d,i)=>`<div class="sm">${d.ok?"✅":"⬜"} ${esc(d.n)} ${ok?`<a href="#" data-act="expDocOk" data-id="${e.id}|${i}">${d.ok?"retirer":"marquer fourni"}</a>`:""}</div>`).join("")}`:""}
+ ${e.reception?`<div class="pill" style="margin-top:8px">✅ Reçu par <b>${esc(e.reception.nom)}</b> le ${e.reception.date||""} · ${esc(e.reception.etat||"conforme")}${e.reception.obs?"<br>"+esc(e.reception.obs):""}${e.reception.signature?`<br><img alt="Signature" src="${e.reception.signature}" style="max-height:60px;background:#fff;border-radius:6px">`:""}</div>`:""}
+ <h3 style="margin:8px 0 4px">Historique</h3>${e.hist.slice().reverse().map(h=>`<div class="sm mu">· ${fdt(h.ts)} — ${esc(h.a?EXS[h.a][0]:"")} par ${esc(h.par||"")}${h.note?" : "+esc(h.note):""}</div>`).join("")}
+ <div class="flex noprint" style="flex-wrap:wrap;gap:6px;margin-top:10px">${B.join("")}<button class="btn ghost" data-act="expPrint" data-id="${e.id}">🖨 Bordereau</button></div>`,{label:"Fermer",onSubmit:()=>true,focus:false,wide:true})}
+function expRecepForm(e,to){
+ modal("Réception — "+e.numero,`<div class="g2"><label>Nom du réceptionnaire *<input name="nom" required></label><label>Date de réception<input type="date" name="date" value="${cxJour()}"></label></div>
+ <label>État de la marchandise<select name="etat"><option value="conforme">Conforme</option><option value="differences">Différence de quantité</option><option value="avaries">Avaries</option><option value="pertes">Pertes</option></select></label>
+ <label>Observations <span class="mu sm">(obligatoires si livraison partielle)</span><input name="obs"></label>
+ <div class="sec">Signature</div><canvas id="x_sig" width="420" height="120" style="width:100%;max-width:420px;height:120px;background:#fff;border:1px solid var(--bd);border-radius:8px;touch-action:none"></canvas><div><a href="#" id="x_sigc" class="sm">effacer la signature</a></div>`,
+ {label:"Confirmer la réception",onSubmit:(d,f)=>{try{const cv=f.querySelector("#x_sig"),r={nom:d.nom,date:d.date,etat:d.etat,obs:d.obs};if(cv&&cv.dataset.d)r.signature=cv.toDataURL("image/png");
+  expStatut(e,to,(d.etat!=="conforme"?EXS[to][0]+" — "+d.etat:"Réception confirmée"),{reception:r});save();toast("Réception enregistrée","ok");render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});
+ const cv=$("#x_sig");if(!cv)return;const g=cv.getContext("2d");g.lineWidth=2;g.lineCap="round";let dn=false;const pt=ev=>{const r=cv.getBoundingClientRect();return[(ev.clientX-r.left)*cv.width/r.width,(ev.clientY-r.top)*cv.height/r.height]};
+ cv.onpointerdown=ev=>{dn=true;cv.dataset.d="1";const[x,y]=pt(ev);g.beginPath();g.moveTo(x,y);cv.setPointerCapture(ev.pointerId)};cv.onpointermove=ev=>{if(!dn)return;const[x,y]=pt(ev);g.lineTo(x,y);g.stroke()};cv.onpointerup=()=>{dn=false};
+ const cl=$("#x_sigc");if(cl)cl.onclick=ev=>{ev.preventDefault();g.clearRect(0,0,cv.width,cv.height);delete cv.dataset.d}}
+function expEditForm(e){
+ modal("Transport et frais — "+e.numero,`<div class="g3"><label>Transporteur / agence<input name="t" value="${esc(e.transporteur)}"></label><label>N° de bordereau<input name="b" value="${esc(e.bordereau)}"></label><label>Mode<select name="m">${opts(EXMODES,e.mode)}</select></label></div>
+ <div class="g3"><label>Responsable<input name="r" value="${esc(e.responsable)}"></label><label>Livreur de l'entreprise<select name="l"><option value="">—</option>${S.livreurs.map(l=>`<option value="${l.id}" ${e.livreur_id===l.id?"selected":""}>${esc(l.nom)}</option>`).join("")}</select></label><label>Départ prévu<input type="date" name="dp" value="${e.depart_prevu||""}"></label></div>
+ <div class="g3"><label>Arrivée estimée<input type="date" name="eta" value="${e.eta||""}"></label><label>Transport (F)<input type="number" name="f1" min="0" value="${e.frais.transport}"></label><label>Manutention (F)<input type="number" name="f2" min="0" value="${e.frais.manutention}"></label></div>
+ <div class="g3"><label>Emballage (F)<input type="number" name="f3" min="0" value="${e.frais.emballage}"></label><label>Autres frais (F)<input type="number" name="f4" min="0" value="${e.frais.autres}"></label><label>Point de suivi<input name="n" placeholder="Ex. passé la frontière"></label></div>`,
+ {onSubmit:d=>{if(!EXRW())throw new Error("Droits insuffisants");Object.assign(e,{transporteur:d.t.trim(),bordereau:d.b.trim(),mode:d.m,responsable:d.r.trim(),livreur_id:d.l,depart_prevu:d.dp,eta:d.eta});e.frais={transport:Math.max(0,+d.f1||0),manutention:Math.max(0,+d.f2||0),emballage:Math.max(0,+d.f3||0),autres:Math.max(0,+d.f4||0)};
+  e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:String(d.n||"").trim()||"Mise à jour transport / frais"});audit("Expédition modifiée",e.numero);save();render();setTimeout(()=>expDetail(e.id),0)}})}
+function expPrint(e){
+ const rows=e.colis.map(c=>`<tr><td>${esc(c.ref)}</td><td>${esc(c.desc||"")}</td><td class="n">${c.poids} kg</td><td class="n">${c.volume} m³</td></tr>`).join("");
+ const corps=`${rptHead("Bordereau d'expédition "+e.numero,EXP_TYPE_L[e.type])}<table><tr><td>Origine</td><td>${esc(e.origine)}</td></tr><tr><td>Destinataire</td><td>${esc(e.dest.nom)} ${esc(e.dest.tel)}<br>${esc([e.dest.adresse,e.dest.ville,e.dest.pays].filter(Boolean).join(", "))}</td></tr><tr><td>Transporteur</td><td>${esc(e.transporteur||"—")} (${esc(e.mode)}) · bordereau ${esc(e.bordereau||"—")}</td></tr><tr><td>Départ / arrivée estimée</td><td>${e.depart_reel||e.depart_prevu||"—"} / ${e.eta||"—"}</td></tr></table><h2>Colis</h2><table><tr><th>Référence</th><th>Contenu</th><th>Poids</th><th>Volume</th></tr>${rows}</table><div style="display:flex;justify-content:space-between;margin-top:40px"><div>Expéditeur<br><br>______________</div><div>Transporteur<br><br>______________</div><div>Réceptionnaire<br><br>______________</div></div>`;
+ rapport("Bordereau "+e.numero,corps)}
+function expStats(){
+ const L=S.expeditions||[],by=(f)=>{const m={};L.forEach(e=>{const k=f(e)||"—";(m[k]=m[k]||{n:0,l:0,r:0,fr:0});m[k].n++;if(["livree","livree_part"].includes(e.statut))m[k].l++;if(expRetard(e))m[k].r++;m[k].fr+=expFraisTot(e)});return m};
+ const T=m=>tbl(["","Expéditions","Livrées","En retard","Frais"],Object.entries(m).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td><b>${esc(k)}</b></td><td>${v.n}</td><td>${v.l}</td><td>${v.r}</td><td>${fcfa(v.fr)}</td></tr>`),"Aucune donnée");
+ return`<h2>Par destination</h2>${T(by(e=>e.dest.ville||e.dest.nom))}<h2>Par transporteur</h2>${T(by(e=>e.transporteur))}<h2>Par mois</h2>${T(by(e=>String(e.date).slice(0,7)))}`}
+function expTable(L){
+ return tbl(["Dossier","Type · destination","Colis · frais","Transport","Dates","Statut",""],L.map(e=>`<tr><td><b>${esc(e.numero)}</b></td><td>${esc(EXP_TYPE_L[e.type])}<br><span class="sm mu">${esc([e.dest.nom,e.dest.ville].filter(Boolean).join(" · "))}</span></td><td>${e.colis.length} · ${fcfa(expFraisTot(e))}</td><td class="sm">${esc(e.transporteur||"—")}<br>${esc(e.bordereau||"")}</td><td class="sm">Départ ${e.depart_reel||e.depart_prevu||"—"}<br>Arrivée ${e.eta||"—"}</td><td>${badge(EXS[e.statut][0],EXS[e.statut][1])}${expRetard(e)?" "+badge("Retard","er"):""}</td><td><button class="btn sm" data-act="expOuvrir" data-id="${e.id}">Ouvrir</button></td></tr>`),"Aucune expédition")}
+VIEWS.expeditions=()=>{
+ const L=(S.expeditions||[]).slice(),t=ui.exT||"act",ft=ui.exTy||"",q=normTxt(ui.exQ||""),mois=cxJour().slice(0,7);
+ const act=L.filter(e=>EXT_OUVERT(e.statut)),V=(t==="his"?L.filter(e=>!EXT_OUVERT(e.statut)):act).filter(e=>(!ft||e.type===ft)&&(!q||normTxt([e.numero,e.dest.nom,e.dest.ville,e.transporteur,e.bordereau].join(" ")).includes(q)));
+ const kb=(tab,ic,l,n,c)=>`<button type="button" class="${c||""}" data-act="tab" data-id="exT|${tab}"><span class="ic">${ic}</span><b>${n}</b><span class="l">${l}</span></button>`;
+ return`<div class="cdl"><div class="ban"><h1>Expéditions</h1><p>Préparer, expédier, suivre et réceptionner les marchandises</p></div>
+ <div class="kp">${kb("act","📝","À préparer",L.filter(e=>["brouillon","preparation","prete"].includes(e.statut)).length)}${kb("act","🚚","En route",L.filter(e=>["expediee","transit","arrivee","en_livraison"].includes(e.statut)).length)}${kb("act","⏰","En retard",L.filter(expRetard).length,L.some(expRetard)?"e":"")}${kb("act","⚠","Incidents",L.filter(e=>["echec","retour_cours"].includes(e.statut)).length,L.some(e=>e.statut==="echec")?"w":"")}${kb("his","✅","Terminées",L.filter(e=>!EXT_OUVERT(e.statut)).length,"o")}<div><span class="ic">💰</span><b>${fcfa(L.filter(e=>String(e.date).slice(0,7)===mois).reduce((a,e)=>a+expFraisTot(e),0))}</b><span class="l">Frais du mois</span></div></div>
+ ${tabs("exT",[["act","En cours ("+act.length+")"],["his","Historique"],["sta","Performances"]])}
+ ${t==="sta"?expStats():`<div class="flex noprint" style="flex-wrap:wrap;gap:8px;margin:8px 0"><input type="search" data-f="exQ" value="${esc(ui.exQ||"")}" placeholder="Rechercher : dossier, destinataire, ville, transporteur, bordereau…" style="flex:1;min-width:220px"><select data-f="exTy" style="width:auto"><option value="">Tous les types</option>${EXP_TYPES.map(x=>`<option value="${x[0]}" ${ft===x[0]?"selected":""}>${x[1]}</option>`).join("")}</select>${EXRO()?`<button class="btn" data-act="expNew">➕ Nouvelle expédition</button>`:""}<button class="btn ghost" data-act="expCsv">⬇ Export CSV</button></div>${expTable(V)}`}</div>`};
+VIEWS.vExp=()=>{
+ const v=vend();if(!v)return"<div class='card'>Compte vendeur introuvable</div>";const mine=S.commandes.filter(c=>c.vendeur_id===v.id),ids=new Set(mine.map(c=>c.id)),L=(S.expeditions||[]).filter(e=>(e.commande_ids||[]).some(i=>ids.has(i)));
+ const dispo=mine.filter(c=>["confirmee","preparation","prete"].includes(c.statut)&&!c.exp_id);
+ return`<h1>📦 Mes expéditions</h1><div class="al sm">Suivez vos envois. Pour une commande prête, demandez une expédition : l'entreprise prépare et valide le départ.</div>
+ ${dispo.length?`<div class="card"><b>Demander une expédition</b>${dispo.map(c=>`<div class="between sm" style="padding:4px 0"><span>${esc(c.numero)} · ${esc((cli(c.client_id)||{}).nom||"")}</span><button class="btn sm ghost" data-act="expDemande" data-id="${c.id}">Demander</button></div>`).join("")}</div>`:""}
+ ${tbl(["Dossier","Destinataire","Transport","Arrivée estimée","Statut"],L.map(e=>`<tr><td><b>${esc(e.numero)}</b></td><td>${esc(e.dest.nom)}<br><span class="sm mu">${esc(e.dest.ville||"")}</span></td><td class="sm">${esc(e.transporteur||"—")}<br>${esc(e.bordereau||"")}</td><td>${e.eta||"—"}</td><td>${badge(EXS[e.statut][0],EXS[e.statut][1])}</td></tr>`),"Aucune expédition")}`};
+function expTab(){const L=(S.expeditions||[]).filter(e=>EXT_OUVERT(e.statut)).filter(e=>!ui.expP||(cmd((e.commande_ids||[])[0])||{}).exp&&cmd(e.commande_ids[0]).exp.portee===ui.expP);
+ return`<div class="between"><h2>Expéditions en cours (${L.length})</h2><div class="flex"><select data-f="expP" style="width:auto"><option value="">Toutes les portées</option>${PORTEES.filter(p=>p[0]!=="local").map(p=>`<option value="${p[0]}" ${ui.expP===p[0]?"selected":""}>${p[1]}</option>`).join("")}</select><button class="btn sm ghost" data-act="goExp">Module Expéditions →</button></div></div>${expTable(L)}`}
+Object.assign(ACT,{expNew:()=>{if(EXRO())expForm()},expDepuisCmd:id=>{if(EXRW())expForm(cmd(id))},expOuvrir:id=>expDetail(id),goExp:()=>{view="expeditions";render()},
+ expTo:id=>{const[i,to]=String(id).split("|"),e=expOf(i);if(!e)return;try{
+  if(["livree","livree_part"].includes(to))return expRecepForm(e,to);
+  if(to==="expediee"){modal("Départ — "+e.numero,`<label>Date de départ<input type="date" name="d" value="${e.depart_reel||cxJour()}"></label><label>Transporteur / agence<input name="t" value="${esc(e.transporteur)}"></label><label>N° de bordereau<input name="b" value="${esc(e.bordereau)}"></label>`,{label:"Confirmer le départ",onSubmit:d=>{try{if(d.t.trim())e.transporteur=d.t.trim();if(d.b.trim())e.bordereau=d.b.trim();expStatut(e,"expediee","Départ le "+d.d,{depart:d.d});save();render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});return}
+  if(["annulee","echec","retour_cours"].includes(to)){modal(EXS[to][0]+" — "+e.numero,`<label>Motif *<input name="m" required></label>`,{label:"Valider",onSubmit:d=>{try{expStatut(e,to,d.m);save();render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});return}
+  expStatut(e,to,"");save();render();setTimeout(()=>expDetail(e.id),0)}catch(x){toast(fixErr(x),"err")}},
+ expClore:id=>{const e=expOf(id);try{expCloturer(e);save();render();setTimeout(()=>expDetail(e.id),0)}catch(x){toast(fixErr(x),"err")}},
+ expColis:id=>{const e=expOf(id);modal("Ajouter un colis — "+e.numero,`<label>Contenu<input name="d" placeholder="Ex. 10 cartons de boissons"></label><div class="g2"><label>Poids (kg)<input type="number" name="p" min="0" step="0.1" value="1"></label><label>Volume (m³)<input type="number" name="v" min="0" step="0.01" value="0"></label></div>`,{onSubmit:d=>{if(!EXRW())throw new Error("Droits insuffisants");e.colis.push({ref:e.numero+"-C"+(e.colis.length+1),desc:d.d.trim(),poids:Math.max(0,+d.p||0),volume:Math.max(0,+d.v||0)});e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Colis ajouté"});save();render();setTimeout(()=>expDetail(e.id),0)}})},
+ expColisDel:id=>{const[i,k]=String(id).split("|"),e=expOf(i);if(!e||!EXRW()||!["brouillon","preparation","prete"].includes(e.statut))return;e.colis.splice(+k,1);e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Colis retiré"});save();expDetail(e.id)},
+ expDocOk:id=>{const[i,k]=String(id).split("|"),e=expOf(i);if(!e||!EXRW())return;const d=e.docs[+k];if(!d)return;d.ok=!d.ok;e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Document « "+d.n+" » "+(d.ok?"fourni":"retiré")});save();expDetail(e.id)},
+ expEdit:id=>expEditForm(expOf(id)),expPrint:id=>expPrint(expOf(id)),
+ expDemande:id=>{try{const c=cmd(id),cl=cli(c.client_id),e=expCreer({type:"client",commande_ids:[c.id],dest:{nom:cl.nom,tel:cl.tel,adresse:[c.adr.quartier,c.adr.repere].filter(Boolean).join(" · "),ville:c.adr.zone,pays:"Côte d'Ivoire"},nb_colis:1,note:"Demandée par le vendeur"});save();toast("Demande d'expédition "+e.numero+" envoyée","ok");render()}catch(x){toast(fixErr(x),"err")}},
+ expCsv:()=>csvDown("expeditions.csv",["Dossier","Type","Statut","Destinataire","Ville","Pays","Transporteur","Bordereau","Colis","Départ","Arrivée estimée","Frais"],(S.expeditions||[]).map(e=>[e.numero,EXP_TYPE_L[e.type],EXS[e.statut][0],e.dest.nom,e.dest.ville,e.dest.pays,e.transporteur,e.bordereau,e.colis.length,e.depart_reel||e.depart_prevu||"",e.eta||"",expFraisTot(e)]))});
+
 function ensureConfig(){
- if(!Array.isArray(S.config.destinations))S.config.destinations=DEST_DEF();
+ if(!Array.isArray(S.config.destinations))S.config.destinations=DEST_DEF();S.expeditions=S.expeditions||[];S.seq=S.seq||{cmd:0,inc:0};
  const c=S.config;Object.keys(DEF_CFG).forEach(k=>{if(c[k]===undefined||c[k]==="")c[k]=DEF_CFG[k]});if(!CL.on&&!c.zones_ga&&Array.isArray(c.zones)){const have=new Set(c.zones.map(z=>z.nom));ZONES_GA.forEach(z=>{if(!have.has(z[0]))c.zones.push({id:uid("z"),nom:z[0],frais:z[1],delai_min:z[2]})});c.zones_ga=1}
  if(!c.modes||JSON.stringify(c.modes)===JSON.stringify(["Espèces","Mobile Money","Virement","Autre"]))c.modes=["Espèces","Wave","Orange Money","MTN MoMo","Moov Money","Virement","Autre"];if(!c.momo_comptes)c.momo_comptes=[];
  c.tpl=Object.assign({},TPL_DEF,c.tpl||{});
@@ -2924,7 +3043,7 @@ function notifier(c,to,note){
  const eta=new Date(Date.now()+(z?z.delai_min:45)*60000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
  const msg=fillTpl(cfg.tpl[to],{client:cl.nom,numero:c.numero,livreur:l&&liv(l.livreur_id)?liv(l.livreur_id).nom.split(" ")[0]:"",heure:eta,code:l?l.code:"",solde:fcfa(soldeCmd(c)),motif:String(note||"").replace(/^Échec : /,""),org:cfg.org});
  S.notifs.push({id:uid("n"),ts:now(),commande_id:c.id,event:to,canal:cl.sans_smartphone?"SMS":"WhatsApp",tel:cl.tel,nom:cl.nom,message:msg+(!cl.sans_smartphone&&(to==="confirmee"||to==="en_cours")&&cfg.suivi_portail!==false?"\nSuivi de votre commande : {{SUIVI}}":""),statut:"a_envoyer"})}
-const EV_L={confirmee:"Commande confirmée",en_cours:"Départ du livreur",livree:"Livrée",echouee:"Échec de livraison",livreur_msg:"💬 Message du livreur"};
+const EV_L={exp:"🚚 Expédition",confirmee:"Commande confirmée",en_cours:"Départ du livreur",livree:"Livrée",echouee:"Échec de livraison",livreur_msg:"💬 Message du livreur"};
 VIEWS.notifs=()=>{
  const rap=can("admin","superviseur")?(S.rappels||[]).filter(r=>r.statut==="ouvert"):[];
  const t=ui.nt||"att",att=S.notifs.filter(n=>n.statut==="a_envoyer"),his=S.notifs.filter(n=>n.statut!=="a_envoyer");
@@ -3250,7 +3369,7 @@ VIEWS.vHome=()=>{
 function vendeurHTML(){
  const tab=(v,i,l)=>`<button type="button" class="${view===v?"on":""}" data-act="nav" data-id="${v}"><span>${i}</span>${l}</button>`;
  return`<div class="vapp"><div class="vtop"><b>${ORG()}</b><button type="button" data-act="mdpMe" aria-label="Mon mot de passe">🔑</button><button type="button" data-act="logout">Quitter</button></div><main>${VIEWS[view]()}</main>
- <nav class="vbar" aria-label="Menu vendeur">${tab("vHome","🏠","Accueil")}<button type="button" data-act="newVCmd"><span>➕</span>Commander</button>${tab("mesCmd","📦","Colis")}${tab("mesReg","💰","Argent")}</nav></div>`}
+ <nav class="vbar" aria-label="Menu vendeur">${tab("vHome","🏠","Accueil")}<button type="button" data-act="newVCmd"><span>➕</span>Commander</button>${tab("mesCmd","📦","Colis")}${tab("vExp","🚚","Envois")}${tab("mesReg","💰","Argent")}</nav></div>`}
 VIEWS.mesCmd=()=>{
  const v=vend();if(!v)return'<div class="card">Compte vendeur non rattaché à une fiche vendeur. Contactez ANGEL\'S GROUP.</div>';
  const mine=S.commandes.filter(c=>c.vendeur_id===v.id),d=vendDue(v),n=f=>mine.filter(f).length;
