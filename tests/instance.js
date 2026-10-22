@@ -20,13 +20,16 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const cartes=await h.$$eval(".card[data-mod]",c=>c.map(x=>x.dataset.mod).sort().join());
  t("INS-5b","modules choisis publiés : Placement, Assurance, socle d'écran, feuille de style aux couleurs LOGISTICA",["placement.html","placement-engine.js","assurance.html","assurance-engine.js","shell-engine.js","modules.css"].every(f=>fs.existsSync(path.join(root,f)))&&/#c8352b/i.test(lire("modules.css"))&&!/#0e7490/i.test(lire("modules.css"))?true:"manquant");
  t("INS-5c","isolation : la passerelle pointe vers le projet Supabase de LOGISTICA, jamais celui d'ANGEL'S",/hggfwxkmdylrgikokbaw/.test(lire("passerelle-config.js"))&&!/gfzqxoolorbejxnxrlji/.test(Object.keys({a:1}).length?fs.readdirSync(root).filter(f=>/\.(html|js|json|webmanifest)$/.test(f)).map(lire).join(""):"")&&!/angelsgroups/.test(lire("portail.html"))?true:"fuite vers ANGEL'S");
- t("INS-6","hub : seules les cartes choisies (Distribution, Placement, Assurance, CRM, Paramètres)",cartes==="assurance,crm,distribution,parametres,placement"?true:cartes);
+ t("INS-6","hub : seules les cartes choisies (Distribution, Placement, Assurance, CRM, Paramètres, Portail)",cartes==="assurance,crm,distribution,parametres,placement,portail"?true:cartes);
  t("INS-7","hub : titre LOGISTICA, onglets Distributions, Placement et Assurance",/LOGISTICA/.test(await h.title())&&(await h.$$eval("#tabs .tab",x=>x.length))===3?true:await h.title());
  const mq=await h.evaluate(()=>({id:ERP_MARQUE.id,adm:ERP_MARQUE.admin.nom,u:ANGELS_AUTH.adminProd("x")}));
  t("INS-8","administrateur propre à l'instance (pas KESSIE), changement de mot de passe imposé",mq.adm==="ADMIN"&&mq.u.nom==="ADMIN"&&mq.u.chg===true?true:JSON.stringify(mq));
  const mdp=process.env.LOGISTICA_MDP;
  if(mdp){const v=await h.evaluate(async m=>({bon:await ANGELS_AUTH.verifier(m,ANGELS_AUTH.adminProd("x").pwd),mauvais:await ANGELS_AUTH.verifier("Demo@Angels2026",ANGELS_AUTH.adminProd("x").pwd),kessie:await ANGELS_AUTH.verifier("Kessie",ANGELS_AUTH.adminProd("x").pwd)}),mdp);
   t("INS-9","mot de passe initial LOGISTICA valide ; mot de passe de démonstration refusé",v.bon&&!v.mauvais?true:JSON.stringify(v))}
+ const po=await page("portail.html");
+ const pt=await po.evaluate(()=>document.body.innerText);
+ t("INS-9b","portail : contenu LOGISTICA (services du panneau, horaires, coordonnées), aucune trace d'ANGEL'S ni de Transport/Agro",/LOGISTICA/.test(pt)&&/express/i.test(pt)&&/personnel/i.test(pt)&&/07h30/.test(lire("portail-data.js"))&&/courrier@logistica\.ci/.test(lire("portail-data.js"))&&!/ANGEL|Agro|Taxi/i.test(pt)?true:pt.slice(0,300));
  const d=await page("distribution.html");
  t("INS-10","Distribution : écran de connexion sans marque d'origine, sans erreur",!/ANGEL'S/.test(await d.evaluate(()=>document.body.innerText))?true:"marque d'origine");
  t("INS-11","aucune erreur JavaScript",errs.length===0?true:errs.join(" | "));
