@@ -113,3 +113,23 @@ Fonction `rapport-connexions` (`verify_jwt: false`, clés propres) : construit l
 
 Migration `011_push.sql` (table `pg_push`, sans accès direct), fonctions `push-abonner` (jeton du livreur vérifié dans la fonction) et `push-envoyer` (`--no-verify-jwt`, protégée par `ADMIN_KEY`).
 Secrets : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (clés générées par `node tools/gen-vapid.js` ; la clé publique va aussi dans `passerelle-config.js`). Procédure complète, test et application Android (TWA) : `android/README.md`. Tests : `node tests/push.js`.
+
+## Portail vendeur, preuves de livraison : migrations 013 à 017 et fonctions
+
+| Élément | Rôle |
+|---|---|
+| `migrations/013_portail_photos.sql` | Table `pd_photos` (captures d'écran du client, JPEG ≤ 150 Ko, RLS sans politique) ; supprimées à l'acquittement, `purge_pd_photos()` à 30 jours |
+| `migrations/014_portail_scans.sql` | Table `pd_scans` (une ligne par visiteur, jour et source) ; `purge_pd_scans()` à 90 jours |
+| `migrations/015_preuves_livraison.sql` | Tables `pg_colis` (empreintes des jetons d'étiquettes), `pg_preuves` (signature, photo, position, signature du client), `pg_sign_jetons` (liens de signature à usage unique, 15 min) — aucun droit pour `anon` / `authenticated` |
+| `migrations/016_portail_live.sql` | Table `pd_lives` (un live par vendeur, 60 produits au plus) ; source `live` pour les visites |
+| `migrations/017_portail_lien_signe.sql` | Colonne `pd_vendeurs.lien_rev` (renouvellement du QR signé) |
+| `functions/portail-demande/` | **Public** : commandes (avec captures), visites (`scan`), lecture du live (`live`), vérification d'un lien signé (`verif`) |
+| `functions/portail-vendeur/` | Vendeur (clé de relève) : `lister`, `photos`, `acquitter`, `stats`, `live_publier`, `lien_signer`, `lien_renouveler` |
+| `functions/portail-sync/` | Bureau (`x-admin-key`) : en plus, `photos` d'une demande |
+| `functions/mission-action/` | Livreur (JWT) : en plus, scans des colis, signature, photo, GPS, `demande_signature`, `signature_etat` |
+| `functions/mission-sync/` | Bureau : en plus, `preuve` (signature, photo, position d'une livraison confirmée) |
+| `functions/livraison-signer/` | **Public** (`--no-verify-jwt`) : le client voit sa commande et signe avec le jeton à usage unique |
+
+- **Secret** : la signature des liens utilise `PORTAIL_SEL`, à défaut `ADMIN_KEY` ; sans secret, la signature est « indisponible » (503) et les liens restent non signés.
+- **Déploiement** : les fonctions sont déployées « à plat » (fichiers `index` + modules partagés au même niveau, imports `./…`) ; `portail-demande`, `portail-vendeur` et `portail-sync` sont publiées en un seul fichier `index.ts`. **Redéployer après toute modification de `functions/_shared/`**, puis lancer les recettes (`node tests/portail-*.js`, `node tests/livraison-preuve.js`, `node tests/anti-fraude-qr.js`).
+- **À planifier** si `pg_cron` est activé : `select public.purge_pd_photos();`, `select public.purge_pd_scans();`.
