@@ -78,6 +78,12 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
  </a>
 </div>
 <div class="cards" id="mods-extra">
+ <a class="card" data-mod="assurance" style="--c:#1e6ea0" href="assurance.html" id="c-assurance">
+  <div class="ic">🛡️</div><h2>Courtage d'assurance</h2><p>Devis comparatifs, polices, primes, commissions, renouvellements et sinistres.</p>
+  <span class="badge">Actif</span>
+  <div class="kp"><div><b id="s-p">—</b><span>Polices en cours</span></div><div><b id="s-r">—</b><span>À renouveler</span></div><div><b id="s-s">—</b><span>Sinistres ouverts</span></div></div>
+  <span class="btn">Ouvrir le module</span>
+ </a>
  <a class="card" data-mod="placement" style="--c:#b45309" href="placement.html" id="c-placement">
   <div class="ic">👷</div><h2>Placement de personnel</h2><p>Travailleurs temporaires et journaliers : besoins des entreprises, affectations, pointage, facturation, paie.</p>
   <span class="badge">Actif</span>
@@ -133,6 +139,10 @@ try{
 try{
  const T=JSON.parse(localStorage.getItem("angels_transport_v3")||"null");
  if(T){const j=new Date().toISOString().slice(0,10);$("t-ot").textContent=((T.payments||[]).filter(x=>x.statut==="confirme"&&x.date_valeur===j).reduce((s,x)=>s+(+x.montant||0),0)).toLocaleString("fr-FR")+" F";$("t-v").textContent=(T.vehicles||[]).length;$("t-c").textContent=(T.drivers||[]).length}
+}catch(e){}
+try{
+ const As=JSON.parse(localStorage.getItem("angels_assurance_v1")||"null");
+ if(As&&$("s-p")){const j=new Date().toISOString().slice(0,10),pl=As.polices||[];$("s-p").textContent=pl.filter(p=>p.statut==="en_cours"&&p.effet<=j&&p.echeance>=j).length;const al=(As.cfg&&+As.cfg.alerte_renouvellement)||30;$("s-r").textContent=pl.filter(p=>p.statut!=="resiliee"&&!p.renouvelee_par&&Math.round((new Date(p.echeance+"T00:00:00Z")-new Date(j+"T00:00:00Z"))/864e5)<=al).length;$("s-s").textContent=(As.sinistres||[]).filter(s=>["declare","transmis","expertise","accepte"].includes(s.statut)).length}
 }catch(e){}
 try{
  const Pl=JSON.parse(localStorage.getItem("angels_placement_v1")||"null");
@@ -212,6 +222,17 @@ function placement(G){
   act:poste+" en poste · "+ouv+" besoin(s) ouvert(s)",afac};
 }
 const F_=n=>F(n);
+function assurance(G){
+ if(!G||!G.polices)return null;
+ const ttc=p=>p.ttc+som((G.avenants||[]).filter(a=>a.police_id===p.id),a=>a.delta),com=p=>p.commission+som((G.avenants||[]).filter(a=>a.police_id===p.id),a=>a.delta_commission),encP=p=>som((G.encaissements||[]).filter(e=>e.police_id===p.id),e=>e.montant),recC=p=>som((G.commissions_recues||[]).filter(e=>e.police_id===p.id),e=>e.montant);
+ const PL=G.polices,P=PL.filter(p=>p.statut==="en_cours"&&p.effet<=AUJ&&p.echeance>=AUJ),jr=d=>Math.round((new Date(d+"T00:00:00Z")-new Date(AUJ+"T00:00:00Z"))/864e5),al=(G.cfg&&+G.cfg.alerte_renouvellement)||30;
+ const ren=PL.filter(p=>p.statut!=="resiliee"&&!p.renouvelee_par&&jr(p.echeance)<=al).length,sin=(G.sinistres||[]).filter(s=>["declare","transmis","expertise","accepte"].includes(s.statut)).length;
+ const aEnc=som(PL.filter(p=>p.encaisse_par==="courtier"),p=>Math.max(0,ttc(p)-encP(p))),aCom=som(PL.filter(p=>p.encaisse_par==="assureur"),p=>Math.max(0,com(p)+(p.tva_commission||0)-recC(p)));
+ const commM=som(PL.filter(p=>String(p.cree_le).startsWith(MOIS)),com);
+ return{tres:null,ca:commM,enc:som((G.encaissements||[]).filter(e=>String(e.date).startsWith(MOIS)),e=>e.montant),cre:aEnc+aCom,res:null,alt:ren+sin,mens:mens(PL,p=>p.cree_le,com),
+  det:[["Polices en cours",P.length],["Compagnies partenaires",(G.compagnies||[]).length],["Assurés",(G.assures||[]).length],["Polices à renouveler",ren,1],["Sinistres ouverts",sin,1],["Primes à encaisser",F(aEnc)],["Commissions à recevoir",F(aCom)]],
+  act:P.length+" police(s) · "+ren+" à renouveler · "+sin+" sinistre(s)"};
+}
 function consolide(){
  const X=REG.map(r=>[r.nom,r.fn(lire(r.cle))]);
  const tot=k=>som(X.filter(x=>x[1]&&x[1][k]!=null),x=>x[1][k]),cell=(x,k,f)=>!x?'<span class="nd">non ouvert</span>':x[k]==null?'<span class="nd">—</span>':(f?f(x[k]):F(x[k]));
@@ -225,7 +246,7 @@ function consolide(){
  $("ncons").textContent="Chiffres lus sur cet appareil (données locales de chaque application). « Non ouvert » : l'application n'a pas encore été utilisée ici. Résultat de Distributions : voir son module Comptabilité.";
 }
 /* ---------- Tableau de bord par module ---------- */
-const TOUS=[{id:"dist",mod:"distribution",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)",cle:"angels_erp_v1",fn:distribution},{id:"trans",mod:"transport",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)",cle:"angels_transport_v3",fn:transport},{id:"agro",mod:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)",cle:"angels_agro_v1",fn:agro},{id:"plac",mod:"placement",nom:"Placement",ic:"👷",href:"placement.html",c:"#b45309",cle:"angels_placement_v1",fn:placement}];
+const TOUS=[{id:"dist",mod:"distribution",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)",cle:"angels_erp_v1",fn:distribution},{id:"trans",mod:"transport",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)",cle:"angels_transport_v3",fn:transport},{id:"agro",mod:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)",cle:"angels_agro_v1",fn:agro},{id:"plac",mod:"placement",nom:"Placement",ic:"👷",href:"placement.html",c:"#b45309",cle:"angels_placement_v1",fn:placement},{id:"assu",mod:"assurance",nom:"Assurance",ic:"🛡️",href:"assurance.html",c:"#1e6ea0",cle:"angels_assurance_v1",fn:assurance}];
 const REG=TOUS.filter(r=>ACTIF(r.mod)),MODS=REG;
 let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||REG[0].id}catch(e){return REG[0].id}})();
 function tdb(X){

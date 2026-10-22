@@ -18,9 +18,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  t("INS-5","aucun secret ni mot de passe en clair dans l'instance",!/Lg-|Demo@Angels2026\b.*Logistica/.test(lire("marque.js"))&&/"h":"/.test(lire("marque.js"))?true:"secret");
  const h=await page("index.html");
  const cartes=await h.$$eval(".card[data-mod]",c=>c.map(x=>x.dataset.mod).sort().join());
- t("INS-5b","modules choisis publiés : Placement, socle d'écran, feuille de style aux couleurs LOGISTICA",["placement.html","placement-engine.js","shell-engine.js","modules.css"].every(f=>fs.existsSync(path.join(root,f)))&&/#c8352b/i.test(lire("modules.css"))&&!/#0e7490/i.test(lire("modules.css"))?true:"manquant");
- t("INS-6","hub : seules les cartes choisies (Distribution, Placement, CRM, Paramètres)",cartes==="crm,distribution,parametres,placement"?true:cartes);
- t("INS-7","hub : titre LOGISTICA, onglets Distributions et Placement",/LOGISTICA/.test(await h.title())&&(await h.$$eval("#tabs .tab",x=>x.length))===2?true:await h.title());
+ t("INS-5b","modules choisis publiés : Placement, Assurance, socle d'écran, feuille de style aux couleurs LOGISTICA",["placement.html","placement-engine.js","assurance.html","assurance-engine.js","shell-engine.js","modules.css"].every(f=>fs.existsSync(path.join(root,f)))&&/#c8352b/i.test(lire("modules.css"))&&!/#0e7490/i.test(lire("modules.css"))?true:"manquant");
+ t("INS-6","hub : seules les cartes choisies (Distribution, Placement, Assurance, CRM, Paramètres)",cartes==="assurance,crm,distribution,parametres,placement"?true:cartes);
+ t("INS-7","hub : titre LOGISTICA, onglets Distributions, Placement et Assurance",/LOGISTICA/.test(await h.title())&&(await h.$$eval("#tabs .tab",x=>x.length))===3?true:await h.title());
  const mq=await h.evaluate(()=>({id:ERP_MARQUE.id,adm:ERP_MARQUE.admin.nom,u:ANGELS_AUTH.adminProd("x")}));
  t("INS-8","administrateur propre à l'instance (pas KESSIE), changement de mot de passe imposé",mq.adm==="ADMIN"&&mq.u.nom==="ADMIN"&&mq.u.chg===true?true:JSON.stringify(mq));
  const mdp=process.env.LOGISTICA_MDP;
