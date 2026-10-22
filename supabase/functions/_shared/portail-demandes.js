@@ -57,6 +57,7 @@ export async function enregistrerScan(db, cfg, scan, ip, now = Date.now()) {
 export async function recevoir(db, cfg, req, ip, now = Date.now()) {
   if (req && req.scan && typeof req.scan === "object") return enregistrerScan(db, cfg, req.scan, ip, now);
   if (req && req.live && typeof req.live === "object") return lireLive(db, req.live);
+  if (req && req.verif && typeof req.verif === "object") return verifierLien(db, cfg, req.verif);
   const message = typeof req.message === "string" ? req.message.trim() : "";
   if (!message) return err(400, "Message absent");
   if (message.length > TAILLE_MAX) return err(413, "Message trop long");
@@ -79,6 +80,22 @@ export async function recevoir(db, cfg, req, ip, now = Date.now()) {
     recues.push(m.ref);
   }
   return rep(200, { ok: true, refs: recues.concat(doublons), doublons: doublons.length });
+}
+
+/* ================= Lien / QR signé du vendeur (anti-fraude) ================= */
+/* Signature = HMAC-SHA256(secret serveur, « lien | vendeur | boutique | téléphone | version »), 16 premiers caractères hexadécimaux. Mêmes normalisations que le portail (nom : 80 caractères, téléphone : chiffres, 20 au plus). */
+const normLien = (v, b, t, rev) => "lien|" + idVendeur(v) + "|" + String(b || "").trim().slice(0, 80).toLowerCase().replace(/\s+/g, " ") + "|" + String(t || "").replace(/\D/g, "").slice(0, 20) + "|" + (+rev || 0);
+export async function signerLien(sel, v, b, t, rev) {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode("lien-signe|" + sel), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const m = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(normLien(v, b, t, rev))));
+  return [...m].map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+/* Visiteur du portail : ce lien est-il authentique ? (aucune information sur le vendeur n'est renvoyée, seulement oui / non) */
+export async function verifierLien(db, cfg, q) {
+  const v = idVendeur(q && q.v), sig = String(q && q.s || "").toLowerCase();
+  if (!v || !/^[a-f0-9]{16}$/.test(sig) || !cfg.sel) return rep(200, { ok: true, valide: false });
+  const rev = await db.lienRev(v); if (rev == null) return rep(200, { ok: true, valide: false });
+  return rep(200, { ok: true, valide: egal(await signerLien(cfg.sel, v, q.b, q.t, rev), sig) });
 }
 
 /* ================= Mode Live ================= */
@@ -156,7 +173,7 @@ async function cleVendeur(db, req) {
   return rep(200, { ok: true, cle });
 }
 /* Le vendeur relève SEULEMENT ses demandes (identifiant + clé) puis les acquitte : jamais celles d'un autre vendeur, jamais celles du bureau. */
-export async function traiterVendeur(db, req) {
+export async function traiterVendeur(db, req, cfg = {}) {
   const v = idVendeur(req.vendeur), cle = String(req.cle || "").trim().toUpperCase();
   const h = v && cle ? await db.empreinteVendeur(v) : null;
   if (!h || !egal(h, await sha256hex("vendeur|" + cle))) return err(401, "Clé de relève invalide");
@@ -164,6 +181,11 @@ export async function traiterVendeur(db, req) {
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteVendeur(v, 100) });
   if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), v) });
   if (a === "live_publier") return publierLive(db, v, req);
+  if (a === "lien_signer" || a === "lien_renouveler") {   /* signature du lien / QR du vendeur ; « renouveler » invalide tous les anciens liens signés */
+    if (!cfg.sel) return err(503, "Signature indisponible : secret du serveur non configuré");
+    const rev = a === "lien_renouveler" ? await db.renouvelerLien(v) : await db.lienRev(v);
+    return rep(200, { ok: true, sig: await signerLien(cfg.sel, v, req.boutique, req.tel, rev), rev });
+  }
   if (a === "stats") return rep(200, { ok: true, scans: await db.statsScans(v, new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)) });
   if (a === "acquitter") {
     const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
