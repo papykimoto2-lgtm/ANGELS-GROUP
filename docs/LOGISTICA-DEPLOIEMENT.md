@@ -1,6 +1,8 @@
 # LOGISTICA — déploiement du serveur (Supabase, projet `hggfwxkmdylrgikokbaw`)
 
-État : 18 tables posées et sécurisées (RLS). **À faire : purges SQL (`purges-logistica.sql`), fonctions Edge, secrets.**
+État (22/10/2026) : 18 tables posées et sécurisées (RLS) ; **8 fonctions Edge déployées** : `sync`, `portail-demande`, `portail-sync`, `portail-catalogue`, `portail-vendeur`, `mission-sync`, `mission-action`, `livraison-signer`.
+**À faire** : saisir les 3 secrets obligatoires (`SYNC_KEY`, `ADMIN_KEY`, `PORTAIL_SEL`) dans Supabase → Edge Functions → Secrets ; purges SQL (`purges-logistica.sql`) ; fonctions optionnelles restantes (`push-abonner`, `push-envoyer`, `appel-ticket`, `appel-pont`, `appel-voix`, `rapport-connexions`) quand leurs services (VAPID, Africa's Talking, Resend) sont prêts.
+Les fonctions déployées sont des assemblages réduits des fichiers `supabase/functions/_shared` (mêmes règles, sans les parties inutiles à chaque fonction) : après toute modification de `_shared`, les redéployer.
 
 ## Fonctions Edge (14)
 | Fonction | Rôle | JWT | Secrets utilisés |
