@@ -2561,6 +2561,11 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  cxPrintBon:id=>cxPrintBon(id),cxBrPrint:()=>cxBrPrint(),cxBrCsv:()=>cxBrCsv(),
  cmdLien:()=>cmdLien(false),cmdLienNew:()=>modal("Renouveler le lien de commande","<p>L'ancien lien et son QR code cesseront de fonctionner : vos clients devront utiliser le nouveau.</p>",{label:"Renouveler",cls:"er",onSubmit:()=>{cmdLien(true);return true}}),
  demTraiter:id=>demTraiter(id),demRejeter:id=>demRejeter(id),
+ liveOuvrir:()=>{const v=vend();if(!v)return;if(v.live)livePanel(v);else liveForm(v)},liveEdit:()=>{const v=vend();if(v)liveForm(v)},
+ liveEpuise:async id=>{const v=vend(),l=v&&v.live,x=l&&l.produits[+id];if(!x)return;const nl=Object.assign({},l,{produits:l.produits.map((y,i)=>i===+id?Object.assign({},y,{ok:!y.ok}):y)});
+  try{await livePublier(v,nl);v.live=nl;save();livePanel(v)}catch(e){toast(e.message,"err")}},
+ liveFin:async()=>{const v=vend(),l=v&&v.live;if(!l||!confirm("Terminer le live ? Les clients ne verront plus les produits."))return;const nl=Object.assign({},l,{actif:false});
+  try{await livePublier(v,nl);v.live=nl;save();audit("Live terminé",v.nom+" — "+l.titre);toast("Live terminé","ok");livePanel(v)}catch(e){toast(e.message,"err")}},
  qrTelecharger:async()=>{const cv=document.getElementById("qrc");if(!cv)return;const b=await qrPng(cv),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="qr-"+String(cv.dataset.nom||"commande").replace(/[^A-Za-z0-9]+/g,"-").toLowerCase()+".png";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)},
  qrPartager:async()=>{const cv=document.getElementById("qrc");if(!cv)return;const b=await qrPng(cv),f=new File([b],"qr-commande.png",{type:"image/png"});
   if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],text:"Scannez ce QR code pour commander chez "+(cv.dataset.nom||"moi")}).catch(()=>{});else ACT.qrTelecharger()},
@@ -3654,27 +3659,46 @@ async function demRejeter(id){const d=(S.demandes||[]).find(x=>x.id===id);if(!d)
   try{if(CL.on){await CL.rpc("demande_traiter",{p_id:id,p_action:"rejetee",p_motif:m});await refresh()}else{d.statut="rejetee";d.motif=m;audit("Demande client refusée",d.nom);save()}
    toast("Demande refusée","ok");render();return true}catch(e){toast(fixErr(e),"err");return false}},{label:"Refuser",cls:"er"})}
 /* Affiche QR personnalisée du vendeur (PNG 1080×1350) : nom du vendeur, de l'entreprise, QR agrandi, rappel « lien officiel, aucun paiement » */
-function qrCarte(v,lien){const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d"),q=qrcode(0,"M");q.addData(lien);q.make();
+function qrCarte(v,lien,live){const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d"),q=qrcode(0,"M");q.addData(lien);q.make();
  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0f3d2e");g.addColorStop(1,"#1d7a4f");x.fillStyle=g;x.fillRect(0,0,W,H);
  const rr=(X,Y,w,h,r)=>{x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath()};
  const fit=(t,max,size,w)=>{let f=size;x.font="800 "+f+"px system-ui,sans-serif";while(x.measureText(t).width>w&&f>28){f-=2;x.font="800 "+f+"px system-ui,sans-serif"}return t};
- x.textAlign="center";x.fillStyle="#fff";x.font="600 38px system-ui,sans-serif";x.fillText(String(ORGRAW()).toUpperCase().slice(0,40),W/2,92);
- x.fillStyle="#ffd54a";fit(v.nom,40,76,W-120);x.fillText(v.nom,W/2,190);
- x.fillStyle="#fff";x.font="500 44px system-ui,sans-serif";x.fillText("Commandez en ligne, en 1 minute",W/2,262);
+ x.textAlign="center";x.fillStyle="#fff";x.font="600 38px system-ui,sans-serif";x.fillText(String(ORGRAW()).toUpperCase().slice(0,40),W/2,live?66:92);
+ if(live){x.fillStyle="#d32f2f";rr(W/2-190,88,380,62,31);x.fill();x.fillStyle="#fff";x.font="800 38px system-ui,sans-serif";x.fillText("● EN DIRECT",W/2,132)}
+ x.fillStyle="#ffd54a";fit(v.nom,40,live?64:76,W-120);x.fillText(v.nom,W/2,live?226:190);
+ x.fillStyle="#fff";x.font="500 42px system-ui,sans-serif";x.fillText(live?String(live).slice(0,34):"Commandez en ligne, en 1 minute",W/2,live?282:262);
  rr(110,310,860,860,44);x.fillStyle="#fff";x.fill();
  const n=q.getModuleCount(),m=Math.floor(780/n),T=m*n,ox=Math.round((W-T)/2),oy=310+Math.round((860-T)/2);x.fillStyle="#000";
  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect(ox+k*m,oy+r*m,m,m);
  x.fillStyle="#fff";x.font="700 44px system-ui,sans-serif";x.fillText("📸 Envoyez la capture d'écran du produit",W/2,1238);
  x.font="400 32px system-ui,sans-serif";x.fillStyle="rgba(255,255,255,.85)";x.fillText("🔒 Lien officiel · aucun paiement ni mot de passe demandé",W/2,1296);return c}
 const qrPng=c=>new Promise(ok=>c.toBlob(ok,"image/png"));
-const qrStats=(v)=>{const dep=Date.now()-30*864e5,D=(S.demandes||[]).filter(d=>d.vendeur_id===v.id&&d.via==="lien"&&Date.parse(d.cree_le)>=dep),o=d=>D.filter(x=>(x.source||"lien")===d).length;return{dem:D.length,qr:o("qr"),lien:o("lien"),ok:D.filter(x=>x.statut!=="nouvelle"&&x.statut!=="rejetee").length}};
+const qrStats=(v)=>{const dep=Date.now()-30*864e5,D=(S.demandes||[]).filter(d=>d.vendeur_id===v.id&&d.via==="lien"&&Date.parse(d.cree_le)>=dep),o=d=>D.filter(x=>(x.source||"lien")===d).length;return{dem:D.length,qr:o("qr"),lien:o("lien"),live:o("live"),ok:D.filter(x=>x.statut!=="nouvelle"&&x.statut!=="rejetee").length}};
 async function qrStatsRendre(v){const el=document.getElementById("qrst");if(!el)return;const L=qrStats(v),u=PGV(),cle=S.config.portail_vendeur_cle;let sc=null;
  if(u&&cle){try{sc=(await vendPost(u,v,cle)({action:"stats"})).scans}catch(e){}}
- const T=sc?sc.qr+sc.lien:null,pc=(a,b)=>b>0?Math.round(100*a/b)+" %":"—";
+ const T=sc?sc.qr+sc.lien+(sc.live||0):null,pc=(a,b)=>b>0?Math.round(100*a/b)+" %":"—";
  el.innerHTML=`<h3 style="margin:12px 0 6px">Résultats sur 30 jours</h3><div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
   <div class="pill"><b style="font-size:20px">${sc?sc.qr:"—"}</b><br><span class="sm mu">visites par QR</span></div><div class="pill"><b style="font-size:20px">${sc?sc.lien:"—"}</b><br><span class="sm mu">visites par lien</span></div>
-  <div class="pill"><b style="font-size:20px">${L.dem}</b><br><span class="sm mu">commandes reçues</span></div><div class="pill"><b style="font-size:20px">${T==null?"—":pc(L.dem,T)}</b><br><span class="sm mu">visites → commande</span></div></div>
-  <p class="sm mu" style="margin:6px 0 0">Par QR : ${L.qr} commande(s) · par lien : ${L.lien} · acceptées : ${L.ok}.${sc?"":" Les visites s'affichent dès que la clé de relève est activée (Mes demandes directes)."}</p>`}
+  ${sc&&(sc.live>0||L.live>0)?`<div class="pill"><b style="font-size:20px">${sc.live||0}</b><br><span class="sm mu">visites du live</span></div>`:""}<div class="pill"><b style="font-size:20px">${L.dem}</b><br><span class="sm mu">commandes reçues</span></div><div class="pill"><b style="font-size:20px">${T==null?"—":pc(L.dem,T)}</b><br><span class="sm mu">visites → commande</span></div></div>
+  <p class="sm mu" style="margin:6px 0 0">Par QR : ${L.qr} commande(s) · par lien : ${L.lien}${L.live?" · par live : "+L.live:""} · acceptées : ${L.ok}.${sc?"":" Les visites s'affichent dès que la clé de relève est activée (Mes demandes directes)."}</p>`}
+/* ---- Mode Live : produits du live publiés sur le serveur ; le client qui scanne le QR du live les voit et choisit ses articles ---- */
+const liveLienDe=v=>lienCourtCommande({boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,""),ref:v.id,src:"live"});
+function liveParse(t){return String(t||"").split(/\n+/).map(x=>x.trim()).filter(Boolean).slice(0,60).map(x=>{const m=/^(.*?)\s*[;|]\s*(\d[\d\s.]*)\s*(?:F|FCFA|CFA)?\s*$/i.exec(x);return m&&m[1].trim()?{n:m[1].trim().slice(0,120),p:Math.round(+m[2].replace(/[\s.]/g,"")),ok:true}:{n:x.slice(0,120),p:null,ok:true}})}
+async function livePublier(v,l){const u=PGV(),cle=S.config.portail_vendeur_cle;if(!u||!cle)throw new Error("Clé de relève requise : activez d'abord « Demandes directes » (le live est publié sur le serveur)");
+ return vendPost(u,v,cle)({action:"live_publier",titre:l.titre,produits:l.produits,actif:l.actif})}
+function liveForm(v){const l=v.live||{titre:"Live du "+new Date().toLocaleDateString("fr-FR"),produits:[]};
+ modal("🔴 Mode Live",`<p class="sm mu">Pendant votre vente en direct (TikTok, Facebook, Instagram…), vos clients scannent le QR du live, voient vos produits, choisissent leurs articles et envoient leur commande avec une capture d'écran. Vous pouvez marquer un produit « épuisé » en temps réel.</p>
+ <label>Titre du live<input name="t" maxlength="80" value="${esc(l.titre)}"></label><label>Produits du live (un par ligne : nom ; prix)<textarea name="p" rows="8" placeholder="Robe wax rouge ; 15000&#10;Sac noir ; 12000">${esc(l.produits.map(x=>x.n+(x.p!=null?" ; "+x.p:"")).join("\n"))}</textarea></label>`,
+ {label:"🔴 Démarrer le live",onSubmit:d=>{const t=String(d.t||"").trim(),P=liveParse(d.p);if(t.length<2)return toast("Donnez un titre au live","err"),false;if(!P.length)return toast("Ajoutez au moins un produit","err"),false;
+  const old=(v.live||{}).produits||[];P.forEach(x=>{const o=old.find(y=>y.n===x.n);if(o&&o.ok===false)x.ok=false});const nl={titre:t,produits:P,actif:true};
+  return livePublier(v,nl).then(()=>{v.live=nl;save();audit("Live démarré",v.nom+" — "+t);setTimeout(()=>livePanel(v),50);return true}).catch(e=>{toast(e.message,"err");return false})}})}
+function livePanel(v){const l=v.live;if(!l)return liveForm(v);const lien=liveLienDe(v)||"";
+ modal("🔴 Live — "+esc(l.titre),`<p class="sm mu">${l.actif?"Le live est <b>ouvert</b> : vos clients voient ces produits en scannant le QR ou en ouvrant le lien.":"Le live est <b>terminé</b>."}</p>
+ <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:190px;max-width:100%"><canvas id="qrc" style="width:100%;border-radius:10px" aria-label="Affiche QR du live"></canvas></div><div style="flex:1;min-width:200px"><label>Lien du live<input readonly value="${esc(lien)}" onfocus="this.select()"></label>
+ <div class="flex" style="margin-top:8px"><button type="button" class="btn" data-act="qrTelecharger">⬇ Télécharger l'affiche</button><button type="button" class="btn ghost" data-act="qrPartager">📤 Partager l'affiche</button><button type="button" class="btn ghost" data-act="cpTxt" data-id="${esc(lien)}">📋 Copier le lien</button></div></div></div>
+ <h3 style="margin:12px 0 6px">Produits (touchez pour « épuisé »)</h3>${l.produits.map((x,i)=>`<div class="between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${x.ok?"":"<s>"}${esc(x.n)}${x.p!=null?" — "+fcfa(x.p):""}${x.ok?"":"</s>"}</span>${l.actif?`<button type="button" class="btn sm ${x.ok?"ghost":"er"}" data-act="liveEpuise" data-id="${i}">${x.ok?"Marquer épuisé":"Remettre en vente"}</button>`:""}</div>`).join("")}
+ <div id="qrst"></div><div class="flex" style="margin-top:10px"><button type="button" class="btn ghost" data-act="liveEdit">✏ Modifier la liste</button>${l.actif?'<button type="button" class="btn er" data-act="liveFin">⏹ Terminer le live</button>':'<button type="button" class="btn ok" data-act="liveEdit">🔴 Relancer</button>'}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
+ setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv||!lien)return;const c=qrCarte(v,lien,l.titre);cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom+"-live";qrStatsRendre(v)},0)}
 async function cmdLien(renew){const v=vend();if(!v)return;let link,linkQR;
  try{if(CL.on){const t=await CL.rpc("creer_lien_commande",{p_renouveler:!!renew});link=location.href.split("#")[0].split("?")[0]+"#commande="+t}else{if(!String(v.tel||"").replace(/\D/g,""))return toast("Renseignez d'abord le téléphone WhatsApp du vendeur (fiche vendeur)","err");
    const P={boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,""),ref:v.id};link=lienCourtCommande(P)||portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,i:v.id,z:S.config.zones.map(z=>z.nom)}));linkQR=lienCourtCommande(Object.assign({src:"qr"},P))||link}}catch(e){return toast(fixErr(e),"err")}
@@ -3683,7 +3707,7 @@ async function cmdLien(renew){const v=vend();if(!v)return;let link,linkQR;
  modal("Lien de commande de vos clients",`<p class="sm mu">Partagez ce lien ou ce QR code (WhatsApp, statut, boutique). Vos clients y décrivent leur commande : articles, captures d'écran, quantités, prix s'ils le connaissent, et leur position de livraison. Rien n'est livré avant votre validation.${CL.on?"":` <b>Sans serveur</b> : la commande du client vous arrive sur WhatsApp, <b>au ${esc(v.tel||"numéro de votre fiche")}</b> ; collez-la dans « Saisie depuis WhatsApp » et tout est prérempli, position GPS comprise. Le client y joint ses captures d'écran s'il le peut.`}</p>
  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:190px;max-width:100%"><canvas id="qrc" style="width:100%;border-radius:10px" aria-label="Affiche QR code de ${esc(v.nom)}"></canvas></div><div style="flex:1;min-width:200px"><label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label>
  <div class="flex" style="margin-top:8px"><button type="button" class="btn" data-act="qrTelecharger">⬇ Télécharger l'affiche (PNG)</button><button type="button" class="btn ghost" data-act="qrPartager">📤 Partager l'affiche</button></div></div></div><div id="qrst"></div>
- <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button><a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 Partager sur WhatsApp</a>${CL.on?'<button type="button" class="btn ghost er" data-act="cmdLienNew">Renouveler (l\'ancien lien cessera de fonctionner)</button>':""}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
+ <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button><button type="button" class="btn ghost" data-act="liveOuvrir">🔴 Mode Live</button><a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 Partager sur WhatsApp</a>${CL.on?'<button type="button" class="btn ghost er" data-act="cmdLienNew">Renouveler (l\'ancien lien cessera de fonctionner)</button>':""}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
  setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv)return;const c=qrCarte(v,linkQR);cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom;qrStatsRendre(v)},0)}
 /* Page publique */
 function renderOrder(p,submit){
@@ -5798,7 +5822,7 @@ function vendDemCreer(d){
  if(!L.length)throw new Error("aucun article");
  const tel=String(d.t||"").replace(/[^0-9+]/g,"");if(tel.replace(/\D/g,"").length<8)throw new Error("téléphone du client invalide");
  S.demandes=S.demandes||[];
- S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien",source:d.s==="qr"?"qr":"lien"});
+ S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien",source:d.s==="qr"||d.s==="live"?d.s:"lien"});
  audit("Commande client reçue par le lien du vendeur",v.nom+" — "+String(d.n||"Client").slice(0,40)+" (réf. "+ref+")");
  return{numero:ref,nom:String(d.n||"Client"),total:0,notes:[]}}
 function webImporter(text){

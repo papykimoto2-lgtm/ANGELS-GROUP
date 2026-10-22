@@ -1,0 +1,70 @@
+/* Mode Live du vendeur partenaire : publication des produits du live (serveur, clé de relève), lecture publique tant que le live est ouvert, portail client (choix des articles,
+   épuisé, fin du live), source « live » portée par la commande, visites du live comptées à part, interface du vendeur (démarrer, épuisé, terminer).
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/portail-live.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end()}r.writeHead(200,{"content-type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+(async()=>{
+ const P=await import("../supabase/functions/_shared/portail-demandes.js");
+ const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
+ const D={lives:{},scans:[]};
+ const db={empreinteVendeur:async v=>v==="V1"?await sha("vendeur|AAAAA-BBBBB"):null,lireLive:async v=>D.lives[v]||null,ecrireLive:async r=>{D.lives[r.vendeur]=r},compterScans:async()=>0,ajouterScan:async r=>{D.scans.push(r)},statsScans:async()=>({qr:0,lien:0,live:D.scans.filter(s=>s.src==="live").length})};
+ const pub=(b,cle)=>P.traiterVendeur(db,Object.assign({vendeur:"V1",cle:cle||"aaaaa-bbbbb",action:"live_publier"},b));
+ let r=await pub({titre:"Live robes",produits:[{n:"Robe wax rouge",p:15000},{n:"Sac noir",p:"12000",ok:false},{n:"  Foulard  ",p:null},{n:"",p:5},{n:"<b>x</b>",p:0}]});
+ chk("LV-1","le vendeur publie son live : produits nettoyés (nom, prix, épuisé), lignes vides ignorées",r.status===200&&r.body.produits===4&&D.lives.V1.produits[1].ok===false&&D.lives.V1.produits[2].n==="Foulard"&&D.lives.V1.produits[0].ok===true,JSON.stringify(r));
+ const bad=[await pub({titre:"x",produits:[]},"aaaaa-bbbbb"),await pub({titre:"Live",produits:[{n:"A",p:-5}]}),await pub({titre:"Live",produits:"x"}),await pub({titre:"Live",produits:[{n:"A"}]},"MAUVAISE-CLE")];
+ chk("LV-2","refus : titre trop court, aucun produit, prix négatif, liste illisible ; mauvaise clé de relève → 401 sans rien écrire",bad[0].status===400&&bad[1].status===400&&bad[2].status===400&&bad[3].status===401&&D.lives.V1.titre==="Live robes",JSON.stringify(bad.map(b=>b.status)));
+ const pb=await P.recevoir(db,{sel:"s"},{live:{v:"V1"}},"1.1.1.1");chk("LV-3","lecture publique : produits du live ouvert (sans clé) ; vendeur sans live → live inactif",pb.status===200&&pb.body.actif===true&&pb.body.titre==="Live robes"&&pb.body.produits.length===4&&!JSON.stringify(pb.body).includes("cle"),JSON.stringify(pb.body).slice(0,120));
+ const nl=await P.recevoir(db,{sel:"s"},{live:{v:"V9"}},"1.1.1.1");await pub({titre:"Live robes",produits:[{n:"A",p:1}],actif:false});const fin=await P.recevoir(db,{sel:"s"},{live:{v:"V1"}},"1.1.1.1");
+ chk("LV-4","vendeur inconnu ou live terminé : rien n'est exposé (actif = faux, aucun produit)",nl.body.actif===false&&fin.body.actif===false&&!("produits" in fin.body)&&(await P.recevoir(db,{sel:"s"},{live:{}},"1.1.1.1")).status===400);
+ await P.recevoir(db,{sel:"s"},{scan:{v:"V1",s:"live"}},"2.2.2.2");const st=await P.traiterVendeur(db,{vendeur:"V1",cle:"AAAAA-BBBBB",action:"stats"});
+ chk("LV-5","les visites du lien du live sont comptées à part (source « live »)",D.scans[0].src==="live"&&st.body.scans.live===1);
+ const mig=fs.readFileSync(path.join(root,"supabase/migrations/016_portail_live.sql"),"utf8");
+ chk("LV-6","base : table protégée (RLS, aucun droit anon/authenticated), 60 produits au plus, source « live » autorisée pour les visites",/pd_lives enable row level security/.test(mig)&&/revoke all on public\.pd_lives from anon, authenticated/.test(mig)&&!/create policy|grant /i.test(mig)&&/jsonb_array_length\(produits\) <= 60/.test(mig)&&/src in \('qr', 'lien', 'live'\)/.test(mig));
+ /* ---------- Portail du client ---------- */
+ await new Promise(o=>srv.listen(0,"127.0.0.1",o));const base="http://127.0.0.1:"+srv.address().port;
+ const br=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await br.newContext({viewport:{width:420,height:1000}}),errs=[];
+ let LIVE={ok:true,actif:true,titre:"Live robes du soir",produits:[{n:"Robe wax rouge",p:15000,ok:true},{n:"Sac noir",p:12000,ok:false},{n:"Foulard",p:null,ok:true}]},posts=[];
+ await ctx.route("**/functions/v1/portail-demande",async rt=>{const b=JSON.parse(rt.request().postData()||"{}");posts.push(b);rt.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify(b.live?LIVE:{ok:true,refs:["X"],doublons:0,compte:true})})});
+ const pg=await ctx.newPage();pg.on("pageerror",e=>errs.push("P:"+e.message));await pg.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});
+ await pg.goto(base+"/portail.html?boutique=Yoyoo+Boutique&tel=0585656086&ref=V1&src=live");await pg.waitForTimeout(900);
+ const t0=await pg.innerText("#lv_box");
+ chk("LV-7","lien du live : encadré « EN DIRECT » avec le titre et les produits (prix, bouton +) ; produit épuisé non commandable",/EN DIRECT/.test(t0)&&/Live robes du soir/.test(t0)&&/Robe wax rouge/.test(t0)&&/15[\s  ]000 F/.test(t0)&&/Épuisé/.test(t0)&&await pg.locator("#lv_box [data-lq]").count()===4,t0);
+ await pg.click('#lv_box [data-lq="0"][data-d="1"]');await pg.click('#lv_box [data-lq="0"][data-d="1"]');await pg.click('#lv_box [data-lq="2"][data-d="1"]');await pg.click('#lv_box [data-lq="2"][data-d="-1"]');await pg.click('#lv_box [data-lq="2"][data-d="-1"]');
+ const t1=await pg.innerText("#lv_box");chk("LV-8","choix des articles : quantités (jamais négatives), total estimé",/Total estimé : 30[\s  ]000 F/.test(t1)&&(await pg.evaluate(()=>liveItems().length))===1,t1);
+ await pg.fill("#c_nom","Awa");await pg.fill("#c_tel","0701020304");await pg.selectOption("#c_zone",{index:1});await pg.fill("#c_q","Riviera");
+ await pg.click("#c_send");await pg.waitForTimeout(300);posts=[];await pg.click("[data-direct]");await pg.waitForTimeout(500);
+ const cm=posts.find(p=>p.message),m=/\[BOUTIQUE:([A-Za-z0-9_-]+)\]/.exec(cm&&cm.message||""),dp=m&&JSON.parse(Buffer.from(m[1].replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8"));
+ chk("LV-9","la commande part avec les articles du live (nom, quantité, prix), la source « live » et le vendeur",!!dp&&dp.s==="live"&&dp.v==="V1"&&dp.l.length===1&&dp.l[0][0]==="Robe wax rouge"&&dp.l[0][1]===2&&dp.l[0][2]===15000,JSON.stringify(dp));
+ const sn=await ctx.newPage();sn.on("pageerror",e=>errs.push("S:"+e.message));await sn.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});
+ await sn.goto(base+"/portail.html?boutique=Yoyoo+Boutique&tel=0585656086&ref=V1&src=live");await sn.waitForTimeout(700);
+ LIVE={ok:true,actif:true,titre:"Live robes du soir",produits:[{n:"Robe wax rouge",p:15000,ok:false},{n:"Sac noir",p:12000,ok:true},{n:"Foulard",p:null,ok:true}]};
+ await sn.evaluate(()=>liveCharger(commanderTok()));await sn.waitForTimeout(300);const t2=await sn.innerText("#lv_box");
+ chk("LV-10","mise à jour en direct : un produit passe « épuisé », un autre revient en vente, sans recharger la page",/Épuisé/.test(t2)&&(await sn.locator('#lv_box [data-lq="1"]').count())===2&&(await sn.locator('#lv_box [data-lq="0"]').count())===0,t2);
+ await sn.click('#lv_box [data-lq="1"][data-d="1"]');LIVE={ok:true,actif:false};await sn.evaluate(()=>liveCharger(commanderTok()));await sn.waitForTimeout(300);
+ chk("LV-11","live terminé : message clair, la commande libre reste possible, rien du live n'est envoyé",/terminé/.test(await sn.innerText("#lv_box"))&&(await sn.evaluate(()=>liveItems().length))===0&&await sn.locator("#c_send").count()===1);
+ const ln=await ctx.newPage();ln.on("pageerror",e=>errs.push("N:"+e.message));await ln.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});posts=[];let liveReq=0;ln.on("request",r=>{if(/portail-demande/.test(r.url())&&/"live"/.test(r.postData()||""))liveReq++});
+ await ln.goto(base+"/portail.html?boutique=Yoyoo+Boutique&tel=0585656086&ref=V1&src=qr");await ln.waitForTimeout(700);
+ chk("LV-12","lien ordinaire (QR sans live) : aucun encadré live, aucune requête du live",await ln.locator("#lv_box").innerText()===""&&liveReq===0);
+ /* ---------- Vendeur ---------- */
+ const sent=[];await ctx.route("**/functions/v1/portail-vendeur",async rt=>{const b=JSON.parse(rt.request().postData()||"{}");sent.push(b);rt.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify(b.action==="stats"?{ok:true,scans:{qr:3,lien:2,live:7}}:{ok:true,produits:(b.produits||[]).length,actif:b.actif})})});
+ const d=await ctx.newPage();d.on("pageerror",e=>errs.push("D:"+e.message));d.on("dialog",x=>x.accept());await d.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});await d.goto(base+"/distribution.html");await d.waitForTimeout(600);
+ await d.evaluate(async()=>{ME=S.users.find(u=>u.role==="vendeur");const v=vend();v.tel=v.tel||"0708080808";delete v.live;S.config.portail_vendeur_cle="AAAAA-BBBBB";S.demandes=[{id:"a",vendeur_id:v.id,via:"lien",source:"live",statut:"nouvelle",cree_le:new Date().toISOString()}];await cmdLien(false)});
+ await d.waitForTimeout(300);chk("LV-13","fiche du lien du vendeur : bouton « Mode Live »",await d.locator('[data-act="liveOuvrir"]').count()===1);
+ await d.click('[data-act="liveOuvrir"]');await d.waitForTimeout(300);
+ await d.fill('textarea[name="p"]',"Robe wax rouge ; 15 000\nSac noir ; 12000 F\nFoulard");await d.fill('input[name="t"]',"Live du soir");
+ await d.click("#modal .btn:not(.ghost)");await d.waitForTimeout(700);const lp=sent.find(x=>x.action==="live_publier");
+ chk("LV-14","démarrer le live : produits lus ligne par ligne (prix avec espaces, « F » toléré, prix facultatif) et publiés avec la clé de relève",!!lp&&lp.vendeur&&lp.cle==="AAAAA-BBBBB"&&lp.actif===true&&lp.titre==="Live du soir"&&lp.produits.length===3&&lp.produits[0].p===15000&&lp.produits[1].p===12000&&lp.produits[2].p===null,JSON.stringify(lp));
+ const pan=await d.evaluate(()=>{const cv=document.getElementById("qrc");const lnk=[...document.querySelectorAll("input[readonly]")].map(i=>i.value).find(x=>/commander/.test(x));return{cv:!!cv&&cv.width===1080,lnk,txt:document.getElementById("modal").innerText}});
+ chk("LV-15","panneau du live : affiche QR « EN DIRECT » (1080×1350), lien avec src=live, produits, bouton Terminer, statistiques (visites du live)",pan.cv&&/src=live/.test(pan.lnk||"")&&/Robe wax rouge/.test(pan.txt)&&/Terminer le live/.test(pan.txt)&&/visites du live/.test(pan.txt),JSON.stringify(pan).slice(0,300));
+ await d.click('[data-act="liveEpuise"][data-id="1"]');await d.waitForTimeout(500);const ep=sent.filter(x=>x.action==="live_publier").pop();
+ chk("LV-16","« Marquer épuisé » : republié aussitôt (Sac noir épuisé), affiché barré",ep.produits[1].ok===false&&ep.produits[0].ok===true&&/Remettre en vente/.test(await d.innerText("#modal")));
+ await d.click('[data-act="liveFin"]');await d.waitForTimeout(600);const fn=sent.filter(x=>x.action==="live_publier").pop();
+ chk("LV-17","« Terminer le live » : publié comme terminé, le panneau l'indique et propose de relancer",fn.actif===false&&/terminé/.test(await d.innerText("#modal"))&&/Relancer/.test(await d.innerText("#modal")));
+ const sr=await d.evaluate(()=>{S.demandes=[];webImporter("[BOUTIQUE:"+b64({f:"LIVE01",n:"Awa",t:"0701020304",z:"Cocody",s:"live",v:vend().id,vn:vend().nom,l:[["Robe",1,15000]]})+"]");return S.demandes[0]&&S.demandes[0].source});
+ chk("LV-18","import : la demande garde sa source « live »",sr==="live",String(sr));
+ chk("LV-19","aucune erreur de script",errs.length===0,errs.join(" | "));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await br.close();srv.close();process.exit(ko?1:0);
+})().catch(e=>{console.error(e);process.exit(1)});

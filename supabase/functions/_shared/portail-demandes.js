@@ -44,7 +44,7 @@ export const empreinteVisiteur = (ip, sel) => sha256hex("portail|" + String(sel 
 
 /* ================= Visiteur du portail (public) ================= */
 /* Visite du lien / QR d'un vendeur : comptée une fois par visiteur, par jour et par source ; seulement pour un vendeur qui a une clé de relève ; plafonnée par visiteur */
-const SOURCES = ["qr", "lien"], SCANS_JOUR_MAX = 20;
+const SOURCES = ["qr", "lien", "live"], SCANS_JOUR_MAX = 20;
 export async function enregistrerScan(db, cfg, scan, ip, now = Date.now()) {
   const v = idVendeur(scan && scan.v), src = scan && scan.s;
   if (!v || !SOURCES.includes(src)) return err(400, "Visite illisible");
@@ -56,6 +56,7 @@ export async function enregistrerScan(db, cfg, scan, ip, now = Date.now()) {
 }
 export async function recevoir(db, cfg, req, ip, now = Date.now()) {
   if (req && req.scan && typeof req.scan === "object") return enregistrerScan(db, cfg, req.scan, ip, now);
+  if (req && req.live && typeof req.live === "object") return lireLive(db, req.live);
   const message = typeof req.message === "string" ? req.message.trim() : "";
   if (!message) return err(400, "Message absent");
   if (message.length > TAILLE_MAX) return err(413, "Message trop long");
@@ -78,6 +79,29 @@ export async function recevoir(db, cfg, req, ip, now = Date.now()) {
     recues.push(m.ref);
   }
   return rep(200, { ok: true, refs: recues.concat(doublons), doublons: doublons.length });
+}
+
+/* ================= Mode Live ================= */
+/* Visiteur du portail : produits du live en cours du vendeur (rien si le live est terminé ou inexistant) */
+export async function lireLive(db, q) {
+  const v = idVendeur(q && q.v); if (!v) return err(400, "Vendeur absent");
+  const L = await db.lireLive(v);
+  if (!L || !L.actif) return rep(200, { ok: true, actif: false });
+  return rep(200, { ok: true, actif: true, titre: L.titre, produits: L.produits, maj_le: L.maj_le });
+}
+/* Vendeur (clé de relève) : publie ou met à jour son live — produits (nom, prix facultatif, épuisé) bornés et nettoyés */
+async function publierLive(db, v, req) {
+  const titre = String(req.titre || "").trim().slice(0, 80); if (titre.length < 2) return err(400, "Donnez un titre au live");
+  if (!Array.isArray(req.produits)) return err(400, "Liste de produits illisible");
+  const produits = [];
+  for (const x of req.produits.slice(0, 60)) {
+    const n = String(x && x.n || "").trim().replace(/\s+/g, " ").slice(0, 120); if (!n) continue;
+    const p = x.p == null || x.p === "" ? null : Math.round(Number(x.p)); if (p != null && !(p >= 0 && p <= 1e8)) return err(400, "Prix invalide pour « " + n + " »");
+    produits.push({ n, p, ok: x.ok !== false });
+  }
+  const actif = req.actif !== false; if (actif && !produits.length) return err(400, "Ajoutez au moins un produit");
+  await db.ecrireLive({ vendeur: v, titre, produits, actif, maj_le: new Date().toISOString() });
+  return rep(200, { ok: true, produits: produits.length, actif });
 }
 
 /* ================= Bureau (clé d'administration) ================= */
@@ -139,6 +163,7 @@ export async function traiterVendeur(db, req) {
   const a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteVendeur(v, 100) });
   if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), v) });
+  if (a === "live_publier") return publierLive(db, v, req);
   if (a === "stats") return rep(200, { ok: true, scans: await db.statsScans(v, new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)) });
   if (a === "acquitter") {
     const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
