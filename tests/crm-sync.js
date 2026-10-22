@@ -47,6 +47,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  // interface : un changement distant s'affiche sans rechargement
  await B.p.fill("#gate [name=pwd]",DEMO);await B.p.click("#gate button[type=submit]");await B.p.waitForTimeout(800);
  chk("CRS-6","poste B connecté : le CRM s'affiche avec les données synchronisées, sans erreur",/Contacts uniques/.test(await B.p.innerText("#app")),"");
+ // pipeline : une opportunité déplacée sur A change d'étape sur B ; deux déplacements simultanés convergent sans doublon
+ const oid=await A1.p.evaluate(()=>ANGELS_CRM.etat().opps[0].id);
+ await A1.p.evaluate(i=>{ANGELS_CRM.deplacerOpp("A",i,"contact")},oid);await A1.p.waitForTimeout(2200);await cyc(A1.p);await cyc(B.p);
+ const etB=await B.p.evaluate(i=>(ANGELS_CRM.etat().opps.find(o=>o.id===i)||{}).etape,oid);
+ chk("CRS-8","pipeline : opportunité avancée sur A → même étape sur B",etB==="contact",String(etB));
+ await A1.p.evaluate(i=>{ANGELS_CRM.deplacerOpp("A",i,"devis")},oid);await B.p.evaluate(i=>{ANGELS_CRM.deplacerOpp("B",i,"negoc")},oid);
+ await A1.p.waitForTimeout(2200);await B.p.waitForTimeout(2200);await cyc(A1.p);await cyc(B.p);await cyc(A1.p);await cyc(B.p);
+ const cv=await Promise.all([A1.p,B.p].map(p=>p.evaluate(i=>{const O=ANGELS_CRM.etat().opps;return{e:(O.find(o=>o.id===i)||{}).etape,n:O.filter(o=>o.id===i).length,prio:ANGELS_CRM.prioritesOpps(Date.now()).length}},oid)));
+ chk("CRS-9","pipeline : déplacements simultanés sur A et B → même étape finale, aucun doublon, priorités calculées",cv[0].e===cv[1].e&&["devis","negoc"].includes(cv[0].e)&&cv[0].n===1&&cv[1].n===1&&cv[0].prio===1&&cv[1].prio===1,JSON.stringify(cv));
  // migration de l'ancien format local
  const mig=await B.ctx.newPage();await mig.goto(base+"/crm.html");const m=await mig.evaluate(()=>{localStorage.setItem("angels_crm_v1",JSON.stringify({v:1,inter:[],taches:[],opps:[],audit:[],cfg:{},tags:{t0505111111:["ancien"]},stop:{t0505111111:"2026-01-01T00:00:00Z"},relances:{}}));return null});
  await mig.reload();const mg=await mig.evaluate(()=>{const E=ANGELS_CRM.etat();return{m:E.marques,vieux:!!(E.tags||E.stop||E.relances)}});
