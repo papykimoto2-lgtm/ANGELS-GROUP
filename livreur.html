@@ -45,6 +45,11 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{padding:8px 12px;border-radius:99px;border:1px solid var(--b);background:#fff;color:var(--b);font-weight:700;cursor:pointer}.chip.on{background:var(--b);color:#fff}
 .mi.on{background:#e3eef3;border-color:var(--b)}.mi.er{color:var(--er)}
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--b2);color:#fff;padding:10px 16px;border-radius:99px;z-index:40;max-width:90%}
+.cmb{position:relative;display:block}.cmb input{padding-right:44px}
+.cmbb{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;font-size:20px;color:var(--mu,#64748b);cursor:pointer;border-radius:10px}
+.cmbl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;margin:0;padding:4px;list-style:none;background:var(--card,#fff);border:1.5px solid var(--b,#0e7490);border-radius:12px;box-shadow:0 10px 28px rgba(15,40,60,.22);max-height:240px;overflow:auto}
+.cmbl li{padding:12px 12px;border-radius:9px;cursor:pointer;display:flex;flex-direction:column;gap:1px;font-size:15px}.cmbl li small{color:var(--mu,#64748b);font-size:12px}
+.cmbl li:hover,.cmbl li:focus{background:var(--soft,#eaf3f6)}
 </style>
 <link rel="stylesheet" href="champs.css">
 </head>
@@ -62,6 +67,7 @@ const SB_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd
 const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 /* L'identifiant est celui affiché au bureau (« livreur.test.2 ») ; on accepte aussi le nom tel qu'on le dit : majuscules, accents, espaces → points */
+const memoIdent=(i,n)=>{if(!i)return;const L=lsGet(LS.x,[]).filter(o=>o&&o.i!==i),a=lsGet(LS.x,[]).find(o=>o&&o.i===i);L.unshift({i,n:n||(a&&a.n)||""});lsSet(LS.x,L.slice(0,8))};
 const identDe=i=>String(i||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9._-]+/g,".").replace(/\.{2,}/g,".").replace(/^\.|\.$/g,"");
 const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():identDe(i)+"@users.angels-erp.app"};
 const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",livree:"Livrée",echouee:"Échec",refusee:"Refusée"};
@@ -86,13 +92,19 @@ const ferme=()=>{try{camStop();clearInterval(PVPOLL)}catch(e){}const o=$(".ov");
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
 
 /* ---------- Connexion ---------- */
-function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label>Identifiant<input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" list="lis" required><datalist id="lis"></datalist></label><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></div>`;
- try{$("#lis").innerHTML=lsGet(LS.x,[]).map(o=>`<option value="${esc(o.i)}">${esc(o.n)}</option>`).join("")}catch(e){}
+function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Livreur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><div class="cf"><label for="li">Identifiant</label><span class="cmb"><input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required role="combobox" aria-expanded="false" aria-controls="lvl"><button type="button" id="lvb" class="cmbb aa-e" aria-label="Choisir un livreur déjà connecté sur cet appareil" hidden>▾</button><ul id="lvl" class="cmbl" role="listbox" hidden></ul></span></div><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Les numéros des clients ne sont jamais affichés sur cet appareil.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></div>`;
+ try{const L=lsGet(LS.x,[]),ul=$("#lvl"),bt=$("#lvb"),inp=$("#li");
+  if(L.length){bt.hidden=false;ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("");
+   const ouvre=v=>{ul.hidden=!v;inp.setAttribute("aria-expanded",v?"true":"false")};
+   bt.onclick=()=>ouvre(ul.hidden);inp.addEventListener("focus",()=>{if(!inp.value)ouvre(true)});
+   ul.onclick=e=>{const li=e.target.closest("li[data-i]");if(!li)return;inp.value=li.dataset.i;ouvre(false);$("#lp").focus()};
+   document.addEventListener("click",e=>{if(!e.target.closest(".cmb"))ouvre(false)});
+   inp.addEventListener("input",()=>ouvre(false))}}catch(e){}
  try{const q=new URLSearchParams(location.search).get("id"),i=identDe(q||"")||lsGet(LS.i,"");if(i){$("#li").value=i;$("#lp").focus()}}catch(e){}
  $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button:not(.aa-e)");b.disabled=true;try{await loadSb();sb=sb||window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});const em=emailDe($("#li").value),pw=$("#lp").value;let{error}=await sb.auth.signInWithPassword({email:em,password:pw});
    /* le clavier du téléphone ajoute souvent une espace après le dernier mot : on réessaie sans les espaces de début et de fin */
    if(error&&/invalid login/i.test(error.message)&&pw.trim()&&pw!==pw.trim())({error}=await sb.auth.signInWithPassword({email:em,password:pw.trim()}));
-   if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect (identifiant envoyé : "+em.split("@")[0]+")":error.message);lsSet(LS.i,identDe($("#li").value));await demarrer()}catch(x){vueLogin(x.message);}}}
+   if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect (identifiant envoyé : "+em.split("@")[0]+")":error.message);lsSet(LS.i,identDe($("#li").value));memoIdent(identDe($("#li").value),"");await demarrer()}catch(x){vueLogin(x.message);}}}
 const mdpValide=m=>m.length>=10&&[/[a-z]/,/[A-Z]/,/\d/,/[^A-Za-z0-9]/].filter(r=>r.test(m)).length>=3;
 function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mot de passe</b><small>Obligatoire à la première connexion</small></div></div><div class="wrap"><div class="card"><form id="fc"><div class="sm mu">10 caractères minimum, avec au moins 3 types parmi : majuscule, minuscule, chiffre, symbole. Ne reprenez pas votre nom.</div><label>Nouveau mot de passe<input id="n1" type="password" autocomplete="new-password" required></label><label>Confirmer<input id="n2" type="password" autocomplete="new-password" required></label><div id="cm" class="al er hide"></div><button class="btn" type="submit">Enregistrer</button></form></div></div>`;
  $("#fc").onsubmit=async e=>{e.preventDefault();const a=$("#n1").value,b=$("#n2").value,m=$("#cm");const bad=a!==b?"Les deux mots de passe diffèrent":!mdpValide(a)?"Mot de passe trop faible : 10 caractères minimum, 3 types de caractères":(moi&&a.toLowerCase().includes(String(moi.nom||"").toLowerCase().split(/\s+/).filter(x=>x.length>2)[0]||"\u0000"))?"Le mot de passe ne doit pas contenir votre nom":"";
@@ -503,7 +515,7 @@ function arreter(){clearInterval(timer);timer=null;if(watch!=null&&navigator.geo
 
 async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
  if(user.user_metadata&&user.user_metadata.chg){const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;return vueChangement()}
- const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;if(!moi){await sb.auth.signOut();user=null;return vueLogin("Compte livreur inactif ou introuvable. Contactez le bureau.")}
+ const r=await sb.from("pg_livreurs").select("livreur_ref,nom").maybeSingle();moi=r.data;if(moi&&moi.nom)memoIdent(lsGet(LS.i,""),moi.nom);if(!moi){await sb.auth.signOut();user=null;return vueLogin("Compte livreur inactif ou introuvable. Contactez le bureau.")}
  {const c0=lsGet(LS.c,null);if(c0&&c0.uid&&c0.uid!==user.id){[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}})}}
  await vider();await charger();suivi();pushEtat().then(()=>{pushEntretien();if(user&&!ouvert)vueMissions()});clearInterval(timer);timer=setInterval(async()=>{await vider();await charger();suivi()},20000)}
 function hors(c){user={id:c.uid};moi=c.moi;missions=recevoir(c.missions||[]);erreur="";vueMissions();clearInterval(timer);timer=setInterval(()=>{if(enLigne())reprendre();else vueMissions()},20000)}
