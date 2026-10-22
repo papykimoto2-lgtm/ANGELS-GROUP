@@ -216,6 +216,19 @@
     };
   }
 
+  /* ---------- Courbe sur 12 mois (petits graphiques de l'accueil) : chiffre d'affaires et nouveaux clients par mois ---------- */
+  function serie(L, now) {
+    now = now || Date.now();
+    var d = new Date(now), mois = [], ix = {}, i;
+    for (i = 11; i >= 0; i--) { var x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1)); mois.push({ m: x.toISOString().slice(0, 7), ca: 0, nouveaux: 0 }); }
+    mois.forEach(function (o, k) { ix[o.m] = k; });
+    L.forEach(function (f) {
+      f.achats.forEach(function (a) { var k = ix[String(a.date).slice(0, 7)]; if (k != null) mois[k].ca += a.montant; });
+      var p = ix[String(f.prem_achat || "").slice(0, 7)]; if (p != null) mois[p].nouveaux++;
+    });
+    return mois;
+  }
+
   /* ---------- Relances : qui relancer, pourquoi, avec quel message ---------- */
   var DELAI_RELANCE = 14;
   function messageRelance(f, motif, org) {
@@ -327,7 +340,7 @@
 
   G.ANGELS_CRM = {
     K: K, APPS: APPS, ETAPES: ETAPES, TYPES_INT: TYPES_INT, SEG: SEG, CFG0: CFG0, esc: esc,
-    etat: etat, sauver: sauver, cfg: cfg, contacts: contacts, pilotage: pilotage, relances: relances, qualite: qualite, historique: historique, exportCsv: exportCsv,
+    etat: etat, sauver: sauver, cfg: cfg, contacts: contacts, pilotage: pilotage, serie: serie, relances: relances, qualite: qualite, historique: historique, exportCsv: exportCsv,
     chiffres: chiffres, cleTel: cleTel, waLien: waLien, norm: norm,
     ajouterInteraction: ajouterInteraction, ajouterTache: ajouterTache, basculerTache: basculerTache, etiqueter: etiqueter, opposer: opposer,
     marquerRelance: marquerRelance, creerOpp: creerOpp, deplacerOpp: deplacerOpp, reglages: reglages
