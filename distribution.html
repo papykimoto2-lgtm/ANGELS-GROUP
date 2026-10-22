@@ -5674,11 +5674,14 @@ function webImporter(text){
    (webImporter : un doublon est refusé, jamais importé deux fois), puis acquitte. Les demandes refusées sont gardées dans « À traiter à la main » avec leur motif : rien n'est perdu. */
 const PORT=()=>{const p=S&&S.config&&S.config.appel_pont;return S&&S.config&&S.config.portail_direct===true&&p&&/^https:\/\//.test(p.url||"")&&p.cle_admin?p:null};
 let _portBusy=false,_portLast=0;
+/* Captures d'écran jointes par le client : lues à part (action « photos ») puis rattachées à la demande importée */
+async function demandePhotos(post,d){if(!(d&&d.nb_photos>0))return;try{const j=await post({action:"photos",ref:d.ref}),x=(S.demandes||[]).find(y=>y.ref===d.ref);
+ if(x&&Array.isArray(j.photos))x.photos=j.photos.filter(p=>/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p)).slice(0,5)}catch(e){}}
 async function portailRelever(force){const P=PORT();if(!P||_portBusy||!S.commandes||(!force&&Date.now()-_portLast<30000))return null;
  if(!can("admin","commercial","superviseur"))return null;if(ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1")return null;_portBusy=true;_portLast=Date.now();let out=null;
  try{const j=await passPost(P,"portail-sync",{action:"lister"}),L=j.demandes||[];out={recues:L.length,importees:0,refusees:0,deja:0};
   if(L.length){const ids=[];S.config.portail_refus=S.config.portail_refus||[];
-   for(const d of L){let r;try{r=webImporter(String(d.message||""))}catch(e){r={ok:[],ko:[e.message]}}
+   for(const d of L){let r;try{r=webImporter(String(d.message||""));if(r.ok.length)await demandePhotos(b=>passPost(P,"portail-sync",b),d)}catch(e){r={ok:r&&r.ok||[],ko:r&&r.ok?[]:[e.message]}}
     out.importees+=r.ok.length;r.ko.forEach(m=>{if(/déjà importée/.test(m))out.deja++;else{out.refusees++;S.config.portail_refus.unshift({id:uid("pr"),ref:d.ref,type:d.type,motif:m,le:now(),message:String(d.message||"").slice(0,6000)})}});
     ids.push(d.id)}
    S.config.portail_refus=S.config.portail_refus.slice(0,50);
@@ -5707,7 +5710,7 @@ async function vendeurRelever(force){const v=ME&&ME.role==="vendeur"&&vend(),cle
  if(!v||!cle||!u||_pvBusy||(!force&&Date.now()-_pvLast<30000))return null;_pvBusy=true;_pvLast=Date.now();
  const post=b=>fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(Object.assign({vendeur:v.id,cle},b))}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.erreur||("Erreur serveur "+r.status));return j});
  try{const L=(await post({action:"lister"})).demandes||[];let imp=0;
-  for(const d of L){try{imp+=webImporter(String(d.message||"")).ok.length}catch(e){/* déjà importée ou illisible : acquittée quand même, jamais relue */}}
+  for(const d of L){try{const n=webImporter(String(d.message||"")).ok.length;imp+=n;if(n)await demandePhotos(post,d)}catch(e){/* déjà importée ou illisible : acquittée quand même, jamais relue */}}
   if(L.length){await post({action:"acquitter",ids:L.map(d=>d.id)});save();if(imp)toast(imp+" nouvelle(s) demande(s) de client","ok");render()}
   S.config.portail_vendeur_etat="";return{recues:L.length,importees:imp}}
  catch(e){S.config.portail_vendeur_etat=String(e&&e.message||e).slice(0,120);return null}finally{_pvBusy=false}}
