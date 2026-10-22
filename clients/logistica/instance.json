@@ -1,0 +1,65 @@
+{
+  "id": "logistica",
+  "nom": "LOGISTICA",
+  "remplacements": [
+    [
+      "🅰️ ANGEL'S GROUP",
+      "🚚 LOGISTICA"
+    ],
+    [
+      "ANGEL'S GROUP ERP",
+      "LOGISTICA ERP"
+    ],
+    [
+      "Hub ANGEL'S GROUP",
+      "Hub LOGISTICA"
+    ],
+    [
+      "ANGEL'S GROUP",
+      "LOGISTICA"
+    ],
+    [
+      "Angel's Group",
+      "Logistica"
+    ],
+    [
+      "Angel's Distributions",
+      "Logistica Distribution"
+    ],
+    [
+      "ANGEL&#39;S GROUP",
+      "LOGISTICA"
+    ],
+    [
+      "ANGEL'S",
+      "LOGISTICA"
+    ],
+    [
+      "Angel's",
+      "Logistica"
+    ]
+  ],
+  "couleurs": {
+    "#0e7490": "#c8352b",
+    "#0b3b4c": "#7a1d17"
+  },
+  "modules": [
+    "distribution",
+    "placement",
+    "assurance"
+  ],
+  "contact": {
+    "tel": [
+      "00225 27 20 32 10 08",
+      "00225 27 23 48 50 41",
+      "00225 01 03 30 02 00"
+    ],
+    "email": "courrier@logistica.ci",
+    "web": "www.logistica.ci",
+    "adresse": "Cité CIE, Niangon, Yopougon, 29 BP 173 Abidjan 29 · Rue du commerce, Immeuble EL NASR, Plateau"
+  },
+  "outils": [
+    "crm",
+    "parametres"
+  ]
+}

@@ -81,7 +81,7 @@
   /* ---------- Mise en production ----------
      Une installation neuve ne contient AUCUNE donnée de démonstration : un seul administrateur (KESSIE), à qui le logiciel impose de changer son mot de passe à la première connexion.
      Le mode démonstration (données d'exemple, profils prêts à l'emploi) n'existe que si « angels_demo » vaut 1 sur l'appareil (ouvrir l'application avec ?demo=1) : réservé aux tests et aux présentations. */
-  var ADMIN_PROD = { nom: "KESSIE", role: "admin", pwd: {"v":2,"it":150000,"s":"yDBjFkfuh6JJdWfOCZvWVA==","h":"k3sCfLXaCoI3AncQjn1I66xZf6c6znrNsxg7p8iF154="} };
+  var ADMIN_PROD = (G.ERP_MARQUE && G.ERP_MARQUE.admin) || { nom: "KESSIE", role: "admin", pwd: {"v":2,"it":150000,"s":"yDBjFkfuh6JJdWfOCZvWVA==","h":"k3sCfLXaCoI3AncQjn1I66xZf6c6znrNsxg7p8iF154="} };   /* instance cliente : administrateur défini dans marque.js (empreinte seulement) */
   try { if (/[?&]demo=1(&|$)/.test(location.search)) localStorage.setItem("angels_demo", "1"); else if (/[?&]demo=0(&|$)/.test(location.search)) localStorage.removeItem("angels_demo"); } catch (e) { }
   function demoOn() { try { return localStorage.getItem("angels_demo") === "1"; } catch (e) { return false; } }
   function adminProd(id) { return { id: id, nom: ADMIN_PROD.nom, role: ADMIN_PROD.role, actif: true, pwd: JSON.parse(JSON.stringify(ADMIN_PROD.pwd)), chg: true }; }
@@ -97,7 +97,7 @@
   function purgerDemo(users, cles, nomApp) {
     if (demoOn() || !demoUsers(users)) return false;
     try { if (localStorage.getItem("angels_demo_garde_" + nomApp) === "1") return false; } catch (e) { }
-    var ok = true; try { ok = confirm("MISE EN PRODUCTION — " + nomApp + "\n\nDes données de démonstration ont été trouvées sur cet appareil (comptes et exemples).\nElles vont être EFFACÉES pour repartir d'une base vide avec l'administrateur KESSIE.\n\nOK = effacer et passer en production\nAnnuler = conserver ces données de démonstration"); } catch (e) { }
+    var ok = true; try { ok = confirm("MISE EN PRODUCTION — " + nomApp + "\n\nDes données de démonstration ont été trouvées sur cet appareil (comptes et exemples).\nElles vont être EFFACÉES pour repartir d'une base vide avec l'administrateur " + ADMIN_PROD.nom + ".\n\nOK = effacer et passer en production\nAnnuler = conserver ces données de démonstration"); } catch (e) { }
     if (!ok) { try { localStorage.setItem("angels_demo_garde_" + nomApp, "1"); } catch (e) { } return false; }
     (cles || []).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { } });
     try { sessionStorage.clear(); } catch (e) { }

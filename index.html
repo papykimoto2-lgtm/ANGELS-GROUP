@@ -58,19 +58,19 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <div class="tabs" id="tabs"></div><section id="tdb"></section>
 <h3 style="margin-top:22px">Filiales</h3>
 <div class="cards">
- <a class="card" style="--c:var(--g1)" href="distribution.html" id="c-dist">
+ <a class="card" data-mod="distribution" style="--c:var(--g1)" href="distribution.html" id="c-dist">
   <div class="ic">🏍️</div><h2>Angel's Distributions</h2><p>Livraison à moto : commandes, livreurs, caisse, comptabilité SYSCOHADA.</p>
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="k-cmd">—</b><span>Commandes en cours</span></div><div><b id="k-liv">—</b><span>Livrées</span></div><div><b id="k-lvr">—</b><span>Livreurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <a class="card" style="--c:var(--g2)" href="transport.html">
+ <a class="card" data-mod="transport" style="--c:var(--g2)" href="transport.html">
   <div class="ic">🚚</div><h2>Angel's &amp; Co Transport</h2><p>Taxi communal : lignes, taxis, chauffeurs, versements journaliers, arriérés, rentabilité.</p>
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="t-ot">—</b><span>Encaissé du jour</span></div><div><b id="t-v">—</b><span>Taxis</span></div><div><b id="t-c">—</b><span>Chauffeurs</span></div></div>
   <span class="btn">Ouvrir l'ERP</span>
  </a>
- <a class="card" style="--c:var(--g3)" href="agro.html" id="c-agro">
+ <a class="card" data-mod="agro" style="--c:var(--g3)" href="agro.html" id="c-agro">
   <div class="ic">🐔</div><h2>Angel's Agro</h2><p>Élevage avicole : lots, ponte, conditionnement, nutrition, prophylaxie, stock, ventes, achats, comptabilité SYSCOHADA et rapports.</p>
   <span class="badge">Actif</span>
   <div class="kp"><div><b id="a-v">—</b><span>Sujets vivants</span></div><div><b id="a-l">—</b><span>Lots en cours</span></div><div><b id="a-s">—</b><span>Stocks bas</span></div></div>
@@ -79,19 +79,19 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </div>
 <h3>Administration du groupe</h3>
 <div class="cards">
- <a class="card" style="--c:#0e7490" href="portail.html" id="c-portail">
+ <a class="card" data-mod="portail" style="--c:#0e7490" href="portail.html" id="c-portail">
   <div class="ic">🌐</div><h2>Portail unique</h2><p>Site public et boutique en ligne du groupe, avec candidatures de vendeurs partenaires — réglés dans les Paramètres. N'ouvre aucune application de gestion.</p>
   <span class="btn">Ouvrir le portail</span>
  </a>
- <a class="card" style="--c:#0b3b4c" href="compta-groupe.html" id="c-compta">
+ <a class="card" data-mod="compta" style="--c:#0b3b4c" href="compta-groupe.html" id="c-compta">
   <div class="ic">📒</div><h2>Comptabilité du groupe</h2><p>Contrôle d'intégrité des trois applications : opérations comptabilisées, écritures équilibrées, résultat par activité, ventes en ligne.</p>
   <span class="btn">Ouvrir la comptabilité du groupe</span>
  </a>
- <a class="card" style="--c:#7c3aed" href="crm.html" id="c-crm">
+ <a class="card" data-mod="crm" style="--c:#7c3aed" href="crm.html" id="c-crm">
   <div class="ic">🤝</div><h2>CRM du groupe</h2><p>Une fiche unique par personne dans les trois applications : historique d'achats, segments (VIP, à risque, dormants), impayés, relances WhatsApp, opportunités et tâches de suivi.</p>
   <span class="btn">Ouvrir le CRM</span>
  </a>
- <a class="card" style="--c:#475569" href="parametres.html" id="c-param">
+ <a class="card" data-mod="parametres" style="--c:#475569" href="parametres.html" id="c-param">
   <div class="ic">⚙️</div><h2>Paramètres</h2><p>Utilisateurs et rôles de chaque application (Distributions, Transport, Agro) : création des comptes, attribution des rôles, mots de passe, activation.</p>
   <span class="btn">Ouvrir les paramètres</span>
  </a>
@@ -105,9 +105,13 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 </div>
 </div></main>
 <footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
-<script src="auth-engine.js"></script>
+<script src="marque.js"></script><script src="auth-engine.js"></script>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
+/* Modules et outils de l'instance (marque.js) : seuls ceux choisis apparaissent. */
+const MQ=window.ERP_MARQUE||{nom:"ANGEL'S GROUP",modules:["distribution","transport","agro"],outils:["portail","compta","crm","parametres"]};
+const ACTIF=id=>(MQ.modules||[]).includes(id)||(MQ.outils||[]).includes(id);
+document.querySelectorAll("[data-mod]").forEach(el=>{if(!ACTIF(el.dataset.mod))el.remove()});
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
 try{
  const S=JSON.parse(localStorage.getItem(KEY)||"null");
@@ -185,7 +189,7 @@ function agro(G){
   act:som(en,viv).toLocaleString("fr-FR")+" sujets vivants · "+en.length+" lot(s) en cours"};
 }
 function consolide(){
- const D=distribution(lire("angels_erp_v1")),T=transport(lire("angels_transport_v3")),A=agro(lire("angels_agro_v1")),X=[["Distributions",D],["Transport",T],["Agro",A]];
+ const X=REG.map(r=>[r.nom,r.fn(lire(r.cle))]);
  const tot=k=>som(X.filter(x=>x[1]&&x[1][k]!=null),x=>x[1][k]),cell=(x,k,f)=>!x?'<span class="nd">non ouvert</span>':x[k]==null?'<span class="nd">—</span>':(f?f(x[k]):F(x[k]));
  $("big").innerHTML=[["Trésorerie du groupe",tot("tres")],["Chiffre d'affaires du mois",tot("ca")],["Encaissé du mois",tot("enc")],["Créances à recouvrer",tot("cre")]].map(([l,v])=>`<div><b>${F(v)}</b><span>${l}</span></div>`).join("");
  const row=(l,k,f)=>`<tr><td>${l}</td>${X.map(x=>`<td>${cell(x[1],k,f)}</td>`).join("")}<td><b>${F(tot(k))}</b></td></tr>`;
@@ -197,8 +201,9 @@ function consolide(){
  $("ncons").textContent="Chiffres lus sur cet appareil (données locales de chaque application). « Non ouvert » : l'application n'a pas encore été utilisée ici. Résultat de Distributions : voir son module Comptabilité.";
 }
 /* ---------- Tableau de bord par module ---------- */
-const MODS=[{id:"dist",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)"},{id:"trans",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)"},{id:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)"}];
-let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||"dist"}catch(e){return"dist"}})();
+const TOUS=[{id:"dist",mod:"distribution",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)",cle:"angels_erp_v1",fn:distribution},{id:"trans",mod:"transport",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)",cle:"angels_transport_v3",fn:transport},{id:"agro",mod:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)",cle:"angels_agro_v1",fn:agro}];
+const REG=TOUS.filter(r=>ACTIF(r.mod)),MODS=REG;
+let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||REG[0].id}catch(e){return REG[0].id}})();
 function tdb(X){
  const i=Math.max(0,MODS.findIndex(m=>m.id===MOD)),m=MODS[i],d=X[i][1];
  $("tabs").innerHTML=MODS.map((x,k)=>`<button class="tab${k===i?" on":""}" data-m="${x.id}" style="--c:${x.c}">${x.ic} ${x.nom}${X[k][1]&&X[k][1].alt?` <i class="pill">${X[k][1].alt}</i>`:""}</button>`).join("");
@@ -216,7 +221,7 @@ if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.se
 
 /* Mise en production : des données de démonstration encore présentes sur cet appareil faussent la vue consolidée. */
 (function(){
- const APPS=[["Distributions","angels_erp_v1",["angels_compta_distribution","angels_portail_v1"]],["Transport","angels_transport_v3",["angels_compta_transport","angels_transport_files"]],["Agro","angels_agro_v1",["angels_compta_agro"]]];
+ const APPS=[["Distributions","angels_erp_v1",["angels_compta_distribution","angels_portail_v1"],"distribution"],["Transport","angels_transport_v3",["angels_compta_transport","angels_transport_files"],"transport"],["Agro","angels_agro_v1",["angels_compta_agro"],"agro"]].filter(a=>ACTIF(a[3]));
  try{
   if(ANGELS_AUTH.demoOn())return;
   const trouves=APPS.filter(([n,k])=>{try{const S=JSON.parse(localStorage.getItem(k)||"null");return S&&ANGELS_AUTH.demoUsers(S.users)}catch(e){return false}});
@@ -224,7 +229,7 @@ if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.se
   const box=$("demo-alerte");box.hidden=false;
   box.innerHTML='<b>⚠ Données de démonstration détectées sur cet appareil</b> ('+trouves.map(x=>x[0]).join(", ")+'). Elles apparaissent dans la vue consolidée ci-dessous.<div style="margin-top:8px"><button type="button" id="demo-purge" style="font:700 14px Arial;padding:10px 14px;border-radius:9px;border:0;background:#c62828;color:#fff;cursor:pointer;min-height:42px">Effacer les données de démonstration de cet appareil</button></div>';
   $("demo-purge").onclick=function(){
-   if(!confirm("Effacer les données de démonstration de : "+trouves.map(x=>x[0]).join(", ")+" ?\n\nLes applications repartiront d'une base vide avec l'administrateur KESSIE. Cette action est définitive pour cet appareil."))return;
+   if(!confirm("Effacer les données de démonstration de : "+trouves.map(x=>x[0]).join(", ")+" ?\n\nLes applications repartiront d'une base vide avec l'administrateur "+((MQ.admin&&MQ.admin.nom)||"KESSIE")+". Cette action est définitive pour cet appareil."))return;
    trouves.forEach(([n,k,der])=>{[k].concat(der).forEach(x=>{try{localStorage.removeItem(x)}catch(e){}});try{localStorage.removeItem("angels_demo_garde_"+n);localStorage.removeItem("angels_sync_base_"+n.toLowerCase().replace(/s$/,""))}catch(e){}});
    try{sessionStorage.clear()}catch(e){}
    location.reload();
