@@ -87,6 +87,25 @@ label input,label select,label textarea{margin-top:3px;color:var(--tx);font-weig
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .tabs button{border:1px solid var(--bd);background:#fff;border-radius:99px;padding:6px 13px;cursor:pointer}
 .tabs button.on{background:var(--b);color:#fff;border-color:var(--b)}
+/* Centre de livraison : même style que le CRM (bandeau dégradé, indicateurs cliquables, onglets en pilules) */
+.cdl{--a:#14b8a6;--sh:0 1px 2px rgba(15,40,60,.06),0 10px 28px rgba(15,40,60,.08)}
+.cdl .ban{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--b2),var(--b) 60%,var(--a));color:#fff;border-radius:18px;padding:18px 20px 44px;margin-bottom:-30px}
+.cdl .ban:before,.cdl .ban:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+.cdl .ban:before{width:220px;height:220px;right:-50px;top:-90px}.cdl .ban:after{width:140px;height:140px;left:35%;bottom:-80px}
+.cdl .ban h1{margin:0;font-size:22px;color:#fff;position:relative}.cdl .ban p{margin:2px 0 0;font-size:13px;opacity:.85;position:relative}
+.cdl .kp{position:relative;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:0 10px 14px}
+.cdl .kp button{font:inherit;text-align:left;cursor:pointer;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:16px;padding:12px 14px;box-shadow:var(--sh);transition:transform .15s}
+.cdl .kp button:hover{transform:translateY(-2px)}.cdl .kp .ic{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#f1f6f8;font-size:16px;margin-bottom:6px}
+.cdl .kp b{display:block;font-size:24px;line-height:1.1}.cdl .kp span.l{font-size:12px;color:var(--mu)}.cdl .kp .w b{color:var(--wa)}.cdl .kp .e b{color:var(--er)}
+.cdl .tabs{flex-wrap:nowrap;overflow-x:auto;padding:6px;background:var(--card);border-radius:99px;box-shadow:var(--sh);border:1px solid var(--bd);position:sticky;top:6px;z-index:20;scrollbar-width:none}
+.cdl .tabs::-webkit-scrollbar{display:none}
+.cdl .tabs button{flex:0 0 auto;border:0;background:none;color:var(--mu);font-weight:700;padding:9px 14px;white-space:nowrap;transition:background .18s,color .18s,transform .12s}
+.cdl .tabs button:hover{background:#f1f6f8;color:var(--tx)}.cdl .tabs button:active{transform:scale(.96)}
+.cdl .tabs button.on{background:linear-gradient(135deg,var(--b),var(--a));color:#fff;box-shadow:0 4px 12px rgba(14,116,144,.35)}
+.cdl .card{border-radius:16px;box-shadow:var(--sh)}
+.cdl table{border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
+@media(max-width:700px){.cdl .ban{padding:14px 14px 40px}.cdl .kp{margin:0 4px 12px;grid-template-columns:repeat(3,1fr);gap:8px}.cdl .kp button{padding:8px 10px}.cdl .kp .ic{width:26px;height:26px;font-size:13px;margin-bottom:3px}.cdl .kp b{font-size:20px}.cdl .kp span.l{font-size:11px}}
+@media(prefers-color-scheme:dark){.cdl .kp .ic,.cdl .tabs button:hover{background:#0e2129}}
 .al{padding:8px 12px;border-radius:8px;margin-bottom:6px;background:var(--bbg)}.al.warn{background:var(--wabg)}.al.err{background:var(--erbg)}
 .bars{display:flex;gap:8px;align-items:flex-end;height:110px}
 .bars div{flex:1;text-align:center;font-size:11px;color:var(--mu)}
@@ -1891,7 +1910,9 @@ VIEWS.livraisons=()=>{
  const tourN=S.tournees.filter(t=>stopsOf(t).some(isActive)||new Date(t.ts).toDateString()===new Date().toDateString()).length;
  const TABS=[["aff","📦 À affecter ("+prete.length+")"],["act","🏍 Courses actives ("+act.length+")"],["col","🧺 Collectes vendeurs ("+nColl+")"],["tou","🔁 Tournées ("+tourN+")"],["liv","👥 Livreurs ("+S.livreurs.length+")"],["pla","📅 Planning"],["msg","💬 Messages"+(chatNonLusCentre()?" ("+chatNonLusCentre()+")":"")],["sta","📊 Statistiques"],["trt","⚠ À traiter ("+(echoues.length+ecarts.length)+")"]],cdt=TABS.some(x=>x[0]===ui.cdt)?ui.cdt:"aff";
  if(ui.cdt!==cdt)ui.cdt=cdt;
- return`<h1>Centre de livraison</h1>
+ const nTrt=echoues.length+ecarts.length,kpb=(t,ic,l,n,c)=>`<button type="button" class="${c||""}" data-act="tab" data-id="cdt|${t}"><span class="ic">${ic}</span><b>${n}</b><span class="l">${l}</span></button>`;
+ return`<div class="cdl"><div class="ban"><h1>Centre de livraison</h1><p>Affectez, suivez et clôturez les courses du jour</p></div>
+ <div class="kp">${kpb("aff","📦","À affecter",prete.length,prete.length?"w":"")}${kpb("act","🏍","Courses actives",act.length)}${kpb("col","🧺","Collectes vendeurs",nColl)}${kpb("tou","🔁","Tournées",tourN)}${kpb("liv","👥","Livreurs",S.livreurs.length)}${kpb("trt","⚠","À traiter",nTrt,nTrt?"e":"")}</div>
  ${["aff","act","trt"].includes(cdt)?`<div class="card noprint" style="padding:10px"><div class="flex" style="flex-wrap:wrap;gap:8px;align-items:center"><b>🔎 Filtrer</b>${perSel3("lv","all")}${lieuInput("flieu")}${bn.k!=="all"||fq?`<button type="button" class="btn sm ghost" data-act="livFiltresRaz">✖ Effacer les filtres</button>`:""}</div><div class="sm mu" style="margin-top:4px">Date : commande (à affecter) ou affectation (courses actives, échecs). Lieu : zone, quartier ou repère.</div></div>`:""}
  ${tabs("cdt",TABS)}
  ${cdt==="aff"?`${zoneBar()}
@@ -1900,7 +1921,7 @@ VIEWS.livraisons=()=>{
   return`<tr><td><b>${c.numero}</b>${c.priorite==="urgente"?" "+badge("URGENT","er"):""}<br><span class="sm mu">${fcfa(l.montant_attendu)} à encaisser</span></td><td>${esc(liv(l.livreur_id).nom)}</td><td>${lb(l)}</td><td>${esc(c.adr.zone)} ${esc(c.adr.quartier||"")}</td><td>${badge(f.t,f.k)}${S.pos[l.livreur_id]?` <a href="#" data-act="mapLiv" data-id="${l.livreur_id}">carte</a>`:""}</td><td>${min>lim?badge("Retard +"+(min-lim)+" min","er"):badge(min+"/"+lim+" min","ok")}</td><td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button></td></tr>`}),"Aucune course active")}
 ${iframe}`:cdt==="col"?`${collectesSection()}`:cdt==="tou"?`${zoneBar()}<h2>Tournées${fz?" · zone "+esc(fz):""}</h2>${tbl(["Tournée","Livreur","Zones","Avancement","Estimation","Statut",""],S.tournees.filter(t=>(stopsOf(t).some(isActive)||new Date(t.ts).toDateString()===new Date().toDateString())&&(!fz||stopsOf(t).some(l=>zoneDe(cmd(l.commande_id)||{})===fz))).slice().reverse().map(t=>{const st=stopsOf(t),zn=[...new Set(st.map(l=>zoneDe(cmd(l.commande_id)||{})))],fin=st.filter(l=>["livree","echouee"].includes(l.statut)).length,e=estimTournee(t),open=st.some(isActive);return`<tr><td><b>${t.numero}</b></td><td>${esc((liv(t.livreur_id)||{}).nom||"?")}</td><td class="sm">${zn.map(esc).join(", ")}</td><td>${st.filter(l=>l.statut==="livree").length} livrée(s) · ${st.filter(l=>l.statut==="echouee").length} échec(s) · ${st.length-fin} restante(s)</td><td class="sm">${e?"≈ "+e.km.toFixed(1)+" km · "+fmtDur(e.min):"—"}</td><td>${open?badge("En cours","wa"):badge("Terminée","ok")}</td><td><button class="btn sm ghost" data-act="tourDetail" data-id="${t.id}">Détail</button></td></tr>`}),fz?"Aucune tournée dans cette zone":"Aucune tournée")}`:cdt==="sta"?statCentre():cdt==="msg"?chatTab():cdt==="pla"?planningTab():cdt==="liv"?`<h2>Livreurs</h2>${hzSection()}<div class="grid">${S.livreurs.map(l=>{const n=S.livraisons.filter(x=>x.livreur_id===l.id&&isActive(x)).length,f=fraicheur(S.pos[l.id]);return`<div class="card" style="margin:0"><b>${esc(l.nom)}</b><br>${n?badge("En mission ("+n+")","wa"):l.statut==="disponible"?badge("Disponible","ok"):badge("Indisponible","er")}<div class="sm mu" style="margin-top:6px">Zone ${esc(l.zone)}<br>GPS : ${f.t}</div>${S.pos[l.id]?`<a href="#" data-act="mapLiv" data-id="${l.id}" class="sm">Voir sur la carte</a>`:""}</div>`}).join("")}</div>
 ${iframe}`:`<h2>Livraisons échouées à traiter</h2>${tbl(["Commande","Motif","Tentatives",""],S.commandes.filter(c=>c.statut==="echouee"&&okQ(c)&&okD(c,c.date)).map(c=>{const l=livsOf(c.id).filter(x=>x.statut==="echouee").slice(-1)[0];return`<tr><td><b>${c.numero}</b><br><span class="sm mu">${esc(cli(c.client_id).nom)}</span></td><td>${esc(l?l.motif_echec:"")}</td><td>${livsOf(c.id).filter(x=>["livree","echouee"].includes(x.statut)).length}</td><td><button class="btn sm" data-act="cmdDetail" data-id="${c.id}">Traiter</button></td></tr>`}),"Rien à traiter")}
-<h2>Écarts d'encaissement à valider (${ecarts.length})</h2>${ecartsTable(ecarts)}`}`};
+<h2>Écarts d'encaissement à valider (${ecarts.length})</h2>${ecartsTable(ecarts)}`}</div>`};
 function statCentre(){const bn=perBornes("st","30"),t1=bn.t1===Infinity?Date.now():bn.t1,t0=bn.t0;
  const R=S.livreurs.filter(l=>!l.archive).map(l=>({l,s:statLiv(l,t0,t1)})).sort((a,b)=>b.s.livrees-a.s.livrees||a.l.nom.localeCompare(b.l.nom));
  const T=R.reduce((a,x)=>({liv:a.liv+x.s.livrees,ech:a.ech+x.s.echecs,enc:a.enc+x.s.encaisse,gn:a.gn+x.s.gains}),{liv:0,ech:0,enc:0,gn:0}),taux=T.liv+T.ech?T.liv/(T.liv+T.ech)*100:0,mx=Math.max(0,...R.map(x=>x.s.livrees));
