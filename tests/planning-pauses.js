@@ -27,7 +27,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   /* pauses */
   o.pause=err(()=>pauseDemarrer(A,30))===null&&!!lvPause(A)&&pauseJour(A.id)===30;
   o.deja=/déjà/.test(err(()=>pauseDemarrer(A,10))||"");pauseReprendre(A);o.reprise=!lvPause(A);
-  S.pauses.push({id:"h1",livreur_id:A.id,debut:new Date(Date.now()-50*60000).toISOString(),fin:new Date(Date.now()-10*60000).toISOString(),fin_reelle:null,min:40});o.max=/limitée/.test(err(()=>pauseDemarrer(A,30))||"")&&err(()=>pauseDemarrer(A,15))===null;pauseReprendre(A);
+  const dj=new Date();dj.setHours(0,1,0,0);const db0=Math.max(Date.now()-50*60000,dj.getTime());   /* même jour que « maintenant », même juste après minuit */
+  S.pauses.push({id:"h1",livreur_id:A.id,debut:new Date(db0).toISOString(),fin:new Date(db0+40*60000).toISOString(),fin_reelle:null,min:40});o.max=/limitée/.test(err(()=>pauseDemarrer(A,30))||"")&&err(()=>pauseDemarrer(A,15))===null;pauseReprendre(A);
   /* affectation bloquée en pause */
   const c=S.commandes.find(x=>x.statut==="prete")||(()=>{const p=S.produits[0];const k=creerCmd({client_id:S.clients[0].id,adr:Object.assign({},S.clients[0].adresses[0]),lignes:[{produit_id:p.id,qte:1,pu:p.prix}],frais:2000,remise:0,paiement:"livraison",mode:"Espèces",priorite:"normale",canal:"Téléphone",confirmer:true});setStatut(k,"preparation");marquerPrete(k);return k})();
   B.pause={id:"x",debut:now(),fin:new Date(Date.now()+30*60000).toISOString()};let t="";toast=(m)=>{t=m};o.affPause=affecter(c,B.id,"")===false&&/en pause/.test(t);B.pause=null;
