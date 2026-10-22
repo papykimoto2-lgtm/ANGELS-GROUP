@@ -1,4 +1,4 @@
-/* ANGEL'S GROUP — moteur CRM central du hub.
+/* ANGEL'S GROUP — moteur CRM central du hub (et des instances clientes : Distribution, Placement, Assurance, selon les modules choisis).
    Principe : UNE fiche par personne pour tout le groupe. Les clients, vendeurs partenaires, candidats et chauffeurs des trois applications
    (Distributions, Transport, Agro) sont lus (jamais modifiés) et fusionnés par numéro de téléphone ; le CRM ne garde que SON propre état :
    interactions, tâches, opportunités, étiquettes, oppositions et journal d'audit (clé locale « angels_crm_v1 »).
@@ -7,7 +7,7 @@
 (function (G) {
   "use strict";
   var K = "angels_crm_v1", DJ = 864e5;
-  var APPS = [["distribution", "angels_erp_v1", "Distributions"], ["transport", "angels_transport_v3", "Transport"], ["agro", "angels_agro_v1", "Agro"]];
+  var APPS = [["distribution", "angels_erp_v1", "Distributions"], ["transport", "angels_transport_v3", "Transport"], ["agro", "angels_agro_v1", "Agro"], ["placement", "angels_placement_v1", "Placement"], ["assurance", "angels_assurance_v1", "Assurance"]];
   var CFG0 = { nouveau_j: 30, fidele_n: 3, actif_j: 60, risque_j: 120, vip_f: 500000, impaye_j: 30 };
   var ETAPES = [["nouveau", "Nouveau"], ["contact", "Contacté"], ["devis", "Devis / offre"], ["negoc", "Négociation"], ["gagne", "Gagné"], ["perdu", "Perdu"]];
   var TYPES_INT = [["appel", "📞 Appel"], ["whatsapp", "💬 WhatsApp"], ["visite", "🤝 Visite"], ["email", "✉️ E-mail"], ["note", "📝 Note"]];
@@ -129,6 +129,36 @@
       ajouter(M, "agro", "Agro", o);
     });
   }
+  /* Placement : entreprises clientes (achats = factures, dû = reste à encaisser) et travailleurs (fiche liée, sans chiffre d'affaires). */
+  function lirePlacement(M, S) {
+    var enc = {}; (S.encaissements || []).forEach(function (e) { enc[e.facture_id] = (enc[e.facture_id] || 0) + (+e.montant || 0); });
+    var par = {}; (S.factures || []).forEach(function (f) { (par[f.client_id] = par[f.client_id] || []).push(f); });
+    (S.clients || []).forEach(function (c) {
+      var o = { type: "client", id: c.id, nom: c.nom, tel: c.tel, zone: c.adresse || "", achats: [], ca: 0, encours: 0, impaye: "", info: { app: "Placement", lib: "Entreprise cliente (placement de personnel)" + (c.contact ? " · contact " + c.contact : "") } };
+      (par[c.id] || []).forEach(function (f) {
+        var t = +f.ttc || 0, du = Math.max(0, t - (enc[f.id] || 0)), d = String(f.date || "").slice(0, 10);
+        o.achats.push({ app: "placement", ref: f.numero, date: d, montant: t, du: du }); o.ca += t; o.encours += du; if (du > 0 && (!o.impaye || d < o.impaye)) o.impaye = d;
+      });
+      ajouter(M, "placement", "Placement", o);
+    });
+    (S.travailleurs || []).forEach(function (t) {
+      ajouter(M, "placement", "Placement", { type: "travailleur", id: t.id, nom: t.nom, tel: t.tel, zone: t.ville || "", info: { app: "Placement", lib: "Travailleur " + (t.type || "") + " · " + (t.statut || "") } });
+    });
+  }
+  /* Assurance : assurés (achats = primes TTC des polices, dû = prime restant à encaisser par le cabinet). */
+  function lireAssurance(M, S) {
+    var enc = {}, av = {}; (S.encaissements || []).forEach(function (e) { enc[e.police_id] = (enc[e.police_id] || 0) + (+e.montant || 0); });
+    (S.avenants || []).forEach(function (a) { av[a.police_id] = (av[a.police_id] || 0) + (+a.delta || 0); });
+    var par = {}; (S.polices || []).forEach(function (p) { if (p.statut !== "resiliee") (par[p.assure_id] = par[p.assure_id] || []).push(p); });
+    (S.assures || []).forEach(function (a) {
+      var o = { type: "client", id: a.id, nom: a.nom, tel: a.tel, zone: a.adresse || "", achats: [], ca: 0, encours: 0, impaye: "", info: { app: "Assurance", lib: "Assuré · " + (par[a.id] || []).length + " police(s) en portefeuille" } };
+      (par[a.id] || []).forEach(function (p) {
+        var t = (+p.ttc || 0) + (av[p.id] || 0), du = p.encaisse_par === "courtier" ? Math.max(0, t - (enc[p.id] || 0)) : 0, d = String(p.effet || "").slice(0, 10);
+        o.achats.push({ app: "assurance", ref: p.numero, date: d, montant: t, du: du }); o.ca += t; o.encours += du; if (du > 0 && (!o.impaye || d < o.impaye)) o.impaye = d;
+      });
+      ajouter(M, "assurance", "Assurance", o);
+    });
+  }
   function lireTransport(M, S) {
     (S.drivers || []).forEach(function (d) {
       ajouter(M, "transport", "Transport", { type: "chauffeur", id: d.id, nom: d.nom, tel: d.tel, zone: d.adresse || "", info: { app: "Transport", lib: "Chauffeur" + (d.permis_fin ? " · permis valable jusqu'au " + String(d.permis_fin).slice(0, 10) : "") } });
@@ -160,7 +190,7 @@
     var S = etat(), c = cfg(S), M = {}, divers = 0, lus = {};
     APPS.forEach(function (a) {
       var D = lire(a[1]); if (!D) return; lus[a[0]] = true;
-      if (a[0] === "distribution") divers = lireDistribution(M, D); else if (a[0] === "agro") lireAgro(M, D); else lireTransport(M, D);
+      if (a[0] === "distribution") divers = lireDistribution(M, D); else if (a[0] === "agro") lireAgro(M, D); else if (a[0] === "placement") lirePlacement(M, D); else if (a[0] === "assurance") lireAssurance(M, D); else lireTransport(M, D);
     });
     var L = Object.keys(M).map(function (k) {
       var f = M[k];

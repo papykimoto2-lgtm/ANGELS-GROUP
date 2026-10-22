@@ -14,7 +14,7 @@ export { CORS } from "./pont.js";
 const rep = (status, body) => ({ status, body });
 const err = (status, message) => rep(status, { ok: false, erreur: message });
 const txt = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
-const APPS = ["distribution", "transport", "agro", "crm"], KINDS = ["enreg", "doc", "seq", "ajout"];
+const APPS = ["distribution", "transport", "agro", "crm", "placement", "assurance"], KINDS = ["enreg", "doc", "seq", "ajout"];
 export const TAILLE_MAX = 900000;            // octets par enregistrement
 export const LOT_MAX = 400;                  // opérations par envoi
 
