@@ -19,6 +19,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const h=await page("index.html");
  const cartes=await h.$$eval(".card[data-mod]",c=>c.map(x=>x.dataset.mod).sort().join());
  t("INS-5b","modules choisis publiés : Placement, Assurance, socle d'écran, feuille de style aux couleurs LOGISTICA",["placement.html","placement-engine.js","assurance.html","assurance-engine.js","shell-engine.js","modules.css"].every(f=>fs.existsSync(path.join(root,f)))&&/#c8352b/i.test(lire("modules.css"))&&!/#0e7490/i.test(lire("modules.css"))?true:"manquant");
+ t("INS-5c","isolation : la passerelle pointe vers le projet Supabase de LOGISTICA, jamais celui d'ANGEL'S",/hggfwxkmdylrgikokbaw/.test(lire("passerelle-config.js"))&&!/gfzqxoolorbejxnxrlji/.test(Object.keys({a:1}).length?fs.readdirSync(root).filter(f=>/\.(html|js|json|webmanifest)$/.test(f)).map(lire).join(""):"")&&!/angelsgroups/.test(lire("portail.html"))?true:"fuite vers ANGEL'S");
  t("INS-6","hub : seules les cartes choisies (Distribution, Placement, Assurance, CRM, Paramètres)",cartes==="assurance,crm,distribution,parametres,placement"?true:cartes);
  t("INS-7","hub : titre LOGISTICA, onglets Distributions, Placement et Assurance",/LOGISTICA/.test(await h.title())&&(await h.$$eval("#tabs .tab",x=>x.length))===3?true:await h.title());
  const mq=await h.evaluate(()=>({id:ERP_MARQUE.id,adm:ERP_MARQUE.admin.nom,u:ANGELS_AUTH.adminProd("x")}));
