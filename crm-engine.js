@@ -339,6 +339,28 @@
     o.etape = etape; o.maj = nowIso(); if (etape === "perdu") o.motif = String(motif).trim().slice(0, 200);
     audit(C.S, C.par, "Opportunité " + etape, o.nom + (etape === "perdu" ? " — " + o.motif : "")); sauver(C.S); return o;
   }
+  /* ---------- Priorités commerciales : score 0-100, chaleur et prochaine action pour chaque opportunité ouverte ---------- */
+  var PTS_ETAPE = { nouveau: 15, contact: 30, devis: 55, negoc: 75 };
+  var ACTION_ETAPE = { nouveau: "Appeler pour qualifier le besoin", contact: "Envoyer le devis ou l'offre", devis: "Relancer sur le devis", negoc: "Conclure : proposer une date de signature" };
+  function scoreOpp(o, now) {
+    var base = PTS_ETAPE[o.etape]; if (base == null) return null;
+    var j = Math.max(0, Math.floor(((now || Date.now()) - new Date(o.maj).getTime()) / 864e5)); if (!isFinite(j)) j = 0;
+    var v = Math.min(15, Math.round(Math.log10((+o.valeur || 0) + 1) * 2.2));
+    var fr = j <= 2 ? 10 : j <= 7 ? 5 : j <= 14 ? 0 : -Math.min(15, j - 14);
+    var sc = Math.max(0, Math.min(100, base + v + fr + (chiffres(o.tel).length >= 8 ? 5 : 0)));
+    return { score: sc, chaleur: sc >= 70 ? "chaud" : sc >= 45 ? "tiede" : "froid", jours: j, stagnant: j > 7 };
+  }
+  function prioritesOpps(now, org) {
+    var n = now || Date.now(), nom = org || "ANGEL'S GROUP";
+    return etat().opps.map(function (o) {
+      var s = scoreOpp(o, n); if (!s) return null;
+      var p = String(o.nom).split(" ")[0] || "";
+      s.o = o; s.action = s.stagnant ? "Relancer : sans nouvelles depuis " + s.jours + " j" : ACTION_ETAPE[o.etape];
+      s.lien = waLien(o.tel, "Bonjour " + p + ", ici " + nom + ". Je reviens vers vous au sujet de votre projet. Avez-vous un moment pour en parler ?");
+      return s;
+    }).filter(Boolean).sort(function (a, b) { return b.score - a.score || (+b.o.valeur || 0) - (+a.o.valeur || 0); });
+  }
+
   function reglages(par, v) {
     var C = ctx(par), n = {};
     Object.keys(CFG0).forEach(function (k) { var x = Math.round(+v[k]); if (!(x > 0)) throw new Error("Valeur invalide : " + k); n[k] = x; });
@@ -373,6 +395,6 @@
     etat: etat, sauver: sauver, cfg: cfg, contacts: contacts, pilotage: pilotage, serie: serie, relances: relances, qualite: qualite, historique: historique, exportCsv: exportCsv,
     chiffres: chiffres, cleTel: cleTel, waLien: waLien, norm: norm,
     ajouterInteraction: ajouterInteraction, ajouterTache: ajouterTache, basculerTache: basculerTache, etiqueter: etiqueter, opposer: opposer,
-    marquerRelance: marquerRelance, creerOpp: creerOpp, deplacerOpp: deplacerOpp, reglages: reglages
+    marquerRelance: marquerRelance, creerOpp: creerOpp, deplacerOpp: deplacerOpp, scoreOpp: scoreOpp, prioritesOpps: prioritesOpps, reglages: reglages
   };
 })(typeof window !== "undefined" ? window : this);
