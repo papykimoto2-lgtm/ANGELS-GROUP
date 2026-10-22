@@ -16,19 +16,39 @@
   var R = Math.round, nowIso = function () { return new Date().toISOString(); };
   var uid = function (p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); };
 
-  /* ---------- Lecture / état propre au CRM ---------- */
+  /* ---------- Lecture / état propre au CRM ----------
+     Un seul objet en mémoire (cache) : le moteur de synchronisation y applique les changements des autres postes, puis demande l'enregistrement.
+     Tout ce qui est propre à un contact (étiquettes, opposition, dernière relance) tient dans UN enregistrement « marques » d'identifiant = clé du contact :
+     deux postes qui modifient deux contacts différents ne se gênent jamais. */
   function lire(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
-  function vide() { return { v: 1, inter: [], taches: [], opps: [], tags: {}, stop: {}, relances: {}, audit: [], cfg: {} }; }
-  function etat() {
-    var S = lire(K) || vide();
-    ["inter", "taches", "opps", "audit"].forEach(function (k) { if (!Array.isArray(S[k])) S[k] = []; });
-    ["tags", "stop", "relances", "cfg"].forEach(function (k) { if (!S[k] || typeof S[k] !== "object") S[k] = {}; });
+  function vide() { return { v: 1, inter: [], taches: [], opps: [], marques: [], audit: [], cfg: {} }; }
+  var CACHE = null;
+  function normaliser(S) {
+    ["inter", "taches", "opps", "marques", "audit"].forEach(function (k) { if (!Array.isArray(S[k])) S[k] = []; });
+    if (!S.cfg || typeof S.cfg !== "object" || Array.isArray(S.cfg)) S.cfg = {};
+    /* migration de la première version (objets par contact) vers les enregistrements « marques » */
+    if (S.tags || S.stop || S.relances) {
+      var T = S.tags || {}, O = S.stop || {}, Rl = S.relances || {};
+      Object.keys(Object.assign({}, T, O, Rl)).forEach(function (k) { if (!S.marques.some(function (m) { return m.id === k; })) S.marques.push({ id: k, tags: T[k] || [], stop: O[k] || "", relance: Rl[k] || "" }); });
+      delete S.tags; delete S.stop; delete S.relances;
+    }
     return S;
   }
+  function etat() { if (!CACHE) CACHE = normaliser(lire(K) || vide()); return CACHE; }
   function sauver(S) {
-    S.audit = S.audit.slice(-1000); S.inter = S.inter.slice(-5000);
-    try { localStorage.setItem(K, JSON.stringify(S)); return true; } catch (e) { return false; }
+    S = S || etat(); S.audit = S.audit.slice(-1000); S.inter = S.inter.slice(-5000);
+    S.marques = S.marques.filter(function (m) { return (m.tags && m.tags.length) || m.stop || m.relance; });
+    var ok = true;
+    try { localStorage.setItem(K, JSON.stringify(S)); } catch (e) { ok = false; }
+    try { if (G.ANGELS_SYNC) G.ANGELS_SYNC.signal(); } catch (e) { }
+    return ok;
   }
+  function marque(S, cle, creer) {
+    var m = S.marques.filter(function (x) { return x.id === cle; })[0];
+    if (!m && creer) { m = { id: cle, tags: [], stop: "", relance: "" }; S.marques.push(m); }
+    return m || null;
+  }
+  if (G.addEventListener) G.addEventListener("storage", function (e) { if (e.key === K) { CACHE = null; try { if (G.ANGELS_CRM_RAFRAICHIR) G.ANGELS_CRM_RAFRAICHIR(); } catch (x) { } } });
   function cfg(S) { var c = {}; Object.keys(CFG0).forEach(function (k) { var v = +((S || etat()).cfg || {})[k]; c[k] = v > 0 ? v : CFG0[k]; }); return c; }
   function audit(S, par, action, detail) { S.audit.push({ id: uid("au"), t: nowIso(), par: par || "?", action: action, detail: String(detail || "").slice(0, 300) }); }
 
@@ -153,9 +173,10 @@
       f.mauvais_payeur = f.encours > 0 && f.impaye_j > c.impaye_j;
       f.segments = segmenter(f, c, now);
       f.seg = f.segments[0];
-      f.tags = S.tags[k] || [];
-      f.stop = !!S.stop[k];
-      f.derniere_relance = S.relances[k] || "";
+      var mq = marque(S, k, false) || {};
+      f.tags = mq.tags || [];
+      f.stop = !!mq.stop;
+      f.derniere_relance = mq.relance || "";
       f.nb_inter = 0; f.der_inter = "";
       f.nom_n = norm(f.noms.join(" ")); f.tel_c = chiffres(f.tel);
       return f;
@@ -250,15 +271,15 @@
   }
   function etiqueter(par, cle, tags) {
     var C = ctx(par), L = String(tags || "").split(/[,;]/).map(function (x) { return x.trim().slice(0, 24); }).filter(Boolean).filter(function (x, i, a) { return a.indexOf(x) === i; }).slice(0, 12);
-    if (L.length) C.S.tags[cle] = L; else delete C.S.tags[cle];
+    marque(C.S, cle, true).tags = L;
     audit(C.S, C.par, "Étiquettes modifiées", cle + " : " + L.join(", ")); sauver(C.S); return L;
   }
   function opposer(par, cle, on) {
-    var C = ctx(par); if (on) C.S.stop[cle] = nowIso(); else delete C.S.stop[cle];
+    var C = ctx(par); marque(C.S, cle, true).stop = on ? nowIso() : "";
     audit(C.S, C.par, on ? "Opposition à la prospection" : "Opposition levée", cle); sauver(C.S); return !!on;
   }
   function marquerRelance(par, cle, motif, quand) {
-    var C = ctx(par); C.S.relances[cle] = quand || nowIso();
+    var C = ctx(par); marque(C.S, cle, true).relance = quand || nowIso();
     C.S.inter.push({ id: uid("in"), cle: cle, type: "whatsapp", texte: "Relance envoyée (" + motif + ")", t: nowIso(), par: C.par });
     audit(C.S, C.par, "Relance", cle + " · " + motif); sauver(C.S);
   }
@@ -306,7 +327,7 @@
 
   G.ANGELS_CRM = {
     K: K, APPS: APPS, ETAPES: ETAPES, TYPES_INT: TYPES_INT, SEG: SEG, CFG0: CFG0, esc: esc,
-    etat: etat, cfg: cfg, contacts: contacts, pilotage: pilotage, relances: relances, qualite: qualite, historique: historique, exportCsv: exportCsv,
+    etat: etat, sauver: sauver, cfg: cfg, contacts: contacts, pilotage: pilotage, relances: relances, qualite: qualite, historique: historique, exportCsv: exportCsv,
     chiffres: chiffres, cleTel: cleTel, waLien: waLien, norm: norm,
     ajouterInteraction: ajouterInteraction, ajouterTache: ajouterTache, basculerTache: basculerTache, etiqueter: etiqueter, opposer: opposer,
     marquerRelance: marquerRelance, creerOpp: creerOpp, deplacerOpp: deplacerOpp, reglages: reglages
