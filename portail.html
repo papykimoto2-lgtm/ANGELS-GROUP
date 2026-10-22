@@ -226,7 +226,7 @@ function lienWA(msg){const n=waNum();return n?"https://wa.me/"+n+"?text="+encode
 const portailDirect=()=>{const c=window.ANGELS_PASSERELLE;return c&&/^https:\/\//.test(c.url||"")?c.url.replace(/\/+$/,"")+"/functions/v1/portail-demande":""};
 async function envoiDirect(btn){const card=btn.closest(".card"),st=card.querySelector("#dir_st"),ta=card.querySelector("textarea"),u=portailDirect();if(!u||!ta)return;btn.disabled=true;const dm=btn.dataset.dm&&ST.cdm?ST.cdm:ta.value;st.textContent="Envoi en cours…";
  try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(dm===ST.cdm&&ST.cphotos&&ST.cphotos.length?{message:dm,photos:ST.cphotos}:{message:dm})}),j=await r.json().catch(()=>({}));
-  if(r.ok&&j.ok){if(card.closest("#shop"))panierVider();if(dm===ST.cdm)ST.cphotos=[];card.querySelector("h3").textContent="Demande envoyée ✔";btn.remove();st.textContent="Nous avons bien reçu votre demande (réf. "+(j.refs&&j.refs[0]||"")+"). Nous vous recontactons très vite."+(j.doublons?" (Elle avait déjà été reçue.)":"");st.style.color="var(--ok,#118a4b)";return}
+  if(r.ok&&j.ok){if(card.closest("#shop"))panierVider();if(dm===ST.cdm){ST.cphotos=[];ST.lq={}}card.querySelector("h3").textContent="Demande envoyée ✔";btn.remove();st.textContent="Nous avons bien reçu votre demande (réf. "+(j.refs&&j.refs[0]||"")+"). Nous vous recontactons très vite."+(j.doublons?" (Elle avait déjà été reçue.)":"");st.style.color="var(--ok,#118a4b)";return}
   st.textContent=(j.erreur||"Envoi impossible")+" — utilisez WhatsApp ci-dessous.";st.style.color="#b42318";btn.disabled=false}
  catch(e){st.textContent="Pas de connexion au serveur — utilisez WhatsApp ci-dessous.";st.style.color="#b42318";btn.disabled=false}}
 /* Captures d'écran du client (ventes live) : réduites et compressées sur l'appareil (JPEG ≤ 140 Ko), 5 au plus */
@@ -448,23 +448,39 @@ async function suiviRendre(){
 const ZONES_DEFAUT=["Plateau","Cocody","Marcory","Treichville","Adjamé","Koumassi","Attécoubé","Abobo","Yopougon","Port-Bouët","Bingerville","Anyama","Songon","Grand-Bassam","Dabou","Bonoua","Azaguié","Alépé","Sikensi","Jacqueville","Assinie","Autre localité (tarif à convenir)"];
 /* Lien court et lisible (…/commander?boutique=Yoyoo+Boutique&tel=0585656086 ou ?client=Marie&tel=…&zone=Cocody) : aucun bloc codé, rien d'inquiétant à cliquer.
    Les anciens liens (#/commander/<code>) continuent de fonctionner. */
+const srcDe=o=>o&&o.s==="live"?"live":o&&o.s==="qr"?"qr":"lien";
 function lienCourt(){const q=new URLSearchParams(location.search),b=cutS(q.get("boutique"),80),cl=cutS(q.get("client"),80),t=digits(q.get("tel")).slice(0,20);if(!b&&!cl)return null;
- return{org:"",w:"",v:b,i:cutS(q.get("ref"),60),s:q.get("src")==="qr"?"qr":"lien",t,z:[],c:cl?{n:cl,t,z:cutS(q.get("zone"),60),q:cutS(q.get("quartier"),120),r:cutS(q.get("repere"),200)}:null}}
+ return{org:"",w:"",v:b,i:cutS(q.get("ref"),60),s:srcDe({s:q.get("src")}),t,z:[],c:cl?{n:cl,t,z:cutS(q.get("zone"),60),q:cutS(q.get("quartier"),120),r:cutS(q.get("repere"),200)}:null}}
 function commanderTok(){let o=null;const j=jetonDe();if(!j)return lienCourt();try{o=unb64(j)}catch(e){}if(!o||typeof o!=="object")return null;
  return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),i:cutS(o.i,60),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
 /* Visite du lien / QR d'un vendeur : signalée une fois par session (le serveur la compte une fois par visiteur et par jour) */
 function scanSignaler(o){if(!o||!o.i||ST.scan)return;ST.scan=1;const u=portailDirect();if(!u)return;
  try{if(sessionStorage.getItem("scan_"+o.i))return;sessionStorage.setItem("scan_"+o.i,"1")}catch(e){}
- fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scan:{v:o.i,s:o.s==="qr"?"qr":"lien"}}),keepalive:true}).catch(()=>{})}
+ fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scan:{v:o.i,s:srcDe(o)}}),keepalive:true}).catch(()=>{})}
+/* Mode Live : produits du live en cours du vendeur (publiés par lui), choisis d'un geste ; la liste se met à jour toute seule (épuisé, nouveau produit, fin du live) */
+async function liveCharger(o){const u=portailDirect();if(!o||!o.i||!u)return;
+ try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({live:{v:o.i}})}),j=await r.json();ST.live=r.ok&&j.ok?j:{actif:false}}catch(e){if(!ST.live)ST.live={actif:false,erreur:true}}
+ liveRendu()}
+function liveItems(){const l=ST.live;if(!l||!l.actif)return[];return l.produits.filter(p=>p.ok&&(ST.lq||{})[p.n]>0).map(p=>({d:p.n,q:ST.lq[p.n],p:p.p}))}
+function liveRendu(){const b=document.getElementById("lv_box");if(!b)return;const l=ST.live;
+ if(l===undefined){b.innerHTML="";return}
+ if(l===null){b.innerHTML='<div class="mu">Chargement du live…</div>';return}
+ if(!l.actif){b.innerHTML='<div class="empty">'+(l.erreur?"Impossible de charger le live : ":"Ce live est terminé ou pas encore ouvert : ")+"vous pouvez tout de même décrire votre commande ci-dessous.</div>";return}
+ const q=ST.lq||(ST.lq={}),tot=liveItems().reduce((t,x)=>t+(x.p||0)*x.q,0);
+ b.innerHTML=`<div class="card" style="border:2px solid #d32f2f"><b style="color:#d32f2f">🔴 EN DIRECT</b> — ${esc(l.titre)}<p class="mu" style="margin:4px 0 8px">Touchez <b>+</b> sur les articles que vous voulez, puis ajoutez la capture d'écran du live si besoin.</p>
+ ${l.produits.map((p,i)=>`<div class="lgn" style="align-items:center"><div style="flex:1"><b>${esc(p.n)}</b>${p.p!=null?`<br><span class="mu">${F(p.p)}</span>`:""}</div>${p.ok?`<div style="display:flex;gap:6px;align-items:center"><button type="button" class="chip" data-lq="${i}" data-d="-1" aria-label="Retirer ${esc(p.n)}">−</button><b style="min-width:22px;text-align:center">${q[p.n]||0}</b><button type="button" class="chip" data-lq="${i}" data-d="1" aria-label="Ajouter ${esc(p.n)}">+</button></div>`:'<span class="bd" style="background:#fde5e5;color:#c62828;padding:4px 8px;border-radius:8px">Épuisé</span>'}</div>`).join("")}
+ ${tot>0?`<p style="text-align:right;margin:8px 0 0"><b>Total estimé : ${F(tot)}</b> <span class="mu">(hors livraison)</span></p>`:""}</div>`;
+ b.querySelectorAll("[data-lq]").forEach(x=>x.onclick=()=>{const p=l.produits[+x.dataset.lq];ST.lq[p.n]=Math.max(0,Math.min(99,(ST.lq[p.n]||0)+(+x.dataset.d)));liveRendu()})}
 function commanderRendre(){
  const el=document.getElementById("cm"),o=commanderTok();if(!el)return;scanSignaler(o);
+ if(o&&o.s==="live"&&ST.live===undefined){ST.live=null;liveCharger(o);if(!ST.livePoll)ST.livePoll=setInterval(()=>{if(document.getElementById("lv_box")&&!document.hidden)liveCharger(commanderTok())},20000)}
  if(!o){el.innerHTML='<div class="empty">Lien de commande illisible : demandez-en un nouveau à la personne qui vous l\'a envoyé.</div>';return}
  if(!o.v){ST.pre=o.c;location.replace("#/boutique");return}
  if(ST.cs==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre commande à <b>"+esc(o.v)+"</b>. Il la vérifie, confirme le prix et organise la livraison par "+esc(o.org||T.nom)+".",ST.cmsg,ST.cref,"cmd",o.t||o.w,ST.cdm||"");return}
  const L=ST.cl||(ST.cl=[{d:"",q:1,p:""}]),c=o.c||{};
  const zs=o.z.length?o.z:(T.shop&&T.shop.zones&&T.shop.zones.length?T.shop.zones.map(z=>z.nom):ZONES_DEFAUT);
  el.innerHTML=`<div class="card"><div class="mu">${esc(o.org||T.nom)}</div><h3 style="margin:2px 0 6px">Commander chez ${esc(o.v)}</h3><p class="mu" style="margin:0 0 8px">🔒 Lien officiel ${esc(o.org||T.nom)} · <b>aucun paiement, mot de passe ou code</b> n'est demandé ici.</p><p class="mu">Décrivez votre commande et votre adresse : elle part sur WhatsApp, rien n'est livré avant la validation de ${esc(o.v)}.</p>
- <h3>1. Articles</h3>${L.map((l,i)=>`<div class="lgn"><label>Article<input class="c_d" data-i="${i}" maxlength="120" value="${esc(l.d)}"></label><label>Qté<input class="c_q" data-i="${i}" type="number" min="1" max="99" value="${esc(l.q)}"></label><label>Prix (F) si connu<input class="c_p" data-i="${i}" inputmode="numeric" value="${esc(l.p)}"></label>${L.length>1?`<button type="button" class="chip" data-cl="del" data-i="${i}" aria-label="Retirer">−</button>`:"<span></span>"}</div>`).join("")}
+ <div id="lv_box"></div><h3>1. Articles</h3>${L.map((l,i)=>`<div class="lgn"><label>Article<input class="c_d" data-i="${i}" maxlength="120" value="${esc(l.d)}"></label><label>Qté<input class="c_q" data-i="${i}" type="number" min="1" max="99" value="${esc(l.q)}"></label><label>Prix (F) si connu<input class="c_p" data-i="${i}" inputmode="numeric" value="${esc(l.p)}"></label>${L.length>1?`<button type="button" class="chip" data-cl="del" data-i="${i}" aria-label="Retirer">−</button>`:"<span></span>"}</div>`).join("")}
  ${L.length<20?'<button type="button" class="chip" data-cl="add">+ Ajouter un article</button>':""}
  <h3>2. Vous</h3><div class="fg"><label>Votre nom<input id="c_nom" maxlength="80" autocomplete="name" value="${esc(c.n||"")}"></label><label>Téléphone / WhatsApp<input id="c_tel" inputmode="tel" autocomplete="tel" value="${esc(c.t||"")}"></label></div>
  <h3>3. Où livrer ?</h3><div class="fg"><label>Zone<select id="c_zone"><option value="">— choisir —</option>${zs.map(z=>`<option ${z===c.z?"selected":""} value="${esc(z)}">${esc(z)}</option>`).join("")}</select></label><label>Quartier<input id="c_q" maxlength="120" value="${esc(c.q||"")}"></label></div>
@@ -475,17 +491,18 @@ function commanderRendre(){
  {const ci=document.getElementById("cap_in");if(ci)ci.onchange=async()=>{const fs=[...ci.files].slice(0,CAP_MAX-(ST.cphotos||[]).length);ST.ccerr="";lire();const keep=keepF();ST.cphotos=ST.cphotos||[];
   for(const f of fs){try{ST.cphotos.push(await capReduire(f))}catch(x){ST.ccerr=x.message}}redo(keep)}}
  el.querySelectorAll("[data-capdel]").forEach(b=>b.onclick=()=>{lire();const keep=keepF();ST.cphotos.splice(+b.dataset.capdel,1);redo(keep)});
+ liveRendu();
  const $c=id=>document.getElementById(id),lire=()=>{el.querySelectorAll(".c_d").forEach(x=>{L[+x.dataset.i].d=x.value});el.querySelectorAll(".c_q").forEach(x=>{L[+x.dataset.i].q=x.value});el.querySelectorAll(".c_p").forEach(x=>{L[+x.dataset.i].p=x.value})};
  el.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{lire();const keep=["c_nom","c_tel","c_zone","c_q","c_rep","c_note"].map(k=>[k,$c(k).value]);if(b.dataset.cl==="add")L.push({d:"",q:1,p:""});else L.splice(+b.dataset.i,1);commanderRendre();keep.forEach(([k,v])=>{$c(k).value=v})});
  $c("c_gpsb").onclick=()=>{if(!navigator.geolocation){$c("c_gps").textContent="Géolocalisation indisponible : indiquez votre quartier et un repère.";return}
   geoBouton($c("c_gps"),q=>{ST.cgps=q},()=>{ST.cgps=null})};
- $c("c_send").onclick=()=>{lire();const err=m=>{const e=$c("c_err");e.textContent=m;e.style.display="block";e.scrollIntoView({block:"center"})},val=id=>$c(id).value.trim(),lg=L.filter(l=>l.d.trim());
-  if(!lg.length)return err("Indiquez au moins un article");if(!val("c_nom"))return err("Indiquez votre nom");if(digits(val("c_tel")).length<8)return err("Indiquez un numéro de téléphone valide");if(!val("c_zone"))return err("Choisissez votre zone de livraison");if(!val("c_q")&&!val("c_rep")&&!ST.cgps)return err("Indiquez votre quartier, un point de repère ou envoyez votre position");
-  const ref=ref6(),ls=lg.map(l=>({d:l.d.trim().slice(0,120),q:Math.max(1,Math.min(99,parseInt(l.q)||1)),p:l.p===""||isNaN(+String(l.p).replace(/\s/g,""))?null:Math.max(0,Math.round(+String(l.p).replace(/\s/g,"")))}));
+ $c("c_send").onclick=()=>{lire();const err=m=>{const e=$c("c_err");e.textContent=m;e.style.display="block";e.scrollIntoView({block:"center"})},val=id=>$c(id).value.trim(),lg=L.filter(l=>l.d.trim()),vi=liveItems();
+  if(!lg.length&&!vi.length)return err("Choisissez ou décrivez au moins un article");if(!val("c_nom"))return err("Indiquez votre nom");if(digits(val("c_tel")).length<8)return err("Indiquez un numéro de téléphone valide");if(!val("c_zone"))return err("Choisissez votre zone de livraison");if(!val("c_q")&&!val("c_rep")&&!ST.cgps)return err("Indiquez votre quartier, un point de repère ou envoyez votre position");
+  const ref=ref6(),ls=vi.map(x=>({d:x.d,q:x.q,p:x.p})).concat(lg).map(l=>({d:String(l.d).trim().slice(0,120),q:Math.max(1,Math.min(99,parseInt(l.q)||1)),p:l.p===""||isNaN(+String(l.p).replace(/\s/g,""))?null:Math.max(0,Math.round(+String(l.p).replace(/\s/g,"")))}));
   const pay={f:ref,n:val("c_nom"),t:val("c_tel"),z:val("c_zone"),q:val("c_q"),r:val("c_rep"),m:val("c_note"),a:ST.cgps?ST.cgps.lat:null,o:ST.cgps?ST.cgps.lng:null,l:ls.map(l=>[l.d,l.q,l.p])};
   ST.cmsg=`Commande — ${o.v} (réf. ${ref})\nNom : ${pay.n}\nTél : ${pay.t}\nZone : ${pay.z}${pay.q?" · "+pay.q:""}${pay.r?" · "+pay.r:""}\n${ST.cgps?"Position : https://maps.google.com/?q="+ST.cgps.lat+","+ST.cgps.lng+"\n":""}Articles :\n${ls.map(l=>"- "+l.q+" x "+l.d+(l.p!=null?" ("+F(l.p)+")":"")).join("\n")}${pay.m?"\nMessage : "+pay.m:""}\n${ST.cphotos&&ST.cphotos.length?"("+ST.cphotos.length+" capture(s) d'écran : à joindre dans cette conversation)\n":"(Captures d'écran à envoyer dans cette conversation)\n"}[ANGELS:${b64(pay)}]`;
   /* Envoi direct au serveur : la commande arrive dans l'espace du vendeur ; le message WhatsApp reste disponible (et sert aux captures d'écran) */
-  {const pv=Object.assign({},pay,{v:o.i||"",vt:o.t||"",vn:o.v||"",s:o.s==="qr"?"qr":"lien",m:String(pay.m||"").slice(0,300)}),dm="Commande vendeur "+o.v+" (réf. "+ref+")\n[BOUTIQUE:"+b64(pv)+"]";ST.cdm=dm.length<=5800?dm:""}
+  {const pv=Object.assign({},pay,{v:o.i||"",vt:o.t||"",vn:o.v||"",s:srcDe(o),m:String(pay.m||"").slice(0,300)}),dm="Commande vendeur "+o.v+" (réf. "+ref+")\n[BOUTIQUE:"+b64(pv)+"]";ST.cdm=dm.length<=5800?dm:""}
   ST.cref=ref;ST.cs="fin";commanderRendre()}}
 
 /* ---------- Programmer une livraison : scan d'un QR code, formulaire, QR à partager ---------- */
