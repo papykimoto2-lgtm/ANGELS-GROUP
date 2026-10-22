@@ -27,6 +27,12 @@ export function dbPortail(sb = createClient(Deno.env.get("SUPABASE_URL"), Deno.e
       if (reg.length) q = q.or(`vendeur.is.null,vendeur.not.in.(${reg.join(",")})`);
       return ok(await q.order("id").limit(n)).data || [];
     },
+    compterScans: async (h, jour) => ok(await sb.from("pd_scans").select("id", { count: "exact", head: true }).eq("visiteur", h).eq("jour", jour)).count || 0,
+    ajouterScan: async (row) => ok(await sb.from("pd_scans").upsert(row, { onConflict: "vendeur,jour,src,visiteur", ignoreDuplicates: true })),
+    statsScans: async (v, depuis) => {
+      const n = async (src) => ok(await sb.from("pd_scans").select("id", { count: "exact", head: true }).eq("vendeur", v).eq("src", src).gte("jour", depuis)).count || 0;
+      return { qr: await n("qr"), lien: await n("lien") };
+    },
     ecrireCleVendeur: async (v, h) => ok(await sb.from("pd_vendeurs").upsert({ vendeur: v, cle_hash: h, cree_le: new Date().toISOString() }, { onConflict: "vendeur" })),
     empreinteVendeur: async (v) => { const r = ok(await sb.from("pd_vendeurs").select("cle_hash").eq("vendeur", v).maybeSingle()).data; return r ? r.cle_hash : null; },
     enAttenteVendeur: async (v, n) => ok(await t().select("id,ref,type,message,cree_le,nb_photos").eq("traite", false).eq("vendeur", v).order("id").limit(n)).data || [],

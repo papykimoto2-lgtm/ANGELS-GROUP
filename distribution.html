@@ -2472,6 +2472,9 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  cxPrintBon:id=>cxPrintBon(id),cxBrPrint:()=>cxBrPrint(),cxBrCsv:()=>cxBrCsv(),
  cmdLien:()=>cmdLien(false),cmdLienNew:()=>modal("Renouveler le lien de commande","<p>L'ancien lien et son QR code cesseront de fonctionner : vos clients devront utiliser le nouveau.</p>",{label:"Renouveler",cls:"er",onSubmit:()=>{cmdLien(true);return true}}),
  demTraiter:id=>demTraiter(id),demRejeter:id=>demRejeter(id),
+ qrTelecharger:async()=>{const cv=document.getElementById("qrc");if(!cv)return;const b=await qrPng(cv),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="qr-"+String(cv.dataset.nom||"commande").replace(/[^A-Za-z0-9]+/g,"-").toLowerCase()+".png";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)},
+ qrPartager:async()=>{const cv=document.getElementById("qrc");if(!cv)return;const b=await qrPng(cv),f=new File([b],"qr-commande.png",{type:"image/png"});
+  if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],text:"Scannez ce QR code pour commander chez "+(cv.dataset.nom||"moi")}).catch(()=>{});else ACT.qrTelecharger()},
  photoZoomD:id=>{const[i,k]=id.split(":"),d=(S.demandes||[]).find(x=>x.id===i);if(d&&d.photos[+k])modal("Capture du client",`<img alt="" src="${d.photos[+k]}" style="max-width:100%">`,{label:"Fermer",onSubmit:()=>true,focus:false})},
  waPaste:async()=>{try{const t=await navigator.clipboard.readText();if(!t)return toast("Le presse-papiers est vide","err");WA.raw=(WA.raw?WA.raw+"\n\n":"")+t;waRender()}catch(e){toast("Collez avec Ctrl+V dans la zone de texte (le navigateur refuse l'accès direct)","err");const x=document.getElementById("wa_txt");if(x)x.focus()}},
  waSplit:()=>{WA.split=!WA.split;WA.imgs=WA.imgs.concat(...WA.drafts.map(d=>d.photos));WA.drafts=[];waAnalyze()},
@@ -3540,13 +3543,38 @@ async function demRejeter(id){const d=(S.demandes||[]).find(x=>x.id===id);if(!d)
  ask("Refuser la demande de "+d.nom,"Motif (article indisponible, zone non desservie…)",async m=>{
   try{if(CL.on){await CL.rpc("demande_traiter",{p_id:id,p_action:"rejetee",p_motif:m});await refresh()}else{d.statut="rejetee";d.motif=m;audit("Demande client refusée",d.nom);save()}
    toast("Demande refusée","ok");render();return true}catch(e){toast(fixErr(e),"err");return false}},{label:"Refuser",cls:"er"})}
-async function cmdLien(renew){const v=vend();if(!v)return;let link;
+/* Affiche QR personnalisée du vendeur (PNG 1080×1350) : nom du vendeur, de l'entreprise, QR agrandi, rappel « lien officiel, aucun paiement » */
+function qrCarte(v,lien){const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d"),q=qrcode(0,"M");q.addData(lien);q.make();
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0f3d2e");g.addColorStop(1,"#1d7a4f");x.fillStyle=g;x.fillRect(0,0,W,H);
+ const rr=(X,Y,w,h,r)=>{x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath()};
+ const fit=(t,max,size,w)=>{let f=size;x.font="800 "+f+"px system-ui,sans-serif";while(x.measureText(t).width>w&&f>28){f-=2;x.font="800 "+f+"px system-ui,sans-serif"}return t};
+ x.textAlign="center";x.fillStyle="#fff";x.font="600 38px system-ui,sans-serif";x.fillText(String(ORGRAW()).toUpperCase().slice(0,40),W/2,92);
+ x.fillStyle="#ffd54a";fit(v.nom,40,76,W-120);x.fillText(v.nom,W/2,190);
+ x.fillStyle="#fff";x.font="500 44px system-ui,sans-serif";x.fillText("Commandez en ligne, en 1 minute",W/2,262);
+ rr(110,310,860,860,44);x.fillStyle="#fff";x.fill();
+ const n=q.getModuleCount(),m=Math.floor(780/n),T=m*n,ox=Math.round((W-T)/2),oy=310+Math.round((860-T)/2);x.fillStyle="#000";
+ for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect(ox+k*m,oy+r*m,m,m);
+ x.fillStyle="#fff";x.font="700 44px system-ui,sans-serif";x.fillText("📸 Envoyez la capture d'écran du produit",W/2,1238);
+ x.font="400 32px system-ui,sans-serif";x.fillStyle="rgba(255,255,255,.85)";x.fillText("🔒 Lien officiel · aucun paiement ni mot de passe demandé",W/2,1296);return c}
+const qrPng=c=>new Promise(ok=>c.toBlob(ok,"image/png"));
+const qrStats=(v)=>{const dep=Date.now()-30*864e5,D=(S.demandes||[]).filter(d=>d.vendeur_id===v.id&&d.via==="lien"&&Date.parse(d.cree_le)>=dep),o=d=>D.filter(x=>(x.source||"lien")===d).length;return{dem:D.length,qr:o("qr"),lien:o("lien"),ok:D.filter(x=>x.statut!=="nouvelle"&&x.statut!=="rejetee").length}};
+async function qrStatsRendre(v){const el=document.getElementById("qrst");if(!el)return;const L=qrStats(v),u=PGV(),cle=S.config.portail_vendeur_cle;let sc=null;
+ if(u&&cle){try{sc=(await vendPost(u,v,cle)({action:"stats"})).scans}catch(e){}}
+ const T=sc?sc.qr+sc.lien:null,pc=(a,b)=>b>0?Math.round(100*a/b)+" %":"—";
+ el.innerHTML=`<h3 style="margin:12px 0 6px">Résultats sur 30 jours</h3><div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
+  <div class="pill"><b style="font-size:20px">${sc?sc.qr:"—"}</b><br><span class="sm mu">visites par QR</span></div><div class="pill"><b style="font-size:20px">${sc?sc.lien:"—"}</b><br><span class="sm mu">visites par lien</span></div>
+  <div class="pill"><b style="font-size:20px">${L.dem}</b><br><span class="sm mu">commandes reçues</span></div><div class="pill"><b style="font-size:20px">${T==null?"—":pc(L.dem,T)}</b><br><span class="sm mu">visites → commande</span></div></div>
+  <p class="sm mu" style="margin:6px 0 0">Par QR : ${L.qr} commande(s) · par lien : ${L.lien} · acceptées : ${L.ok}.${sc?"":" Les visites s'affichent dès que la clé de relève est activée (Mes demandes directes)."}</p>`}
+async function cmdLien(renew){const v=vend();if(!v)return;let link,linkQR;
  try{if(CL.on){const t=await CL.rpc("creer_lien_commande",{p_renouveler:!!renew});link=location.href.split("#")[0].split("?")[0]+"#commande="+t}else{if(!String(v.tel||"").replace(/\D/g,""))return toast("Renseignez d'abord le téléphone WhatsApp du vendeur (fiche vendeur)","err");
-   link=lienCourtCommande({boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,""),ref:v.id})||portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,i:v.id,z:S.config.zones.map(z=>z.nom)}))}}catch(e){return toast(fixErr(e),"err")}
+   const P={boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,""),ref:v.id};link=lienCourtCommande(P)||portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,i:v.id,z:S.config.zones.map(z=>z.nom)}));linkQR=lienCourtCommande(Object.assign({src:"qr"},P))||link}}catch(e){return toast(fixErr(e),"err")}
+ linkQR=linkQR||link;
  const msg=`Bonjour ! 👋 Passez votre commande chez ${v.nom} en ligne (articles, captures, quantités, position de livraison), c'est simple et rapide :\n${link}`+msgRassure();
  modal("Lien de commande de vos clients",`<p class="sm mu">Partagez ce lien ou ce QR code (WhatsApp, statut, boutique). Vos clients y décrivent leur commande : articles, captures d'écran, quantités, prix s'ils le connaissent, et leur position de livraison. Rien n'est livré avant votre validation.${CL.on?"":` <b>Sans serveur</b> : la commande du client vous arrive sur WhatsApp, <b>au ${esc(v.tel||"numéro de votre fiche")}</b> ; collez-la dans « Saisie depuis WhatsApp » et tout est prérempli, position GPS comprise. Le client y joint ses captures d'écran s'il le peut.`}</p>
- <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:150px;height:150px;background:#fff;padding:6px;border-radius:8px">${qrSvg(link)}</div><div style="flex:1;min-width:200px"><label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label></div></div>
- <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button><a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 Partager sur WhatsApp</a>${CL.on?'<button type="button" class="btn ghost er" data-act="cmdLienNew">Renouveler (l\'ancien lien cessera de fonctionner)</button>':""}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false})}
+ <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:190px;max-width:100%"><canvas id="qrc" style="width:100%;border-radius:10px" aria-label="Affiche QR code de ${esc(v.nom)}"></canvas></div><div style="flex:1;min-width:200px"><label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label>
+ <div class="flex" style="margin-top:8px"><button type="button" class="btn" data-act="qrTelecharger">⬇ Télécharger l'affiche (PNG)</button><button type="button" class="btn ghost" data-act="qrPartager">📤 Partager l'affiche</button></div></div></div><div id="qrst"></div>
+ <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button><a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 Partager sur WhatsApp</a>${CL.on?'<button type="button" class="btn ghost er" data-act="cmdLienNew">Renouveler (l\'ancien lien cessera de fonctionner)</button>':""}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
+ setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv)return;const c=qrCarte(v,linkQR);cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom;qrStatsRendre(v)},0)}
 /* Page publique */
 function renderOrder(p,submit){
  document.title=p.vendeur+" — Commander";
@@ -5660,7 +5688,7 @@ function vendDemCreer(d){
  if(!L.length)throw new Error("aucun article");
  const tel=String(d.t||"").replace(/[^0-9+]/g,"");if(tel.replace(/\D/g,"").length<8)throw new Error("téléphone du client invalide");
  S.demandes=S.demandes||[];
- S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien"});
+ S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien",source:d.s==="qr"?"qr":"lien"});
  audit("Commande client reçue par le lien du vendeur",v.nom+" — "+String(d.n||"Client").slice(0,40)+" (réf. "+ref+")");
  return{numero:ref,nom:String(d.n||"Client"),total:0,notes:[]}}
 function webImporter(text){
@@ -5704,11 +5732,12 @@ const portailPubPlanifier=()=>{clearTimeout(_pubTimer);_pubTimer=setTimeout(()=>
 setInterval(()=>{if(ME)portailPublier().catch(()=>{})},300000);setTimeout(()=>{if(ME)portailPublier().catch(()=>{})},6000);
 /* Relève des demandes de clients PAR LE VENDEUR (lien de commande du vendeur) : avec la clé de relève remise par le bureau, son appareil lit sur le serveur
    uniquement ses demandes, les importe dans « Demandes clients » puis les acquitte. Sans clé, rien ne change (WhatsApp reste le chemin). */
+const vendPost=(u,v,cle)=>b=>fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(Object.assign({vendeur:v.id,cle},b))}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.erreur||("Erreur serveur "+r.status));return j});
 const PGV=()=>{const u=window.ANGELS_PASSERELLE&&window.ANGELS_PASSERELLE.url;return u&&/^https:\/\//.test(u)?u.replace(/\/+$/,"")+"/functions/v1/portail-vendeur":""};
 let _pvBusy=false,_pvLast=0;
 async function vendeurRelever(force){const v=ME&&ME.role==="vendeur"&&vend(),cle=S&&S.config&&S.config.portail_vendeur_cle,u=PGV();
  if(!v||!cle||!u||_pvBusy||(!force&&Date.now()-_pvLast<30000))return null;_pvBusy=true;_pvLast=Date.now();
- const post=b=>fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(Object.assign({vendeur:v.id,cle},b))}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.erreur||("Erreur serveur "+r.status));return j});
+ const post=vendPost(u,v,cle);
  try{const L=(await post({action:"lister"})).demandes||[];let imp=0;
   for(const d of L){try{const n=webImporter(String(d.message||"")).ok.length;imp+=n;if(n)await demandePhotos(post,d)}catch(e){/* déjà importée ou illisible : acquittée quand même, jamais relue */}}
   if(L.length){await post({action:"acquitter",ids:L.map(d=>d.id)});save();if(imp)toast(imp+" nouvelle(s) demande(s) de client","ok");render()}
