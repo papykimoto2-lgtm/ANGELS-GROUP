@@ -1,0 +1,25 @@
+/* Pagination des tableaux : 5 000 lignes → une page dans le DOM, navigation, taille, retour page 1 au changement de filtre, impression complète, jauge de stockage.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/pagination-tableaux.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ await p.evaluate(()=>{window.__T=[];toast=(m)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};
+  const c0=S.clients.find(c=>!c.divers);for(let i=0;i<5000;i++)S.clients.push(Object.assign(JSON.parse(JSON.stringify(c0)),{id:"bulk"+i,nom:"Bulk "+String(i).padStart(4,"0"),tel:"07"+String(10000000+i)}))});
+ let ok=0,ko=0;const t=async(id,label,fn)=>{let r;try{r=await p.evaluate(fn)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
+ await t("PG-1","5 000 clients : le DOM ne contient qu'une page (50 lignes) et un bandeau de navigation",()=>{__as("admin");view="clients";ui.ct="cl";ui.cq="";const t0=performance.now();render();const ms=performance.now()-t0,n=document.querySelectorAll("main tbody tr").length,pg=document.querySelector(".pgr");return n===50&&pg&&/5\s?\d{3}/.test(pg.innerText)&&ms<1500?true:JSON.stringify({n,ms:Math.round(ms),pg:!!pg})});
+ await t("PG-2","page suivante, dernière page, précédente",()=>{const click=s=>document.querySelector(s).click();const first=()=>document.querySelector("main tbody tr td b").textContent;const a=first();click('[data-pg$="|2"]');const b2=first();const last=[...document.querySelectorAll("[data-pg]")].pop();last.click();const n=document.querySelectorAll("main tbody tr").length,c=first();return a!==b2&&/Page \d+ \/ \d+/.test(document.querySelector(".pgr").innerText)&&n>=1&&n<=50&&c!==b2?true:JSON.stringify({a,b2,c,n})});
+ await t("PG-3","taille de page réglable (100) et mémorisée",()=>{const sel=document.querySelector("[data-pgs]");sel.value="100";sel.dispatchEvent(new Event("change",{bubbles:true}));return document.querySelectorAll("main tbody tr").length===100&&localStorage.getItem("angels_pg_size")==="100"?true:document.querySelectorAll("main tbody tr").length});
+ await t("PG-4","un changement de filtre ramène à la page 1 ; un résultat court supprime la pagination",()=>{const sel=document.querySelector("[data-pgs]");sel.value="50";sel.dispatchEvent(new Event("change",{bubbles:true}));document.querySelector('[data-pg$="|2"]').click();const p2=document.querySelector('.pgr').innerText;if(!/Page 2/.test(p2))return'pas page 2';const inp=document.querySelector('[data-f=cq]');inp.value="Bulk 0042";inp.dispatchEvent(new Event("change",{bubbles:true}));return document.querySelectorAll("main tbody tr").length===1&&!document.querySelector(".pgr")?true:document.querySelectorAll("main tbody tr").length});
+ await t("PG-5","impression : la copie envoyée au moteur contient toutes les lignes, sans boutons de pagination",()=>{ui.cq="";ui.ct="cl";render();const cl=document.querySelector("main").cloneNode(true);ANGELS_PAGER.depagine(cl);const n=cl.querySelectorAll("tbody tr").length;return n>=5000&&!cl.querySelector(".pgr")?true:"lignes "+n});
+ await t("PG-6","tableau court (≤ 50 lignes) : aucune pagination",()=>{ui.cq="Bulk 004";render();const n=document.querySelectorAll("main tbody tr").length;return n<=50&&n>0&&!document.querySelector(".pgr")?true:n});
+ await t("PG-7","jauge de stockage : alerte unique à 70 % de la mémoire locale",()=>{__T.length=0;window.__stockWarn=0;stockJauge(3600000);stockJauge(3700000);return window.__stock.pct===74&&window.__stockWarn===1?true:JSON.stringify(window.__stock)});
+ await p.waitForTimeout(50);
+ await t("PG-8","jauge : un seul avertissement même après plusieurs sauvegardes",()=>__T.filter(m=>/Mémoire locale/.test(m)).length===1?true:__T.filter(m=>/Mémoire locale/.test(m)).length);
+ console.log(errs.length?errs.join("\n"):"");console.log(`RÉSULTAT : ${ok} réussis, ${ko} échecs`);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
