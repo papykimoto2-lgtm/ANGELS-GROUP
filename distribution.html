@@ -2568,6 +2568,8 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  cxPrintBon:id=>cxPrintBon(id),cxBrPrint:()=>cxBrPrint(),cxBrCsv:()=>cxBrCsv(),
  cmdLien:()=>cmdLien(false),cmdLienNew:()=>modal("Renouveler le lien de commande","<p>L'ancien lien et son QR code cesseront de fonctionner : vos clients devront utiliser le nouveau.</p>",{label:"Renouveler",cls:"er",onSubmit:()=>{cmdLien(true);return true}}),
  demTraiter:id=>demTraiter(id),demRejeter:id=>demRejeter(id),
+ lienRenouveler:async()=>{const v=vend();if(!v||!confirm("Renouveler votre QR ? Les anciens QR et liens signés cesseront d'être reconnus : vos clients devront utiliser le nouveau."))return;
+  try{await vendeurSigner(v,true);audit("QR du vendeur renouvelé",v.nom);toast("QR renouvelé : partagez le nouveau lien","ok");cmdLien(false)}catch(e){toast(e.message,"err")}},
  liveOuvrir:()=>{const v=vend();if(!v)return;if(v.live)livePanel(v);else liveForm(v)},liveEdit:()=>{const v=vend();if(v)liveForm(v)},
  liveEpuise:async id=>{const v=vend(),l=v&&v.live,x=l&&l.produits[+id];if(!x)return;const nl=Object.assign({},l,{produits:l.produits.map((y,i)=>i===+id?Object.assign({},y,{ok:!y.ok}):y)});
   try{await livePublier(v,nl);v.live=nl;save();livePanel(v)}catch(e){toast(e.message,"err")}},
@@ -3626,7 +3628,13 @@ const portailBase=()=>{let site="";try{site=ANGELS_PRINT.cfg().site||""}catch(e)
 const portailLien=h=>portailBase()+h;
 /* Lien de commande court et lisible (au lieu d'un bloc codé de plusieurs centaines de caractères, qui inquiète les clients) : …/commander?boutique=Yoyoo+Boutique&tel=0585656086.
    Hors serveur web (fichier local) : ancien lien codé. */
-function lienCourtCommande(p){const base=portailBase();if(!/\/portail$/.test(base))return null;const q=new URLSearchParams();Object.entries(p).forEach(([k,v])=>{if(v)q.set(k,String(v))});return base.replace(/\/portail$/,"/commander")+"?"+q.toString()}
+/* Lien / QR signé par le serveur (anti-fraude) : la signature couvre vendeur + nom de la boutique + téléphone ; elle est demandée à la fiche du lien et gardée tant que ces données ne changent pas */
+const sigCle=(n,t)=>String(n||"").trim().slice(0,80).toLowerCase().replace(/\s+/g," ")+"|"+String(t||"").replace(/\D/g,"").slice(0,20);
+const lienSigne=v=>!!(v&&v.lien_sig&&v.lien_sig.s&&v.lien_sig.k===sigCle(v.nom,v.tel));
+async function vendeurSigner(v,renouveler){const u=PGV(),cle=S.config.portail_vendeur_cle;if(!u||!cle||!v)return false;if(!renouveler&&lienSigne(v))return true;
+ const j=await vendPost(u,v,cle)({action:renouveler?"lien_renouveler":"lien_signer",boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,"")});v.lien_sig={k:sigCle(v.nom,v.tel),s:String(j.sig||""),rev:j.rev||0};save();return true}
+function lienCourtCommande(p){const base=portailBase();if(!/\/portail$/.test(base))return null;const q=new URLSearchParams();Object.entries(p).forEach(([k,v])=>{if(v)q.set(k,String(v))});
+ {const vv=p.ref&&S.vendeurs.find(x=>x.id===p.ref);if(vv&&sigCle(p.boutique,p.tel)===sigCle(vv.nom,vv.tel)&&lienSigne(vv))q.set("s",vv.lien_sig.s)}return base.replace(/\/portail$/,"/commander")+"?"+q.toString()}
 const msgRassure=()=>"\n🔒 Lien officiel "+(S.config.org||"ANGEL'S GROUP")+" : aucun paiement, mot de passe ou code ne vous est demandé sur cette page."
 function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,h:(v.hist||[]).map(x=>[x.a,x.ts]),...(S.config.suivi_carte!==false&&c.statut==="en_cours"?{x:v.dest?[v.dest.lat,v.dest.lng]:undefined,y:v.pos?[v.pos.lat,v.pos.lng,v.pos.ts]:undefined}:{})}}
 async function suiviLienPortail(c){return portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)))}
@@ -3681,7 +3689,7 @@ async function demRejeter(id){const d=(S.demandes||[]).find(x=>x.id===id);if(!d)
   try{if(CL.on){await CL.rpc("demande_traiter",{p_id:id,p_action:"rejetee",p_motif:m});await refresh()}else{d.statut="rejetee";d.motif=m;audit("Demande client refusée",d.nom);save()}
    toast("Demande refusée","ok");render();return true}catch(e){toast(fixErr(e),"err");return false}},{label:"Refuser",cls:"er"})}
 /* Affiche QR personnalisée du vendeur (PNG 1080×1350) : nom du vendeur, de l'entreprise, QR agrandi, rappel « lien officiel, aucun paiement » */
-function qrCarte(v,lien,live){const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d"),q=qrcode(0,"M");q.addData(lien);q.make();
+function qrCarte(v,lien,live,signe){const W=1080,H=1350,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d"),q=qrcode(0,"M");q.addData(lien);q.make();
  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0f3d2e");g.addColorStop(1,"#1d7a4f");x.fillStyle=g;x.fillRect(0,0,W,H);
  const rr=(X,Y,w,h,r)=>{x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath()};
  const fit=(t,max,size,w)=>{let f=size;x.font="800 "+f+"px system-ui,sans-serif";while(x.measureText(t).width>w&&f>28){f-=2;x.font="800 "+f+"px system-ui,sans-serif"}return t};
@@ -3693,7 +3701,7 @@ function qrCarte(v,lien,live){const W=1080,H=1350,c=document.createElement("canv
  const n=q.getModuleCount(),m=Math.floor(780/n),T=m*n,ox=Math.round((W-T)/2),oy=310+Math.round((860-T)/2);x.fillStyle="#000";
  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect(ox+k*m,oy+r*m,m,m);
  x.fillStyle="#fff";x.font="700 44px system-ui,sans-serif";x.fillText("📸 Envoyez la capture d'écran du produit",W/2,1238);
- x.font="400 32px system-ui,sans-serif";x.fillStyle="rgba(255,255,255,.85)";x.fillText("🔒 Lien officiel · aucun paiement ni mot de passe demandé",W/2,1296);return c}
+ x.font="400 32px system-ui,sans-serif";x.fillStyle="rgba(255,255,255,.85)";x.fillText(signe?"✔ VENDEUR VÉRIFIÉ · aucun paiement ni mot de passe demandé":"🔒 Lien officiel · aucun paiement ni mot de passe demandé",W/2,1296);return c}
 const qrPng=c=>new Promise(ok=>c.toBlob(ok,"image/png"));
 const qrStats=(v)=>{const dep=Date.now()-30*864e5,D=(S.demandes||[]).filter(d=>d.vendeur_id===v.id&&d.via==="lien"&&Date.parse(d.cree_le)>=dep),o=d=>D.filter(x=>(x.source||"lien")===d).length;return{dem:D.length,qr:o("qr"),lien:o("lien"),live:o("live"),ok:D.filter(x=>x.statut!=="nouvelle"&&x.statut!=="rejetee").length}};
 async function qrStatsRendre(v){const el=document.getElementById("qrst");if(!el)return;const L=qrStats(v),u=PGV(),cle=S.config.portail_vendeur_cle;let sc=null;
@@ -3720,17 +3728,18 @@ function livePanel(v){const l=v.live;if(!l)return liveForm(v);const lien=liveLie
  <div class="flex" style="margin-top:8px"><button type="button" class="btn" data-act="qrTelecharger">⬇ Télécharger l'affiche</button><button type="button" class="btn ghost" data-act="qrPartager">📤 Partager l'affiche</button><button type="button" class="btn ghost" data-act="cpTxt" data-id="${esc(lien)}">📋 Copier le lien</button></div></div></div>
  <h3 style="margin:12px 0 6px">Produits (touchez pour « épuisé »)</h3>${l.produits.map((x,i)=>`<div class="between" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span>${x.ok?"":"<s>"}${esc(x.n)}${x.p!=null?" — "+fcfa(x.p):""}${x.ok?"":"</s>"}</span>${l.actif?`<button type="button" class="btn sm ${x.ok?"ghost":"er"}" data-act="liveEpuise" data-id="${i}">${x.ok?"Marquer épuisé":"Remettre en vente"}</button>`:""}</div>`).join("")}
  <div id="qrst"></div><div class="flex" style="margin-top:10px"><button type="button" class="btn ghost" data-act="liveEdit">✏ Modifier la liste</button>${l.actif?'<button type="button" class="btn er" data-act="liveFin">⏹ Terminer le live</button>':'<button type="button" class="btn ok" data-act="liveEdit">🔴 Relancer</button>'}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
- setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv||!lien)return;const c=qrCarte(v,lien,l.titre);cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom+"-live";qrStatsRendre(v)},0)}
-async function cmdLien(renew){const v=vend();if(!v)return;let link,linkQR;
+ setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv||!lien)return;const c=qrCarte(v,lien,l.titre,lienSigne(v));cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom+"-live";qrStatsRendre(v)},0)}
+async function cmdLien(renew){const v=vend();if(!v)return;let link,linkQR;try{await vendeurSigner(v)}catch(e){}
  try{if(CL.on){const t=await CL.rpc("creer_lien_commande",{p_renouveler:!!renew});link=location.href.split("#")[0].split("?")[0]+"#commande="+t}else{if(!String(v.tel||"").replace(/\D/g,""))return toast("Renseignez d'abord le téléphone WhatsApp du vendeur (fiche vendeur)","err");
    const P={boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,""),ref:v.id};link=lienCourtCommande(P)||portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,i:v.id,z:S.config.zones.map(z=>z.nom)}));linkQR=lienCourtCommande(Object.assign({src:"qr"},P))||link}}catch(e){return toast(fixErr(e),"err")}
  linkQR=linkQR||link;
  const msg=`Bonjour ! 👋 Passez votre commande chez ${v.nom} en ligne (articles, captures, quantités, position de livraison), c'est simple et rapide :\n${link}`+msgRassure();
  modal("Lien de commande de vos clients",`<p class="sm mu">Partagez ce lien ou ce QR code (WhatsApp, statut, boutique). Vos clients y décrivent leur commande : articles, captures d'écran, quantités, prix s'ils le connaissent, et leur position de livraison. Rien n'est livré avant votre validation.${CL.on?"":` <b>Sans serveur</b> : la commande du client vous arrive sur WhatsApp, <b>au ${esc(v.tel||"numéro de votre fiche")}</b> ; collez-la dans « Saisie depuis WhatsApp » et tout est prérempli, position GPS comprise. Le client y joint ses captures d'écran s'il le peut.`}</p>
+ ${lienSigne(v)?'<div class="al sm" style="background:#e8f7ee;color:#0b5c32;margin:8px 0">✅ <b>QR signé par '+ORG()+'</b> : vos clients voient « Vendeur vérifié » ; un lien modifié par un tiers est reconnu et neutralisé.</div>':'<div class="al warn sm" style="margin:8px 0">⚠ QR non signé : activez votre clé de relève (Demandes directes) pour afficher « Vendeur vérifié » à vos clients.</div>'}
  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:190px;max-width:100%"><canvas id="qrc" style="width:100%;border-radius:10px" aria-label="Affiche QR code de ${esc(v.nom)}"></canvas></div><div style="flex:1;min-width:200px"><label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label>
  <div class="flex" style="margin-top:8px"><button type="button" class="btn" data-act="qrTelecharger">⬇ Télécharger l'affiche (PNG)</button><button type="button" class="btn ghost" data-act="qrPartager">📤 Partager l'affiche</button></div></div></div><div id="qrst"></div>
- <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button><button type="button" class="btn ghost" data-act="liveOuvrir">🔴 Mode Live</button><a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 Partager sur WhatsApp</a>${CL.on?'<button type="button" class="btn ghost er" data-act="cmdLienNew">Renouveler (l\'ancien lien cessera de fonctionner)</button>':""}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
- setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv)return;const c=qrCarte(v,linkQR);cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom;qrStatsRendre(v)},0)}
+ <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button><button type="button" class="btn ghost" data-act="liveOuvrir">🔴 Mode Live</button>${lienSigne(v)?'<button type="button" class="btn ghost" data-act="lienRenouveler" title="QR perdu, copié ou détourné : les anciens QR signés cessent de fonctionner">🔄 Renouveler mon QR</button>':""}<a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 Partager sur WhatsApp</a>${CL.on?'<button type="button" class="btn ghost er" data-act="cmdLienNew">Renouveler (l\'ancien lien cessera de fonctionner)</button>':""}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false});
+ setTimeout(()=>{const cv=document.getElementById("qrc");if(!cv)return;const c=qrCarte(v,linkQR,null,lienSigne(v));cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0);cv.dataset.nom=v.nom;qrStatsRendre(v)},0)}
 /* Page publique */
 function renderOrder(p,submit){
  document.title=p.vendeur+" — Commander";

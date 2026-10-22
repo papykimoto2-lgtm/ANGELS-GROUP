@@ -1,0 +1,74 @@
+/* Anti-fraude du QR / lien du vendeur : signature serveur (HMAC) du trio vendeur · boutique · téléphone, vérification publique oui / non, renouvellement du QR, portail (vendeur vérifié,
+   lien modifié neutralisé, lien non signé signalé), fiche du vendeur (QR signé, badge sur l'affiche, renouvellement).
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/anti-fraude-qr.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end()}r.writeHead(200,{"content-type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+(async()=>{
+ const P=await import("../supabase/functions/_shared/portail-demandes.js");
+ const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
+ const D={rev:{V1:0,V2:0}};const db={empreinteVendeur:async v=>D.rev[v]!=null?await sha("vendeur|AAAAA-BBBBB"):null,lienRev:async v=>D.rev[v]==null?null:D.rev[v],renouvelerLien:async v=>++D.rev[v]};
+ const cfg={sel:"SEL-SECRET"},vend=(b,v)=>P.traiterVendeur(db,Object.assign({vendeur:v||"V1",cle:"aaaaa-bbbbb"},b),cfg);
+ const s1=await vend({action:"lien_signer",boutique:"Yoyoo Boutique",tel:"0585656086"});
+ chk("AF-1","le vendeur (clé de relève) obtient la signature de son lien : 16 caractères hexadécimaux ; le secret n'est jamais renvoyé",s1.status===200&&/^[a-f0-9]{16}$/.test(s1.body.sig)&&!JSON.stringify(s1.body).includes("SEL-SECRET"),JSON.stringify(s1));
+ const ver=(o,sig)=>P.recevoir(db,cfg,{verif:Object.assign({v:"V1",b:"Yoyoo Boutique",t:"0585656086",s:sig===undefined?s1.body.sig:sig},o)},"1.1.1.1");
+ const bons=[await ver({}),await ver({b:"  yoyoo   BOUTIQUE "}),await ver({t:"05 85 65 60 86"})];
+ chk("AF-2","lien authentique : reconnu (casse, espaces et séparateurs du téléphone sans effet)",bons.every(x=>x.status===200&&x.body.valide===true),JSON.stringify(bons.map(x=>x.body)));
+ const mauvais=[await ver({t:"0700000000"}),await ver({b:"Autre Boutique"}),await ver({v:"V2"}),await ver({},"0".repeat(16)),await ver({},"zz"),await ver({},""),await ver({v:"INCONNU"})];
+ chk("AF-3","lien modifié (autre numéro, autre boutique, autre vendeur), signature fausse, mal formée, absente ou vendeur inconnu : non reconnu",mauvais.every(x=>x.status===200&&x.body.valide===false&&Object.keys(x.body).sort().join()==="ok,valide"),JSON.stringify(mauvais.map(x=>x.body)));
+ const sV2=await vend({action:"lien_signer",boutique:"Yoyoo Boutique",tel:"0585656086"},"V2");
+ chk("AF-4","la signature dépend du vendeur : même nom et même numéro chez un autre vendeur → signature différente, l'une ne vaut pas pour l'autre",sV2.body.sig!==s1.body.sig&&(await ver({v:"V2"},s1.body.sig)).body.valide===false&&(await ver({v:"V2"},sV2.body.sig)).body.valide===true);
+ const sec=await P.traiterVendeur(db,{vendeur:"V1",cle:"aaaaa-bbbbb",action:"lien_signer",boutique:"x",tel:"1"},{}),bad=await P.traiterVendeur(db,{vendeur:"V1",cle:"MAUVAISE",action:"lien_signer",boutique:"x",tel:"1"},cfg);
+ chk("AF-5","sans clé de relève valide : refusé (401) ; sans secret serveur : signature indisponible (503), rien de signé ; vérification sans secret : jamais « valide »",bad.status===401&&sec.status===503&&(await P.recevoir(db,{},{verif:{v:"V1",b:"Yoyoo Boutique",t:"0585656086",s:s1.body.sig}},"1.1.1.1")).body.valide===false);
+ const rn=await vend({action:"lien_renouveler",boutique:"Yoyoo Boutique",tel:"0585656086"});
+ chk("AF-6","« Renouveler le QR » : nouvelle signature ; l'ancienne (QR perdu ou copié) n'est plus reconnue, la nouvelle l'est",rn.body.sig!==s1.body.sig&&rn.body.rev===1&&(await ver({},s1.body.sig)).body.valide===false&&(await ver({},rn.body.sig)).body.valide===true,JSON.stringify(rn.body));
+ const mig=fs.readFileSync(path.join(root,"supabase/migrations/017_portail_lien_signe.sql"),"utf8"),fn=fs.readFileSync(path.join(root,"supabase/functions/portail-vendeur/index.js"),"utf8");
+ chk("AF-7","base : compteur de renouvellement ajouté ; la fonction du vendeur reçoit le secret du serveur (jamais le navigateur)",/pd_vendeurs add column if not exists lien_rev/.test(mig)&&/cfgPortail\(\)/.test(fn));
+ /* ---------- Portail ---------- */
+ await new Promise(o=>srv.listen(0,"127.0.0.1",o));const base="http://127.0.0.1:"+srv.address().port;
+ const br=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await br.newContext({viewport:{width:420,height:1000}}),errs=[];let posts=[],valide=true;
+ await ctx.route("**/functions/v1/portail-demande",async rt=>{const b=JSON.parse(rt.request().postData()||"{}");posts.push(b);rt.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify(b.verif?{ok:true,valide}:{ok:true,refs:["X"],doublons:0})})});
+ const nouvelle=async(url)=>{const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));await p.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});await p.goto(base+url);await p.waitForTimeout(800);return p};
+ const L="/portail.html?boutique=Yoyoo+Boutique&tel=0585656086&ref=V1&src=qr";
+ let pg=await nouvelle(L+"&s=0123456789abcdef");const vf=posts.find(p=>p.verif);
+ chk("AF-8","lien signé : le portail interroge le serveur (vendeur, boutique, téléphone, signature) et affiche « Vendeur vérifié »",!!vf&&vf.verif.v==="V1"&&vf.verif.b==="Yoyoo Boutique"&&vf.verif.t==="0585656086"&&vf.verif.s==="0123456789abcdef"&&/Vendeur vérifié/.test(await pg.innerText("#vf_box")),JSON.stringify(vf)+await pg.innerText("#vf_box"));
+ await pg.close();valide=false;posts=[];
+ pg=await nouvelle("/portail.html?boutique=Yoyoo+Boutique&tel=0700000000&ref=V1&src=qr&s=0123456789abcdef");
+ const rouge=await pg.innerText("#vf_box");
+ chk("AF-9","lien modifié : avertissement rouge (ne payez rien, commande envoyée à l'entreprise et non au numéro du lien)",/modifié ou n'est pas authentique/.test(rouge)&&/jamais au numéro/.test(rouge),rouge);
+ await pg.fill(".c_d","Robe");await pg.fill("#c_nom","Awa");await pg.fill("#c_tel","0701020304");await pg.selectOption("#c_zone",{index:1});await pg.fill("#c_q","Riviera");await pg.click("#c_send");await pg.waitForTimeout(300);
+ const wa=await pg.evaluate(()=>[...document.querySelectorAll("a.go[href*='wa.me']")].map(a=>a.href));posts=[];await pg.click("[data-direct]");await pg.waitForTimeout(500);
+ const cm=posts.find(p=>p.message),m=/\[BOUTIQUE:([A-Za-z0-9_-]+)\]/.exec(cm&&cm.message||""),dp=m&&JSON.parse(Buffer.from(m[1].replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8"));
+ chk("AF-10","lien modifié : le bouton WhatsApp n'envoie jamais vers le numéro du lien (0700000000) ; la commande directe ne porte ni le vendeur ni son téléphone",wa.every(h=>!/0700000000/.test(h))&&!!dp&&dp.v===""&&dp.vt==="",JSON.stringify({wa,dp:dp&&{v:dp.v,vt:dp.vt}}));
+ await pg.close();posts=[];
+ pg=await nouvelle(L);const aucune=await pg.innerText("#vf_box");
+ chk("AF-11","lien ancien sans signature : simple avertissement orange (pas de blocage), aucune requête de vérification",/Lien non vérifié/.test(aucune)&&/comptes officiels/.test(aucune)&&!posts.some(p=>p.verif),aucune);
+ await pg.close();posts=[];
+ pg=await nouvelle("/portail.html?boutique=Yoyoo+Boutique&tel=0585656086&src=qr");
+ chk("AF-12","lien sans vendeur (boutique en ligne) : aucun bandeau, aucune vérification",(await pg.innerText("#vf_box").catch(()=>""))===""&&!posts.some(p=>p.verif));
+ await pg.close();
+ /* ---------- Fiche du vendeur ---------- */
+ const sent=[];let rev=0;await ctx.route("**/functions/v1/portail-vendeur",async rt=>{const b=JSON.parse(rt.request().postData()||"{}");sent.push(b);
+  const j=b.action==="lien_signer"?{ok:true,sig:"a1b2c3d4e5f6a7b"+rev,rev}:b.action==="lien_renouveler"?{ok:true,sig:"f9e8d7c6b5a4938"+(++rev),rev}:b.action==="stats"?{ok:true,scans:{qr:0,lien:0,live:0}}:{ok:true};
+  rt.fulfill({status:200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify(j)})});
+ const d=await ctx.newPage();d.on("pageerror",e=>errs.push("D:"+e.message));d.on("dialog",x=>x.accept());await d.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://demo.supabase.co",key:"x"}});await d.goto(base+"/distribution.html");await d.waitForTimeout(600);
+ const A=await d.evaluate(async()=>{ME=S.users.find(u=>u.role==="vendeur");const v=vend();v.tel=v.tel||"0708080808";delete v.lien_sig;S.config.portail_vendeur_cle="";await cmdLien(false);await new Promise(r=>setTimeout(r,300));
+  const m=document.getElementById("modal").innerText,lnk=[...document.querySelectorAll("input[readonly]")].map(i=>i.value).find(x=>/commander/.test(x));return{non:/QR non signé/.test(m),lnk,btn:!!document.querySelector('[data-act="lienRenouveler"]')}});
+ chk("AF-13","sans clé de relève : message « QR non signé », lien sans signature, pas de bouton de renouvellement, aucun appel serveur",A.non&&!/[?&]s=/.test(A.lnk||"")&&!A.btn&&!sent.some(x=>x.action==="lien_signer"),JSON.stringify(A));
+ const B=await d.evaluate(async()=>{const v=vend();S.config.portail_vendeur_cle="AAAAA-BBBBB";await cmdLien(false);await new Promise(r=>setTimeout(r,400));
+  const m=document.getElementById("modal").innerText,lnk=[...document.querySelectorAll("input[readonly]")].map(i=>i.value).find(x=>/commander/.test(x)),lq=lienCourtCommande({boutique:v.nom,tel:String(v.tel).replace(/\D/g,""),ref:v.id,src:"qr"}),ll=liveLienDe(v);
+  const cv=document.getElementById("qrc");return{ok:/QR signé par/.test(m),lnk,lq,ll,carte:!!cv&&cv.width===1080,btn:!!document.querySelector('[data-act="lienRenouveler"]'),sig:v.lien_sig}});
+ chk("AF-14","avec clé de relève : la signature est demandée au serveur (nom + téléphone du vendeur), « QR signé » affiché, bouton « Renouveler mon QR »",B.ok&&B.btn&&B.carte&&sent.some(x=>x.action==="lien_signer"&&x.vendeur&&x.boutique&&x.tel)&&B.sig.s==="a1b2c3d4e5f6a7b0",JSON.stringify(B).slice(0,300));
+ chk("AF-15","le lien partagé, le lien du QR et le lien du live portent tous la signature (&s=…)",[B.lnk,B.lq,B.ll].every(x=>/[?&]s=a1b2c3d4e5f6a7b0/.test(x||"")),JSON.stringify([B.lnk,B.lq,B.ll]));
+ const nSig=sent.filter(x=>x.action==="lien_signer").length;await d.evaluate(async()=>{await cmdLien(false)});await d.waitForTimeout(200);
+ chk("AF-16","la signature est gardée : rouvrir la fiche ne rappelle pas le serveur tant que nom et téléphone ne changent pas",sent.filter(x=>x.action==="lien_signer").length===nSig);
+ await d.evaluate(()=>{vend().tel="0709090909"});await d.evaluate(async()=>{await cmdLien(false)});await d.waitForTimeout(300);
+ chk("AF-17","téléphone modifié : nouvelle signature demandée (l'ancienne ne couvre plus le nouveau numéro)",sent.filter(x=>x.action==="lien_signer").length===nSig+1&&(await d.evaluate(()=>vend().lien_sig.k)).endsWith("|0709090909"));
+ await d.evaluate(()=>{ACT.lienRenouveler()});await d.waitForTimeout(600);
+ const C=await d.evaluate(()=>({sig:vend().lien_sig.s,rev:vend().lien_sig.rev,audit:S.audit.some(a=>/QR du vendeur renouvelé/.test(a.action)),lnk:[...document.querySelectorAll("input[readonly]")].map(i=>i.value).find(x=>/commander/.test(x))}));
+ chk("AF-18","« Renouveler mon QR » : nouvelle signature, ancien lien remplacé, audit",sent.some(x=>x.action==="lien_renouveler")&&C.sig==="f9e8d7c6b5a49381"&&C.rev===1&&C.audit&&/[?&]s=f9e8d7c6b5a49381/.test(C.lnk||""),JSON.stringify(C));
+ chk("AF-19","aucune erreur de script",errs.length===0,errs.join(" | "));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await br.close();srv.close();process.exit(ko?1:0);
+})().catch(e=>{console.error(e);process.exit(1)});
