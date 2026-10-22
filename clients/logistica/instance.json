@@ -45,7 +45,8 @@
   ],
   "couleurs": {
     "#0e7490": "#c8352b",
-    "#0b3b4c": "#7a1d17"
+    "#0b3b4c": "#7a1d17",
+    "#14b8a6": "#f5a524"
   },
   "modules": [
     "distribution",
