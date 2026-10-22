@@ -50,8 +50,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  t("CRM-11","échange et tâche conservés après rechargement (session toujours ouverte), tâche en retard comptée",pers.n===1&&pers.h&&pers.ret===1?true:JSON.stringify(pers));
  // 5. interface : fiche 360
  await h.click('[data-a=tab][data-v=con]');await h.fill("#q","mariam");await h.waitForTimeout(300);
- const ligne=await h.$$eval("tr.cl",r=>r.map(x=>x.innerText));t("CRM-12","recherche par nom : la fiche fusionnée apparaît avec ses deux applications",ligne.filter(x=>/Distributions/.test(x)&&/Agro/.test(x)).length===1?true:JSON.stringify(ligne));
- await h.click("tr.cl");await h.waitForTimeout(200);const fi=await h.$eval("#app",e=>e.innerText);
+ const ligne=await h.$$eval(".cl",r=>r.map(x=>x.innerText));t("CRM-12","recherche par nom : la fiche fusionnée apparaît avec ses deux applications",ligne.filter(x=>/Distributions/.test(x)&&/Agro/.test(x)).length===1?true:JSON.stringify(ligne));
+ await h.click(".cl");await h.waitForTimeout(200);const fi=await h.$eval("#app",e=>e.innerText);
  t("CRM-13","fiche 360° : indicateurs, historique des achats et échange noté",/Panier moyen/.test(fi)&&/FAC-CRM-1/.test(fi)&&/5 cartons/.test(fi)?true:fi.slice(0,300));
  // 6. opposition
  const rel0=await h.evaluate(()=>{const N=Date.now()+300*864e5;return ANGELS_CRM.relances(ANGELS_CRM.contacts(N),N).length});
