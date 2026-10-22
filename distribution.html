@@ -914,12 +914,15 @@ function waParseExport(text){
  return hits>=2?msgs:null}
 function waAttach(txt){const out=[];String(txt).replace(/([\w\-. ()]+\.(?:jpe?g|png|webp))\s*\((?:fichier joint|file attached)\)|<(?:attached|joint)\s*:\s*([^>]+\.(?:jpe?g|png|webp))>/gi,(m,a,b)=>{out.push((a||b).trim())});return out}
 const waAttachClean=t=>String(t).replace(/([\w\-. ()]+\.(?:jpe?g|png|webp))\s*\((?:fichier joint|file attached)\)|<(?:attached|joint)\s*:\s*[^>]+>|<(?:m[eé]dias? omis|media omitted)>|image absente|‎?image omitted/gi," ").trim();
+/* Acompte Mobile Money annoncé par le client (montant, opérateur, référence du SMS) : contrôlé et borné ; vérifié ensuite par la caisse avant d'être enregistré */
+function acMmLire(x){if(!x||typeof x!=="object")return null;const m=Math.round(+x.m),rf=String(x.rf||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,40);if(!(m>=500&&m<=5000000)||rf.length<4)return null;
+ const ops=(S.config.modes||[]).filter(estMobile),op=String(x.op||"").slice(0,30),ok=ops.find(o=>o.toLowerCase()===op.toLowerCase());return{montant:m,op:ok||"Mobile Money",ref:rf,statut:"a_verifier",annonce_le:new Date().toISOString()}}
 function draftDeDemande(d){const dr=waParseBlock("",S.config.zones);
  Object.assign(dr,{nom:d.nom||"",tel:String(d.tel||"").replace(/\s/g,""),zone:S.config.zones.some(z=>z.nom===d.zone)?d.zone:"",quartier:d.quartier||"",repere:d.repere||"",obs:d.note||"",
-  lignes:d.lignes.map(l=>({desig:l.desig,qte:l.qte,pu:l.pu==null?NaN:l.pu})),photos:(d.photos||[]).slice(),gps:d.lat!=null?{lat:+d.lat,lng:+d.lng}:null,src:"",warn:d.lignes.some(l=>l.pu==null)?["prix à fixer"]:[]});return dr}
+  lignes:d.lignes.map(l=>({desig:l.desig,qte:l.qte,pu:l.pu==null?NaN:l.pu})),photos:(d.photos||[]).slice(),gps:d.lat!=null?{lat:+d.lat,lng:+d.lng}:null,acompte_mm:d.acompte||null,src:"",warn:d.lignes.some(l=>l.pu==null)?["prix à fixer"]:[]});return dr}
 function waDraftsFromText(text,files,split){
  {const mk=[...String(text).matchAll(/\[ANGELS:([A-Za-z0-9_-]+)\]/g)],out=[];
-  mk.forEach(m=>{try{const d=unb64(m[1]);if(d&&Array.isArray(d.l)&&d.l.length){const dr=draftDeDemande({nom:d.n,tel:d.t,zone:d.z,quartier:d.q,repere:d.r,note:d.m,lat:d.a,lng:d.o,lignes:d.l.map(x=>({desig:String(x[0]).slice(0,120),qte:Math.max(1,Math.min(9999,+x[1]||1)),pu:x[2]==null?null:Math.max(0,Math.round(+x[2]))}))});dr.demande_ref=d.f||"";dr.photos=[];out.push(dr)}}catch(e){}});
+  mk.forEach(m=>{try{const d=unb64(m[1]);if(d&&Array.isArray(d.l)&&d.l.length){const dr=draftDeDemande({nom:d.n,tel:d.t,zone:d.z,quartier:d.q,repere:d.r,note:d.m,lat:d.a,lng:d.o,acompte:acMmLire(d.ac),lignes:d.l.map(x=>({desig:String(x[0]).slice(0,120),qte:Math.max(1,Math.min(9999,+x[1]||1)),pu:x[2]==null?null:Math.max(0,Math.round(+x[2]))}))});dr.demande_ref=d.f||"";dr.photos=[];out.push(dr)}}catch(e){}});
   if(out.length)return out}
  const zones=S.config.zones,exp=waParseExport(text);let drafts=[];
  if(exp){const people=[...new Set(exp.map(m=>m.from))],isPh=n=>!!waTel(n)&&noAcc(n).replace(/[^a-z]/g,"").length===0;
@@ -1001,7 +1004,7 @@ async function waCreate(){
   const o={gps:d.gps||null,nom:d.nom.trim()||"Client WhatsApp "+d.tel,tel:d.tel||"",zone:d.zone,quartier:d.quartier.trim(),repere:d.repere.trim(),ins:"",lignes:d.lignes.map(l=>({desig:l.desig.trim(),qte:l.qte,pu:l.pu})),pay:d.pay,paye_vendeur:waPv(d),obs:d.obs};
   try{
    if(CL.on){const r=await CL.rpc("vendeur_deposer_commande",{p:{client:{nom:o.nom,tel:o.tel},adresse:{zone:o.zone,quartier:o.quartier,repere:o.repere,instructions:"",lat:o.gps?o.gps.lat:null,lng:o.gps?o.gps.lng:null},lignes:o.lignes,pay:o.pay,paye_vendeur:o.paye_vendeur,obs:o.obs}});if(d.demande_id)await CL.rpc("demande_traiter",{p_id:d.demande_id,p_action:"traitee",p_commande:r.id});for(const p of d.photos)await CL.rpc("ajouter_photo_commande",{p_commande:r.id,p_fichier:p})}
-   else{const c=creerCmdVendeur(v,o);if(d.photos.length)c.photos=d.photos.slice();if(d.demande_id){const dm=(S.demandes||[]).find(x=>x.id===d.demande_id);if(dm){dm.statut="traitee";dm.commande_id=c.id}}audit(d.demande_id?"Demande client transformée en commande":"Saisie WhatsApp",c.numero)}
+   else{const c=creerCmdVendeur(v,o);if(d.photos.length)c.photos=d.photos.slice();if(d.acompte_mm){c.acompte_mm=Object.assign({},d.acompte_mm,{statut:"a_verifier"});audit("Acompte Mobile Money annoncé par le client",c.numero+" — "+fcfa(d.acompte_mm.montant)+" ("+d.acompte_mm.op+", réf. "+d.acompte_mm.ref+")")}if(d.demande_id){const dm=(S.demandes||[]).find(x=>x.id===d.demande_id);if(dm){dm.statut="traitee";dm.commande_id=c.id}}audit(d.demande_id?"Demande client transformée en commande":"Saisie WhatsApp",c.numero)}
    ok++}catch(e){rest.push(d);errs.push((d.nom||d.tel)+" : "+fixErr(e))}}
  if(CL.on)await refresh().catch(()=>{});else save();
  WA.drafts=rest;
@@ -1598,7 +1601,7 @@ VIEWS.commandes=()=>{
  const rows=cmdRows().slice(0,200).map(c=>{
   const l=activeLiv(c.id)||livsOf(c.id).slice(-1)[0];
   return`<tr><td><b>${c.numero}</b><br><span class="mu sm">${fdt(c.date)}</span></td><td>${esc(cli(c.client_id).nom)}<br><span class="mu sm">${esc(c.adr.zone)} · ${esc(c.adr.quartier||"")}</span>${c.vendeur_id?`<br>${badge("🏪 "+(vendOf(c.vendeur_id)||{nom:"?"}).nom,"mu")}`:""}</td><td>${fcfa(c.total)}<br><span class="mu sm">solde ${fcfa(soldeCmd(c))}</span></td><td>${sb(c)}${c.priorite==="urgente"?" "+badge("URGENT","er"):""}</td><td>${l?esc(liv(l.livreur_id).nom):"—"}</td><td><button class="btn sm ghost" data-act="cmdDetail" data-id="${c.id}">Ouvrir</button></td></tr>`});
- return`${can("admin","preparateur")?colRecvSection():""}${CENTRE()?verifBox():""}<div class="between"><h1>Commandes</h1><div class="flex">${supPeut()&&!CL.on?`<button class="btn ghost" data-act="corbeille">🗑 Corbeille (${corbeille().length})</button>`:""}<button class="btn ghost" data-act="scanCmd">📷 Scanner une étiquette</button>${can("admin","commercial","superviseur")?'<button class="btn" data-act="newCmd">➕ Nouvelle commande</button>':""}</div></div>
+ return`${can("admin","preparateur")?colRecvSection():""}${acMmSection()}${CENTRE()?verifBox():""}<div class="between"><h1>Commandes</h1><div class="flex">${supPeut()&&!CL.on?`<button class="btn ghost" data-act="corbeille">🗑 Corbeille (${corbeille().length})</button>`:""}<button class="btn ghost" data-act="scanCmd">📷 Scanner une étiquette</button>${can("admin","commercial","superviseur")?'<button class="btn" data-act="newCmd">➕ Nouvelle commande</button>':""}</div></div>
  ${cmdBarre()}
  ${BORD_ROLES()?`<div class="flex noprint" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;align-items:center"><b>🖨 Bordereau de commandes</b><select data-f="bg" style="width:auto">${opts([{v:"1",t:"Regroupé par jour"},{v:"0",t:"Liste unique"}],ui.bg||"1")}</select><select data-f="bor" style="width:auto" title="Orientation de la page imprimée">${opts([{v:"p",t:"Page en portrait"},{v:"l",t:"Page en paysage"}],ui.bor||"p")}</select><button class="btn" data-act="bordPrint">🖨 Imprimer</button><button class="btn ghost" data-act="bordCsv">⬇ CSV</button><span class="sm mu">${bordRows().length} commande(s) · mêmes filtres que le tableau (recherche, statut, dates, livreur, origine, zone, paiement) ; annulées exclues sauf filtre « Annulée »</span></div>`:""}
  ${tbl(["Commande","Client / destination","Total","Statut","Livreur",""],rows,"Aucune commande")}`};
@@ -1839,7 +1842,8 @@ function cmdDetail(id){
   if(can("admin","commercial","caissier","superviseur")&&paye(c)>0)b.push(`<button class="btn ghost" data-act="docRecu" data-id="${c.id}">🧾 Reçu de paiement</button>`);
   if(fac&&can("admin","commercial","caissier"))b.push(`<button class="btn ghost" data-act="docAvoir" data-id="${fac.id}">↩ Avoir</button>`);
   if(can("admin","superviseur","commercial","preparateur","caissier")&&["prete","affectee","en_cours","livree","echouee","retour_cours","retour_recu"].includes(c.statut))b.push(`<button class="btn ghost" data-act="printBL" data-id="${c.id}">🖨 Bon de livraison${docsOf(c.id,"bl")[0]?" "+docsOf(c.id,"bl")[0].numero:""}</button>`);
-  if(c.statut==="livree"&&recuLivOf(c))b.push(`<button class="btn ghost" data-act="recuLiv" data-id="${c.id}">🧾 Reçu de livraison</button>`)}
+  if(c.statut==="livree"&&recuLivOf(c))b.push(`<button class="btn ghost" data-act="recuLiv" data-id="${c.id}">🧾 Reçu de livraison</button>`);
+  if(c.acompte_mm&&can("admin","caissier")){const a=c.acompte_mm;if(a.statut==="a_verifier")b.push(`<button class="btn" data-act="acMmOk" data-id="${c.id}">💳 Acompte ${fcfa(a.montant)} reçu</button><button class="btn er ghost" data-act="acMmNon" data-id="${c.id}">Acompte non reçu</button>`)}}
  if(nPhotos(c)||canPhoto(c))b.push(`<button class="btn ghost" data-act="cmdPhotos" data-id="${c.id}">📷 ${nPhotos(c)?"Photos jointes ("+nPhotos(c)+")":"Ajouter des photos"}</button>`);
  if(c.vendeur_id&&!verifOuverte(c)&&CENTRE()&&["prete","affectee","en_cours"].includes(c.statut)&&verifReste(c)>0)b.push(`<button class="btn wa" data-act="vpOuvrir" data-id="${c.id}">💳 Le client dit avoir déjà payé le vendeur</button>`);
  if(cmdNiveau(c))b.push(`<button class="btn" data-act="cmdEdit" data-id="${c.id}">✏ Modifier la commande</button>`);
@@ -2666,7 +2670,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
    audit("Retour réceptionné",c.numero+" — "+d.dec);done("Retour enregistré")}})},
  forceStatut:id=>{const c=cmd(id);modal("Correction exceptionnelle — "+c.numero,`<div class="al warn">Réservé à l'administrateur. L'opération est tracée dans le journal d'audit. Le stock et les fonds ne sont pas recalculés automatiquement.</div><label>Nouveau statut<select name="s">${opts(Object.entries(ST).map(e=>({v:e[0],t:e[1]})),c.statut)}</select></label><label>Justification<textarea name="m" required rows="2"></textarea></label>`,
   {label:"Appliquer",cls:"er",onSubmit:d=>{if(CL.on)return CL.go(()=>CL.rpc("corriger_statut",{p_cid:c.id,p_to:d.s,p_motif:d.m}),"Statut corrigé");const old=c.statut;c.hist.push({ts:now(),de:old,a:d.s,par:who(),note:"CORRECTION EXCEPTIONNELLE : "+d.m});c.statut=d.s;audit("Correction de statut",`${c.numero} : ${ST[old]} → ${ST[d.s]} — ${d.m}`);done("Statut corrigé")}})},
- recuLiv:id=>recuLivOpen(id),recuLivPrint:id=>{const c=cmd(id),l=c&&recuLivOf(c);if(!l)return;ANGELS_PRINT.ouvrir({division:"distribution",titre:"Reçu de livraison",ref:c.numero,date:String(l.fin_at||"").slice(0,10),montant:l.montant_encaisse||0,emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps:recuLivCorps(c,l)}).catch(e=>toast("Impression impossible : "+e.message,"err"))},
+ acMmOk:id=>acMmOk(id),acMmNon:id=>acMmNon(id),recuLiv:id=>recuLivOpen(id),recuLivPrint:id=>{const c=cmd(id),l=c&&recuLivOf(c);if(!l)return;ANGELS_PRINT.ouvrir({division:"distribution",titre:"Reçu de livraison",ref:c.numero,date:String(l.fin_at||"").slice(0,10),montant:l.montant_encaisse||0,emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps:recuLivCorps(c,l)}).catch(e=>toast("Impression impossible : "+e.message,"err"))},
  printBL:id=>{if(CL.on)return CL.doc(id,"bl");const c=cmd(id);const d=docsOf(id,"bl")[0]||emettreDoc("bl",c);save();docOpen(d)},
  docFac:id=>{if(CL.on)return CL.doc(id,"facture");const c=cmd(id);let d=docsOf(id,"facture").find(x=>avoirsDe(x.id)<x.total);if(!d)d=emettreDoc("facture",c);save();docOpen(d)},
  docRecu:id=>{if(CL.on)return CL.doc(id,"recu");const c=cmd(id);let d=docsOf(id,"recu").slice(-1)[0];if(!d||d.total_paye!==paye(c))d=emettreDoc("recu",c);if(!d)return toast("Aucun paiement enregistré","err");save();docOpen(d)},
@@ -3664,8 +3668,23 @@ function demandeCard(d){
  <ul style="margin:8px 0 6px 18px">${d.lignes.map(l=>`<li>${l.qte} × ${esc(l.desig)} — ${l.pu==null?'<i class="mu">prix à fixer</i>':fcfa(l.pu)+" l'unité"}${l.img!=null&&l.img>=0&&ph[l.img]?` <span class="mu">(capture jointe)</span>`:""}</li>`).join("")}</ul>
  ${ph.length?`<div class="wph">${ph.map((p,k)=>`<img alt="" src="${p}" data-act="photoZoomD" data-id="${d.id}:${k}" style="max-width:30%;border-radius:8px;cursor:zoom-in">`).join("")}</div>`:""}
  ${d.note?`<div class="sm" style="margin-top:6px">💬 ${esc(d.note)}</div>`:""}
+ ${d.acompte?`<div class="pill" style="margin-top:8px">💳 <b>Acompte Mobile Money annoncé : ${fcfa(d.acompte.montant)}</b> — ${esc(d.acompte.op)} · réf. ${esc(d.acompte.ref)}<br><span class="sm mu">Il sera vérifié par la caisse avant d'être enregistré.</span></div>`:""}
  <div class="sm mu" style="margin-top:6px">${est?"Estimation client : "+fcfa(est)+(sans?" + articles sans prix":""):"Aucun prix indiqué"}</div>
  <div class="flex" style="margin-top:10px"><button class="btn ok" data-act="demTraiter" data-id="${d.id}">✔ Créer la commande</button><button class="btn er ghost" data-act="demRejeter" data-id="${d.id}">Refuser</button></div></div>`}
+/* Acomptes Mobile Money annoncés par les clients : la caisse vérifie la réception sur le compte avant de les enregistrer (référence unique) */
+const acMmAttente=()=>S.commandes.filter(c=>c.acompte_mm&&c.acompte_mm.statut==="a_verifier");
+function acMmSection(){if(!can("admin","caissier"))return"";const L=acMmAttente();if(!L.length)return"";
+ return`<div class="card" style="border-left:4px solid #b86e00"><h2 style="margin-top:0">💳 Acomptes Mobile Money à vérifier (${L.length})</h2><p class="sm mu">Vérifiez sur le compte de l'entreprise que le SMS de la référence correspond bien au montant, puis confirmez.</p>
+ ${tbl(["Commande","Client","Montant","Opérateur","Référence","Annoncé",""],L.map(c=>{const a=c.acompte_mm,cl=cli(c.client_id)||{};return`<tr><td><b>${esc(c.numero)}</b></td><td>${esc(cl.nom||"")}</td><td>${fcfa(a.montant)}</td><td>${esc(a.op)}</td><td>${esc(a.ref)}${refUtilisee(a.ref)?' <span class="bd er">déjà utilisée</span>':""}</td><td>${fdt(a.annonce_le)}</td><td><button class="btn sm ok" data-act="acMmOk" data-id="${c.id}">✔ Reçu</button> <button class="btn sm er ghost" data-act="acMmNon" data-id="${c.id}">Non reçu</button></td></tr>`}),"")}</div>`}
+function acMmOk(id){const c=cmd(id),a=c&&c.acompte_mm;if(!a||a.statut!=="a_verifier")return;if(!can("admin","caissier"))return toast("Réservé à l'administrateur et au caissier","err");
+ if(refUtilisee(a.ref))return toast("Cette référence de transaction est déjà enregistrée : acompte refusé","err");
+ if(!confirm("Confirmer la réception de "+fcfa(a.montant)+" ("+a.op+", réf. "+a.ref+") sur le compte de l'entreprise ?"))return;
+ S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,montant:a.montant,mode:a.op,ref:a.ref,ts:now(),par:who()});
+ a.statut="valide";a.par=who();a.valide_le=now();c.paiement=paye(c)>=c.total&&c.total>0?"avance":"partiel";c.mode=a.op;
+ audit("Acompte Mobile Money confirmé",c.numero+" — "+fcfa(a.montant)+" — réf. "+a.ref);save();render();toast("Acompte enregistré : "+c.numero,"ok")}
+function acMmNon(id){const c=cmd(id),a=c&&c.acompte_mm;if(!a||a.statut!=="a_verifier")return;if(!can("admin","caissier"))return toast("Réservé à l'administrateur et au caissier","err");
+ if(!confirm("Marquer l'acompte de "+fcfa(a.montant)+" (réf. "+a.ref+") comme NON reçu ?"))return;a.statut="refuse";a.par=who();a.refus_le=now();
+ audit("Acompte Mobile Money non reçu",c.numero+" — "+fcfa(a.montant)+" — réf. "+a.ref);save();render();toast("Acompte refusé : le client doit être recontacté","ok")}
 function demandesSection(v){const L=demandesOf(v);
  if(!L.length&&ME&&ME.role==="vendeur")return`<h2>📥 Demandes reçues de vos clients (0)</h2><p class="mu sm">Aucune demande pour l'instant. Partagez votre lien client (🔗 Lien client sur l'accueil) : les commandes de vos clients arriveront ici.</p>`;
  return L.length?`<h2>📥 Demandes reçues de vos clients (${L.length})</h2><p class="mu sm">Vos clients commandent eux-mêmes via votre lien. Vérifiez les articles et les prix, puis créez la commande : ${ORG()} confirme et livre.</p>${L.map(demandeCard).join("")}`:""}
@@ -5840,7 +5859,7 @@ function vendDemCreer(d){
  if(!L.length)throw new Error("aucun article");
  const tel=String(d.t||"").replace(/[^0-9+]/g,"");if(tel.replace(/\D/g,"").length<8)throw new Error("téléphone du client invalide");
  S.demandes=S.demandes||[];
- S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien",source:d.s==="qr"||d.s==="live"?d.s:"lien"});
+ S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],acompte:acMmLire(d.ac),note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien",source:d.s==="qr"||d.s==="live"?d.s:"lien"});
  audit("Commande client reçue par le lien du vendeur",v.nom+" — "+String(d.n||"Client").slice(0,40)+" (réf. "+ref+")");
  return{numero:ref,nom:String(d.n||"Client"),total:0,notes:[]}}
 function webImporter(text){
