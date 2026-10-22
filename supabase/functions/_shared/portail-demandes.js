@@ -12,6 +12,15 @@ const rep = (status, body) => ({ status, body });
 const err = (status, message) => rep(status, { ok: false, erreur: message });
 const MARQ = /\[(BOUTIQUE|LIVRAISON|ABONNEMENT):([A-Za-z0-9_-]{8,5000})\]/g;
 const TAILLE_MAX = 6000, PAR_MESSAGE_MAX = 3;
+const CAPTURE = /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/, CAPTURES_MAX = 5, CAPTURE_TAILLE = 150000, CAPTURES_TOTAL = 600000;
+/* Captures d'écran du client (JPEG compressés par le portail) : bornées en nombre, en taille unitaire et en volume total */
+function lireCaptures(req) {
+  if (req.photos == null) return [];
+  if (!Array.isArray(req.photos)) return null;
+  const L = req.photos;
+  if (L.length > CAPTURES_MAX || L.some((x) => typeof x !== "string" || x.length > CAPTURE_TAILLE || !CAPTURE.test(x))) return null;
+  return L;
+}
 
 function decoder(s) {
   s = String(s).replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
@@ -30,6 +39,7 @@ export function lireMarqueurs(message) {
   }
   return out;
 }
+const refDemande = (r) => String(r || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 12);
 export const empreinteVisiteur = (ip, sel) => sha256hex("portail|" + String(sel || "") + "|" + String(ip || "inconnu"));
 
 /* ================= Visiteur du portail (public) ================= */
@@ -39,6 +49,10 @@ export async function recevoir(db, cfg, req, ip, now = Date.now()) {
   if (message.length > TAILLE_MAX) return err(413, "Message trop long");
   let M; try { M = lireMarqueurs(message); } catch (e) { return err(400, e.message); }
   if (!M.length) return err(400, "Aucune demande dans ce message");
+  const photos = lireCaptures(req);
+  if (!photos) return err(400, "Captures d'écran illisibles (5 images JPEG au plus)");
+  if (photos.reduce((t, x) => t + x.length, 0) > CAPTURES_TOTAL) return err(413, "Captures trop volumineuses");
+  if (photos.length && M.length !== 1) return err(400, "Captures : une seule demande par envoi");
   if (M.length > PAR_MESSAGE_MAX) return err(400, "Trop de demandes dans un même message");
   if (new Set(M.map((x) => x.ref)).size !== M.length) return err(400, "Références en double");
   const h = await empreinteVisiteur(ip, cfg.sel);
@@ -47,7 +61,9 @@ export async function recevoir(db, cfg, req, ip, now = Date.now()) {
   const recues = [], doublons = [];
   for (const m of M) {
     if (await db.existe(m.ref)) { doublons.push(m.ref); continue; }
-    await db.inserer({ ref: m.ref, type: m.type, message, ip_hash: h, vendeur: m.vendeur || null }); recues.push(m.ref);
+    await db.inserer({ ref: m.ref, type: m.type, message, ip_hash: h, vendeur: m.vendeur || null, nb_photos: photos.length });
+    if (photos.length) await db.insererPhotos(m.ref, photos);
+    recues.push(m.ref);
   }
   return rep(200, { ok: true, refs: recues.concat(doublons), doublons: doublons.length });
 }
@@ -57,6 +73,7 @@ export async function traiterBureau(db, cfg, req, adminKey) {
   if (!cfg.adminKey || !egal(adminKey, cfg.adminKey)) return err(401, "Clé d'administration invalide");
   const a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteListe(100) });
+  if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), null) });
   if (a === "publier") return publierCatalogue(db, req);
   if (a === "cle_vendeur") return cleVendeur(db, req);
   if (a === "acquitter") {
@@ -109,6 +126,7 @@ export async function traiterVendeur(db, req) {
   if (!h || !egal(h, await sha256hex("vendeur|" + cle))) return err(401, "Clé de relève invalide");
   const a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteVendeur(v, 100) });
+  if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), v) });
   if (a === "acquitter") {
     const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
     if (ids.length) await db.acquitterVendeur(v, ids); return rep(200, { ok: true, acquittes: ids.length });
