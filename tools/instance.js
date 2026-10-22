@@ -8,9 +8,9 @@ const cdir = path.join(racine, "clients", client);
 if (!fs.existsSync(path.join(cdir, "instance.json"))) { console.error("Client inconnu : " + client); process.exit(1); }
 const cfg = JSON.parse(fs.readFileSync(path.join(cdir, "instance.json"), "utf8"));
 const out = path.join(racine, "dist", client);
-const PAGES = { transport: ["transport.html", "manifest-transport.webmanifest", /^icons\/transport-/], agro: ["agro.html", "manifest-agro.webmanifest", /^icons\/agro-/] };
+const PAGES = { placement: ["placement.html", "placement-engine.js"], assurance: ["assurance.html", "assurance-engine.js"], transport: ["transport.html", "manifest-transport.webmanifest", /^icons\/transport-/], agro: ["agro.html", "manifest-agro.webmanifest", /^icons\/agro-/] };
 const TOUJOURS_EXCLUS = /^(tests|tools|supabase|docs|android|clients|dist|node_modules|\.git|\.github|\.claude)(\/|$)|^(README\.md|package.*\.json|vercel\.json)$/;
-const TEXTE = /\.(html|js|webmanifest|json)$/;
+const TEXTE = /\.(html|js|css|webmanifest|json)$/;
 const exclus = [];
 Object.keys(PAGES).forEach(m => { if (!cfg.modules.includes(m)) exclus.push(PAGES[m][0], PAGES[m][1], PAGES[m][2]); });
 if (!(cfg.outils || []).includes("compta")) exclus.push("compta-groupe.html");

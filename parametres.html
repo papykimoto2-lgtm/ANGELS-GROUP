@@ -95,7 +95,8 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 const $=s=>document.getElementById(s);
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
 const lire=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
-const MODS=[{id:"dist",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)"},{id:"trans",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)"},{id:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)"}];
+const MQ_=window.ERP_MARQUE||{modules:["distribution","transport","agro"],outils:["crm"]};
+const MODS=[{id:"dist",mod:"distribution",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)"},{id:"trans",mod:"transport",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)"},{id:"agro",mod:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)"}].filter(x=>(MQ_.modules||[]).includes(x.mod));
 /* ---------- Utilisateurs et rôles de chaque application (créés depuis le hub) ---------- */
 const E=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hashPin=(id,p)=>{let x=5381;for(const c of id+":"+p)x=((x<<5)+x+c.charCodeAt(0))|0;return x};
@@ -513,7 +514,7 @@ function clView(){csView();if(!ssView._n){ssView._n=1;ssRender()}const e=clEff()
  const A=(()=>{try{return JSON.parse(localStorage.getItem("angels_erp_v1")||"null")}catch(x){return null}})(),c=(A&&A.config)||{};
  $("cl-apps").innerHTML=[["Synchronisation entre postes (cet appareil)",ANGELS_SYNC.actif()],["Passerelle livreur (Distributions)",c.passerelle_actif===true],["Pont téléphonique (Distributions)",!!(c.appel_pont&&c.appel_pont.actif)],["Application des livreurs (livreur.html)",!e.off&&!!e.url]].map(x=>`<li><span>${x[0]}</span><b style="color:${x[1]?"#118a4b":"#6b7390"}">${x[1]?"● Actif":"○ Inactif"}</b></li>`).join("")}
 /* État de la synchronisation (envoi ↔ réception) : lecture et actions sur les trois applications. */
-const SS_APPS=[["distribution","Distributions"],["transport","Transport"],["agro","Agro"],["crm","CRM"]];
+const SS_APPS=[["distribution","Distributions"],["transport","Transport"],["agro","Agro"],["placement","Placement"],["assurance","Assurance"],["crm","CRM"]].filter(a=>(MQ_.modules||[]).includes(a[0])||(MQ_.outils||[]).includes(a[0]));
 const ssSel=()=>{const v=$("ss-app").value;return v==="tous"?SS_APPS:SS_APPS.filter(a=>a[0]===v)};
 const ssHeure=t=>t?new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"—";
 let SSD={};
