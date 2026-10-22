@@ -3,6 +3,62 @@
   "nom": "LOGISTICA",
   "remplacements": [
     [
+      "\"s\":\"YW5nZWxzLWRlbW8tMjAyNg==\",\"h\":\"v3l6xZ/zqYp7e91ov33bbD69jUlngFx9y1GL/fA7DEM=\"",
+      "\"s\":\"Gmt2PN55CpESfdtywoJVcw==\",\"h\":\"FrwZ4H7BtBV/u2FMxhPhQKy0D5WfFAhqqHgAlpkM0zc=\""
+    ],
+    [
+      "Demo@Angels2026",
+      "Demo@Logistica2026"
+    ],
+    [
+      "[\"P-RIZ\",\"Riz 25 kg\",14500,40],[\"P-HUI\",\"Huile végétale 5 L\",6500,60],[\"P-SUC\",\"Sucre 5 kg\",3500,80],[\"P-SAV\",\"Savon (carton)\",8000,25],[\"P-EAU\",\"Eau minérale (pack)\",1800,120]",
+      "[\"P-RIZ\",\"Cartons d'expédition M (lot de 20)\",14500,40],[\"P-HUI\",\"Sacs de livraison isothermes\",6500,60],[\"P-SUC\",\"Adhésif d'emballage (lot de 6)\",3500,80],[\"P-SAV\",\"Enveloppes sécurisées A4 (lot de 100)\",8000,25],[\"P-EAU\",\"Film à bulles (rouleau)\",1800,120]"
+    ],
+    [
+      "[\"PR-EMB\",\"Emballage cadeau\",1000,\"Papier cadeau et ruban\"]",
+      "[\"PR-DOC\",\"Dépôt et retrait de plis et documents\",1500,\"Collecte et remise de plis chez le client\"]"
+    ],
+    [
+      "[\"PR-INS\",\"Installation / mise en service\",5000,\"Déplacement et mise en route chez le client\"]",
+      "[\"PR-INT\",\"Expédition à l'international\",15000,\"Prise en charge, emballage et expédition de colis et documents\"]"
+    ],
+    [
+      "\"Boutique Mariam\"",
+      "\"Boutique Awa Mode\""
+    ],
+    [
+      "\"Restaurant Chez Tantie\"",
+      "\"Cabinet Koffi & Associés\""
+    ],
+    [
+      "recu_par:\"Tantie\"",
+      "recu_par:\"Me Koffi\""
+    ],
+    [
+      "addr(\"Restaurant\"",
+      "addr(\"Bureau\""
+    ],
+    [
+      "\"Alain Kouadio\"",
+      "\"Pharmacie Les Deux Plateaux\""
+    ],
+    [
+      "ANGEL\\'S GROUP",
+      "LOGISTICA"
+    ],
+    [
+      "Angel\\'s Group",
+      "Logistica"
+    ],
+    [
+      "ANGEL\\'S",
+      "LOGISTICA"
+    ],
+    [
+      "Angel\\'s",
+      "Logistica"
+    ],
+    [
       "https://angelsgroups.vercel.app",
       ""
     ],
@@ -41,11 +97,24 @@
     [
       "Angel's",
       "Logistica"
+    ],
+    [
+      "ANGELS",
+      "LOGISTICA"
+    ],
+    [
+      "Angels",
+      "Logistica"
+    ],
+    [
+      "angels",
+      "logistica"
     ]
   ],
   "couleurs": {
     "#0e7490": "#c8352b",
-    "#0b3b4c": "#7a1d17"
+    "#0b3b4c": "#7a1d17",
+    "#14b8a6": "#f5a524"
   },
   "modules": [
     "distribution",
