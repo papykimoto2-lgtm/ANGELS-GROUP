@@ -3126,13 +3126,14 @@ function histMoto(m){
    VENDEURS PARTENAIRES (vendeurs en ligne / fournisseurs)
    ============================================================ */
 function vendDue(v){
- if(CL.on&&CL.vd[v.id]){const x=CL.vd[v.id];return{acquis:x.acquis,regle:x.regle,restant:x.restant,attente:x.attente,elig:x.elig.map(e=>cmd(e.commande_id)).filter(Boolean),net:c=>(x.elig.find(e=>e.commande_id===c.id)||{}).net||0}}
+ if(CL.on&&CL.vd[v.id]){const x=CL.vd[v.id];const echecs=S.commandes.filter(c=>c.vendeur_id===v.id&&["echouee","retour_cours","retour_recu"].includes(c.statut)&&(+c.frais||0)>0),dette=echecs.reduce((a,c)=>a+(+c.frais||0),0);return{acquis:x.acquis,regle:x.regle,dette,echecs,restant:x.restant-dette,attente:x.attente,elig:x.elig.map(e=>cmd(e.commande_id)).filter(Boolean),net:c=>(x.elig.find(e=>e.commande_id===c.id)||{}).net||0}}
  const mine=S.commandes.filter(c=>c.vendeur_id===v.id);
  const base=c=>c.montant_produits-c.remise-(c.paye_vendeur||0),net=c=>Math.round(base(c)*(1-(+v.commission_pct||0)/100));
  const elig=mine.filter(c=>c.statut==="livree"&&base(c)>0&&soldeCmd(c)===0);
  const acquis=elig.reduce((a,c)=>a+net(c),0),regle=S.reglements.filter(r=>r.vendeur_id===v.id).reduce((a,r)=>a+r.montant,0);
  const attente=mine.filter(c=>["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut)&&base(c)>0).reduce((a,c)=>a+net(c),0);
- return{acquis,regle,restant:acquis-regle,attente,elig,net}}
+ const echecs=mine.filter(c=>["echouee","retour_cours","retour_recu"].includes(c.statut)&&(+c.frais||0)>0),dette=echecs.reduce((a,c)=>a+(+c.frais||0),0);
+ return{acquis,regle,dette,echecs,restant:acquis-regle-dette,attente,elig,net}}
 const normTxt=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
 function creerCmdVendeur(v,d){
  const tel=(d.tel||"").replace(/\s/g,""),nom=(d.nom||"").trim();
@@ -3982,7 +3983,8 @@ function vendReglerForm(id){const v=vendOf(id),d=vendDue(v),c=cxCaissePrinc(),us
  <div id="vr_info" class="sm" style="margin-top:6px">${usesCaisse?(c?`💵 Un paiement en espèces sort de la caisse « <b>${esc(c.nom)}</b> » (solde ${fcfa(cxSolde(c))}).`:'<span style="color:var(--er)">⚠ Aucune caisse ouverte : le paiement en espèces est impossible tant que la caisse n\'est pas ouverte.</span>'):""}</div>`,
  {label:"Enregistrer le règlement",cls:"ok",onSubmit:x=>{const m=Math.round(+x.m);if(!(m>0)||m>d.restant)return toast("Montant invalide (maximum "+fcfa(d.restant)+")","err"),false;return reglerVendeur(v,m,x.mode,x.note)}})}
 function vendDetail(id){const v=vendOf(id),d=vendDue(v),rg=S.reglements.filter(r=>r.vendeur_id===id).slice().reverse();
- modal("Détail — "+v.nom,`<div class="pill">Net acquis <b>${fcfa(d.acquis)}</b> · déjà réglé <b>${fcfa(d.regle)}</b> · reste <b>${fcfa(d.restant)}</b></div>
+ modal("Détail — "+v.nom,`<div class="pill">Net acquis <b>${fcfa(d.acquis)}</b> · déjà réglé <b>${fcfa(d.regle)}</b>${d.dette?` · frais de course dus (livraisons échouées) <b>${fcfa(d.dette)}</b>`:""} · reste <b>${fcfa(d.restant)}</b></div>
+ ${d.echecs.length?`<h3 style="margin:10px 0 4px">Livraisons échouées : course due par le vendeur</h3>${tbl(["Commande","Statut","Course due"],d.echecs.map(c=>`<tr><td>${esc(c.numero)}</td><td>${esc(ST[c.statut])}</td><td><b>${fcfa(c.frais)}</b></td></tr>`),"")}`:""}
  <h3 style="margin:10px 0 4px">Commandes livrées et encaissées</h3>${tbl(["Commande","Livrée le","Articles","Net pour le fournisseur"],d.elig.map(c=>`<tr><td>${esc(c.numero)}</td><td>${fdt(livreeLe(c))}</td><td class="sm">${c.lignes.map(l=>esc(l.qte+"× "+lname(l))).join(", ")}</td><td><b>${fcfa(d.net(c))}</b></td></tr>`),"Aucune")}
  <h3 style="margin:10px 0 4px">Règlements déjà faits</h3>${tbl(["Date","Montant","Mode","Note"],rg.map(r=>`<tr><td>${fdt(r.ts)}</td><td><b>${fcfa(r.montant)}</b></td><td>${esc(r.mode||"")}</td><td class="sm">${esc(r.note||"")}</td></tr>`),"Aucun règlement")}`,{label:"Fermer",onSubmit:()=>true,focus:false,wide:true})}
 /* ---------- État des versements aux vendeurs partenaires (finance et espace vendeur) ----------
