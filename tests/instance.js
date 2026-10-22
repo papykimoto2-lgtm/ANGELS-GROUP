@@ -15,17 +15,20 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  t("INS-2","tests, outils, serveur et documentation non publiés",["tests","tools","supabase","clients","docs","README.md"].every(f=>!fs.existsSync(path.join(root,f)))?true:"fuite");
  t("INS-3","plus aucune mention d'ANGEL'S dans les écrans (hub, distribution, CRM)",["index.html","distribution.html","crm.html","manifest-hub.webmanifest"].every(f=>!/ANGEL'S|Angel's/.test(lire(f)))?true:"marque d'origine");
  t("INS-4","service worker : nom propre, coque sans fichier absent",/const V = "logistica-/.test(lire("sw.js"))&&!/transport\.html|agro\.html|compta-groupe\.html/.test(lire("sw.js").match(/const COQUE = \[[\s\S]*?\];/)[0])?true:"sw");
- t("INS-5","aucun secret ni mot de passe en clair dans l'instance",!/Lg-|Demo@Angels2026\b.*Logistica/.test(lire("marque.js"))&&/"h":"/.test(lire("marque.js"))?true:"secret");
+ t("INS-5","aucun secret ni mot de passe en clair dans l'instance",!/Lg-|Demo@Logistica2026\b.*Logistica/.test(lire("marque.js"))&&/"h":"/.test(lire("marque.js"))?true:"secret");
  const h=await page("index.html");
  const cartes=await h.$$eval(".card[data-mod]",c=>c.map(x=>x.dataset.mod).sort().join());
  t("INS-5b","modules choisis publiés : Placement, Assurance, socle d'écran, feuille de style aux couleurs LOGISTICA",["placement.html","placement-engine.js","assurance.html","assurance-engine.js","shell-engine.js","modules.css"].every(f=>fs.existsSync(path.join(root,f)))&&/#c8352b/i.test(lire("modules.css"))&&!/#0e7490/i.test(lire("modules.css"))?true:"manquant");
  t("INS-5c","isolation : la passerelle pointe vers le projet Supabase de LOGISTICA, jamais celui d'ANGEL'S",/hggfwxkmdylrgikokbaw/.test(lire("passerelle-config.js"))&&!/gfzqxoolorbejxnxrlji/.test(Object.keys({a:1}).length?fs.readdirSync(root).filter(f=>/\.(html|js|json|webmanifest)$/.test(f)).map(lire).join(""):"")&&!/angelsgroups/.test(lire("portail.html"))?true:"fuite vers ANGEL'S");
+ const toutes=[];(function parc(d){fs.readdirSync(d,{withFileTypes:true}).forEach(e=>{const f=path.join(d,e.name);if(e.isDirectory())parc(f);else if(/\.(html|js|css|json|webmanifest)$/.test(e.name))toutes.push(f)})})(root);
+ const traces=toutes.filter(f=>/angel/i.test(fs.readFileSync(f,"utf8"))).map(f=>path.relative(root,f));
+ t("INS-5d","aucune trace d'ANGEL'S dans l'instance (texte, identifiants, mot de passe de démonstration, e-mails)",traces.length===0?true:traces.join(", "));
  t("INS-6","hub : seules les cartes choisies (Distribution, Placement, Assurance, CRM, Paramètres, Portail)",cartes==="assurance,crm,distribution,parametres,placement,portail"?true:cartes);
  t("INS-7","hub : titre LOGISTICA, onglets Distributions, Placement et Assurance",/LOGISTICA/.test(await h.title())&&(await h.$$eval("#tabs .tab",x=>x.length))===3?true:await h.title());
- const mq=await h.evaluate(()=>({id:ERP_MARQUE.id,adm:ERP_MARQUE.admin.nom,u:ANGELS_AUTH.adminProd("x")}));
+ const mq=await h.evaluate(()=>({id:ERP_MARQUE.id,adm:ERP_MARQUE.admin.nom,u:LOGISTICA_AUTH.adminProd("x")}));
  t("INS-8","administrateur propre à l'instance (pas KESSIE), changement de mot de passe imposé",mq.adm==="ADMIN"&&mq.u.nom==="ADMIN"&&mq.u.chg===true?true:JSON.stringify(mq));
  const mdp=process.env.LOGISTICA_MDP;
- if(mdp){const v=await h.evaluate(async m=>({bon:await ANGELS_AUTH.verifier(m,ANGELS_AUTH.adminProd("x").pwd),mauvais:await ANGELS_AUTH.verifier("Demo@Angels2026",ANGELS_AUTH.adminProd("x").pwd),kessie:await ANGELS_AUTH.verifier("Kessie",ANGELS_AUTH.adminProd("x").pwd)}),mdp);
+ if(mdp){const v=await h.evaluate(async m=>({bon:await LOGISTICA_AUTH.verifier(m,LOGISTICA_AUTH.adminProd("x").pwd),mauvais:await LOGISTICA_AUTH.verifier("Demo@Logistica2026",LOGISTICA_AUTH.adminProd("x").pwd),kessie:await LOGISTICA_AUTH.verifier("Kessie",LOGISTICA_AUTH.adminProd("x").pwd)}),mdp);
   t("INS-9","mot de passe initial LOGISTICA valide ; mot de passe de démonstration refusé",v.bon&&!v.mauvais?true:JSON.stringify(v))}
  const po=await page("portail.html");
  const pt=await po.evaluate(()=>document.body.innerText);

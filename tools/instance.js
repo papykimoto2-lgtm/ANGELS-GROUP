@@ -42,7 +42,7 @@ fs.mkdirSync(out, { recursive: true });
 copier(racine, "");
 /* fichiers propres au client (ex. passerelle-config.js : projet Supabase du client) : remplacent ceux du code commun */
 const fi = path.join(cdir, "fichiers");
-if (fs.existsSync(fi)) fs.readdirSync(fi).forEach(f => fs.copyFileSync(path.join(fi, f), path.join(out, f)));
+if (fs.existsSync(fi)) fs.readdirSync(fi).forEach(f => { if (TEXTE.test(f)) fs.writeFileSync(path.join(out, f), transformer(f, fs.readFileSync(path.join(fi, f), "utf8"))); else fs.copyFileSync(path.join(fi, f), path.join(out, f)); });
 const ic = path.join(cdir, "icons");
 if (fs.existsSync(ic)) fs.readdirSync(ic).forEach(f => fs.copyFileSync(path.join(ic, f), path.join(out, "icons", f)));
 /* sw.js : second passage, une fois tous les fichiers présents (la liste de la coque ne garde que ce qui existe) */
