@@ -87,28 +87,6 @@ label input,label select,label textarea{margin-top:3px;color:var(--tx);font-weig
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .tabs button{border:1px solid var(--bd);background:#fff;border-radius:99px;padding:6px 13px;cursor:pointer}
 .tabs button.on{background:var(--b);color:#fff;border-color:var(--b)}
-/* Centre de livraison : même style que le CRM (bandeau dégradé, indicateurs cliquables, onglets en pilules) */
-.cdl{--a:#14b8a6;--sh:0 1px 2px rgba(15,40,60,.06),0 10px 28px rgba(15,40,60,.08)}
-.cdl .ban{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--b2),var(--b) 60%,var(--a));color:#fff;border-radius:18px;padding:18px 20px 44px;margin-bottom:-30px}
-.cdl .ban:before,.cdl .ban:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
-.cdl .ban:before{width:220px;height:220px;right:-50px;top:-90px}.cdl .ban:after{width:140px;height:140px;left:35%;bottom:-80px}
-.cdl .ban h1{margin:0;font-size:22px;color:#fff;position:relative}.cdl .ban p{margin:2px 0 0;font-size:13px;opacity:.85;position:relative}
-.cdl .kp{position:relative;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:0 10px 14px}
-.cdl .kp button,.cdl .kp>div{font:inherit;text-align:left;cursor:pointer;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:16px;padding:12px 14px;box-shadow:var(--sh);transition:transform .15s}
-.cdl .kp button:hover{transform:translateY(-2px)}.cdl .kp>div{cursor:default}.cdl .kp .ic{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#f1f6f8;font-size:16px;margin-bottom:6px}
-.cdl .kp b{display:block;font-size:24px;line-height:1.1}.cdl .kp span.l{font-size:12px;color:var(--mu)}.cdl .kp .w b{color:var(--wa)}.cdl .kp .e b{color:var(--er)}
-.cdl .kp button.sel{outline:2px solid var(--b);outline-offset:-2px}.cdl .kp .o b{color:var(--ok)}
-.cdl .ban .btn{position:relative}.cdl .ban .btn.ghost{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.45)}.cdl .ban .btn:not(.ghost){background:#fff;color:var(--b2)}
-.cdl .ban .between{position:relative;align-items:flex-start}
-.cdl .tabs{flex-wrap:nowrap;overflow-x:auto;padding:6px;background:var(--card);border-radius:99px;box-shadow:var(--sh);border:1px solid var(--bd);position:sticky;top:6px;z-index:20;scrollbar-width:none}
-.cdl .tabs::-webkit-scrollbar{display:none}
-.cdl .tabs button{flex:0 0 auto;border:0;background:none;color:var(--mu);font-weight:700;padding:9px 14px;white-space:nowrap;transition:background .18s,color .18s,transform .12s}
-.cdl .tabs button:hover{background:#f1f6f8;color:var(--tx)}.cdl .tabs button:active{transform:scale(.96)}
-.cdl .tabs button.on{background:linear-gradient(135deg,var(--b),var(--a));color:#fff;box-shadow:0 4px 12px rgba(14,116,144,.35)}
-.cdl .card{border-radius:16px;box-shadow:var(--sh)}
-.cdl table{border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
-@media(max-width:700px){.cdl .ban{padding:14px 14px 40px}.cdl .kp{margin:0 4px 12px;grid-template-columns:repeat(3,1fr);gap:8px}.cdl .kp button{padding:8px 10px}.cdl .kp .ic{width:26px;height:26px;font-size:13px;margin-bottom:3px}.cdl .kp b{font-size:20px}.cdl .kp span.l{font-size:11px}}
-@media(prefers-color-scheme:dark){.cdl .kp .ic,.cdl .tabs button:hover{background:#0e2129}}
 .al{padding:8px 12px;border-radius:8px;margin-bottom:6px;background:var(--bbg)}.al.warn{background:var(--wabg)}.al.err{background:var(--erbg)}
 .bars{display:flex;gap:8px;align-items:flex-end;height:110px}
 .bars div{flex:1;text-align:center;font-size:11px;color:var(--mu)}
@@ -208,7 +186,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <div id="app"></div><div id="modal"></div><div id="toast"></div>
 <noscript>JavaScript est requis.</noscript>
 <script src="qrcode.js"></script>
-<script src="marque.js"></script><script src="auth-engine.js"></script>
+<script src="marque.js"></script><script src="auth-engine.js"></script><script src="habillage.js"></script>
 <script src="sync-engine.js"></script>
 <script src="roles-engine.js"></script>
 <script src="pager-engine.js"></script>
@@ -758,7 +736,7 @@ function loginHTMLLocal(){
  <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
-function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{sosBar()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
+function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
 function render0(){
  if(!S&&!CL.on)return;
  if(!ME){$("#app").innerHTML=loginHTML();return}
@@ -5696,7 +5674,7 @@ VIEWS.compta=()=>{
  else{const C=cpt();h=`<div class="pill">TVA : <b>${C.tva} %</b> · Stocks : <b>${C.stock==="permanent"?"inventaire permanent":"inventaire intermittent"}</b> · Clôture : <b>${C.clos||"aucune"}</b></div><div class="flex noprint">${w?`<button class="btn" data-act="cptReg">⚙ Réglages</button><button class="btn" data-act="cptClos">🔐 Clôturer une période</button>${C.clos?'<button class="btn ghost" data-act="cptOuvre">🔓 Rouvrir</button>':""}<button class="btn ghost" data-act="cptCpt">➕ Compte</button>`:""}</div>
   <h2>Plan de comptes</h2><div class="sm">Plan SYSCOHADA révisé complet (${cptIdx().L.length} comptes) : consultation, ajout, modification, import/export et soldes cumulés dans l'onglet <a href="#" data-act="tab" data-id="cpt|plan"><b>🗂️ Plan comptable</b></a>. Valeurs de départ à faire valider par un expert-comptable. Ce module n'est pas un avis comptable ou fiscal.</div>`}
  ui.cptX=ex;
- return`<h1>📚 Comptabilité</h1><div class="sm mu" style="margin-bottom:6px">Écritures SYSCOHADA générées automatiquement à partir des ventes, encaissements, reversements, dépenses, paie, règlements, stocks et de la caisse.${CL.on?" Mode serveur : lecture seule.":""}</div>${T}${h}${cptDL()}`};
+ return`<div class="cdl"><div class="ban s"><h1>📚 Comptabilité</h1><p>Écritures SYSCOHADA générées automatiquement à partir des ventes, encaissements, reversements, dépenses, paie, règlements, stocks et de la caisse.${CL.on?" Mode serveur : lecture seule.":""}</p></div>${T}${h}${cptDL()}</div>`};
 Object.assign(ACT,{saveSec:()=>{if(CL.on)return toast("Disponible en mode démonstration (la version serveur gère ces réglages côté serveur)","err");const c=S.config,v=id=>$("#"+id).value.trim(),n=id=>+$("#"+id).value;
   if(!v("p_on"))return toast("Nom de l'entreprise requis","err");if(!/^\d{1,4}$/.test(v("p_ti")))return toast("Indicatif invalide","err");if(!(n("p_tl")>=6))return toast("Longueur du numéro invalide","err");if(!(n("p_pl")>=8&&n("p_pl")<=64))return toast("Mot de passe : longueur minimale entre 8 et 64","err");if(!(n("p_ta")>=3))return toast("Tentatives : 3 minimum","err");if(!(n("p_bl")>=1))return toast("Blocage : 1 minute minimum","err");if(!(n("p_ec")>=3))return toast("Essais du code : 3 minimum","err");
   Object.assign(c,{org:v("p_on"),org_sous:v("p_os"),tel_indicatif:v("p_ti"),tel_len:n("p_tl"),mdp_min:n("p_pl"),tentatives_max:n("p_ta"),blocage_min:n("p_bl"),essais_code_max:n("p_ec")});audit("Paramètres entreprise et sécurité","");save();render();toast("Enregistré","ok")},cptDefSave:()=>{if(!cptW())return;const m={};document.querySelectorAll("[data-cdd]").forEach(i=>m[i.dataset.cdd]=i.value);const er=cptDefSave(m,+$("#cdd_t").value||0,+$("#cdd_d").value||5);if(er)return toast(er,"err");save();render();toast("Comptes par défaut enregistrés","ok")},cptTvaLiq:id=>cptLiquiderTVA(id),cptOD:()=>cptODForm(),cptVisa:id=>cptViser(id),cptDel:id=>cptSuppr(id),cptExt:id=>cptExtourner(id),cptClos:()=>cptCloturerForm(),cptOuvre:()=>cptRouvrir(),cptReg:()=>cptReglagesForm(),cptCpt:()=>cptCompteForm(),
