@@ -787,3 +787,17 @@ Le Centre de livraison est organisé en 6 onglets avec compteurs : **📦 À aff
 
 - **Centre de livraison → 📊 Statistiques** : par livreur et par période (aujourd'hui, 7/30 jours, ce mois, toutes les dates ou dates précises) : courses livrées, échecs, taux de réussite, durée moyenne (départ → livraison), livrées dans les délais de la zone, encaissé, commission, jours actifs, moyenne par jour, note des clients ; totaux, export CSV et fenêtre de détail (motifs d'échec, zones desservies, meilleur jour).
 - **Application livreur → ☰ → 📊 Mes statistiques** : mêmes indicateurs pour le livreur (aujourd'hui, 7 jours, 30 jours, ce mois), motifs d'échec, zones, graphique des 7 derniers jours. Le bureau les publie avec les missions (enregistrement « stats » invisible comme commande ; aucun changement du serveur). Test : `tests/stats-livreur.js`.
+
+## CRM central du hub
+
+`crm.html` (carte « 🤝 CRM du groupe » du hub) + moteur `crm-engine.js` : **une fiche unique par personne pour tout le groupe**. Les clients de Distributions et d'Agro, les vendeurs partenaires, les candidats vendeurs à étudier et les chauffeurs de Transport sont **lus sans jamais être modifiés** et **fusionnés par numéro de téléphone** (formats `0505…`, `+225 05…`, `225…` reconnus) : une même personne présente dans deux applications n'a qu'une fiche, avec ses achats cumulés. Les clients « divers » (passage) restent hors du CRM.
+
+- **Accès protégé** : administrateur, direction ou responsable commercial d'une des applications, avec son mot de passe habituel (blocage 60 s après 5 échecs, session de 30 minutes, bouton « Verrouiller »). Les PIN et mots de passe temporaires sont refusés comme dans Paramètres.
+- **📊 Pilotage** : contacts uniques, chiffre d'affaires 12 mois, clients actifs 90 j, nouveaux clients 30 j, rétention, encours et clients en retard de paiement, opportunités ouvertes et taux de conversion, répartition par segment, 10 meilleurs clients.
+- **👥 Contacts / fiche 360°** : recherche (nom, téléphone, étiquette), filtres segment et application, pagination ; fiche avec indicateurs (achats, CA, panier moyen, encours, ancienneté), historique des achats de toutes les applications et des échanges, étiquettes, bouton WhatsApp.
+- **Segments calculés** (jamais enregistrés, donc toujours justes) : VIP, Fidèle, Nouveau, Actif, À risque, Dormant, Prospect, Partenaire — seuils réglables (Réglages).
+- **🎯 Opportunités** : tableau Nouveau → Contacté → Devis → Négociation → Gagné / Perdu (motif de perte obligatoire), import des candidats vendeurs du portail, valeur par colonne.
+- **✅ Tâches** de suivi liées à un contact, échéances, retards signalés. **📣 Relances** : impayés, clients à risque ou dormants, candidats en attente, avec lien WhatsApp et message déjà rédigé ; « Relancé » masque le contact 14 jours.
+- **🧹 Qualité** : contacts sans téléphone, même numéro avec noms différents, même nom avec numéros différents (doublons possibles), personnes présentes dans plusieurs applications.
+- **Données personnelles** : **opposition à la prospection** par contact (loi ivoirienne n° 2013-450) : exclu des relances et de l'export marketing. Export CSV (Excel, protégé contre l'injection de formules). **Journal d'audit** de chaque action du CRM.
+- L'état propre au CRM (échanges, tâches, opportunités, étiquettes, oppositions, audit) est stocké dans la clé locale `angels_crm_v1` de l'appareil ; il n'est pas encore synchronisé entre postes ni disponible en mode serveur Supabase. Test : `node tests/crm-central.js` (28).

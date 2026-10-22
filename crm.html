@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b3b4c">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="manifest-hub.webmanifest">
+<link rel="icon" type="image/png" href="icons/hub-192.png">
+<link rel="apple-touch-icon" href="icons/hub-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Angel's Group"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CRM — ANGEL'S GROUP</title>
+<style>
+:root{--b:#0e7490;--b2:#0b3b4c;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea;--c:#0e7490}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a21;--card:#112832;--tx:#e6f0f3;--mu:#93a9b2;--bd:#1f3a46}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+header{background:linear-gradient(135deg,var(--b2),var(--b));color:#fff;padding:calc(18px + env(safe-area-inset-top)) 16px 28px}
+.w{max-width:1100px;margin:0 auto}
+header h1{margin:0;font-size:22px}header p{margin:4px 0 0;opacity:.8;font-size:13px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.back{color:#fff;opacity:.9;text-decoration:none;font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,.4);border-radius:99px;padding:6px 12px;background:none;font-family:inherit;cursor:pointer}
+main{padding:0 16px 40px;margin-top:-16px}
+h2{margin:18px 0 10px;font-size:16px}h3{margin:16px 0 8px;font-size:14px}
+.note{font-size:12px;color:var(--mu);margin:6px 0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 10px}.tab{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;min-height:40px;cursor:pointer}.tab.on{background:var(--c);color:#fff;border-color:var(--c)}
+.pill{font-style:normal;background:var(--er);color:#fff;border-radius:99px;padding:0 7px;font-size:11px;margin-left:4px}
+.big{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:12px}
+.big div,.pan{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.big b{display:block;font-size:20px}.big span{font-size:12px;color:var(--mu)}
+.two{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.tw{overflow:auto;border:1px solid var(--bd);border-radius:12px;background:var(--card)}table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}th{font-size:12px;color:var(--mu)}td.r,th.r{text-align:right}tr.cl{cursor:pointer}tr.cl:hover{background:var(--bg)}
+.bd{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:#e3f5ea;color:var(--ok);margin-right:4px}.bd.wa{background:#fff1d6;color:var(--wa)}.bd.er{background:#fde3e3;color:var(--er)}.bd.mu{background:var(--bg);color:var(--mu);border:1px solid var(--bd)}
+.er{color:var(--er);font-weight:700}.ok{color:var(--ok);font-weight:700}
+.f{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:10px 0}.f label{display:block;font-size:12px;color:var(--mu);font-weight:600}
+input,select,textarea{font:inherit;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-height:40px;display:block;margin-top:3px;max-width:100%}
+.btn{display:inline-block;padding:9px 14px;border-radius:10px;background:var(--c);color:#fff;font:inherit;font-weight:700;text-decoration:none;min-height:40px;border:0;cursor:pointer}.btn.g{background:var(--card);color:var(--tx);border:1px solid var(--bd)}.btn.sm{padding:5px 10px;min-height:32px;font-size:13px}.btn.er{background:var(--er);color:#fff}
+.kan{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));align-items:start}.col{background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:8px}.col h4{margin:2px 4px 8px;font-size:13px}.opp{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px;margin-bottom:8px;font-size:13px}
+.det{list-style:none;margin:0;padding:0}.det li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}.det li:last-child{border:0}
+.msg{border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px;background:#e3f5ea;color:var(--ok)}.msg.er{background:#fde3e3;color:var(--er)}
+.gate{max-width:420px;margin:30px auto}
+footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
+@media(max-width:600px){.hm{display:none}}
+</style>
+</head>
+<body>
+<header><div class="w top"><div><h1>🤝 CRM — ANGEL'S GROUP</h1><p>Une fiche unique par personne pour tout le groupe · <span id="date"></span></p></div><div style="display:flex;gap:8px;align-items:center"><span id="who" style="font-size:13px"></span><button class="back" id="lock" hidden type="button" data-a="lock">🔒 Verrouiller</button><a class="back" href="index.html">← Hub</a></div></div></header>
+<main><div class="w" id="app"></div></main>
+<footer>© ANGEL'S GROUP · CRM · <a href="index.html">Retour au hub</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
+<script src="auth-engine.js"></script>
+<script src="crm-engine.js"></script>
+<script>
+const $=s=>document.getElementById(s),C=ANGELS_CRM,E=C.esc,fc=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+$("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+/* ---------- Accès : un administrateur, la direction ou un responsable commercial de l'une des trois applications ---------- */
+const ROLES_OK=["admin","direction","commercial"],DUREE=30*60*1000,SK="angels_crm_sess";
+let SESS=null,TRY={n:0,until:0},ST={tab:"pil",q:"",seg:"",app:"",page:0,sel:null,msg:null,er:false,mq:""};
+try{const s=JSON.parse(sessionStorage.getItem(SK)||"null");if(s&&s.exp>Date.now())SESS=s}catch(e){}
+const lire=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
+function comptes(){const L=[];C.APPS.forEach(([id,key,nom])=>{const G=lire(key);if(!G)return;(G.users||[]).filter(u=>u.actif!==false&&ROLES_OK.includes(u.role)).forEach(u=>L.push({app:id,appNom:nom,key,id:u.id,nom:u.nom,role:u.role}))});return L}
+const par=()=>SESS?SESS.nom+" ("+SESS.appNom+")":"?";
+function msg(t,er){ST.msg=t;ST.er=!!er}
+function garde(){if(SESS&&SESS.exp<Date.now()){SESS=null;try{sessionStorage.removeItem(SK)}catch(e){}}if(SESS){SESS.exp=Date.now()+DUREE;try{sessionStorage.setItem(SK,JSON.stringify(SESS))}catch(e){}}return !!SESS}
+/* ---------- Données ---------- */
+let L=[],P=null;
+function charger(){L=C.contacts();P=C.pilotage(L)}
+const segBd=s=>`<span class="bd ${s==="vip"||s==="fidele"?"":s==="risque"||s==="dormant"?"wa":s==="nouveau"||s==="actif"?"":"mu"}">${E(C.SEG[s]||s)}</span>`;
+const appsBd=f=>Object.keys(f.apps).map(k=>`<span class="bd mu">${E(f.apps[k])}</span>`).join("");
+/* ---------- Écrans ---------- */
+function gate(){const cs=comptes();
+ if(!cs.length)return`<div class="pan gate"><h2 style="margin-top:0">🔒 CRM verrouillé</h2><p class="note">Aucune application n'a encore de compte autorisé sur cet appareil (administrateur, direction ou responsable commercial). Ouvrez d'abord une application du groupe et connectez-vous une fois.</p></div>`;
+ return`<form id="gate" class="pan gate"><h2 style="margin-top:0">🔒 Accès au CRM</h2><p class="note">Réservé à l'administrateur, à la direction et aux responsables commerciaux. Saisissez votre mot de passe habituel.</p>
+ ${ST.msg?`<div class="msg ${ST.er?"er":""}" role="alert">${E(ST.msg)}</div>`:""}
+ <div class="f"><label>Compte<select name="u">${cs.map((c,i)=>`<option value="${i}">${E(c.nom)} — ${E(c.appNom)} (${E(c.role)})</option>`).join("")}</select></label>
+ <label>Mot de passe<input type="password" name="pwd" autocomplete="current-password" required></label></div><button class="btn" type="submit">Déverrouiller</button></form>`}
+function tabs(){const T=[["pil","📊 Pilotage"],["con","👥 Contacts"],["pip","🎯 Opportunités"],["tac","✅ Tâches"],["rel","📣 Relances"],["qua","🧹 Qualité"],["reg","⚙️ Réglages"]],S=C.etat(),ret=P.taches_retard,rel=P.a_relancer;
+ return`<div class="tabs" role="tablist">${T.map(([k,l])=>`<button class="tab ${ST.tab===k?"on":""}" data-a="tab" data-v="${k}" role="tab">${l}${k==="tac"&&ret?`<i class="pill">${ret}</i>`:""}${k==="rel"&&rel?`<i class="pill">${rel}</i>`:""}</button>`).join("")}</div>${ST.msg?`<div class="msg ${ST.er?"er":""}" role="status">${E(ST.msg)}</div>`:""}`}
+function pil(){const s=P.seg,sg=["vip","fidele","nouveau","actif","risque","dormant","prospect","partenaire"],tot=Math.max(1,L.length);
+ return`<div class="big"><div><b>${P.contacts}</b><span>Contacts uniques (${P.clients} clients)</span></div><div><b>${fc(P.ca12)}</b><span>Chiffre d'affaires 12 mois</span></div><div><b>${P.actifs90}</b><span>Clients actifs (90 j)</span></div><div><b>${P.nouveaux30}</b><span>Nouveaux clients (30 j)</span></div><div><b>${P.retention==null?"—":P.retention+" %"}</b><span>Rétention (clients de +90 j)</span></div><div><b class="${P.encours?"er":""}">${fc(P.encours)}</b><span>Encours clients${P.mauvais_payeurs?" · "+P.mauvais_payeurs+" en retard":""}</span></div><div><b>${P.pipeline_n} · ${fc(P.pipeline_val)}</b><span>Opportunités ouvertes</span></div><div><b>${P.conversion==null?"—":P.conversion+" %"}</b><span>Taux de conversion</span></div></div>
+ <div class="two"><div class="pan"><h3 style="margin-top:0">Segments</h3><ul class="det">${sg.map(k=>`<li><span>${segBd(k)}</span><span><a href="#" data-a="seg" data-v="${k}">${s[k]} contact(s)</a> <span class="note">${Math.round(s[k]*100/tot)} %</span></span></li>`).join("")}</ul></div>
+ <div class="pan"><h3 style="margin-top:0">À faire</h3><ul class="det"><li><span>Relances à envoyer</span><a href="#" data-a="tab" data-v="rel"><b>${P.a_relancer}</b></a></li><li><span>Tâches du jour</span><b>${P.taches_jour}</b></li><li><span>Tâches en retard</span><b class="${P.taches_retard?"er":""}">${P.taches_retard}</b></li><li><span>Clients de passage (hors CRM)</span><b>${L.divers||0}</b></li></ul><p class="note">Les clients « divers » de Distributions ne sont pas des personnes identifiées : ils restent dans l'application.</p></div></div>
+ <h3>Meilleurs clients (chiffre d'affaires cumulé)</h3>${P.top.length?`<div class="tw"><table><tr><th>Client</th><th>Segment</th><th class="r">Achats</th><th class="r">CA</th><th class="r">Encours</th></tr>${P.top.map(f=>`<tr class="cl" data-a="fiche" data-v="${E(f.cle)}"><td><b>${E(f.nom)}</b></td><td>${segBd(f.seg)}</td><td class="r">${f.achats.length}</td><td class="r">${fc(f.ca)}</td><td class="r ${f.encours?"er":""}">${fc(f.encours)}</td></tr>`).join("")}</table></div>`:`<p class="note">Aucun achat enregistré pour l'instant.</p>`}
+ ${Object.keys(L.apps_lues||{}).length<3?`<p class="note">Applications lues : ${C.APPS.filter(a=>L.apps_lues[a[0]]).map(a=>a[2]).join(", ")||"aucune"}. Les autres n'ont pas encore été ouvertes sur cet appareil.</p>`:""}`}
+const PAGE=50;
+function filtrer(){const q=C.norm(ST.q),qd=C.chiffres(ST.q);return L.filter(f=>(!ST.seg||f.segments.includes(ST.seg))&&(!ST.app||f.apps[ST.app])&&(!q||f.nom_n.includes(q)||(qd.length>=3&&f.tel_c.includes(qd))||f.tags.some(t=>C.norm(t).includes(q))))}
+function con(){if(ST.sel)return fiche();const R=filtrer(),np=Math.max(1,Math.ceil(R.length/PAGE));if(ST.page>=np)ST.page=np-1;const V=R.slice(ST.page*PAGE,(ST.page+1)*PAGE);
+ return`<div class="f"><label>Recherche<input id="q" value="${E(ST.q)}" placeholder="Nom, téléphone, étiquette" autocomplete="off"></label><label>Segment<select data-a="fseg"><option value="">Tous</option>${Object.keys(C.SEG).map(k=>`<option value="${k}" ${ST.seg===k?"selected":""}>${C.SEG[k]}</option>`).join("")}</select></label><label>Application<select data-a="fapp"><option value="">Toutes</option>${C.APPS.map(a=>`<option value="${a[0]}" ${ST.app===a[0]?"selected":""}>${a[2]}</option>`).join("")}</select></label></div>
+ <p class="note">${R.length} contact(s) sur ${L.length}</p>
+ <div class="tw"><table><tr><th>Nom</th><th class="hm">Téléphone</th><th>Segment</th><th class="hm">Applications</th><th class="r">Achats</th><th class="r">CA</th><th class="r hm">Encours</th><th class="hm">Dernier achat</th></tr>${V.map(f=>`<tr class="cl" data-a="fiche" data-v="${E(f.cle)}"><td><b>${E(f.nom)}</b>${f.stop?` <span class="bd er">Opposé</span>`:""}</td><td class="hm">${E(f.tel||"—")}</td><td>${f.segments.map(segBd).join("")}</td><td class="hm">${appsBd(f)}</td><td class="r">${f.achats.length}</td><td class="r">${fc(f.ca)}</td><td class="r hm ${f.encours?"er":""}">${f.encours?fc(f.encours):"—"}</td><td class="hm">${E(f.der_achat||"—")}</td></tr>`).join("")||`<tr><td colspan="8" class="note">Aucun contact.</td></tr>`}</table></div>
+ <div class="f"><button class="btn g sm" data-a="pg" data-v="-1" ${ST.page?"":"disabled"}>← Précédent</button><span class="note">Page ${ST.page+1} / ${np}</span><button class="btn g sm" data-a="pg" data-v="1" ${ST.page+1<np?"":"disabled"}>Suivant →</button></div>`}
+function fiche(){const f=L.find(x=>x.cle===ST.sel);if(!f){ST.sel=null;return con()}const S=C.etat(),H=C.historique(f),T=S.taches.filter(t=>t.cle===f.cle),O=S.opps.filter(o=>o.cle===f.cle);
+ return`<p><button class="btn g sm" data-a="retour">← Retour aux contacts</button></p>
+ <div class="pan"><div class="top"><div><h2 style="margin:0">${E(f.nom)}</h2><div style="margin:6px 0">${f.segments.map(segBd).join("")}${appsBd(f)}${Object.keys(f.types).map(t=>`<span class="bd mu">${E(t)}</span>`).join("")}${f.stop?`<span class="bd er">Opposé à la prospection</span>`:""}${f.mauvais_payeur?`<span class="bd er">Paiement en retard</span>`:""}</div>
+ <div class="note">${E(f.tel||"Pas de téléphone")}${f.tel2?" · "+E(f.tel2):""}${f.zone?" · "+E(f.zone):""}${f.autres_noms.length?"<br>Aussi enregistré(e) sous : "+f.autres_noms.map(E).join(", "):""}</div></div>
+ <div>${f.tel&&C.waLien(f.tel)?`<a class="btn" href="${E(C.waLien(f.tel))}" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>`:""}</div></div>
+ <div class="big" style="margin-top:12px"><div><b>${f.achats.length}</b><span>Achats</span></div><div><b>${fc(f.ca)}</b><span>Chiffre d'affaires</span></div><div><b>${fc(f.panier)}</b><span>Panier moyen</span></div><div><b class="${f.encours?"er":""}">${fc(f.encours)}</b><span>Encours</span></div><div><b>${f.jours_der==null?"—":f.jours_der+" j"}</b><span>Depuis le dernier achat</span></div></div>
+ ${f.lies.length?`<ul class="det">${f.lies.map(i=>`<li><span>${E(i.app)}</span><span>${E(i.lib)}</span></li>`).join("")}</ul>`:""}</div>
+ <div class="two" style="margin-top:12px"><form class="pan" data-f="inter"><h3 style="margin-top:0">Noter un échange</h3><div class="f"><label>Type<select name="type">${C.TYPES_INT.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join("")}</select></label></div><label class="note">Ce qui a été dit ou décidé<textarea name="texte" rows="3" style="width:100%" required minlength="3" maxlength="1000"></textarea></label><button class="btn sm" type="submit">Enregistrer</button></form>
+ <form class="pan" data-f="tache"><h3 style="margin-top:0">Créer une tâche de suivi</h3><div class="f"><label>Titre<input name="titre" required minlength="3" maxlength="200"></label><label>Échéance<input type="date" name="echeance"></label></div><button class="btn sm" type="submit">Ajouter</button>
+ ${T.length?`<ul class="det" style="margin-top:10px">${T.map(t=>`<li><span>${t.fait?"✅":"⬜"} ${E(t.titre)}</span><span class="note">${E(t.echeance||"")}</span></li>`).join("")}</ul>`:""}</form></div>
+ <div class="two" style="margin-top:12px"><form class="pan" data-f="tags"><h3 style="margin-top:0">Étiquettes</h3><div class="f"><label>Séparées par des virgules<input name="tags" value="${E(f.tags.join(", "))}" maxlength="200"></label></div><button class="btn sm g" type="submit">Enregistrer</button></form>
+ <div class="pan"><h3 style="margin-top:0">Données personnelles</h3><p class="note">Un contact opposé à la prospection n'apparaît plus dans les relances ni dans l'export marketing (loi ivoirienne n° 2013-450).</p><button class="btn sm ${f.stop?"g":"er"}" data-a="stop" data-v="${E(f.cle)}">${f.stop?"Lever l'opposition":"Enregistrer une opposition"}</button> <button class="btn sm g" data-a="opp-de" data-v="${E(f.cle)}">🎯 Créer une opportunité</button>${O.length?`<p class="note">${O.length} opportunité(s) liée(s) : ${O.map(o=>E(o.nom)+" ("+E(o.etape)+")").join(", ")}</p>`:""}</div></div>
+ <h3>Historique</h3>${H.length?`<ul class="det">${H.map(h=>`<li><span>${h.type==="achat"?"🛒":(C.TYPES_INT.find(t=>t[0]===h.type)||[0,"📝"])[1].split(" ")[0]} ${E(h.lib)}${h.par?` <span class="note">— ${E(h.par)}</span>`:""}</span><span class="note">${E(String(h.t).slice(0,10))}</span></li>`).join("")}</ul>`:`<p class="note">Aucun historique.</p>`}`}
+function pip(){const S=C.etat(),cand=L.filter(f=>f.types.candidat&&!S.opps.some(o=>o.cle===f.cle)).length;
+ return`<form class="pan" data-f="opp"><h3 style="margin-top:0">Nouvelle opportunité</h3><div class="f"><label>Nom du prospect ou de l'affaire<input name="nom" required minlength="2" maxlength="120"></label><label>Téléphone<input name="tel" maxlength="20" inputmode="tel"></label><label>Valeur estimée (F)<input name="valeur" type="number" min="0" step="1000" value="0"></label><label>Source<select name="source"><option>Recommandation</option><option>Portail</option><option>WhatsApp</option><option>Prospection terrain</option><option>Autre</option></select></label></div><button class="btn sm" type="submit">Créer</button> ${cand?`<button class="btn sm g" type="button" data-a="imp-cand">Importer ${cand} candidat(s) vendeur(s)</button>`:""}</form>
+ <div class="kan" style="margin-top:12px">${C.ETAPES.map(([k,l],i)=>{const O=S.opps.filter(o=>o.etape===k).sort((a,b)=>a.maj<b.maj?1:-1),tot=O.reduce((s,o)=>s+(+o.valeur||0),0);
+ return`<div class="col"><h4>${l} · ${O.length}${tot?" · "+fc(tot):""}</h4>${O.slice(0,30).map(o=>`<div class="opp"><b>${E(o.nom)}</b><div class="note">${fc(o.valeur)}${o.source?" · "+E(o.source):""}${o.cle?` · <a href="#" data-a="fiche" data-v="${E(o.cle)}">fiche</a>`:""}</div>${o.etape==="perdu"?`<div class="note">Motif : ${E(o.motif)}</div>`:""}
+ ${k!=="gagne"&&k!=="perdu"?`<div class="f" style="margin:6px 0 0;gap:4px"><button class="btn sm" data-a="mv" data-v="${o.id}|${C.ETAPES[i+1][0]}">→ ${C.ETAPES[i+1][1]}</button><button class="btn sm g" data-a="mv" data-v="${o.id}|gagne">✔ Gagné</button></div><div class="f" style="margin:4px 0 0;gap:4px"><input data-motif="${o.id}" placeholder="Motif de perte" style="min-height:32px;width:130px"><button class="btn sm er" data-a="perdu" data-v="${o.id}">✖ Perdu</button></div>`:""}</div>`).join("")||`<p class="note">—</p>`}</div>`}).join("")}</div>`}
+function tac(){const S=C.etat(),auj=new Date().toISOString().slice(0,10),O=S.taches.filter(t=>!t.fait).sort((a,b)=>(a.echeance||"9")<(b.echeance||"9")?-1:1),F=S.taches.filter(t=>t.fait).slice(-10).reverse(),nm=c=>{const f=L.find(x=>x.cle===c);return f?f.nom:""};
+ return`<form class="pan" data-f="tache"><h3 style="margin-top:0">Nouvelle tâche</h3><div class="f"><label>Titre<input name="titre" required minlength="3" maxlength="200"></label><label>Échéance<input type="date" name="echeance"></label></div><button class="btn sm" type="submit">Ajouter</button></form>
+ <h3>À faire (${O.length})</h3>${O.length?`<ul class="det">${O.map(t=>`<li><span><button class="btn sm g" data-a="tk" data-v="${t.id}">⬜ Terminer</button> ${E(t.titre)}${t.cle?` — <a href="#" data-a="fiche" data-v="${E(t.cle)}">${E(nm(t.cle))}</a>`:""}</span><span class="${t.echeance&&t.echeance<auj?"er":"note"}">${E(t.echeance||"sans échéance")}</span></li>`).join("")}</ul>`:`<p class="note">Rien à faire.</p>`}
+ ${F.length?`<h3>Terminées récemment</h3><ul class="det">${F.map(t=>`<li><span>✅ ${E(t.titre)}</span><button class="btn sm g" data-a="tk" data-v="${t.id}">Rouvrir</button></li>`).join("")}</ul>`:""}`}
+const MOT={impaye:["Impayé","er"],risque:["À risque","wa"],dormant:["Dormant","wa"],candidat:["Candidat","mu"]};
+function rel(){const R=C.relances(L),ex=L.filter(f=>f.stop).length;
+ return`<p class="note">Contacts à relancer (impayés, clients à risque ou dormants, candidats en attente). Un contact déjà relancé depuis 14 jours ou opposé à la prospection n'apparaît pas${ex?` (${ex} opposé(s))`:""}. Le message WhatsApp est prêt : ouvrez-le, envoyez-le, puis cliquez « Relancé ».</p>
+ ${R.length?`<div class="tw"><table><tr><th>Contact</th><th>Motif</th><th class="r hm">Encours</th><th class="hm">Dernier achat</th><th></th></tr>${R.slice(0,100).map(r=>`<tr><td><a href="#" data-a="fiche" data-v="${E(r.f.cle)}"><b>${E(r.f.nom)}</b></a></td><td><span class="bd ${MOT[r.motif][1]}">${MOT[r.motif][0]}</span></td><td class="r hm">${r.f.encours?fc(r.f.encours):"—"}</td><td class="hm">${E(r.f.der_achat||"—")}</td><td><a class="btn sm" href="${E(r.lien)}" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a> <button class="btn sm g" data-a="relance" data-v="${E(r.f.cle)}|${r.motif}">Relancé</button></td></tr>`).join("")}</table></div>`:`<p class="note">Aucune relance à faire. 🎉</p>`}`}
+function qua(){const Q=C.qualite(L),bloc=(t,A,fn)=>`<div class="pan"><h3 style="margin-top:0">${t} (${A.length})</h3>${A.length?`<ul class="det">${A.slice(0,15).map(fn).join("")}</ul>${A.length>15?`<p class="note">… et ${A.length-15} autre(s)</p>`:""}`:`<p class="ok">Rien à signaler.</p>`}</div>`,lk=f=>`<li><a href="#" data-a="fiche" data-v="${E(f.cle)}">${E(f.nom)}</a><span class="note">${E(f.tel||"—")}</span></li>`;
+ return`<p class="note">Un même numéro de téléphone réunit automatiquement les fiches d'une même personne dans les trois applications. Voici ce qu'il reste à vérifier.</p><div class="two">${bloc("Contacts sans téléphone exploitable",Q.sans_tel,lk)}${bloc("Même numéro, noms différents",Q.noms_differents,f=>`<li><a href="#" data-a="fiche" data-v="${E(f.cle)}">${E(f.noms.join(" / "))}</a><span class="note">${E(f.tel)}</span></li>`)}${bloc("Même nom, numéros différents (doublons possibles)",Q.meme_nom,g=>`<li><span>${g.map(f=>`<a href="#" data-a="fiche" data-v="${E(f.cle)}">${E(f.nom)}</a> <span class="note">${E(f.tel||"—")}</span>`).join(" · ")}</span></li>`)}${bloc("Présents dans plusieurs applications",Q.multi_apps,f=>`<li><a href="#" data-a="fiche" data-v="${E(f.cle)}">${E(f.nom)}</a><span>${appsBd(f)}</span></li>`)}</div>`}
+function reg(){const c=C.cfg(),S=C.etat(),lab={nouveau_j:"« Nouveau » : jours depuis le 1er achat",fidele_n:"« Fidèle » : nombre d'achats minimum",actif_j:"« Actif » : jours maximum depuis le dernier achat",risque_j:"« Dormant » au-delà de (jours)",vip_f:"« VIP » : chiffre d'affaires minimum (F)",impaye_j:"Paiement « en retard » après (jours)"};
+ return`<form class="pan" data-f="reg"><h3 style="margin-top:0">Seuils de segmentation</h3><div class="f">${Object.keys(lab).map(k=>`<label>${lab[k]}<input type="number" name="${k}" min="1" step="1" value="${c[k]}" required></label>`).join("")}</div><button class="btn sm" type="submit">Enregistrer</button></form>
+ <div class="pan" style="margin-top:12px"><h3 style="margin-top:0">Exports</h3><p class="note">Fichiers CSV (Excel). L'export marketing exclut les contacts opposés à la prospection.</p><button class="btn sm g" data-a="csv" data-v="0">⬇ Tous les contacts</button> <button class="btn sm g" data-a="csv" data-v="1">⬇ Export marketing</button></div>
+ <h3>Journal d'audit (50 dernières actions)</h3>${S.audit.length?`<div class="tw"><table><tr><th>Date</th><th>Par</th><th>Action</th><th>Détail</th></tr>${S.audit.slice(-50).reverse().map(a=>`<tr><td>${E(a.t.slice(0,16).replace("T"," "))}</td><td>${E(a.par)}</td><td>${E(a.action)}</td><td style="white-space:normal">${E(a.detail)}</td></tr>`).join("")}</table></div>`:`<p class="note">Aucune action enregistrée.</p>`}`}
+const VUES={pil,con,pip,tac,rel,qua,reg};
+function render(){const ok=garde();$("lock").hidden=!ok;$("who").textContent=ok?SESS.nom:"";
+ if(!ok){$("app").innerHTML=gate();return}
+ charger();const fq=document.activeElement&&document.activeElement.id==="q"?document.activeElement.selectionStart:null;
+ $("app").innerHTML=tabs()+VUES[ST.tab]();ST.msg=null;
+ if(fq!=null){const q=$("q");if(q){q.focus();q.setSelectionRange(fq,fq)}}}
+/* ---------- Actions ---------- */
+function agir(fn,ok){try{const r=fn();if(ok)msg(typeof ok==="function"?ok(r):ok)}catch(e){msg(e.message,1)}render()}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,v=b.dataset.v;if(b.tagName==="A")e.preventDefault();if(a==="lock"){SESS=null;try{sessionStorage.removeItem(SK)}catch(x){}ST.msg=null;return render()}
+ if(!garde())return render();
+ if(a==="tab"){ST.tab=v;ST.sel=null;ST.page=0;ST.msg=null;if(v==="con"){ST.seg="";ST.app="";ST.q=""}}
+ else if(a==="seg"){ST.tab="con";ST.seg=v;ST.page=0;ST.sel=null}
+ else if(a==="fiche"){ST.tab="con";ST.sel=v}
+ else if(a==="retour"){ST.sel=null}
+ else if(a==="pg"){ST.page=Math.max(0,ST.page+(+v))}
+ else if(a==="stop")return agir(()=>C.opposer(par(),v,!(L.find(f=>f.cle===v)||{}).stop),"Mis à jour.");
+ else if(a==="opp-de"){const f=L.find(x=>x.cle===v);return agir(()=>C.creerOpp(par(),{nom:f.nom,tel:f.tel,cle:f.cle,source:"Fiche CRM"}),"Opportunité créée (onglet Opportunités).")}
+ else if(a==="imp-cand")return agir(()=>{const S=C.etat();let n=0;L.filter(f=>f.types.candidat&&!S.opps.some(o=>o.cle===f.cle)).forEach(f=>{C.creerOpp(par(),{nom:f.nom,tel:f.tel,cle:f.cle,source:"Portail"});n++});return n},n=>n+" candidat(s) importé(s).");
+ else if(a==="mv"){const[id,et]=v.split("|");return agir(()=>C.deplacerOpp(par(),id,et),"Opportunité déplacée.")}
+ else if(a==="perdu"){const m=(document.querySelector(`[data-motif="${v}"]`)||{}).value;return agir(()=>C.deplacerOpp(par(),v,"perdu",m),"Opportunité marquée perdue.")}
+ else if(a==="tk")return agir(()=>C.basculerTache(par(),v));
+ else if(a==="relance"){const[c,m]=v.split("|");return agir(()=>C.marquerRelance(par(),c,m),"Relance enregistrée.")}
+ else if(a==="csv"){const csv=C.exportCsv(L,v==="1"),u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),l=document.createElement("a");l.href=u;l.download="crm-contacts"+(v==="1"?"-marketing":"")+"-"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);return agir(()=>C.etat(),"Export prêt.")}
+ render()});
+document.addEventListener("change",e=>{const s=e.target.closest("select[data-a]");if(!s||!garde())return;if(s.dataset.a==="fseg"){ST.seg=s.value;ST.page=0}else if(s.dataset.a==="fapp"){ST.app=s.value;ST.page=0}render()});
+document.addEventListener("input",e=>{if(e.target.id==="q"){ST.q=e.target.value;ST.page=0;render()}});
+document.addEventListener("submit",e=>{const f=e.target;e.preventDefault();
+ if(f.id==="gate"){const d=new FormData(f),c=comptes()[+d.get("u")];if(TRY.until>Date.now()){msg("Trop d'essais : patientez "+Math.ceil((TRY.until-Date.now())/1000)+" s.",1);return render()}
+  const G=c&&lire(c.key),u=G&&(G.users||[]).find(x=>x.id===c.id&&x.actif!==false&&ROLES_OK.includes(x.role));
+  (async()=>{let r={ok:false};try{if(u)r=await ANGELS_AUTH.connecter(u,String(d.get("pwd")))}catch(x){}
+   if(r.ok&&r.legacy)msg("Les codes PIN ne sont plus acceptés : connectez-vous une fois à l'application pour créer votre mot de passe.",1);
+   else if(r.ok&&u.chg)msg("Votre mot de passe est temporaire : ouvrez l'application et connectez-vous une fois pour le remplacer.",1);
+   else if(r.ok){TRY={n:0,until:0};SESS={app:c.app,appNom:c.appNom,id:c.id,nom:c.nom,exp:Date.now()+DUREE};try{sessionStorage.setItem(SK,JSON.stringify(SESS))}catch(x){}ST.msg=null}
+   else{TRY.n++;if(TRY.n>=5){TRY.n=0;TRY.until=Date.now()+60000}msg("Compte ou mot de passe incorrect.",1)}
+   render()})();return}
+ if(!garde())return render();const d=new FormData(f),k=f.dataset.f;
+ if(k==="inter")return agir(()=>C.ajouterInteraction(par(),ST.sel,d.get("type"),d.get("texte")),"Échange enregistré.");
+ if(k==="tache")return agir(()=>C.ajouterTache(par(),ST.tab==="con"?ST.sel:"",d.get("titre"),d.get("echeance")),"Tâche ajoutée.");
+ if(k==="tags")return agir(()=>C.etiqueter(par(),ST.sel,d.get("tags")),"Étiquettes enregistrées.");
+ if(k==="opp")return agir(()=>C.creerOpp(par(),{nom:d.get("nom"),tel:d.get("tel"),valeur:d.get("valeur"),source:d.get("source")}),"Opportunité créée.");
+ if(k==="reg")return agir(()=>C.reglages(par(),Object.fromEntries(d)),"Seuils enregistrés.")});
+render();
+if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
