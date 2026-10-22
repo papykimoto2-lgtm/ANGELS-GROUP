@@ -43,7 +43,19 @@ const refDemande = (r) => String(r || "").replace(/[^A-Za-z0-9]/g, "").toUpperCa
 export const empreinteVisiteur = (ip, sel) => sha256hex("portail|" + String(sel || "") + "|" + String(ip || "inconnu"));
 
 /* ================= Visiteur du portail (public) ================= */
+/* Visite du lien / QR d'un vendeur : comptée une fois par visiteur, par jour et par source ; seulement pour un vendeur qui a une clé de relève ; plafonnée par visiteur */
+const SOURCES = ["qr", "lien"], SCANS_JOUR_MAX = 20;
+export async function enregistrerScan(db, cfg, scan, ip, now = Date.now()) {
+  const v = idVendeur(scan && scan.v), src = scan && scan.s;
+  if (!v || !SOURCES.includes(src)) return err(400, "Visite illisible");
+  const h = await empreinteVisiteur(ip, cfg.sel), jour = new Date(now).toISOString().slice(0, 10);
+  if (!(await db.empreinteVendeur(v))) return rep(200, { ok: true, compte: false });
+  if ((await db.compterScans(h, jour)) >= SCANS_JOUR_MAX) return rep(200, { ok: true, compte: false });
+  await db.ajouterScan({ vendeur: v, jour, src, visiteur: h });
+  return rep(200, { ok: true, compte: true });
+}
 export async function recevoir(db, cfg, req, ip, now = Date.now()) {
+  if (req && req.scan && typeof req.scan === "object") return enregistrerScan(db, cfg, req.scan, ip, now);
   const message = typeof req.message === "string" ? req.message.trim() : "";
   if (!message) return err(400, "Message absent");
   if (message.length > TAILLE_MAX) return err(413, "Message trop long");
@@ -127,6 +139,7 @@ export async function traiterVendeur(db, req) {
   const a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteVendeur(v, 100) });
   if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), v) });
+  if (a === "stats") return rep(200, { ok: true, scans: await db.statsScans(v, new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)) });
   if (a === "acquitter") {
     const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
     if (ids.length) await db.acquitterVendeur(v, ids); return rep(200, { ok: true, acquittes: ids.length });

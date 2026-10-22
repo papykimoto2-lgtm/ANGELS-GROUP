@@ -449,11 +449,15 @@ const ZONES_DEFAUT=["Plateau","Cocody","Marcory","Treichville","Adjamé","Koumas
 /* Lien court et lisible (…/commander?boutique=Yoyoo+Boutique&tel=0585656086 ou ?client=Marie&tel=…&zone=Cocody) : aucun bloc codé, rien d'inquiétant à cliquer.
    Les anciens liens (#/commander/<code>) continuent de fonctionner. */
 function lienCourt(){const q=new URLSearchParams(location.search),b=cutS(q.get("boutique"),80),cl=cutS(q.get("client"),80),t=digits(q.get("tel")).slice(0,20);if(!b&&!cl)return null;
- return{org:"",w:"",v:b,i:cutS(q.get("ref"),60),t,z:[],c:cl?{n:cl,t,z:cutS(q.get("zone"),60),q:cutS(q.get("quartier"),120),r:cutS(q.get("repere"),200)}:null}}
+ return{org:"",w:"",v:b,i:cutS(q.get("ref"),60),s:q.get("src")==="qr"?"qr":"lien",t,z:[],c:cl?{n:cl,t,z:cutS(q.get("zone"),60),q:cutS(q.get("quartier"),120),r:cutS(q.get("repere"),200)}:null}}
 function commanderTok(){let o=null;const j=jetonDe();if(!j)return lienCourt();try{o=unb64(j)}catch(e){}if(!o||typeof o!=="object")return null;
  return{org:cutS(o.o,80),w:digits(o.w).slice(0,20),v:cutS(o.v,80),i:cutS(o.i,60),t:digits(o.t).slice(0,20),z:(Array.isArray(o.z)?o.z:[]).slice(0,60).map(x=>cutS(x,60)).filter(Boolean),c:o.c&&typeof o.c==="object"?{n:cutS(o.c.n,80),t:digits(o.c.t).slice(0,20),z:cutS(o.c.z,60),q:cutS(o.c.q,120),r:cutS(o.c.r,200)}:null}}
+/* Visite du lien / QR d'un vendeur : signalée une fois par session (le serveur la compte une fois par visiteur et par jour) */
+function scanSignaler(o){if(!o||!o.i||ST.scan)return;ST.scan=1;const u=portailDirect();if(!u)return;
+ try{if(sessionStorage.getItem("scan_"+o.i))return;sessionStorage.setItem("scan_"+o.i,"1")}catch(e){}
+ fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scan:{v:o.i,s:o.s==="qr"?"qr":"lien"}}),keepalive:true}).catch(()=>{})}
 function commanderRendre(){
- const el=document.getElementById("cm"),o=commanderTok();if(!el)return;
+ const el=document.getElementById("cm"),o=commanderTok();if(!el)return;scanSignaler(o);
  if(!o){el.innerHTML='<div class="empty">Lien de commande illisible : demandez-en un nouveau à la personne qui vous l\'a envoyé.</div>';return}
  if(!o.v){ST.pre=o.c;location.replace("#/boutique");return}
  if(ST.cs==="fin"){el.innerHTML=envoi("Touchez le bouton pour envoyer votre commande à <b>"+esc(o.v)+"</b>. Il la vérifie, confirme le prix et organise la livraison par "+esc(o.org||T.nom)+".",ST.cmsg,ST.cref,"cmd",o.t||o.w,ST.cdm||"");return}
@@ -481,7 +485,7 @@ function commanderRendre(){
   const pay={f:ref,n:val("c_nom"),t:val("c_tel"),z:val("c_zone"),q:val("c_q"),r:val("c_rep"),m:val("c_note"),a:ST.cgps?ST.cgps.lat:null,o:ST.cgps?ST.cgps.lng:null,l:ls.map(l=>[l.d,l.q,l.p])};
   ST.cmsg=`Commande — ${o.v} (réf. ${ref})\nNom : ${pay.n}\nTél : ${pay.t}\nZone : ${pay.z}${pay.q?" · "+pay.q:""}${pay.r?" · "+pay.r:""}\n${ST.cgps?"Position : https://maps.google.com/?q="+ST.cgps.lat+","+ST.cgps.lng+"\n":""}Articles :\n${ls.map(l=>"- "+l.q+" x "+l.d+(l.p!=null?" ("+F(l.p)+")":"")).join("\n")}${pay.m?"\nMessage : "+pay.m:""}\n${ST.cphotos&&ST.cphotos.length?"("+ST.cphotos.length+" capture(s) d'écran : à joindre dans cette conversation)\n":"(Captures d'écran à envoyer dans cette conversation)\n"}[ANGELS:${b64(pay)}]`;
   /* Envoi direct au serveur : la commande arrive dans l'espace du vendeur ; le message WhatsApp reste disponible (et sert aux captures d'écran) */
-  {const pv=Object.assign({},pay,{v:o.i||"",vt:o.t||"",vn:o.v||"",m:String(pay.m||"").slice(0,300)}),dm="Commande vendeur "+o.v+" (réf. "+ref+")\n[BOUTIQUE:"+b64(pv)+"]";ST.cdm=dm.length<=5800?dm:""}
+  {const pv=Object.assign({},pay,{v:o.i||"",vt:o.t||"",vn:o.v||"",s:o.s==="qr"?"qr":"lien",m:String(pay.m||"").slice(0,300)}),dm="Commande vendeur "+o.v+" (réf. "+ref+")\n[BOUTIQUE:"+b64(pv)+"]";ST.cdm=dm.length<=5800?dm:""}
   ST.cref=ref;ST.cs="fin";commanderRendre()}}
 
 /* ---------- Programmer une livraison : scan d'un QR code, formulaire, QR à partager ---------- */
