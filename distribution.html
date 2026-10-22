@@ -189,6 +189,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script src="auth-engine.js"></script>
 <script src="sync-engine.js"></script>
 <script src="roles-engine.js"></script>
+<script src="pager-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script src="tiers-engine.js"></script>
@@ -290,7 +291,9 @@ function garde(roles,l,d){
 const can=(...roles)=>{if(!ME)return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);if(!ov)return roles.includes(ME.role);const a=ANGELS_ROLES.atomeDe("distribution",roles);return!!a&&ov.has(a)};   /* rôles personnalisés / modifiés : droits du gestionnaire de rôles */
 const canA=a=>!!ME&&ANGELS_ROLES.a("distribution",S,ME.role,a);
 const voirNav=n=>{const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
-function save(){if(CL.on)return;setTimeout(()=>{try{pontSync()}catch(e){}try{passSync()}catch(e){}},0);try{ANGELS_SYNC.signal()}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Stockage local plein ou indisponible","err")}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}try{if(typeof majPortail==="function"&&S&&S.produits&&S.config)majPortail()}catch(e){}}
+/* Jauge de la mémoire locale (≈ 5 millions de caractères par application) : avertit une fois par session à 70 % */
+function stockJauge(n){const pct=Math.round(n/50000);window.__stock={chars:n,pct};if(pct>=70&&!window.__stockWarn){window.__stockWarn=1;setTimeout(()=>toast("Mémoire locale à "+pct+" % : faites une sauvegarde (Paramètres), allégez les photos ou passez en mode serveur","err"),0)}}
+function save(){if(CL.on)return;setTimeout(()=>{try{pontSync()}catch(e){}try{passSync()}catch(e){}},0);try{ANGELS_SYNC.signal()}catch(e){}try{const js=JSON.stringify(S);localStorage.setItem(KEY,js);stockJauge(js.length)}catch(e){toast("Stockage local plein ou indisponible : exportez une sauvegarde puis archivez ou passez en mode serveur","err")}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}try{if(typeof majPortail==="function"&&S&&S.produits&&S.config)majPortail()}catch(e){}}
 function audit(action,detail){S.audit.push({ts:now(),user:who(),role:ME?ME.role:"système",action,detail:detail||""});if(S.audit.length>5000)S.audit.splice(0,S.audit.length-5000)}
 function toast(m,t){const d=document.createElement("div");d.className="t "+(t||"");d.textContent=m;$("#toast").appendChild(d);setTimeout(()=>d.remove(),t==="err"?5500:3000)}
 
@@ -690,7 +693,7 @@ function modal(title,body,o){stopScan();o=o||{};ui.onSubmit=o.onSubmit;ui.mid=(u
 const closeModal=()=>{stopScan();$("#modal").innerHTML="";ui.onSubmit=null};
 function ask(title,label,cb,opts){opts=opts||{};modal(title,`<label>${label}<textarea name="v" rows="2" required></textarea></label>`,{label:opts.label||"Confirmer",cls:opts.cls||"",onSubmit:d=>{if(!String(d.v).trim()){toast("Champ obligatoire","err");return false}return cb(d.v.trim())}})}
 const opts=(arr,sel)=>arr.map(a=>{const v=typeof a==="string"?a:a.v,t=typeof a==="string"?a:a.t;return`<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(t)}</option>`}).join("");
-const tbl=(head,rows,empty)=>`<div class="tw"><table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.join(""):`<tr><td colspan="${head.length}" class="mu">${empty||"Aucune donnée"}</td></tr>`}</tbody></table></div>`;
+const tbl=(head,rows,empty)=>{const key=head.join("|"),P=ANGELS_PAGER.decouper(key,rows);return`<div class="tw" data-pgk="${esc(key)}"><table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${P.rows.length?P.rows.join(""):`<tr><td colspan="${head.length}" class="mu">${empty||"Aucune donnée"}</td></tr>`}</tbody></table></div>${P.pager}`};
 const kpi=(l,v,k)=>`<div class="kpi ${k||""}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
 const tabs=(key,list)=>`<div class="tabs">${list.map(t=>`<button class="${(ui[key]||list[0][0])===t[0]?"on":""}" data-act="tab" data-id="${key}|${t[0]}">${t[1]}</button>`).join("")}</div>`;
 const periodStart=()=>{const p=ui.per||"7";if(p==="all")return 0;const d=new Date();d.setHours(0,0,0,0);return d.getTime()-(+p)*864e5};

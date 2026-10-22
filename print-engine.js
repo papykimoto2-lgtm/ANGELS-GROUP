@@ -210,6 +210,7 @@
         var mds = document.querySelectorAll(".md"), md = mds.length ? mds[mds.length - 1] : null, src = md ? md : (opt.racine ? opt.racine() : (document.querySelector("main") || document.getElementById("app")));
         if (!src) return G.__printNatif();
         var cl = src.cloneNode(true);
+        if (G.ANGELS_PAGER) G.ANGELS_PAGER.depagine(cl);
         cl.querySelectorAll(".noprint,button,select,input,textarea,nav,script,style,.x,[data-x],[hidden]").forEach(function (n) { n.remove(); });
         var h1 = cl.querySelector("h1,h2"), titre = h1 ? h1.textContent.replace(/\s+/g, " ").trim() : "Document";
         if (h1 && h1.tagName === "H1") h1.remove();
