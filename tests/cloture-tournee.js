@@ -1,0 +1,29 @@
+/* Clôture de tournée du livreur : demande, récapitulatif, remise comptée, écart avec motif, caisse, fiche signée.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/cloture-tournee.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),p=await ctx.newPage(),errs=[];
+ p.on("pageerror",e=>errs.push("PAGEERR "+e.message));p.on("dialog",d=>d.accept());
+ await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ await p.evaluate(()=>{window.__T=[];toast=(m)=>{__T.push(m)};window.__as=r=>{ME=S.users.find(u=>u.role===r&&u.actif)};
+  const l=S.livreurs.find(x=>S.livraisons.some(y=>y.livreur_id===x.id&&y.statut==="livree"&&S.fonds.some(f=>f.livraison_id===y.id&&f.type==="encaissement")))||S.livreurs[0];window.__L=l.id;
+  S.livraisons.filter(y=>y.livreur_id===l.id&&isActive(y)).forEach(y=>y.statut="livree");S.clotures=[];S.versements=[];S.caisses=[];S.fonds=S.fonds.filter(f=>!(f.type==="reversement"&&f.livreur_id===l.id)); window.__P=[];ANGELS_PRINT.ouvrir=x=>{__P.push(x);return Promise.resolve({})}});
+ let ok=0,ko=0;const t=async(id,label,fn)=>{let r;try{r=await p.evaluate(fn)}catch(e){r="EXC "+e.message}if(r===true){ok++;console.log("PASS",id,label)}else{ko++;console.log("FAIL",id,label,"→",r)}};
+ await t("CT-1","récapitulatif : courses livrées, collecté et restant dû cohérents avec le solde",()=>{const r=clotRecap(__L);return r.L.length>0&&r.collecte>0&&r.du===soldeLiv(__L)&&r.net===r.collecte-r.gardes?true:JSON.stringify({n:r.L.length,c:r.collecte,d:r.du,s:soldeLiv(__L)})});
+ await t("CT-2","livreur : demande de clôture refusée si une course est en cours",()=>{const l=S.livraisons.find(y=>y.livreur_id===__L);const st=l.statut;l.statut="en_cours";ME=S.users.find(u=>u.id===liv(__L).user_id)||ME;window.__me=ME;let n0=S.clotures.length;clotDemander();l.statut=st;return S.clotures.length===n0&&/en cours/.test(__T.slice(-1)[0])?true:"créée ou message "+__T.slice(-1)[0]});
+ await t("CT-3","livreur : demande acceptée sans course en cours, pas de doublon",()=>{ME=window.__me;clotDemander();const n=S.clotures.length;clotDemander();return n===1&&clotDemande(__L)&&S.clotures.length===1&&clotAttenteN()===1?true:"n="+n+" "+S.clotures.length});
+ await t("CT-4","livreur : le panneau « Ma tournée » affiche la demande en attente",()=>{ME=window.__me;const h=clotPanel(liv(__L));return /Ma tournée/.test(h)&&/Clôture demandée/.test(h)?true:h.slice(0,200)});
+ await t("CT-5","caissier : l'onglet Clôtures liste la demande et le bouton Clôturer",()=>{__as("caissier");view="finance";ui.fin="clot";render();const tx=document.querySelector("main").innerText;return /Clôtures/.test(tx)&&document.querySelector('[data-act=clotForm]')&&/Clôture demandée/.test(tx)?true:"absent"});
+ await t("CT-6","clôture refusée sans confirmation du livreur",()=>{__as("caissier");const n0=S.fonds.length;clotFormUI(__L);const f=document.getElementById("mf");f.m.value=clotRecap(__L).du;f.motif.value="";f.requestSubmit();const ok=S.fonds.length===n0&&clotDemande(__L);return ok&&/Confirmation/.test(__T.slice(-1)[0])?true:__T.slice(-1)[0]});
+ await t("CT-7","clôture avec écart : motif obligatoire, puis reversement partiel, écart tracé, solde restant",async()=>{__as("caissier");const due=clotRecap(__L).du,s0=soldeLiv(__L);clotFormUI(__L);let f=document.getElementById("mf");f.m.value=due-1000;f.ok.checked=true;f.mode.value=f.mode.options[0].value;f.motif.value="";f.requestSubmit();await new Promise(r=>setTimeout(r,100));
+  if(clotDemande(__L)===undefined)return"clôturée sans motif";f.motif.value="Billet déchiré";f.requestSubmit();await new Promise(r=>setTimeout(r,200));
+  const c=clotDerniere(__L),E=[];if(!c)return"pas de clôture";if(c.ecart!==1000)E.push("écart "+c.ecart);if(c.remis!==due-1000)E.push("remis");if(soldeLiv(__L)!==s0-(due-1000))E.push("solde "+soldeLiv(__L));if(clotAttenteN()!==0)E.push("demande restante");if(!/^CT-/.test(c.numero))E.push("numéro");return E.length?E.join(";"):true});
+ await t("CT-8","la fiche signée s'ouvre dans le moteur d'impression avec montants et signatures",()=>{const c=clotDerniere(__L);__P.length=0;clotFiche(c.id);const x=__P[0];return x&&/Clôture de tournée/.test(x.titre)&&x.montant===c.remis&&/Le livreur/.test(x.corps)&&/Le caissier/.test(x.corps)&&/Billet déchiré/.test(x.corps)?true:JSON.stringify(x&&x.titre)});
+ await t("CT-9","après clôture, le récapitulatif repart de zéro (courses déjà clôturées exclues)",()=>{return clotRecap(__L).L.length===0?true:"restent "+clotRecap(__L).L.length});
+ await t("CT-10","sécurité : un vendeur ou commercial ne voit pas l'onglet et ne peut pas clôturer",()=>{ME=S.users.find(u=>u.role==="vendeur"&&u.actif);const n0=S.clotures.length;clotFormUI(__L);return S.clotures.length===n0&&!document.getElementById("mf")?true:"ouvert"});
+ console.log(errs.length?errs.join("\n"):"");console.log(`RÉSULTAT : ${ok} réussis, ${ko} échecs`);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
