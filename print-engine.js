@@ -120,7 +120,7 @@
   }
   function piedHtml(id, ref, q, mention) {
     var l = [id.nom, id.rccm ? "RCCM " + id.rccm : "", id.ncc ? "NCC " + id.ncc : "", id.siege].filter(Boolean).join(" — ");
-    return '<div class="ft">' + (mention ? esc(mention) + "<br>" : "") + (id.pied ? esc(id.pied) + "<br>" : "") + esc(l) + (id.mentions ? "<br>" + esc(id.mentions) : "") + "<br>" + esc(ref) + (q ? " — document authentifiable (QR de sécurité en dernière page)" : "") + "</div>";
+    return '<div class="ft">' + (mention ? esc(mention) + "<br>" : "") + (id.pied ? esc(id.pied) + "<br>" : "") + esc(l) + (id.mentions ? "<br>" + esc(id.mentions) : "") + "<br>Logiciel développé par Sanix Africa Division Technologies · WhatsApp : +225 0779181075 / 0140017751<br>" + esc(ref) + (q ? " — document authentifiable (QR de sécurité en dernière page)" : "") + "</div>";
   }
   function qrSvg(texte) {
     if (typeof G.qrcode !== "function") return "";

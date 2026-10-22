@@ -557,7 +557,7 @@ Tests : `node tests/rh-revue.js` (11) et `node tests/revue-qualite.js` (9).
 
 **Carte permanente** : le portail affiche désormais une carte de la zone de livraison sur l'accueil et sur la page Suivi (même sans lien de suivi) ; la position du livreur et la destination s'y ajoutent avec le lien d'une commande en route. Centre réglable par `carte:{lat,lng,zoom,libelle}` dans la configuration (Abidjan par défaut). Le fond de carte OpenStreetMap exige une connexion Internet.
 
-**Signature du développeur** : « Logiciel développé par Sanix Africa Division Technologies — Contact (WhatsApp) : +225 0779181075 / 0140017751 » apparaît sur l'écran de connexion des trois applications, le hub, les Paramètres, le portail, la page de vérification, le consolidé du groupe. Elle ne figure jamais sur les documents imprimés remis aux clients.
+**Signature du développeur** : « Logiciel développé par Sanix Africa Division Technologies — Contact (WhatsApp) : +225 0779181075 / 0140017751 » apparaît sur l'écran de connexion des applications (dont l'application livreur), dans le menu de chaque application (Distribution, Agro, Transport, livreur), le hub, les Paramètres, le portail, la page de vérification, le consolidé du groupe, **et en pied de chaque document imprimé ou PDF** produit par le moteur d'impression (reçus, bordereaux, états, fiches).
 
 ## Protection des numéros des clients (étape 1)
 
