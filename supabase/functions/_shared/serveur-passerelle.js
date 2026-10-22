@@ -28,6 +28,13 @@ export function dbPasserelle(sb = client()) {
     majCode: async (ref, patch) => ok(await t("pg_codes").update(patch).eq("livraison_ref", ref)),
     majMission: async (ref, patch) => ok(await t("pg_missions").update(patch).eq("livraison_ref", ref)),
     majPosition: async (ref, pos) => ok(await t("pg_missions").update({ position: pos, position_le: pos.ts }).eq("livraison_ref", ref)),
+    ecrireColis: async (ref, L) => { ok(await t("pg_colis").delete().eq("livraison_ref", ref)); if (L.length) ok(await t("pg_colis").insert(L.map((k) => ({ livraison_ref: ref, n: k.n, hash: k.hash })))); },
+    colis: async (ref) => ok(await t("pg_colis").select("n,hash").eq("livraison_ref", ref).order("n")) || [],
+    ecrirePreuve: async (ref, patch) => ok(await t("pg_preuves").upsert({ livraison_ref: ref, ...patch }, { onConflict: "livraison_ref" })),
+    preuve: async (ref) => ok(await t("pg_preuves").select("signature,photo,gps,signature_client,client_nom,client_gps,client_signe_le").eq("livraison_ref", ref).maybeSingle()),
+    ecrireJeton: async (j) => { ok(await t("pg_sign_jetons").delete().eq("livraison_ref", j.livraison_ref)); ok(await t("pg_sign_jetons").insert(j)); },
+    jeton: async (hash) => ok(await t("pg_sign_jetons").select("livraison_ref,expire,utilise").eq("token_hash", hash).maybeSingle()),
+    consommerJeton: async (hash) => ok(await t("pg_sign_jetons").update({ utilise: true }).eq("token_hash", hash)),
     ajouterEvenement: async (row) => ok(await t("pg_evenements").insert(row)),
   };
 }

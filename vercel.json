@@ -129,6 +129,10 @@
       "destination": "/assetlinks.json"
     },
     {
+      "source": "/signer",
+      "destination": "/signer.html"
+    },
+    {
       "source": "/commander",
       "destination": "/portail.html"
     }

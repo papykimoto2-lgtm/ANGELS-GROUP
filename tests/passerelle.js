@@ -21,6 +21,7 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
   mission:async r=>D.mis.find(m=>m.livraison_ref===r)||null,code:async r=>D.codes[r]||null,majCode:async(r,p)=>{Object.assign(D.codes[r],p)},
   majMission:async(r,p)=>{Object.assign(D.mis.find(m=>m.livraison_ref===r),p)},
   majPosition:async(r,pos)=>{const m=D.mis.find(x=>x.livraison_ref===r);m.position=pos;m.position_le=pos.ts},
+  colis:async ref=>D.colis&&D.colis[ref]||[],ecrireColis:async(ref,L)=>{D.colis=D.colis||{};D.colis[ref]=L},preuve:async ref=>D.preuves&&D.preuves[ref]||null,ecrirePreuve:async(ref,pt)=>{D.preuves=D.preuves||{};D.preuves[ref]=Object.assign(D.preuves[ref]||{},pt)},ecrireJeton:async j=>{D.jetons=D.jetons||{};D.jetons[j.token_hash]=j},jeton:async h=>D.jetons&&D.jetons[h]||null,consommerJeton:async h=>{D.jetons[h].utilise=true},
   ajouterEvenement:async e=>{D.ev.push(Object.assign({id:++D.n,traite:false,cree_le:new Date().toISOString()},e))}}};
  const cfg={adminKey:"ADMIN-SECRET-123",essaisCodeMax:3};const db=mem();let NOW=Date.parse("2026-10-19T10:00:00Z");
  /* comptes */

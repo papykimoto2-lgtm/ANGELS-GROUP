@@ -85,11 +85,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await q.waitForTimeout(100);await q.evaluate(async()=>{await charger()});await q.waitForTimeout(150);
  await q.click('[data-a="confirmer"]');await q.waitForTimeout(150);
  await q.fill('input[name="code"]',"0000");await q.fill('input[name="recu_par"]',"Mme Konan");await q.click('.ov button[type=submit]');await q.waitForTimeout(300);
+ const sansSig=await q.evaluate(()=>({t:document.getElementById("toast").textContent,ouvert:!!document.querySelector(".ov"),envoye:window.__sent.some(x=>x.b.type==="confirmer")}));
+ chk("LV-6a","signature exigée (commande ≥ seuil) : sans signature, rien n'est envoyé au serveur et la fenêtre reste ouverte",/Signature du destinataire obligatoire/.test(sansSig.t)&&sansSig.ouvert&&!sansSig.envoye,JSON.stringify(sansSig));
+ {const bb=await q.locator("#sg").boundingBox();await q.mouse.move(bb.x+20,bb.y+40);await q.mouse.down();await q.mouse.move(bb.x+120,bb.y+90,{steps:6});await q.mouse.move(bb.x+200,bb.y+30,{steps:6});await q.mouse.up()}
+ await q.click('.ov button[type=submit]');await q.waitForTimeout(300);
  const mauvais=await q.evaluate(()=>({t:document.getElementById("toast").textContent,ouvert:!!document.querySelector(".ov")}));
  chk("LV-6","code incorrect : refusé par le serveur, la fenêtre reste ouverte, rien n'est confirmé",/incorrect/.test(mauvais.t)&&mauvais.ouvert,JSON.stringify(mauvais));
  await q.fill('input[name="code"]',"4821");await q.click('.ov button[type=submit]');await q.waitForTimeout(300);
  const bon=await q.evaluate(()=>window.__sent.filter(x=>x.b.type==="confirmer").pop());
- chk("LV-7","bon code : action « confirmer » envoyée avec montant, mode et personne ayant reçu (le code est vérifié par le serveur uniquement)",bon&&bon.b.donnees.code==="4821"&&bon.b.donnees.montant==="30000"&&bon.b.donnees.recu_par==="Mme Konan",JSON.stringify(bon));
+ chk("LV-7","bon code : action « confirmer » envoyée avec montant, mode et personne ayant reçu (le code est vérifié par le serveur uniquement)",bon&&bon.b.donnees.code==="4821"&&bon.b.donnees.montant==="30000"&&bon.b.donnees.recu_par==="Mme Konan"&&/^data:image\/png;base64,/.test(bon.b.donnees.signature||"")&&!("scans" in bon.b.donnees),JSON.stringify(bon).slice(0,300));
  await q.evaluate(()=>{window.__sent.length=0});await q.click('[data-a="appeler"]');await q.waitForTimeout(300);
  const ap=await q.evaluate(()=>window.__sent[0]);
  chk("LV-8","appel du client : demande au pont avec la clé d'appel de la mission, jamais de numéro",ap&&ap.u.endsWith("/functions/v1/appel-pont")&&ap.b.commande==="CMD-0001"&&ap.b.cle==="c".repeat(32)&&!/tel|numero/i.test(JSON.stringify(ap.b)),JSON.stringify(ap));

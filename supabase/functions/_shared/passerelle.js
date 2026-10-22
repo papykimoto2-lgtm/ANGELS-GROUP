@@ -22,10 +22,33 @@ export function genererMdp() {
   return out.join("");
 }
 
+/* Colis : l'étiquette de chaque colis porte un jeton de 5 caractères (dans le QR et imprimé dessous). Le serveur n'en garde que l'empreinte : le livreur ne peut valider un colis que s'il l'a vraiment sous les yeux. */
+export const empreinteColis = (livraison_ref, n, tok) => sha256hex("colis|" + livraison_ref + "|" + n + "|" + String(tok).trim().toUpperCase());
+export const empreinteJeton = (jeton) => sha256hex("sign|" + String(jeton).trim().toUpperCase());
+const ALPHA_J = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const PNG = /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/, JPG = /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/, SIG_MAX = 80000, PHOTO_MAX = 80000;
+const QR_COLIS = /^AGE1\|([^|]+)\|(\d+)\/(\d+)\|([A-Z0-9]{5})$/;
+/* Contrôle des colis scannés (QR ou code de 5 caractères) : chaque colis de la mission doit être reconnu. Retourne { ok, scans:[{n,mode}] } ou { ok:false, msg }. */
+async function verifierScans(db, m, scans) {
+  const ref = m.livraison_ref, K = await db.colis(ref), L = Array.isArray(scans) ? scans.slice(0, 120) : [], vus = new Map();
+  for (const x of L) {
+    const t = txt(x && x.txt, 80).toUpperCase(); let n = 0, tok = "", mode = "saisi";
+    const q = QR_COLIS.exec(t);
+    if (q) { if (q[1] !== String(m.commande_ref).toUpperCase()) return { ok: false, msg: "Ce colis appartient à la commande " + q[1] + ", pas à " + m.commande_ref }; n = +q[2]; tok = q[4]; mode = "scan"; }
+    else if (/^[A-Z0-9]{5}$/.test(t)) tok = t; else continue;
+    const h = (c) => empreinteColis(ref, c, tok);
+    if (n) { const k = K.find((c) => c.n === n); if (k && egal(await h(n), k.hash)) vus.set(n, mode); }
+    else for (const k of K) if (egal(await h(k.n), k.hash)) { vus.set(k.n, "saisi"); break; }
+  }
+  const manque = K.filter((k) => !vus.has(k.n)).map((k) => k.n);
+  if (manque.length) return { ok: false, msg: "Colis non reconnus ou non scannés : n° " + manque.join(", ") };
+  return { ok: true, scans: K.map((k) => ({ n: k.n, mode: vus.get(k.n) })) };
+}
+
 export const empreinteCode = (livraison_ref, code) => sha256hex("code|" + livraison_ref + "|" + String(code).trim());
 
 const STATUTS_ACTIFS = ["affectee", "acceptee", "en_cours"];
-const TYPES = ["accepter", "refuser", "prise_en_charge", "demarrer", "confirmer", "echec", "position", "incident", "arrive", "rappel_client"];
+const TYPES = ["accepter", "refuser", "prise_en_charge", "demarrer", "confirmer", "echec", "position", "incident", "arrive", "rappel_client", "demande_signature", "signature_etat"];
 const txt = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
 const nombre = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
 
@@ -42,14 +65,20 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
       if (!ref || !lv || !m.payload || typeof m.payload !== "object") { ignorees++; continue; }
       if (!connus.has(lv)) { if (!inconnus.includes(lv)) inconnus.push(lv); continue; }
       if (attente.has(ref)) { ignorees++; continue; }   // un événement du livreur n'est pas encore appliqué par le bureau : on ne l'écrase pas
-      const p = JSON.parse(JSON.stringify(m.payload)); delete p.tel; delete p.code;
+      const p = JSON.parse(JSON.stringify(m.payload)); delete p.tel; delete p.code; delete p.colis;
+      const K = (Array.isArray(m.colis) ? m.colis : []).slice(0, 99).filter((k) => k && Number.isInteger(k.n) && k.n >= 1 && k.n <= 99 && /^[A-Za-z0-9]{5}$/.test(String(k.tok || "")));
+      if (K.length) p.colis_total = K.length; else delete p.colis_total;
       await db.ecrireMission({ livraison_ref: ref, livreur_ref: lv, commande_ref: txt(m.commande_ref, 40), statut: txt(m.statut, 20), payload: p, maj_le: new Date(now).toISOString() });
       if (m.code != null && String(m.code).trim() !== "") await db.ecrireCode(ref, await empreinteCode(ref, m.code));
+      if (K.length) await db.ecrireColis(ref, await Promise.all(K.map(async (k) => ({ n: k.n, hash: await empreinteColis(ref, k.n, k.tok) }))));
       ecrites++;
     }
     const R = Array.isArray(req.retirer) ? req.retirer.slice(0, 500).map((x) => txt(x, 60)).filter(Boolean) : [];
     if (R.length) await db.retirerMissions(R);
     return rep(200, { ok: true, ecrites, ignorees, retirees: R.length, livreurs_inconnus: inconnus });
+  }
+  if (a === "preuve") {   /* signature, photo et position d'une livraison confirmée : le bureau les range dans son dossier */
+    const pr = await db.preuve(txt(req.livraison_ref, 60)); return rep(200, { ok: true, preuve: pr || null });
   }
   if (a === "evenements") return rep(200, { ok: true, evenements: await db.evenementsEnAttente(200) });
   if (a === "acquitter") {
@@ -89,6 +118,18 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
   const maj = { statut: st, payload: p }, ev = {};
   const refuse = (s, msg) => err(s, msg);
 
+  if (type === "demande_signature") {   /* le livreur affiche un QR : le client signe sur SON téléphone (lien à usage unique, 15 minutes) */
+    if (st !== "en_cours") return refuse(409, "La signature se fait pendant la livraison");
+    let jeton = ""; const o = crypto.getRandomValues(new Uint8Array(16)); for (const x of o) jeton += ALPHA_J[x % ALPHA_J.length];
+    const expire = new Date(now + 15 * 60000).toISOString();
+    await db.ecrireJeton({ token_hash: await empreinteJeton(jeton), livraison_ref: ref, expire, utilise: false });
+    return rep(200, { ok: true, statut: st, jeton, expire });
+  }
+  if (type === "signature_etat") {
+    const pr = await db.preuve(ref);
+    return rep(200, { ok: true, statut: st, signee: !!(pr && pr.signature_client), nom: pr && pr.client_nom || "", le: pr && pr.client_signe_le || null });
+  }
+
   if (type === "accepter") { if (st !== "affectee") return refuse(409, "Cette mission n'est plus à accepter"); maj.statut = "acceptee"; }
   else if (type === "refuser") {
     if (!["affectee", "acceptee"].includes(st)) return refuse(409, "Cette mission ne peut plus être refusée"); const motif = txt(d.motif, 200);
@@ -96,7 +137,12 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
   }
   else if (type === "prise_en_charge") {
     if (st !== "acceptee" || p.collecte_at) return refuse(409, "Prise en charge impossible dans l'état actuel"); const nb = Math.round(nombre(d.nb_colis));
-    if (!(nb >= 1 && nb <= 99)) return refuse(400, "Nombre de colis : entre 1 et 99"); p.collecte_at = new Date(now).toISOString(); p.nb_colis = nb; ev.nb_colis = nb; ev.etat = txt(d.etat, 60);
+    if (!(nb >= 1 && nb <= 99)) return refuse(400, "Nombre de colis : entre 1 et 99");
+    if (p.exige_colis && p.colis_total > 0) {   /* chaque colis doit être scanné à la prise en charge : le nombre est celui de la commande */
+      const v = await verifierScans(db, { livraison_ref: ref, commande_ref: m.commande_ref }, d.scans);
+      if (!v.ok) return refuse(403, v.msg); p.colis_collecte = v.scans; ev.scans = v.scans; ev.nb_colis = p.colis_total;
+    }
+    p.collecte_at = new Date(now).toISOString(); p.nb_colis = ev.nb_colis || nb; ev.nb_colis = p.nb_colis; ev.etat = txt(d.etat, 60);
   }
   else if (type === "demarrer") { if (st !== "acceptee" || !p.collecte_at) return refuse(409, "Prenez d'abord les colis en charge"); maj.statut = "en_cours"; }
   else if (type === "echec") {
@@ -117,6 +163,17 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     if (!(montant >= 0) || montant > 1e9) return refuse(400, "Montant encaissé invalide");
     if (!recu) return refuse(400, "Nom de la personne ayant reçu obligatoire");
     if (montant !== att && txt(d.ecart_note, 300).length < 3) return refuse(400, "Écart de " + (montant - att) + " F : explication obligatoire");
+    /* preuves : colis remis (scan), signature (client sur son téléphone, sinon livreur), photo, position */
+    if (p.exige_colis && p.colis_total > 0) { const v = await verifierScans(db, { livraison_ref: ref, commande_ref: m.commande_ref }, d.scans); if (!v.ok) return refuse(403, v.msg); ev.scans = v.scans; }
+    const pr = await db.preuve(ref) || {}, sigL = typeof d.signature === "string" && d.signature ? d.signature : "";
+    if (sigL && (!PNG.test(sigL) || sigL.length > SIG_MAX)) return refuse(400, "Signature illisible : recommencez");
+    const photo = typeof d.photo === "string" && d.photo ? d.photo : "";
+    if (photo && (!JPG.test(photo) || photo.length > PHOTO_MAX)) return refuse(400, "Photo illisible : reprenez-la");
+    if (p.exige_signature && !pr.signature_client && !sigL) return refuse(400, "Signature du destinataire obligatoire pour cette commande");
+    const g = d.gps && typeof d.gps === "object" ? { lat: nombre(d.gps.lat), lng: nombre(d.gps.lng), precision: Math.round(nombre(d.gps.precision) || 0) } : null, gps = g && Math.abs(g.lat) <= 90 && Math.abs(g.lng) <= 180 ? g : null;
+    const patch = {}; if (sigL) patch.signature = sigL; if (photo) patch.photo = photo; if (gps) patch.gps = gps;
+    if (Object.keys(patch).length) await db.ecrirePreuve(ref, patch);
+    ev.preuve = !!(sigL || photo || pr.signature_client); ev.signature_source = pr.signature_client ? "client" : sigL ? "livreur" : ""; ev.photo = !!photo; if (gps) ev.gps = gps;
     await db.majCode(ref, { essais: 0, verrou_jusqua: null });
     maj.statut = "livree"; Object.assign(ev, { montant, mode: txt(d.mode, 40), ref_paiement: txt(d.ref, 60), direct: !!d.direct, recu_par: recu, obs: txt(d.obs, 300), ecart_note: txt(d.ecart_note, 300) });
   }

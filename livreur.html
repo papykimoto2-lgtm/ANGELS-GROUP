@@ -81,7 +81,7 @@ async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession(
  if(!t){const e=new Error("Session expirée : reconnectez-vous");e.status=401;e.reseau=!enLigne();throw e}
  let r;try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)})}catch(x){const e=new Error("Réseau indisponible");e.reseau=true;throw e}
  const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false){const e=new Error(j.erreur||("Erreur "+r.status));e.status=r.status;throw e}return j}
-const ferme=()=>{const o=$(".ov");if(o)o.remove()};
+const ferme=()=>{try{camStop();clearInterval(PVPOLL)}catch(e){}const o=$(".ov");if(o)o.remove()};
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
 
 /* ---------- Connexion ---------- */
@@ -391,6 +391,69 @@ async function vider(){if(vidage||!sb||!enLigne()||!file().length)return;vidage=
  if(n)toast(n+" action(s) envoyée(s)","ok");await charger()}
 const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse introuvable","Client absent"]).map(x=>`<option>${esc(x)}</option>`).join("");
 const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
+/* ---------- Preuves de livraison : scan des colis, signature (livreur ou client sur son téléphone), photo, position ---------- */
+const PV={};let PVPOLL=0;
+const pvDe=r=>PV[r]||(PV[r]={collecte:[],remise:[],photo:"",cli:null});
+const charge=src=>new Promise((ok,ko)=>{if(document.querySelector('script[data-l="'+src+'"]'))return ok();const s=document.createElement("script");s.src=src;s.dataset.l=src;s.onload=ok;s.onerror=()=>ko(new Error("Chargement impossible : "+src));document.head.appendChild(s)});
+const CAM={stream:null,raf:0};
+function camStop(){if(CAM.stream){CAM.stream.getTracks().forEach(t=>t.stop());CAM.stream=null}if(CAM.raf){cancelAnimationFrame(CAM.raf);CAM.raf=0}}
+async function camStart(el,onCode){camStop();
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){el.innerHTML='<div class="al sm">Caméra indisponible : saisissez le code de 5 caractères imprimé sous le QR.</div>';return}
+ el.innerHTML='<video playsinline muted style="width:100%;border-radius:10px;background:#000;max-height:240px"></video><canvas hidden></canvas>';
+ const v=el.querySelector("video"),cv=el.querySelector("canvas"),cx=cv.getContext("2d",{willReadFrequently:true}),bd="BarcodeDetector" in window?new BarcodeDetector({formats:["qr_code"]}):null;
+ if(!bd){try{await charge("jsqr.js")}catch(e){}}
+ try{CAM.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false})}catch(e){el.innerHTML='<div class="al sm">Caméra refusée ou absente : saisissez le code de 5 caractères imprimé sous le QR.</div>';return}
+ v.srcObject=CAM.stream;v.play().catch(()=>{});let last="",lt=0,busy=false;
+ const tick=async()=>{if(!CAM.stream)return;
+  if(v.readyState>=2&&!busy){busy=true;let txt=null;
+   try{if(bd){const r=await bd.detect(v);if(r[0])txt=r[0].rawValue}
+    if(!txt&&window.jsQR){const k=Math.min(1,640/v.videoWidth);cv.width=Math.round(v.videoWidth*k);cv.height=Math.round(v.videoHeight*k);cx.drawImage(v,0,0,cv.width,cv.height);const im=cx.getImageData(0,0,cv.width,cv.height),r=jsQR(im.data,im.width,im.height,{inversionAttempts:"dontInvert"});if(r)txt=r.data}}catch(e){}
+   busy=false;if(txt&&(txt!==last||Date.now()-lt>2500)){last=txt;lt=Date.now();onCode(txt)}}
+  CAM.raf=requestAnimationFrame(tick)};tick()}
+const colisHtml=(ph,tot)=>`<div class="sec" style="margin-top:10px"><b>📦 ${ph==="collecte"?"Scannez chaque colis à la prise en charge":"Scannez les colis remis au client"}</b></div><div id="cp_l"></div><div id="cp_box"></div>
+ <button type="button" class="btn ghost" id="cp_cam">📷 Scanner avec la caméra</button><div style="display:flex;gap:6px;margin-top:6px"><input id="cp_man" placeholder="Code sous le QR (5 caractères)" maxlength="5" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase"><button type="button" class="btn ghost" id="cp_ok" style="width:auto">Valider</button></div>`;
+function colisBind(o,r,ph,tot,num){const L=pvDe(r)[ph],lst=o.querySelector("#cp_l");L.length=0;
+ const dessine=()=>{lst.innerHTML=Array.from({length:tot},(_,i)=>{const k=L.find(x=>x.n===i+1);return`<div class="pill sm" style="${k?"background:#e8f7ee":""}">${k?"✅":"☐"} Colis ${i+1}/${tot}${k?` <span class="mu">(${k.mode==="scan"?"scanné":"saisi"})</span>`:""}</div>`}).join("")};
+ const take=txt=>{txt=String(txt||"").trim().toUpperCase();const m=/^AGE1\|([^|]+)\|(\d+)\/(\d+)\|([A-Z0-9]{5})$/.exec(txt);let n,mode;
+  if(m){if(m[1]!==String(num).toUpperCase())return toast("Ce colis appartient à la commande "+m[1]+", pas à "+num,"err");n=+m[2];mode="scan";if(n<1||n>tot)return toast("Étiquette de colis inconnue pour cette commande","err")}
+  else if(/^[A-Z0-9]{5}$/.test(txt)){n=0;for(let i=1;i<=tot&&!n;i++)if(!L.some(x=>x.n===i))n=i;mode="saisi";if(!n)return toast("Tous les colis sont déjà validés")}
+  else return toast("Code illisible : QR de colis ou 5 caractères","err");
+  if(L.some(x=>x.n===n))return toast("Colis "+n+" déjà validé");
+  L.push({n,txt,mode});try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}dessine();
+  if(L.length===tot){camStop();o.querySelector("#cp_box").innerHTML='<div class="al" style="background:#e8f7ee">Tous les colis sont validés ✔</div>'}};
+ dessine();o.querySelector("#cp_cam").onclick=()=>camStart(o.querySelector("#cp_box"),take);
+ const man=()=>{const i=o.querySelector("#cp_man");if(i.value.trim()){take(i.value);i.value=""}};o.querySelector("#cp_ok").onclick=man;o.querySelector("#cp_man").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();man()}}}
+const scansDe=(r,ph)=>pvDe(r)[ph].map(x=>({txt:x.txt,mode:x.mode}));
+/* photo du colis remis : réduite et compressée sur le téléphone (JPEG ≤ 80 Ko) */
+function photoReduire(f){return new Promise((ok,ko)=>{if(!f||!/^image\//.test(f.type))return ko(new Error("Ce fichier n'est pas une image"));const u=URL.createObjectURL(f),im=new Image();
+ im.onload=()=>{try{const k=Math.min(1,640/Math.max(im.naturalWidth,im.naturalHeight)),w=Math.max(1,Math.round(im.naturalWidth*k)),h=Math.max(1,Math.round(im.naturalHeight*k)),c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(im,0,0,w,h);
+  let q=.7,d=c.toDataURL("image/jpeg",q);while(d.length>78000&&q>.25){q-=.08;d=c.toDataURL("image/jpeg",q)}URL.revokeObjectURL(u);d.length>80000?ko(new Error("Photo trop lourde")):ok(d)}catch(e){ko(e)}};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error("Image illisible"))};im.src=u})}
+const preuveChamps=(p,r)=>{const tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;
+ return(tot?colisHtml("remise",tot):"")+`<div class="sec" style="margin-top:10px"><b>✍ Signature du destinataire</b>${p.exige_signature?" <span class='mu'>(obligatoire)</span>":""}</div><div id="sg_cli"></div>
+ <canvas id="sg" width="440" height="150" style="width:100%;height:150px;border:2px dashed #9db0b8;border-radius:10px;background:#fff;touch-action:none"></canvas>
+ <div style="display:flex;gap:6px;margin-top:6px"><button type="button" class="btn ghost" id="sg_clr" style="width:auto">Effacer</button><button type="button" class="btn ghost" id="sg_qr">📲 Faire signer sur le téléphone du client</button></div><div id="sg_box"></div>
+ <label style="margin-top:10px">📷 Photo du colis remis (recommandé)<input type="file" accept="image/*" capture="environment" id="ph_in"></label><div id="ph_pv"></div>`};
+function preuveBind(o,r,p,num){const pv=pvDe(r),tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;pv.cli=null;pv.photo="";if(tot)colisBind(o,r,"remise",tot,num);
+ const cv=o.querySelector("#sg"),x=cv.getContext("2d");x.lineWidth=3;x.lineCap="round";x.lineJoin="round";x.strokeStyle="#10242c";let dr=false;cv._any=false;
+ const pt=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)*cv.width/b.width,(e.clientY-b.top)*cv.height/b.height]};
+ cv.onpointerdown=e=>{dr=true;cv.setPointerCapture(e.pointerId);const[a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+.1,b+.1);x.stroke();cv._any=true};
+ cv.onpointermove=e=>{if(!dr)return;const[a,b]=pt(e);x.lineTo(a,b);x.stroke()};cv.onpointerup=cv.onpointercancel=()=>{dr=false};
+ o.querySelector("#sg_clr").onclick=()=>{x.clearRect(0,0,cv.width,cv.height);cv._any=false};
+ o.querySelector("#ph_in").onchange=async e=>{const f=e.target.files[0],b=o.querySelector("#ph_pv");if(!f)return;try{pv.photo=await photoReduire(f);b.innerHTML=`<img alt="Photo du colis" src="${pv.photo}" style="max-width:120px;border-radius:8px;margin-top:6px">`}catch(x){pv.photo="";b.textContent=x.message}};
+ o.querySelector("#sg_qr").onclick=async()=>{const box=o.querySelector("#sg_box");if(!sb||!enLigne())return toast("Réseau indispensable pour la signature sur le téléphone du client : utilisez la signature à l'écran","err");
+  try{const j=await api("mission-action",{livraison_ref:r,type:"demande_signature",donnees:{}});await charge("qrcode.js");const q=qrcode(0,"M");q.addData(location.origin+"/signer?t="+j.jeton);q.make();
+   box.innerHTML=`<div style="display:flex;gap:12px;align-items:center;margin-top:8px"><div style="width:170px;background:#fff;padding:6px;border-radius:8px">${q.createSvgTag({scalable:true,margin:0})}</div><div class="sm">Le client scanne ce QR avec <b>son</b> téléphone, signe, puis vous donne son code.<div id="sg_st" style="margin-top:6px;color:#b86e00">⏳ En attente de la signature du client…</div></div></div>`;
+   clearInterval(PVPOLL);const fin=Date.parse(j.expire)||Date.now()+9e5;
+   PVPOLL=setInterval(async()=>{const st=o.querySelector("#sg_st");if(!st||!document.body.contains(o)){clearInterval(PVPOLL);return}
+    if(Date.now()>fin){clearInterval(PVPOLL);st.textContent="Lien expiré : touchez de nouveau le bouton pour un nouveau QR.";return}
+    try{const e=await api("mission-action",{livraison_ref:r,type:"signature_etat",donnees:{}});if(e.signee){clearInterval(PVPOLL);pv.cli={nom:e.nom||""};st.style.color="#118a4b";st.textContent="✅ Signé par "+e.nom+" sur son téléphone";
+      o.querySelector("#sg_cli").innerHTML=`<div class="al" style="background:#e8f7ee">✅ Le client <b>${esc(e.nom)}</b> a signé sur son téléphone.</div>`;cv.style.display="none";o.querySelector("#sg_clr").style.display="none";
+      const rp=o.querySelector("[name=recu_par]");if(rp&&!rp.value)rp.value=e.nom;try{navigator.vibrate&&navigator.vibrate([80,40,80])}catch(e){}}}catch(e){}},3000)}
+  catch(e){toast(e.message,"err")}}}
+async function preuveCollecter(r,p,o){const pv=pvDe(r),cv=o.querySelector("#sg"),tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;
+ if(tot&&pv.remise.length<tot)return{err:"Scannez les "+tot+" colis remis ("+pv.remise.length+" validés)"};
+ const sig=!pv.cli&&cv&&cv._any?cv.toDataURL("image/png"):"";if(p.exige_signature&&!pv.cli&&!sig)return{err:"Signature du destinataire obligatoire : signez à l'écran ou faites signer sur le téléphone du client"};
+ const g=await posActuelle();return{d:{scans:tot?scansDe(r,"remise"):undefined,signature:sig||undefined,photo:pv.photo||undefined,gps:g?{lat:g.lat,lng:g.lng}:undefined}}}
 const ACT={
  sos:()=>sosOuvrir(),
  pushon:async()=>{await pushActiver();vueMissions()},pushoff:async()=>{await pushCouper();vueMissions()},pushnon:()=>{lsSet(LS.d,1);vueMissions()},
@@ -412,12 +475,16 @@ const ACT={
  accepter:r=>envoyer(r,"accepter",{},"Mission acceptée"),
  demarrer:r=>envoyer(r,"demarrer",{},"Course démarrée"),
  refuser:r=>formModal("Mission impossible",`<label>Motif<select name="motif">${motifsOpt(mission(r))}</select></label><label>Précision (facultatif)<input name="p"></label>`,"Refuser",d=>envoyer(r,"refuser",{motif:d.motif+(d.p?" — "+d.p:"")},"Mission refusée")),
- prise:r=>formModal("Colis pris en charge",`<label>Nombre de colis<input type="number" name="nb" min="1" max="99" value="${((mission(r)||{}).payload||{}).nb_colis||1}" required></label><label>État des colis<select name="etat"><option>Conforme</option><option>Endommagé</option><option>Incomplet</option></select></label>`,"Valider",d=>envoyer(r,"prise_en_charge",{nb_colis:+d.nb,etat:d.etat},"Colis pris en charge")),
+ prise:r=>{const m=mission(r),p=m.payload||{},tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;
+  const o=formModal("Colis pris en charge",(tot?colisHtml("collecte",tot)+`<input type="hidden" name="nb" value="${tot}">`:`<label>Nombre de colis<input type="number" name="nb" min="1" max="99" value="${p.nb_colis||1}" required></label>`)+`<label>État des colis<select name="etat"><option>Conforme</option><option>Endommagé</option><option>Incomplet</option></select></label>`,"Valider",d=>{
+   if(tot&&pvDe(r).collecte.length<tot)return toast("Scannez les "+tot+" colis ("+pvDe(r).collecte.length+" validés)","err");
+   return envoyer(r,"prise_en_charge",{nb_colis:+d.nb,etat:d.etat,scans:tot?scansDe(r,"collecte"):undefined},"Colis pris en charge")});if(tot)colisBind(o,r,"collecte",tot,m.commande_ref)},
  echec:r=>formModal("Livraison impossible",`<label>Motif<select name="motif">${motifsOpt(mission(r))}</select></label><label>Observation<textarea name="obs" rows="2"></textarea></label>`,"Déclarer l'échec",d=>{if(/injoignable|absent|ne répond/i.test(d.motif||"")){const man=ctManque((mission(r)||{}).payload||{});if(man.length){toast("Échec refusé : "+man.join(" ; "),"err");return}}return envoyer(r,"echec",{motif:d.motif,obs:d.obs},"Échec enregistré")}),
  arrive:r=>envoyer(r,"arrive",{},"Arrivée enregistrée"),
  norep:r=>envoyer(r,"rappel_client",{motif:"Je suis arrivé : le client ne répond pas"},"Le centre est prévenu : il rappelle le client. Patientez sur place."),
  codenr:async r=>{const x=await envoyer(r,"incident",{nature:"Code client",description:"Code de réception non reçu ou client sans smartphone"},"Le centre est prévenu : il contacte le client et vous libère le code.");if(x!==undefined){const P=lsGet(LS.p,{});P["c:"+r]=Date.now();lsSet(LS.p,P)}vueMissions()},
- confirmer:r=>{const m=mission(r),p=m.payload||{};formModal("Confirmer la livraison",`<div class="pill">À encaisser : <b>${fcfa(p.montant_attendu)}</b></div>${p.code_libere?`<div class="al" style="background:#e8f7ee">🔑 Code libéré par le centre après vérification auprès du client.</div>`:""}<label>Code donné par le client<input name="code" inputmode="numeric" autocomplete="off" required value="${esc(p.code_libere||"")}"></label>${p.montant_attendu>0?`<label>Montant encaissé (F)<input type="number" name="montant" min="0" value="${+p.montant_attendu||0}" required></label><label>Mode de paiement<select name="mode">${(p.modes||["Espèces"]).map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>Référence de la transaction Mobile Money (si applicable)<input name="ref" autocomplete="off"></label><label>Explication si le montant diffère<input name="ecart_note"></label>`:`<input type="hidden" name="montant" value="0">`}<label>Nom de la personne ayant reçu<input name="recu_par" required></label><label>Observation<input name="obs"></label>${p.exige_colis||p.exige_signature?`<div class="al sm">Le scan des colis et la signature ne sont pas disponibles dans cette version : le bureau contrôlera la livraison.</div>`:""}`,"Confirmer",d=>envoyer(r,"confirmer",{code:d.code,montant:d.montant,mode:d.mode||"",ref:d.ref||"",recu_par:d.recu_par,obs:d.obs||"",ecart_note:d.ecart_note||""},"Livraison confirmée"))},
+ confirmer:r=>{const m=mission(r),p=m.payload||{};const o=formModal("Confirmer la livraison",`<div class="pill">À encaisser : <b>${fcfa(p.montant_attendu)}</b></div>${p.code_libere?`<div class="al" style="background:#e8f7ee">🔑 Code libéré par le centre après vérification auprès du client.</div>`:""}<label>Code donné par le client<input name="code" inputmode="numeric" autocomplete="off" required value="${esc(p.code_libere||"")}"></label>${p.montant_attendu>0?`<label>Montant encaissé (F)<input type="number" name="montant" min="0" value="${+p.montant_attendu||0}" required></label><label>Mode de paiement<select name="mode">${(p.modes||["Espèces"]).map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>Référence de la transaction Mobile Money (si applicable)<input name="ref" autocomplete="off"></label><label>Explication si le montant diffère<input name="ecart_note"></label>`:`<input type="hidden" name="montant" value="0">`}<label>Nom de la personne ayant reçu<input name="recu_par" required></label><label>Observation<input name="obs"></label>${preuveChamps(p,r)}`,"Confirmer",async d=>{const c=await preuveCollecter(r,p,o);if(c.err)return toast(c.err,"err");
+   const x=await envoyer(r,"confirmer",Object.assign({code:d.code,montant:d.montant,mode:d.mode||"",ref:d.ref||"",recu_par:d.recu_par,obs:d.obs||"",ecart_note:d.ecart_note||""},c.d),"Livraison confirmée");if(x!==undefined)delete PV[r]});preuveBind(o,r,p,m.commande_ref)},
  incident:()=>formModal("Signaler un incident",`<label>Nature<select name="nature"><option>Accident</option><option>Panne</option><option>Litige client</option><option>Sécurité</option><option>Autre</option></select></label><label>Mission concernée<select name="r"><option value="">—</option>${missions.filter(m=>ACTIFS.includes(m.statut)).map(m=>`<option value="${esc(m.livraison_ref)}">${esc(m.commande_ref)}</option>`).join("")}</select></label><label>Description<textarea name="description" rows="3" required></textarea></label>`,"Envoyer",d=>{const r=d.r||(missions.find(m=>ACTIFS.includes(m.statut))||{}).livraison_ref;if(!r){toast("Aucune mission active à rattacher","err");return}return envoyer(r,"incident",{nature:d.nature,description:d.description},"Incident transmis au bureau")}),
  appeler:async r=>{const m=mission(r),p=(m||{}).payload||{};try{const t=(await sb.auth.getSession()).data.session.access_token;const x=await fetch(FN+"appel-pont",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify({commande:m.commande_ref,livreur_id:m.livreur_ref,cle:p.cle_appel})});const j=await x.json().catch(()=>({}));if(x.ok&&j.ok)toast(j.message||"Votre téléphone va sonner","ok");else toast(j.erreur||"Appel impossible : contactez le bureau","err")}catch(e){toast("Appel impossible : "+e.message,"err")}},
  mdp:()=>vueChangement(),
