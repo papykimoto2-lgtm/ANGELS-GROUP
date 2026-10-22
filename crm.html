@@ -46,6 +46,8 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px}
 <header><div class="w top"><div><h1>🤝 CRM — ANGEL'S GROUP</h1><p>Une fiche unique par personne pour tout le groupe · <span id="date"></span></p></div><div style="display:flex;gap:8px;align-items:center"><span id="who" style="font-size:13px"></span><button class="back" id="lock" hidden type="button" data-a="lock">🔒 Verrouiller</button><a class="back" href="index.html">← Hub</a></div></div></header>
 <main><div class="w" id="app"></div></main>
 <footer>© ANGEL'S GROUP · CRM · <a href="index.html">Retour au hub</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
+<script src="passerelle-config.js"></script>
+<script src="sync-engine.js"></script>
 <script src="auth-engine.js"></script>
 <script src="crm-engine.js"></script>
 <script>
@@ -161,6 +163,8 @@ document.addEventListener("submit",e=>{const f=e.target;e.preventDefault();
  if(k==="opp")return agir(()=>C.creerOpp(par(),{nom:d.get("nom"),tel:d.get("tel"),valeur:d.get("valeur"),source:d.get("source")}),"Opportunité créée.");
  if(k==="reg")return agir(()=>C.reglages(par(),Object.fromEntries(d)),"Seuils enregistrés.")});
 render();
+window.ANGELS_CRM_RAFRAICHIR=()=>{if(garde())render()};
+ANGELS_SYNC.init({app:"crm",nom:"CRM",get:()=>C.etat(),persist:()=>C.sauver(),refresh:()=>{if(SESS&&garde())render()},qui:()=>SESS?SESS.nom:"poste"});
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>

@@ -11,7 +11,8 @@
   var PROFILS = {
     distribution: { nom: "Distributions", cle: "angels_erp_v1", exclude: ["pos", "gps_hist", "tries", "pass", "pass_err"], secrets: { config: ["appel_pont.cle_admin"] }, derives: ["angels_compta_distribution", "angels_portail_v1"] },
     transport: { nom: "Transport", cle: "angels_transport_v3", exclude: ["tries", "gps_pos", "gps_alerts", "alertes_etat"], derives: ["angels_compta_transport", "angels_transport_files"] },
-    agro: { nom: "Agro", cle: "angels_agro_v1", exclude: ["tries"], derives: ["angels_compta_agro"] }
+    agro: { nom: "Agro", cle: "angels_agro_v1", exclude: ["tries"], derives: ["angels_compta_agro"] },
+    crm: { nom: "CRM", cle: "angels_crm_v1", exclude: [], derives: [] }
   };
   /* Une instance du moteur = une application. Dans une application elle tourne en continu ; le Hub en crée une « sans écran » pour lire l'état et agir. */
   function Moteur(P) {
