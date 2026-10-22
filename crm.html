@@ -151,7 +151,7 @@ const $=s=>document.getElementById(s),C=ANGELS_CRM,E=C.esc,MQ=window.ERP_MARQUE|
 $("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
 /* ---------- Accès : un administrateur, la direction ou un responsable commercial de l'une des trois applications ---------- */
 const ROLES_OK=["admin","direction","commercial"],DUREE=30*60*1000,SK="angels_crm_sess";
-let SESS=null,TRY={n:0,until:0},ST={tab:"pil",q:"",seg:"",app:"",page:0,sel:null,msg:null,er:false,mq:"",vue:"cartes",focus:null};
+let SESS=null,TRY={n:0,until:0},ST={tab:(/^#(pil|con|pip|tac|rel|qua|reg)$/.exec(location.hash)||[0,"pil"])[1],q:"",seg:"",app:"",page:0,sel:null,msg:null,er:false,mq:"",vue:"cartes",focus:null};
 try{const s=JSON.parse(sessionStorage.getItem(SK)||"null");if(s&&s.exp>Date.now())SESS=s}catch(e){}
 const lire=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
 function comptes(){const L=[];C.APPS.forEach(([id,key,nom])=>{const G=lire(key);if(!G)return;(G.users||[]).filter(u=>u.actif!==false&&ROLES_OK.includes(u.role)).forEach(u=>L.push({app:id,appNom:nom,key,id:u.id,nom:u.nom,role:u.role}))});return L}

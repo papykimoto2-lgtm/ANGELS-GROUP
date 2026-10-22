@@ -37,6 +37,11 @@ main{padding:0 16px 40px;margin-top:-30px;position:relative}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:7px 13px;font:inherit;font-weight:700;font-size:13px;min-height:38px;text-decoration:none}
 .chip.bad{border-color:#f1b0b0;background:#fdecec;color:#a11d1d}.chip.ok2{border-color:#b6e2c8;background:#e8f7ee;color:var(--ok)}
+.prio{background:linear-gradient(135deg,var(--card),var(--soft));border:1px solid var(--bd);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:14px}
+.prio .ph{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.prio h2{margin:0;font-size:16px}.prio ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.prio li{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px 10px;flex-wrap:wrap}.prio li .m{flex:1;min-width:160px}.prio li .m b{display:block}.prio li .m small{color:var(--mu);font-size:12.5px}
+.sc{display:inline-grid;place-items:center;min-width:42px;height:30px;border-radius:99px;font-weight:800;font-size:13px;color:#fff;padding:0 8px}.sc.chaud{background:#e0531f}.sc.tiede{background:#e0a21f}.sc.froid{background:#6b8aa0}
+.prio .btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 12px;font-size:13px}
 .cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-bottom:14px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px;border-top:5px solid var(--c);text-decoration:none;color:inherit;box-shadow:var(--sh);transition:transform .15s,box-shadow .15s;animation:rise .3s ease both}
 .card:hover{transform:translateY(-3px)}
@@ -81,6 +86,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px 12px 90px}
 <main><div class="w">
 <nav class="nav" id="nav" aria-label="Sections"><a href="#cons" class="on"><i>📊</i> Vue groupe</a><a href="#fil"><i>🏢</i> Filiales</a><a href="#adm"><i>🧰</i> Outils</a><a href="#socle"><i>🧱</i> Socle</a></nav>
 <section class="hello"><h2 id="hi">Bonjour 👋</h2><p class="sub">Voici où en est le groupe aujourd'hui.</p><div class="chips" id="chips"></div></section>
+<section class="prio" id="prio" hidden aria-label="Priorités commerciales"></section>
 <div id="demo-alerte" hidden role="alert" style="background:#fff1d6;border:1px solid #e0b34a;color:#6b4a00;border-radius:12px;padding:12px 14px;margin:14px 0 0;font-size:14px"></div>
 <section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="tw"><table id="tcons"></table></div><p class="note" id="ncons"></p></section>
 <h2 style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
@@ -148,7 +154,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px 12px 90px}
 </div>
 </div></main>
 <footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
-<script src="marque.js"></script><script src="auth-engine.js"></script>
+<script src="marque.js"></script><script src="auth-engine.js"></script><script src="crm-engine.js"></script>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
 /* Modules et outils de l'instance (marque.js) : seuls ceux choisis apparaissent. */
@@ -271,7 +277,7 @@ function consolide(){
   <tr><td>Résultat comptable du mois</td>${X.map(x=>`<td>${!x[1]?'<span class="nd">non ouvert</span>':x[1].res==null?'<span class="nd">dans son module</span>':'<span class="'+(x[1].res>=0?"ok":"er")+'">'+F(x[1].res)+'</span>'}</td>`).join("")}<td><b>${F(som(X.filter(x=>x[1]&&x[1].res!=null),x=>x[1].res))}</b></td></tr>
   <tr><td>Activité</td>${X.map(x=>`<td class="nd act">${x[1]?x[1].act:"—"}</td>`).join("")}<td></td></tr>
   <tr><td>Alertes à traiter</td>${X.map(x=>`<td>${x[1]?'<span class="'+(x[1].alt?"er":"ok")+'">'+x[1].alt+'</span>':'<span class="nd">—</span>'}</td>`).join("")}<td><b>${tot("alt")}</b></td></tr></tbody>`;
- tdb(X);salut(X,tot("alt"));
+ tdb(X);salut(X,tot("alt"));priorites();
  $("ncons").textContent="Chiffres lus sur cet appareil (données locales de chaque application). « Non ouvert » : l'application n'a pas encore été utilisée ici. Résultat de Distributions : voir son module Comptabilité.";
 }
 /* ---------- Tableau de bord par module ---------- */
@@ -288,6 +294,14 @@ function tdb(X){
  $("tdb").innerHTML=`<div class="big" style="--c:${m.c}">${tile("Trésorerie",d.tres==null?"—":F(d.tres))}${tile("Chiffre d'affaires du mois",F(d.ca))}${tile("Encaissé du mois",F(d.enc))}${tile("Créances à recouvrer",F(d.cre))}${tile("Résultat du mois",d.res==null?"voir module":F(d.res),d.res!=null&&d.res<0)}${tile("Alertes à traiter",d.alt,d.alt>0)}</div>
  <div class="two"><div class="pan"><h4>Chiffre d'affaires — 6 derniers mois</h4><div class="bars">${bars}</div></div>
  <div class="pan"><h4>Indicateurs</h4><ul class="det">${d.det.map(([l,v,w])=>`<li><span>${l}</span><b class="${w&&+v>0?"er":""}">${v}</b></li>`).join("")}</ul><a class="btn" style="--c:${m.c};margin-top:10px" href="${m.href}">Ouvrir ${m.nom}</a></div></div>`;
+}
+/* ---------- Priorités commerciales : opportunités les plus chaudes du CRM (données locales, calcul du CRM) ---------- */
+function priorites(){
+ const box=$("prio");let P=[];
+ try{if(ACTIF("crm")&&window.ANGELS_CRM)P=ANGELS_CRM.prioritesOpps(Date.now(),MQ.nom)}catch(e){}
+ if(!P.length){box.hidden=true;return}
+ const E=ANGELS_CRM.esc;box.hidden=false;
+ box.innerHTML=`<div class="ph"><h2>⚡ Priorités commerciales</h2><a class="btn" style="--c:#7c3aed;padding:6px 12px;min-height:36px;font-size:13px" href="crm.html#pip">Ouvrir le pipeline</a></div><ol>${P.slice(0,3).map(p=>`<li><span class="sc ${p.chaleur}" title="Score ${p.score}/100">${p.score}</span><div class="m"><b>${E(p.o.nom)}${p.o.valeur?" · "+F(p.o.valeur):""}</b><small>${E(p.action)}</small></div>${p.lien?`<a class="btn" style="--c:#1fa855" target="_blank" rel="noopener" href="${E(p.lien)}">💬 Relancer</a>`:""}</li>`).join("")}</ol>${P.length>3?`<p class="note">+ ${P.length-3} autre(s) opportunité(s) ouverte(s)</p>`:""}`;
 }
 function salut(X,alt){
  const h=new Date().getHours(),u=(window.ANGELS_AUTH&&ANGELS_AUTH.session&&ANGELS_AUTH.session())||null,nom=(u&&u.nom)||((MQ.admin&&MQ.admin.nom)||"");
