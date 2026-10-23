@@ -857,6 +857,17 @@ Le menu de `distribution.html` passe de 27 entrées à **8 modules** : Aujourd'h
 ### Centre de livraison : répartition sur un seul écran (tests/centre-onglets.js)
 Le Centre s'ouvre sur **🧭 Répartition**, trois colonnes côte à côte : **📦 À affecter** (bouton *Affecter*, *Créer une tournée*), **🏍 En course** (livreur, retard, position GPS, carte) et **⚠ À traiter** (livraisons échouées, écarts d'encaissement). Filtres communs : période, lieu, zone, livreur et **⚡ Urgents seulement**. Les collectes vendeurs et les tournées restent accessibles par des liens dans la colonne « En course » et par leurs onglets (8 onglets au lieu de 10). Les anciens liens (`aff`, `act`, `trt`) ouvrent la répartition avec la colonne demandée en évidence.
 
+### Prise de commande en parcours (tests/parcours-commande.js)
+La commande est l'entrée de l'ERP : le formulaire « Nouvelle commande » suit trois étapes, dans l'ordre où l'on parle au client.
+- **① Client** : recherche par nom ou téléphone (curseur déjà placé). Pour un client connu, le bouton **🔁 Même commande que la dernière fois** reprend son panier aux prix actuels (articles disparus signalés, stock vérifié).
+- **② Produits et prestations** : recherche, articles fréquents en un geste, quantités + / −, total en continu.
+- **③ Livraison et paiement** : adresses connues en cartes ou saisie directe, priorité, paiement, observations.
+- Tout le reste (date, frais, remise, canal, type de colis, photos, instructions d'accès) est sous **« Plus d'options »** : les champs gardent leurs noms, rien n'est perdu. Les photos ouvrent le bloc dès qu'on en ajoute.
+- Une barre **Client · Produits · Livraison** se coche seule au fil de la saisie.
+- **Écran de succès** après la création : numéro, total, parcours, puis l'étape suivante (Affecter à un livreur ou Ouvrir la commande), Étiquettes colis, Nouvelle commande.
+- **Bandeau « Bien démarrer »** (administrateur, page Commandes) tant que les zones, les produits ou la première commande manquent ; masquable.
+- **Bouton flottant « ➕ Nouvelle commande »** sur les autres pages et **touche N** (hors saisie).
+
 ## Types de colis et impression de l'affiche QR (tests/types-colis.js)
 
 **Types de colis** : chaque commande a un type (colis standard, courrier / documents, produit cassable, aliments / périssable, objet de valeur, lourd / volumineux) ; chaque type a son traitement, réglable dans Paramètres → « Types de colis et traitement » (une ligne par type : `id | nom | icône | signature | photo | urgent | délai (min) | mention | consigne`, le type « standard » est obligatoire). Effets : consigne affichée au livreur sur sa mission et dans le détail de la commande ; **signature** et/ou **photo de remise** obligatoires (contrôlées dans l'application livreur et par le serveur) ; **priorité urgente** automatique (aliments) ; **délai limite** après l'affectation avec alerte au centre et affichage rouge côté livreur ; **mention imprimée sur l'étiquette** (FRAGILE, PÉRISSABLE…). Le type se choisit dans le formulaire de commande du bureau et dans celui de l'application vendeur (liste publiée par le bureau) ; un type inconnu devient « standard ». Le serveur transporte le type (commande du vendeur, état publié, preuve de remise) : redéployer `mission-sync`, `vendeur-sync` et `mission-action` après mise à jour.
