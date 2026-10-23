@@ -337,7 +337,7 @@ const lb=l=>badge(LST[l.statut],LSTC[l.statut]);
 /* ---------- Métier : commandes ---------- */
 function setStatut(c,to,note){
  if(!TRANS[c.statut].includes(to)){toast(`Transition interdite : ${ST[c.statut]} → ${ST[to]}`,"err");return false}
- c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;try{notifier(c,to,note)}catch(e){}return true}
+ c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;try{notifier(c,to,note)}catch(e){}try{const vv=c.vendeur_id&&S.vendeurs.find(x=>x.id===c.vendeur_id);if(vv&&["confirmee","en_cours","livree","echouee","annulee"].includes(to))pushVendeur(vv,"commande_vendeur",({confirmee:"✅ Commande confirmée",en_cours:"🏍️ Commande en route",livree:"📦 Commande livrée",echouee:"⚠️ Livraison échouée",annulee:"✖ Commande annulée"})[to],c.numero+" · "+ST[to],"cmd-"+c.id+"-"+to,"vendeur.html")}catch(e){}return true}
 function numCmd(){S.seq.cmd++;return"CMD-"+new Date().getFullYear()+"-"+String(S.seq.cmd).padStart(4,"0")}
 function creerCmd(d){
  if(!garde(["admin","commercial","superviseur","vendeur"],null,d))throw new Error("Droits insuffisants pour créer une commande");
@@ -2443,10 +2443,14 @@ const pushCfg=()=>Object.assign({actif:true,types:{}},S.config.push||{}),pushTyp
 function pushLivreur(lv,type,titre,corps,tag,url){if(!lv||!lv.ident_serveur||!pushType(type))return false;S.push_file=S.push_file||[];tag=tag||type;
  if(S.push_file.some(x=>x.livreur_ref===lv.id&&x.tag===tag&&x.corps===corps))return false;
  S.push_file.push({id:uid("pu"),livreur_ref:lv.id,titre:String(titre).slice(0,80),corps:String(corps||"").slice(0,160),tag,url:url||"livreur.html",ts:now(),essais:0});if(S.push_file.length>60)S.push_file.splice(0,S.push_file.length-60);return true}
+/* Notification push à un vendeur partenaire (application vendeur) : même file d'attente que les livreurs */
+function pushVendeur(v,type,titre,corps,tag,url){if(!v||!v.ident_serveur||!pushType(type))return false;S.push_file=S.push_file||[];tag=tag||type;
+ if(S.push_file.some(x=>x.vendeur_ref===v.id&&x.tag===tag&&x.corps===corps))return false;
+ S.push_file.push({id:uid("pu"),vendeur_ref:v.id,titre:String(titre).slice(0,80),corps:String(corps||"").slice(0,160),tag,url:url||"vendeur.html",ts:now(),essais:0});if(S.push_file.length>60)S.push_file.splice(0,S.push_file.length-60);return true}
 let _pushBusy=false;
 async function pushFlush(){const P=PASS();if(!P||_pushBusy||!(S.push_file||[]).length)return;_pushBusy=true;
  try{S.push_file=S.push_file.filter(x=>Date.now()-new Date(x.ts)<15*60000);
-  for(const m of S.push_file.slice(0,10)){try{await passPost(P,"push-envoyer",{livreur_ref:m.livreur_ref,titre:m.titre,corps:m.corps,tag:m.tag,url:m.url});S.push_file=S.push_file.filter(x=>x.id!==m.id)}catch(e){m.essais=(m.essais||0)+1;if(m.essais>=3||/Clés VAPID|inconnue|401/.test(String(e.message)))S.push_file=S.push_file.filter(x=>x.id!==m.id)}}
+  for(const m of S.push_file.slice(0,10)){try{await passPost(P,"push-envoyer",Object.assign(m.vendeur_ref?{vendeur_ref:m.vendeur_ref}:{livreur_ref:m.livreur_ref},{titre:m.titre,corps:m.corps,tag:m.tag,url:m.url}));S.push_file=S.push_file.filter(x=>x.id!==m.id)}catch(e){m.essais=(m.essais||0)+1;if(m.essais>=3||/Clés VAPID|inconnue|401/.test(String(e.message)))S.push_file=S.push_file.filter(x=>x.id!==m.id)}}
   if(!CL.on)save()}finally{_pushBusy=false}}
 function statLiv(lv,t0,t1){
  const L=S.livraisons.filter(l=>l.livreur_id===lv.id&&["livree","echouee"].includes(l.statut)&&l.fin_at&&new Date(l.fin_at).getTime()>=t0&&new Date(l.fin_at).getTime()<=t1);
@@ -2506,11 +2510,14 @@ const _suiviMemo={};
 async function vendSuivi(c){if(["brouillon","annulee"].includes(c.statut))return"";const k=c.id+"|"+c.statut+"|"+((c.hist||[]).length);if(_suiviMemo[k]!==undefined)return _suiviMemo[k];let u="";try{u=await suiviLienPortail(c)}catch(e){}return _suiviMemo[k]=/^https:\/\//.test(u)?u:""}
 async function vendEtatPub(v){const d=vendDue(v),mine=S.commandes.filter(c=>c.vendeur_id===v.id&&c.statut!=="brouillon").slice(-200).reverse();
  const cm=[];for(const c of mine){const cl=cli(c.client_id);cm.push({numero:c.numero,ref:c.app_ref||"",date:String(c.date||"").slice(0,10),statut:ST[c.statut]||c.statut,client:cl?cl.nom:"",montant:(c.montant_produits||0)-(c.remise||0),net:d.net?d.net(c):0,suivi:await vendSuivi(c)})}
- return{nom:v.nom,solde:d.restant,acquis:d.acquis,regle:d.regle,attente:d.attente,lien:vendLienPub(v),zones:(S.config.zones||[]).map(z=>({nom:z.nom,frais:z.frais||0})),commandes:cm,
+ const dms=(S.demandes||[]).filter(x=>x.vendeur_id===v.id&&x.statut==="nouvelle").slice(-50).map(x=>({ref:x.ref,nom:x.nom,tel:x.tel,zone:x.zone,quartier:x.quartier,repere:x.repere,note:x.note||"",cree_le:x.cree_le,nb_photos:(x.photos||[]).length,gps:x.lat!=null&&x.lng!=null?{lat:x.lat,lng:x.lng}:null,acompte:x.acompte?{montant:x.acompte.montant,op:x.acompte.op,ref:x.acompte.ref}:null,lignes:(x.lignes||[]).map(l=>({desig:l.desig,qte:l.qte,pu:l.pu}))}));
+ return{nom:v.nom,solde:d.restant,acquis:d.acquis,regle:d.regle,attente:d.attente,lien:vendLienPub(v),demandes:dms,zones:(S.config.zones||[]).map(z=>({nom:z.nom,frais:z.frais||0})),commandes:cm,
   reglements:S.reglements.filter(r=>r.vendeur_id===v.id).slice(-100).reverse().map(r=>({date:new Date(r.ts||Date.now()).toISOString().slice(0,10),montant:r.montant,libelle:[r.mode,r.note].filter(Boolean).join(" — ")}))}}
 /* Commande déposée par un vendeur depuis son application : importée comme une commande « en attente de confirmation » (le bureau confirme avant toute livraison) */
-function vendCmdImporter(e){const v=S.vendeurs.find(x=>x.id===e.vendeur_ref);if(!v)return"vendeur inconnu";if(S.commandes.some(c=>c.app_ref===e.ref))return null;const d=e.donnees||{};
- const u0=ME;ME=usr(v.user_id)||ME;try{const c=creerCmdVendeur(v,{nom:d.nom,tel:d.tel,zone:d.zone,quartier:d.quartier,repere:d.repere,ins:d.ins,obs:d.obs,gps:d.gps||null,lignes:(d.lignes||[]).map(l=>({desig:l.desig,qte:l.qte,pu:l.pu})),pay:d.pay,paye_vendeur:d.paye_vendeur});c.app_ref=e.ref;audit("Commande déposée par le vendeur (application)",v.nom+" — "+c.numero);return null}catch(x){return String(x&&x.message||x)}finally{ME=u0}}
+function vendCmdImporter(e){const v=S.vendeurs.find(x=>x.id===e.vendeur_ref);if(!v)return"vendeur inconnu";const d=e.donnees||{};
+ if(d.type==="refus"){const dm=(S.demandes||[]).find(x=>x.ref===d.demande&&x.vendeur_id===v.id);if(dm&&dm.statut==="nouvelle"){dm.statut="refusee";dm.motif=String(d.motif||"").slice(0,200);audit("Demande client refusée par le vendeur",v.nom+" — "+dm.nom+" (réf. "+dm.ref+")"+(dm.motif?" : "+dm.motif:""))}return null}
+ if(S.commandes.some(c=>c.app_ref===e.ref))return null;
+ const u0=ME;ME=usr(v.user_id)||ME;try{const c=creerCmdVendeur(v,{nom:d.nom,tel:d.tel,zone:d.zone,quartier:d.quartier,repere:d.repere,ins:d.ins,obs:d.obs,gps:d.gps||null,lignes:(d.lignes||[]).map(l=>({desig:l.desig,qte:l.qte,pu:l.pu})),pay:d.pay,paye_vendeur:d.paye_vendeur});c.app_ref=e.ref;{const dm=d.demande&&(S.demandes||[]).find(x=>x.ref===d.demande&&x.vendeur_id===v.id);if(dm){dm.statut="traitee";dm.commande_id=c.id;if((dm.photos||[]).length)c.photos=dm.photos.slice();if(dm.acompte){c.acompte_mm=Object.assign({},dm.acompte,{statut:"a_verifier"})}}}audit("Commande déposée par le vendeur (application)",v.nom+" — "+c.numero+(d.demande?" (demande "+d.demande+")":""));return null}catch(x){return String(x&&x.message||x)}finally{ME=u0}}
 let _vendSig="";
 async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1")return;if(!P||_passBusy||(!force&&Date.now()-_passLast<10000)||!S.livraisons)return;_passBusy=true;_passLast=Date.now();let chg=false;
  try{
@@ -6114,7 +6121,7 @@ function vendDemCreer(d){
  const tel=String(d.t||"").replace(/[^0-9+]/g,"");if(tel.replace(/\D/g,"").length<8)throw new Error("téléphone du client invalide");
  S.demandes=S.demandes||[];
  S.demandes.push({id:uid("dm"),ref,vendeur_id:v.id,nom:String(d.n||"Client").trim().slice(0,80),tel,zone:String(d.z||"").slice(0,80),quartier:String(d.q||"").slice(0,120),repere:String(d.r||"").slice(0,200),lat:d.a==null?null:+d.a,lng:d.o==null?null:+d.o,lignes:L,photos:[],acompte:acMmLire(d.ac),note:d.m?String(d.m).slice(0,500):null,statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien",source:d.s==="qr"||d.s==="live"?d.s:"lien"});
- audit("Commande client reçue par le lien du vendeur",v.nom+" — "+String(d.n||"Client").slice(0,40)+" (réf. "+ref+")");
+ audit("Commande client reçue par le lien du vendeur",v.nom+" — "+String(d.n||"Client").slice(0,40)+" (réf. "+ref+")");try{pushVendeur(v,"demande_vendeur","📥 Nouvelle demande client",String(d.n||"Client").slice(0,40)+" · "+L.length+" article(s)","dm-"+ref,"vendeur.html#demandes")}catch(e){}
  return{numero:ref,nom:String(d.n||"Client"),total:0,notes:[]}}
 function webImporter(text){
  const mk=[...String(text).matchAll(/\[(BOUTIQUE|LIVRAISON|ABONNEMENT):([A-Za-z0-9_-]+)\]/g)],res={ok:[],ko:[]};

@@ -9,10 +9,11 @@ export function dbPush(sb = client()) {
   const t = () => sb.from("pg_push");
   return {
     compteParUtilisateur: async (uid) => ok(await sb.from("pg_livreurs").select("*").eq("user_id", uid).maybeSingle()),
+    vendeurParUtilisateur: async (uid) => ok(await sb.from("pg_vendeurs").select("*").eq("user_id", uid).maybeSingle()),
     ecrireAbonnement: async (row) => ok(await t().upsert(row, { onConflict: "endpoint" })),
-    abonnementsDe: async (ref) => ok(await t().select("endpoint,p256dh,auth,echecs,cree_le").eq("livreur_ref", ref).order("cree_le")) || [],
+    abonnementsDe: async (ref, vend) => ok(await t().select("endpoint,p256dh,auth,echecs,cree_le").eq(vend ? "vendeur_ref" : "livreur_ref", ref).order("cree_le")) || [],
     supprimerAbonnement: async (endpoint) => ok(await t().delete().eq("endpoint", endpoint)),
-    supprimerAbonnementDe: async (ref, endpoint) => ok(await t().delete().eq("livreur_ref", ref).eq("endpoint", endpoint)),
+    supprimerAbonnementDe: async (ref, endpoint, vend) => ok(await t().delete().eq(vend ? "vendeur_ref" : "livreur_ref", ref).eq("endpoint", endpoint)),
     marquerOk: async (endpoint, ts) => ok(await t().update({ derniere_ok: ts, echecs: 0 }).eq("endpoint", endpoint)),
     marquerEchec: async (endpoint) => { const r = ok(await t().select("echecs").eq("endpoint", endpoint).maybeSingle()); return ok(await t().update({ echecs: ((r && r.echecs) || 0) + 1 }).eq("endpoint", endpoint)); },
   };

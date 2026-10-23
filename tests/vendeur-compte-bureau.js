@@ -49,6 +49,27 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const ib=await p.evaluate(async()=>{ME=S.users.find(u=>u.role==="admin");view="params";ui.ptab="liv";render();const t=document.getElementById("ptl")?document.getElementById("ptl").textContent:document.body.textContent;const h=document.body.innerHTML;
   return{titre:/Installer l'application des vendeurs/.test(t),lien:/vendeur\.html/.test(h),qr:(h.match(/<svg/g)||[]).length>=2,wa:/wa\.me\/\?text=[^"]*vendeur\.html/.test(h.replace(/%2F/gi,"/").replace(/%3A/gi,":").replace(/%2E/gi,"."))||/wa\.me\/\?text=[^"]*vendeur/.test(h)}});
  chk("VB-11","Paramètres → Livreurs & GPS : bloc « Installer l'application des vendeurs » avec lien vendeur.html, QR code et envoi WhatsApp",ib.titre&&ib.lien&&ib.qr&&ib.wa,JSON.stringify(ib));
+ /* demandes des clients du vendeur : publication, commande préparée, refus, notifications */
+ const dm=await p.evaluate(async()=>{const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");v.ident_serveur=v.ident_serveur||"boutique.awa.test";
+  S.config.push=Object.assign({actif:true,types:{}},S.config.push||{});S.push_file=[];
+  const payload=o=>b64(o);
+  const msg="[BOUTIQUE:"+payload({f:"DMAB12CD",v:v.id,n:"Mme Konan",t:"0505777777",z:S.config.zones[0].nom,q:"Anonkoua",r:"Face à l'église",l:[["Robe wax",1,null],["Foulard",2,3000]],ac:{m:5000,rf:"MP12345",op:"Orange"}})+"]";
+  const r=webImporter(msg);const d=S.demandes.find(x=>x.ref==="DMAB12CD");
+  return{ok:r.ok.length,ko:r.ko,statut:d&&d.statut,push:S.push_file.filter(x=>x.vendeur_ref===v.id).map(x=>[x.titre,x.url]),vid:v.id}});
+ chk("VB-12","demande reçue par le lien du vendeur : enregistrée « nouvelle » et notification push mise en file pour ce vendeur (lien vers ses demandes)",dm.ok===1&&dm.statut==="nouvelle"&&dm.push.length===1&&/Nouvelle demande client/.test(dm.push[0][0])&&dm.push[0][1]==="vendeur.html#demandes",JSON.stringify(dm));
+ const pb=await p.evaluate(async()=>{const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");const e=await vendEtatPub(v);return e.demandes});
+ chk("VB-13","la demande est publiée dans l'espace du vendeur : client, téléphone, adresse, articles (prix inconnu conservé), acompte annoncé",pb.length===1&&pb[0].ref==="DMAB12CD"&&pb[0].tel==="0505777777"&&pb[0].lignes[0].pu===null&&pb[0].lignes[1].pu===3000&&pb[0].acompte&&pb[0].acompte.montant===5000,JSON.stringify(pb));
+ cmdsAEnvoyer=[{id:21,vendeur_ref:dm.vid,ref:"VD-20261023-DM0001",donnees:{demande:"DMAB12CD",nom:"Mme Konan",tel:"0505777777",zone:imp.zone,quartier:"Anonkoua",repere:"Face à l'église",ins:"",obs:"",lignes:[{desig:"Robe wax",qte:1,pu:12000},{desig:"Foulard",qte:2,pu:3000}],pay:"livraison",paye_vendeur:0,gps:null}}];
+ const cm=await p.evaluate(async()=>{await passSync(true);const c=S.commandes.find(x=>x.app_ref==="VD-20261023-DM0001"),d=S.demandes.find(x=>x.ref==="DMAB12CD");return{c:c?{statut:c.statut,total:c.montant_produits,mm:c.acompte_mm&&c.acompte_mm.statut}:null,dem:d&&[d.statut,d.commande_id===(c&&c.id)]}});
+ chk("VB-14","commande préparée par le vendeur à partir de la demande : importée « en attente », la demande passe « traitée » et reliée à la commande (acompte annoncé à vérifier conservé)",!!cm.c&&cm.c.statut==="attente"&&cm.c.total===18000&&cm.c.mm==="a_verifier"&&cm.dem[0]==="traitee"&&cm.dem[1]===true,JSON.stringify(cm));
+ await p.evaluate(async()=>{const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");S.demandes.push({id:"dmx",ref:"RFUS99",vendeur_id:v.id,nom:"Client X",tel:"0505000000",zone:"Z",quartier:"",repere:"",lignes:[{desig:"A",qte:1,pu:100}],photos:[],statut:"nouvelle",cree_le:new Date().toISOString(),via:"lien"})});
+ cmdsAEnvoyer=[{id:22,vendeur_ref:dm.vid,ref:"RF-RFUS99",donnees:{type:"refus",demande:"RFUS99",motif:"Rupture de stock"}}];
+ const rf=await p.evaluate(async()=>{const n=S.commandes.length;await passSync(true);const d=S.demandes.find(x=>x.ref==="RFUS99");return{statut:d.statut,motif:d.motif,nouvelles:S.commandes.length-n}});
+ chk("VB-15","demande refusée par le vendeur : clôturée « refusée » avec son motif, aucune commande créée",rf.statut==="refusee"&&rf.motif==="Rupture de stock"&&rf.nouvelles===0,JSON.stringify(rf));
+ const st=await p.evaluate(async()=>{S.push_file=[];const c=S.commandes.find(x=>x.app_ref==="VD-20261023-DM0001");setStatut(c,"confirmee","test");setStatut(c,"preparation");return S.push_file.map(x=>[x.vendeur_ref&&1,x.titre,x.url])});
+ chk("VB-16","quand le bureau confirme la commande, une notification push « Commande confirmée » est mise en file pour le vendeur",st.length===1&&st[0][0]===1&&/Commande confirmée/.test(st[0][1])&&st[0][2]==="vendeur.html",JSON.stringify(st));
+ const fl=await p.evaluate(async()=>{window.__env=[];const f=window.fetch;window.fetch=async(u,o)=>{try{const b=JSON.parse(o.body);if(/push-envoyer/.test(u))window.__env.push(b)}catch(e){}return f(u,o)};S.push_file=[];pushVendeur(S.vendeurs.find(x=>x.nom==="Boutique Awa Test"),"demande_vendeur","📥 Test","corps","t1","vendeur.html#demandes");await pushFlush();window.fetch=f;return window.__env});
+ chk("VB-17","la file d'envoi partage vers le serveur avec l'identifiant du vendeur (et non d'un livreur)",fl.length===1&&fl[0].vendeur_ref&&!fl[0].livreur_ref&&fl[0].url==="vendeur.html#demandes",JSON.stringify(fl));
  chk("VB-6","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

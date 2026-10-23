@@ -26,9 +26,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const bureau=await p.evaluate(()=>typeof S==="undefined"&&typeof ANGELS_ROLES==="undefined"&&!document.querySelector("script[src*=sync-engine]"));
  chk("VD-6","l'application ne charge pas le moteur du logiciel du bureau (aucune donnée du bureau sur l'appareil du vendeur)",bureau===true);
  /* dépôt de commande : formulaire, contrôles, envoi, file hors ligne, suivi */
- const sent=[];let mode="ok",importee=false;
+ const sent=[],acts=[];let mode="ok",importee=false;
  await ctx.route("**/functions/v1/vendeur-sync",async rt=>{const rq=rt.request(),h={"access-control-allow-origin":"*","access-control-allow-headers":"*"};if(rq.method()==="OPTIONS")return rt.fulfill({status:204,headers:h});
-  if(mode==="net")return rt.abort();const b=JSON.parse(rq.postData()||"{}");if(b.action==="commander")sent.push(b);
+  if(mode==="net")return rt.abort();const b=JSON.parse(rq.postData()||"{}");acts.push(b);if(b.action==="commander")sent.push(b);
   rt.fulfill({status:200,headers:h,contentType:"application/json",body:JSON.stringify(b.action==="commander"?{ok:true,ref:b.ref}:{ok:true,nom:"Boutique Awa",commandes:importee?[{numero:"CMD-9",ref:sent[0]&&sent[0].ref,statut:"En cours de livraison",client:"Konan",montant:21000,suivi:"https://exemple.test/portail#/suivi/abc"}]:[],reglements:[],solde:0,zones:[{nom:"Abobo",frais:1500},{nom:"Cocody",frais:2000}],lien:""})})});
  const f1=await p.evaluate(()=>{sb={auth:{getSession:async()=>({data:{session:{access_token:"t"}}})}};user={id:"u"};moi={nom:"Boutique Awa"};D={commandes:[],reglements:[],solde:0,zones:[{nom:"Abobo",frais:1500},{nom:"Cocody",frais:2000}],lien:""};PAGE="nouvelle";MENU=false;vue();
   const f=document.getElementById("fcmd");return{champs:["nom","tel","zone","quartier","repere","pay","ins"].every(n=>f[n]),zones:[...f.zone.options].map(o=>o.textContent).join("|"),menu:(MENU=true,vue(),[...document.querySelectorAll(".dr .mi")].map(x=>x.textContent).join("|"))}});
@@ -70,6 +70,22 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await pl.click('#vdl li[data-i="awa.boutique"]');
  const ch=await pl.evaluate(()=>({id:document.getElementById("li").value,focus:document.activeElement&&document.activeElement.id,ferme:document.getElementById("vdl").hidden}));
  chk("VD-18","choisir un vendeur dans la liste remplit l'identifiant, ferme la liste et place le curseur sur le mot de passe",ch.id==="awa.boutique"&&ch.focus==="lp"&&ch.ferme===true,JSON.stringify(ch));
+ /* demandes des clients du vendeur */
+ const DM1={ref:"AB12CD",nom:"Mme Konan",tel:"0505777777",zone:"Cocody",quartier:"Angré",repere:"Château d'eau",note:"Livrer avant 18h",cree_le:"2026-10-23T08:00:00Z",nb_photos:2,gps:{lat:5.4,lng:-4.0},acompte:{montant:5000,op:"Orange",ref:"MP123"},lignes:[{desig:"Robe wax",qte:1,pu:null},{desig:"Foulard",qte:2,pu:3000}]};
+ const dpg=await p.evaluate(d=>{importee=false;D.demandes=[d];D.zones=[{nom:"Abobo",frais:1500},{nom:"Cocody",frais:2000}];PAGE="accueil";MENU=false;vue();const acc=document.querySelector(".wrap").textContent;MENU=true;vue();const menu=[...document.querySelectorAll(".dr .mi")].map(x=>x.textContent).join("|");MENU=false;PAGE="demandes";vue();return{acc,menu,page:document.querySelector(".wrap").textContent,tel:!!document.querySelector('a[href^="tel:"]'),wa:!!document.querySelector('a[href*="wa.me/"]')}},DM1);
+ chk("VD-19","demandes clients : alerte sur l'accueil, compteur dans le menu, page listant client, adresse, articles (prix à saisir), acompte annoncé, captures jointes, boutons Préparer / Refuser / Appeler / WhatsApp",/1 demande\(s\) de clients/.test(dpg.acc)&&/Demandes clients/.test(dpg.menu)&&/Mme Konan/.test(dpg.page)&&/Angré, Cocody/.test(dpg.page)&&/prix à saisir/.test(dpg.page)&&/Acompte annoncé/.test(dpg.page)&&/2 capture\(s\)/.test(dpg.page)&&/Préparer la commande/.test(dpg.page)&&/Refuser/.test(dpg.page)&&dpg.tel&&dpg.wa,JSON.stringify(dpg).slice(0,400));
+ await p.click('[data-a="preparer"]');await p.waitForTimeout(200);
+ const pre=await p.evaluate(()=>{const f=document.getElementById("fcmd");const L=[...document.querySelectorAll("#lg .lg")].map(l=>[l.querySelector(".ld").value,l.querySelector(".lq").value,l.querySelector(".lp").value]);return{nom:f.nom.value,tel:f.tel.value,zone:f.zone.value,q:f.quartier.value,r:f.repere.value,L,gps:document.getElementById("gpsl").textContent,bandeau:/Demande de/.test(document.querySelector(".wrap").textContent)}});
+ chk("VD-20","« Préparer la commande » : le formulaire est prérempli (client, téléphone, zone, quartier, repère, articles, position), les prix inconnus sont à compléter",pre.nom==="Mme Konan"&&pre.tel==="0505777777"&&pre.zone==="Cocody"&&pre.q==="Angré"&&pre.r==="Château d'eau"&&pre.L.length===2&&pre.L[0][2]===""&&pre.L[1][2]==="3000"&&/Position du client/.test(pre.gps)&&pre.bandeau,JSON.stringify(pre));
+ await p.fill("#fcmd .lp","12000");const nb=sent.length;await p.click("#fcmd button[type=submit]");await p.waitForTimeout(600);
+ const so=sent[sent.length-1];
+ chk("VD-21","envoi : la commande part avec la référence de la demande et la position du client ; la demande disparaît de la liste",sent.length===nb+1&&so.demande==="AB12CD"&&so.gps&&so.gps.lat===5.4&&so.lignes[0].pu===12000&&await p.evaluate(()=>demandes().length===0),JSON.stringify(so));
+ await p.evaluate(d=>{D.demandes=[d];lsSet(LS.f,[]);PAGE="demandes";vue()},DM1);
+ p.once("dialog",d=>d.accept("Rupture de stock"));await p.click('[data-a="refuser"]');await p.waitForTimeout(500);
+ const rf=acts.filter(a=>a.action==="refuser");
+ chk("VD-22","refuser une demande : motif demandé, transmis au serveur, la demande disparaît",rf.length===1&&rf[0].demande==="AB12CD"&&rf[0].motif==="Rupture de stock"&&await p.evaluate(()=>demandes().length===0),JSON.stringify(rf));
+ const cp=await p.evaluate(()=>{PAGE="compte";vue();return document.querySelector(".wrap").textContent});
+ chk("VD-23","« Mon compte » : carte « Notifications sur le téléphone » avec l'état des notifications",/Notifications sur le téléphone/.test(cp)&&/État :/.test(cp),cp.slice(0,200));
  chk("VD-7","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

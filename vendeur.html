@@ -62,9 +62,9 @@ const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"'
 const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const identDe=i=>String(i||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9._-]+/g,".").replace(/\.{2,}/g,".").replace(/^\.|\.$/g,"");
 const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():identDe(i)+"@users.angels-erp.app"};
-const LS={i:"ang_vd_ident",x:"ang_vd_idents",q:"ang_vd_file",e:"ang_vd_envoyees"};
+const LS={i:"ang_vd_ident",x:"ang_vd_idents",q:"ang_vd_file",e:"ang_vd_envoyees",f:"ang_vd_dm_faites",n:"ang_vd_push",d:"ang_vd_pushinv"};
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-let sb=null,user=null,moi=null,PAGE="accueil",MENU=false,APPV="",D=null,erreur="",GPS=null;
+let sb=null,user=null,moi=null,PAGE="accueil",MENU=false,APPV="",D=null,erreur="",GPS=null,DEM=null;
 const memoIdent=(i,n)=>{if(!i)return;const a=lsGet(LS.x,[]).find(o=>o&&o.i===i);lsSet(LS.x,[{i,n:n||(a&&a.n)||""}])};
 const versionTxt=()=>APPV?"Version "+APPV:"";
 const enLigne=()=>navigator.onLine!==false;
@@ -106,10 +106,23 @@ function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mo
   try{const{error}=await sb.auth.updateUser({password:a,data:{chg:false}});if(error)throw error;toast("Mot de passe modifié","ok");await demarrer()}catch(x){m.textContent=x.message;m.classList.remove("hide")}}}
 
 /* ---------- Pages ---------- */
-const PAGES=[["accueil","🏠 Accueil"],["nouvelle","➕ Nouvelle commande"],["commandes","📦 Mes commandes"],["reglages_v","💰 Mes règlements"],["lien","🔗 Mon lien client"],["compte","⚙️ Mon compte"]];
-function drawerHtml(){return`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu">${PAGES.map(([k,t])=>`<button class="mi${PAGE===k?" on":""}" data-a="page" data-p="${k}">${t}</button>`).join("")}<button class="mi er" data-a="quitter">⎋ Se déconnecter</button><div class="sm mu appv" style="text-align:center;margin-top:12px">${versionTxt()}</div></nav></div>`}
+const PAGES=[["accueil","🏠 Accueil"],["demandes","📥 Demandes clients"],["nouvelle","➕ Nouvelle commande"],["commandes","📦 Mes commandes"],["reglages_v","💰 Mes règlements"],["lien","🔗 Mon lien client"],["compte","⚙️ Mon compte"]];
+function drawerHtml(){return`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu">${PAGES.map(([k,t])=>`<button class="mi${PAGE===k?" on":""}" data-a="page" data-p="${k}">${t}${k==="demandes"&&demandes().length?` <span class="bd" style="background:var(--er);color:#fff">${demandes().length}</span>`:""}</button>`).join("")}<button class="mi er" data-a="quitter">⎋ Se déconnecter</button><div class="sm mu appv" style="text-align:center;margin-top:12px">${versionTxt()}</div></nav></div>`}
 const vide=t=>`<div class="card mu">${t}</div>`;
 const file=()=>lsGet(LS.q,[]),envoyees=()=>lsGet(LS.e,[]);
+const faites=()=>lsGet(LS.f,[]),demandes=()=>((D&&D.demandes)||[]).filter(d=>!faites().includes(d.ref));
+const horo=t=>{try{return new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
+function carteDemande(d){const tot=d.lignes.reduce((t,l)=>t+(l.pu==null?0:l.qte*l.pu),0),sansPrix=d.lignes.some(l=>l.pu==null),tel=String(d.tel||"").replace(/[^0-9+]/g,"");
+ return`<div class="card"><div class="between"><b>${esc(d.nom||"Client")}</b><span class="sm mu">${esc(horo(d.cree_le))}</span></div>
+ <div class="sm mu">📍 ${esc([d.quartier,d.zone].filter(Boolean).join(", "))}${d.repere?" · "+esc(d.repere):""}</div>
+ <ul style="margin:8px 0 0;padding-left:18px">${d.lignes.map(l=>`<li>${l.qte} × ${esc(l.desig)} <span class="mu sm">${l.pu==null?"— prix à saisir":"— "+fcfa(l.pu)}</span></li>`).join("")}</ul>
+ <div class="sm" style="margin-top:6px">${sansPrix?"Prix à compléter":"Total articles : <b>"+fcfa(tot)+"</b>"}</div>
+ ${d.note?`<div class="sm mu" style="margin-top:4px">💬 ${esc(d.note)}</div>`:""}
+ ${d.acompte?`<div class="sm" style="margin-top:4px">💳 Acompte annoncé par le client : ${fcfa(d.acompte.montant)} (${esc(d.acompte.op||"Mobile Money")}, réf. ${esc(d.acompte.ref||"")})</div>`:""}
+ ${d.nb_photos?`<div class="sm mu" style="margin-top:4px">📷 ${d.nb_photos} capture(s) d'écran jointe(s) par le client (à consulter au bureau)</div>`:""}
+ <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button class="btn" style="margin:0;flex:2" data-a="preparer" data-r="${esc(d.ref)}">🧾 Préparer la commande</button><button class="btn ghost" style="margin:0;flex:1" data-a="refuser" data-r="${esc(d.ref)}">✖ Refuser</button></div>
+ ${tel?`<div style="display:flex;gap:6px;margin-top:6px"><a class="btn ghost" style="margin:0;flex:1;text-align:center;text-decoration:none" href="tel:${esc(tel)}">📞 Appeler</a><a class="btn ghost" style="margin:0;flex:1;text-align:center;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${esc(tel.replace(/^\+/,""))}">💬 WhatsApp</a></div>`:""}</div>`}
+
 const refCmd=()=>"VD-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,8).toUpperCase();
 function carteCmd(x){const sv=x.suivi?`<div style="display:flex;gap:6px;margin-top:8px"><button class="btn ghost" style="margin:0" data-a="suivi" data-u="${esc(x.suivi)}">📍 Suivi</button><button class="btn wa" style="margin:0" data-a="suiviwa" data-u="${esc(x.suivi)}" data-n="${esc(x.numero||"")}">💬 Envoyer au client</button></div>`:"";
  return`<div class="card"><div class="between"><b>${esc(x.numero||"")}</b><span class="bd">${esc(x.statut||"")}</span></div><div class="sm mu">${esc(x.client||"")}${x.montant!=null?" · "+fcfa(x.montant):""}${x.date?" · "+esc(x.date):""}</div>${sv}</div>`}
@@ -117,35 +130,43 @@ function cartesAttente(c){const vus=new Set(c.map(x=>x.ref).filter(Boolean));
  const q=file().map(o=>`<div class="card"><div class="between"><b>${esc(o.nom||"Client")}</b><span class="bd" style="background:#fff1d6;color:#7a4a00">⏳ À envoyer</span></div><div class="sm mu">${fcfa(o.lignes.reduce((t,l)=>t+l.qte*l.pu,0))} · partira au retour du réseau</div></div>`).join("");
  const e=envoyees().filter(o=>!vus.has(o.ref)).map(o=>`<div class="card"><div class="between"><b>${esc(o.nom||"Client")}</b><span class="bd">Transmise au bureau</span></div><div class="sm mu">${fcfa(o.total)} · en attente de confirmation par le bureau</div></div>`).join("");
  return q+e}
-function formCmd(){const Z=(D&&D.zones)||[];return`<h2 class="pg">Nouvelle commande</h2><form id="fcmd" class="card" autocomplete="off"><div class="sm mu">Rien n'est livré avant la confirmation du bureau.</div>
- <label>Nom du client <span class="mu sm">(vide = client divers)</span><input name="nom" maxlength="80"></label>
- <label>Téléphone du client <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel" maxlength="20"></label>
- <label>Zone de livraison${Z.length?`<select name="zone" required><option value="">Choisir…</option>${Z.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)}${z.frais?" — "+fcfa(z.frais):""}</option>`).join("")}</select>`:`<input name="zone" required maxlength="60">`}</label>
- <div class="g2"><label>Quartier<input name="quartier" maxlength="80"></label><label>Repère<input name="repere" maxlength="120"></label></div>
- <div id="gpsl" class="sm mu" style="margin-top:6px">Position GPS : non renseignée</div><button type="button" class="btn ghost" data-a="gps">📍 Utiliser ma position actuelle</button>
- <div class="sec" style="margin-top:12px;font-weight:700">Articles</div><div id="lg">${ligneHtml()}</div><button type="button" class="btn ghost" data-a="addl">➕ Ajouter un article</button>
+function formCmd(){const Z=(D&&D.zones)||[].slice(),X=DEM;if(X&&X.zone&&!Z.some(z=>z.nom===X.zone))Z.push({nom:X.zone,frais:0});return`<h2 class="pg">Nouvelle commande</h2><form id="fcmd" class="card" autocomplete="off">${X?`<div class="al" style="background:#e3f2fd;color:#0b3b4c">📥 Demande de <b>${esc(X.nom||"client")}</b> (réf. ${esc(X.ref)}) : vérifiez, complétez les prix, puis envoyez.</div>`:""}<div class="sm mu">Rien n'est livré avant la confirmation du bureau.</div>
+ <label>Nom du client <span class="mu sm">(vide = client divers)</span><input name="nom" maxlength="80" value="${esc(X?X.nom:"")}"></label>
+ <label>Téléphone du client <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel" maxlength="20" value="${esc(X?X.tel:"")}"></label>
+ <label>Zone de livraison${Z.length?`<select name="zone" required><option value="">Choisir…</option>${Z.map(z=>`<option value="${esc(z.nom)}"${X&&X.zone===z.nom?" selected":""}>${esc(z.nom)}${z.frais?" — "+fcfa(z.frais):""}</option>`).join("")}</select>`:`<input name="zone" required maxlength="60">`}</label>
+ <div class="g2"><label>Quartier<input name="quartier" maxlength="80" value="${esc(X?X.quartier:"")}"></label><label>Repère<input name="repere" maxlength="120" value="${esc(X?X.repere:"")}"></label></div>
+ <div id="gpsl" class="sm mu" style="margin-top:6px">${GPS?"📍 Position du client reprise de la demande":"Position GPS : non renseignée"}</div><button type="button" class="btn ghost" data-a="gps">📍 Utiliser ma position actuelle</button>
+ <div class="sec" style="margin-top:12px;font-weight:700">Articles</div><div id="lg">${X&&X.lignes.length?X.lignes.map(l=>ligneHtml(l)).join(""):ligneHtml()}</div><button type="button" class="btn ghost" data-a="addl">➕ Ajouter un article</button>
  <div id="tot" class="sm" style="margin-top:8px"></div>
  <label>Paiement<select name="pay"><option value="livraison">Le client paie à la livraison</option><option value="paye">Déjà payé au vendeur</option><option value="partiel">Acompte payé au vendeur</option></select></label>
  <label id="lpv" class="hide">Montant déjà payé<input name="pv" type="number" min="0" inputmode="numeric"></label>
  <label>Consignes de livraison <span class="mu sm">(facultatif)</span><input name="ins" maxlength="200"></label>
  <div id="ce" class="al er hide"></div><button class="btn" type="submit">Envoyer la commande</button></form>`}
-const ligneHtml=()=>`<div class="lg"><input class="ld" placeholder="Article" maxlength="100"><input class="lq" type="number" min="1" value="1" inputmode="numeric"><input class="lp" type="number" min="0" placeholder="Prix" inputmode="numeric"><button type="button" data-a="dell" aria-label="Retirer">✕</button></div>`;
+const ligneHtml=l=>`<div class="lg"><input class="ld" placeholder="Article" maxlength="100" value="${esc(l?l.desig:"")}"><input class="lq" type="number" min="1" value="${l?l.qte:1}" inputmode="numeric"><input class="lp" type="number" min="0" placeholder="Prix" inputmode="numeric" value="${l&&l.pu!=null?l.pu:""}"><button type="button" data-a="dell" aria-label="Retirer">✕</button></div>`;
 function corps(){const c=(D&&D.commandes)||[],r=(D&&D.reglements)||[];
+ if(PAGE==="demandes"){const L=demandes();return`<h2 class="pg">Demandes clients (${L.length})</h2><div class="sm mu">Commandes passées par vos clients avec votre lien. Complétez les prix puis envoyez la commande au bureau, ou refusez-la.</div>${L.length?L.map(carteDemande).join(""):vide("Aucune demande en attente. Partagez votre lien client pour en recevoir.")}`}
  if(PAGE==="nouvelle")return formCmd();
  if(PAGE==="commandes")return`<h2 class="pg">Mes commandes</h2><button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${cartesAttente(c)}${c.length?c.map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Les commandes de vos clients apparaîtront ici."))}`;
  if(PAGE==="reglages_v")return`<h2 class="pg">Mes règlements</h2>${r.length?r.map(x=>`<div class="card"><div class="between"><b>${fcfa(x.montant)}</b><span class="sm mu">${esc(x.date||"")}</span></div><div class="sm mu">${esc(x.libelle||"")}</div></div>`).join(""):vide("Aucun règlement enregistré pour le moment.")}`;
  if(PAGE==="lien")return`<h2 class="pg">Mon lien client</h2>${D&&D.lien?`<div class="card"><div class="sm mu">Partagez ce lien à vos clients : leurs commandes arrivent dans votre espace.</div><input readonly value="${esc(D.lien)}" onclick="this.select()"><button class="btn" data-a="copier">📋 Copier le lien</button><button class="btn wa" data-a="wa">💬 Envoyer par WhatsApp</button></div>`:vide("Votre lien client sera disponible dès que le bureau aura activé votre espace.")}`;
- if(PAGE==="compte")return`<h2 class="pg">Mon compte</h2><div class="card"><b>${esc((moi&&moi.nom)||"Vendeur partenaire")}</b><div class="sm mu">Identifiant : ${esc(identDe(lsGet(LS.i,"")))}</div><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button></div><div class="sm mu appv" style="text-align:center">${versionTxt()}</div>`;
- return`<h2 class="pg">Accueil</h2><div class="kp"><div><b>${c.length}</b><span>commande(s)</span></div><div><b>${fcfa((D&&D.solde)||0)}</b><span>solde à régler</span></div></div><button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${erreur?`<div class="al">${esc(erreur)}</div>`:""}${cartesAttente(c)}${c.length?c.slice(0,5).map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Partagez votre lien client pour recevoir des commandes."))}`}
-function vue(){if(!user)return;$("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Vendeur")}</b><small>Espace vendeur partenaire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml():""}<div class="wrap">${!enLigne()?'<div class="al">📡 <b>Hors ligne</b> — les informations affichées peuvent ne pas être à jour.</div>':""}<div class="inst"></div>${corps()}</div>`}
+ if(PAGE==="compte")return`<h2 class="pg">Mon compte</h2><div class="card"><b>${esc((moi&&moi.nom)||"Vendeur partenaire")}</b><div class="sm mu">Identifiant : ${esc(identDe(lsGet(LS.i,"")))}</div><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button></div>${pushCarte()}<div class="sm mu appv" style="text-align:center">${versionTxt()}</div>`;
+ return`<h2 class="pg">Accueil</h2><div class="kp"><div><b>${c.length}</b><span>commande(s)</span></div><div><b>${fcfa((D&&D.solde)||0)}</b><span>solde à régler</span></div></div>${demandes().length?`<div class="al" style="background:#e3f2fd;color:#0b3b4c">📥 <b>${demandes().length} demande(s) de clients</b> à traiter. <a href="#" data-a="page" data-p="demandes">Voir</a></div>`:""}${pushBandeau()}<button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${erreur?`<div class="al">${esc(erreur)}</div>`:""}${cartesAttente(c)}${c.length?c.slice(0,5).map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Partagez votre lien client pour recevoir des commandes."))}`}
+function vue(){if(!user)return;if(PAGE==="nouvelle")setTimeout(totaux,0);$("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Vendeur")}</b><small>Espace vendeur partenaire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml():""}<div class="wrap">${!enLigne()?'<div class="al">📡 <b>Hors ligne</b> — les informations affichées peuvent ne pas être à jour.</div>':""}<div class="inst"></div>${corps()}</div>`}
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
+ if(a==="preparer"){const d=demandes().find(x=>x.ref===b.dataset.r);if(!d)return;DEM=d;GPS=d.gps||null;PAGE="nouvelle";MENU=false;vue();window.scrollTo(0,0);return}
+ if(a==="refuser"){const d=demandes().find(x=>x.ref===b.dataset.r);if(!d)return;const m=prompt("Motif du refus (facultatif) :","");if(m===null)return;
+  try{await api("vendeur-sync",{action:"refuser",demande:d.ref,motif:m||""});lsSet(LS.f,[d.ref,...faites()].slice(0,200));toast("Demande refusée","ok");vue()}catch(x){toast(x.message,"err")}return}
+ if(a==="pushon"){await pushActiver();vue();return}
+ if(a==="pushoff"){await pushCouper();vue();return}
+ if(a==="pushnon"){lsSet(LS.d,1);vue();return}
+ if(a==="pushtest"){try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("🔔 Test",{body:"Les notifications fonctionnent sur ce téléphone.",tag:"test",icon:"icons/vendeur-192.png"})}catch(x){toast("Test impossible","err")}return}
  if(a==="suivi")return window.open(b.dataset.u,"_blank");
  if(a==="suiviwa")return window.open("https://wa.me/?text="+encodeURIComponent("Suivez votre livraison"+(b.dataset.n?" ("+b.dataset.n+")":"")+" : "+b.dataset.u),"_blank");
  if(a==="addl"){$("#lg").insertAdjacentHTML("beforeend",ligneHtml());return}
  if(a==="dell"){const L=document.querySelectorAll("#lg .lg");if(L.length>1)b.closest(".lg").remove();else b.closest(".lg").querySelectorAll("input").forEach(i=>i.value=i.classList.contains("lq")?"1":"");totaux();return}
  if(a==="gps"){if(!navigator.geolocation)return toast("Position indisponible sur cet appareil","err");$("#gpsl").textContent="Recherche de la position…";navigator.geolocation.getCurrentPosition(p=>{GPS={lat:p.coords.latitude,lng:p.coords.longitude};$("#gpsl").textContent="📍 Position enregistrée (précision "+Math.round(p.coords.accuracy)+" m)"},()=>{GPS=null;$("#gpsl").textContent="Position refusée ou indisponible : décrivez le repère"},{enableHighAccuracy:true,timeout:15000});return}
  if(a==="menu"){MENU=!MENU;vue()}
- else if(a==="page"){PAGE=b.dataset.p;MENU=false;vue()}
+ else if(a==="page"){PAGE=b.dataset.p;if(PAGE==="nouvelle"){DEM=null;GPS=null}MENU=false;vue()}
  else if(a==="mdp")vueChangement();
  else if(a==="copier"){try{await navigator.clipboard.writeText(D.lien);toast("Lien copié","ok")}catch(x){toast("Copie impossible","err")}}
  else if(a==="wa")window.open("https://wa.me/?text="+encodeURIComponent("Commandez chez moi : "+D.lien),"_blank");
@@ -158,21 +179,40 @@ document.addEventListener("input",e=>{if(e.target.closest("#lg"))totaux()});
 document.addEventListener("change",e=>{if(e.target.name==="pay"){$("#lpv").classList.toggle("hide",e.target.value!=="partiel")}});
 document.addEventListener("submit",async e=>{if(e.target.id!=="fcmd")return;e.preventDefault();const f=e.target,m=$("#ce"),bt=f.querySelector("button[type=submit]");
  const lignes=[...f.querySelectorAll("#lg .lg")].map(l=>({desig:l.querySelector(".ld").value.trim(),qte:Math.round(+l.querySelector(".lq").value),pu:Math.round(+l.querySelector(".lp").value||0)})).filter(l=>l.desig||l.pu);
- const o={ref:refCmd(),nom:f.nom.value.trim(),tel:f.tel.value.trim(),zone:f.zone.value,quartier:f.quartier.value.trim(),repere:f.repere.value.trim(),ins:f.ins.value.trim(),lignes,pay:f.pay.value,paye_vendeur:Math.round(+f.pv.value||0),gps:GPS};
+ const o={ref:refCmd(),nom:f.nom.value.trim(),tel:f.tel.value.trim(),zone:f.zone.value,quartier:f.quartier.value.trim(),repere:f.repere.value.trim(),ins:f.ins.value.trim(),lignes,pay:f.pay.value,paye_vendeur:Math.round(+f.pv.value||0),gps:GPS,demande:DEM?DEM.ref:undefined};
  const total=lignes.reduce((t,l)=>t+l.qte*l.pu,0),bad=!o.zone?"Choisissez la zone de livraison":!lignes.length?"Ajoutez au moins un article":lignes.some(l=>!l.desig||!(l.qte>=1))?"Chaque article doit avoir un nom et une quantité":o.pay==="partiel"&&!(o.paye_vendeur>0&&o.paye_vendeur<=total)?"Indiquez le montant déjà payé (au plus le total des articles)":"";
  if(bad){m.textContent=bad;m.classList.remove("hide");return}m.classList.add("hide");bt.disabled=true;
  try{await api("vendeur-sync",Object.assign({action:"commander"},o));lsSet(LS.e,[{ref:o.ref,nom:o.nom,total},...envoyees()].slice(0,30));toast("Commande envoyée au bureau","ok")}
  catch(x){if(x.reseau||!enLigne()){lsSet(LS.q,[...file(),Object.assign({},o,{total})]);toast("📡 Hors ligne : commande gardée sur le téléphone, elle partira au retour du réseau","ok")}else{m.textContent=x.message;m.classList.remove("hide");bt.disabled=false;return}}
- GPS=null;PAGE="commandes";vue();charger()});
+ if(DEM)lsSet(LS.f,[DEM.ref,...faites()].slice(0,200));DEM=null;GPS=null;PAGE="commandes";vue();charger()});
 async function viderFile(){if(!sb||!enLigne())return;const F=file();if(!F.length)return;const reste=[];for(const o of F){try{await api("vendeur-sync",Object.assign({action:"commander"},o));lsSet(LS.e,[{ref:o.ref,nom:o.nom,total:o.total},...envoyees()].slice(0,30))}catch(x){if(x.reseau||x.status===401)reste.push(o);else toast("Commande refusée par le serveur : "+x.message,"err")}}lsSet(LS.q,reste)}
 /* Les données viennent du serveur (fonction « vendeur-sync ») ; si elle est injoignable, l’espace s’ouvre avec une explication. */
 async function charger(){try{await viderFile();const j=await api("vendeur-sync",{action:"etat"});D=j;erreur="";if(j.nom&&moi)moi.nom=j.nom}catch(x){if(x.status===401)return vueLogin("Session expirée : reconnectez-vous");erreur=x.reseau?"":"Les données de votre espace ne sont pas encore disponibles ("+x.message+")"}if(user)vue()}
 async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
  const md=user.user_metadata||{};if(md.role&&md.role!=="vendeur"){await sb.auth.signOut();user=null;return vueLogin("Cet espace est réservé aux vendeurs partenaires")}
  moi={nom:md.nom||""};if(md.nom)memoIdent(lsGet(LS.i,""),md.nom);if(md.chg)return vueChangement();
- await charger()}
+ try{if(location.hash==="#demandes")PAGE="demandes"}catch(e){}
+ await charger();pushEtat().then(()=>{pushEntretien();if(user)vue()})}
 (async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}
  try{await loadSb();client();await demarrer()}catch(e){vueLogin(enLigne()?e.message:"Connexion Internet requise pour se connecter")}})();
+/* ---------- Notifications push (nouvelle demande de client, commande confirmée / livrée) ---------- */
+const VAPID=()=>String((window.ANGELS_PASSERELLE||{}).vapid||"").trim();
+const pushOk=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const cleVapid=b=>{const p="=".repeat((4-b.length%4)%4),r=atob((b+p).replace(/-/g,"+").replace(/_/g,"/")),o=new Uint8Array(r.length);for(let i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o};
+let PUSHST="";
+async function pushEtat(){if(!pushOk())return PUSHST="indispo";if(!VAPID())return PUSHST="bureau";if(Notification.permission==="denied")return PUSHST="refuse";
+ try{const reg=await navigator.serviceWorker.ready,s=await reg.pushManager.getSubscription();PUSHST=s&&Notification.permission==="granted"?"actif":"inactif"}catch(e){PUSHST="inactif"}return PUSHST}
+async function pushActiver(){if(!pushOk()||!VAPID())return toast("Notifications push non disponibles","err"),false;
+ try{const perm=await Notification.requestPermission();if(perm!=="granted"){PUSHST=perm==="denied"?"refuse":"inactif";toast("Notifications refusées : autorisez-les dans les réglages du navigateur","err");return false}
+  const reg=await navigator.serviceWorker.ready;let s=await reg.pushManager.getSubscription();if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:cleVapid(VAPID())});
+  await api("push-abonner",{action:"abonner",subscription:s.toJSON()});lsSet(LS.n,{on:true,t:Date.now()});PUSHST="actif";toast("Notifications activées : vous serez prévenu même application fermée","ok");return true}
+ catch(x){toast("Activation impossible : "+(x&&x.message||x),"err");return false}}
+async function pushCouper(){try{const reg=await navigator.serviceWorker.ready,s=await reg.pushManager.getSubscription();if(s){try{await api("push-abonner",{action:"desabonner",endpoint:s.endpoint})}catch(e){}await s.unsubscribe()}}catch(e){}lsSet(LS.n,{on:false,t:Date.now()});PUSHST="inactif";toast("Notifications coupées","ok")}
+async function pushEntretien(){try{if(!pushOk()||!VAPID()||Notification.permission!=="granted"||!sb)return;const n=lsGet(LS.n,{});if(n.on===false||(n.t&&Date.now()-n.t<864e5))return;const reg=await navigator.serviceWorker.ready;let s=await reg.pushManager.getSubscription();if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:cleVapid(VAPID())});await api("push-abonner",{action:"abonner",subscription:s.toJSON()});lsSet(LS.n,{on:true,t:Date.now()})}catch(e){}}
+function pushBandeau(){if(PUSHST!=="inactif"||!VAPID()||lsGet(LS.d,0)||Notification.permission==="denied")return"";return`<div class="al" style="background:#e3f2fd;color:#0b3b4c">🔔 <b>Activez les notifications</b> pour être prévenu d'une nouvelle demande de client ou d'une commande livrée, même application fermée. <a href="#" data-a="pushon">Activer</a> · <a href="#" data-a="pushnon">Plus tard</a></div>`}
+function pushCarte(){const E={actif:`<span style="color:var(--ok)">✔ actives</span>`,inactif:"désactivées",refuse:`<span style="color:var(--er)">✖ refusées</span> : autorisez-les dans les réglages du navigateur`,indispo:"non disponibles sur cet appareil",bureau:"non configurées par le bureau","":"vérification…"}[PUSHST]||"";
+ return`<div class="card"><b>🔔 Notifications sur le téléphone</b><div class="sm mu" style="margin:4px 0 8px">Nouvelles demandes de vos clients, commandes confirmées, livrées ou échouées, même quand l'application est fermée.</div><div>État : ${E}</div>
+  ${PUSHST==="actif"?'<button class="btn ghost" data-a="pushoff">🔕 Couper les notifications</button><button class="btn ghost" data-a="pushtest">🔔 Tester</button>':PUSHST==="inactif"?'<button class="btn" data-a="pushon">🔔 Activer les notifications</button>':""}</div>`}
 /* Installation sur l'écran d'accueil */
 let IPROMPT=null;
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;

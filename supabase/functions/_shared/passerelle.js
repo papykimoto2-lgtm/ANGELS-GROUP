@@ -60,6 +60,10 @@ export function nettoyerEtatVendeur(e) {
   return {
     nom: txt(e.nom, 80), solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
     commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "" })),
+    demandes: L(e.demandes, 50).map((d) => ({ ref: txt(d && d.ref, 12), nom: txt(d && d.nom, 80), tel: txt(d && d.tel, 20), zone: txt(d && d.zone, 80), quartier: txt(d && d.quartier, 120), repere: txt(d && d.repere, 200), note: txt(d && d.note, 500), cree_le: txt(d && d.cree_le, 30), nb_photos: Math.max(0, Math.min(9, Math.round(Number(d && d.nb_photos)) || 0)),
+      gps: d && d.gps && Number.isFinite(+d.gps.lat) && Number.isFinite(+d.gps.lng) ? { lat: +(+d.gps.lat).toFixed(6), lng: +(+d.gps.lng).toFixed(6) } : null,
+      acompte: d && d.acompte && Number.isFinite(+d.acompte.montant) ? { montant: montant(d.acompte.montant), op: txt(d.acompte.op, 30), ref: txt(d.acompte.ref, 40) } : null,
+      lignes: L(d && d.lignes, 30).map((l) => ({ desig: txt(l && l.desig, 120), qte: Math.max(1, Math.min(9999, Math.round(Number(l && l.qte)) || 1)), pu: l && l.pu != null && l.pu !== "" && Number.isFinite(+l.pu) ? Math.max(0, Math.round(+l.pu)) : null })).filter((l) => l.desig) })).filter((d) => d.ref),
     zones: L(e.zones, 60).map((z) => ({ nom: txt(z && z.nom, 60), frais: montant(z && z.frais) })).filter((z) => z.nom),
     reglements: L(e.reglements, 100).map((r) => ({ date: txt(r && r.date, 10), montant: montant(r && r.montant), libelle: txt(r && r.libelle, 80) })),
   };
@@ -70,6 +74,11 @@ export async function traiterVendeurEtat(db, req, userId) {
   const c = await db.vendeurParUtilisateur(userId); if (!c || !c.actif) return err(403, "Compte vendeur inactif ou introuvable");
   const a = String(req.action || "etat");
   if (a === "etat") { const r = await db.etatVendeur(c.vendeur_ref); return rep(200, Object.assign({ ok: true, nom: c.nom, commandes: [], reglements: [], solde: 0, lien: "" }, r && r.etat ? r.etat : {}, { maj_le: r ? r.maj_le : null })); }
+  if (a === "refuser") {   /* le vendeur écarte une demande de client : le bureau la clôture (statut « refusée ») */
+    const dm = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(); if (dm.length < 3) return err(400, "Demande invalide");
+    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref: "RF-" + dm, donnees: { type: "refus", demande: dm, motif: txt(req.motif, 200) } });
+    return rep(200, { ok: true });
+  }
   if (a === "commander") {   /* le vendeur dépose une commande : mise en file pour le bureau (idempotent par ref), jamais livrée avant la confirmation du bureau */
     const ref = txt(req.ref, 40); if (!/^[A-Za-z0-9_-]{6,40}$/.test(ref)) return err(400, "Référence de commande invalide");
     const lignes = (Array.isArray(req.lignes) ? req.lignes.slice(0, 30) : []).map((l) => ({ desig: txt(l && l.desig, 100), qte: Math.round(Number(l && l.qte)), pu: Math.round(Number(l && l.pu)) }));
@@ -81,7 +90,8 @@ export async function traiterVendeurEtat(db, req, userId) {
     if (tel && !/^[0-9 +().-]{6,20}$/.test(tel)) return err(400, "Téléphone invalide");
     if (await db.nbCmdsVendeurEnAttente(c.vendeur_ref) >= 40) return err(429, "Trop de commandes en attente de traitement par le bureau : patientez");
     const gps = req.gps && Number.isFinite(+req.gps.lat) && Number.isFinite(+req.gps.lng) && Math.abs(+req.gps.lat) <= 90 && Math.abs(+req.gps.lng) <= 180 ? { lat: +(+req.gps.lat).toFixed(6), lng: +(+req.gps.lng).toFixed(6) } : null;
-    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
+    const demande = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
     return rep(200, { ok: true, ref });
   }
   return err(400, "Action inconnue");
@@ -144,6 +154,7 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
       const ref = txt(v && v.vendeur_ref, 60), e = v && v.etat;
       if (!ref || !e || typeof e !== "object") { ignores++; continue; }
       if (!(await db.vendeurDe(ref))) { if (!inconnus.includes(ref)) inconnus.push(ref); continue; }
+      if (db.retirerCleVendeur) await db.retirerCleVendeur(ref);   // un vendeur qui a un compte n'a plus de clé de relève : ses demandes lui arrivent dans son application
       await db.ecrireEtatVendeur(ref, nettoyerEtatVendeur(e), new Date(now).toISOString()); ecrits++;
     }
     return rep(200, { ok: true, ecrits, ignores, vendeurs_inconnus: inconnus });
@@ -161,6 +172,7 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
     const mdp = genererMdp(); let uid;
     try { uid = await db.creerUtilisateur(emailDe(ident), mdp, { chg: true, role: "vendeur", nom }); } catch (e) { return err(409, "Cet identifiant existe déjà ou est refusé : " + txt(e && e.message, 120)); }
     await db.ecrireVendeur({ vendeur_ref: ref, user_id: uid, nom, ident: ident.toLowerCase(), actif: true });
+    if (db.retirerCleVendeur) await db.retirerCleVendeur(ref);   // ses demandes ne sont plus réservées à une clé de relève : elles arrivent dans son application
     return rep(200, { ok: true, ident: ident.toLowerCase(), mdp });
   }
   if (a === "vendeur-compte-reset") {

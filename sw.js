@@ -1,7 +1,7 @@
 /* Service worker ANGEL'S GROUP — installation (PWA) et usage hors ligne pour Livraison, Transport, Agro et le hub.
    Les pages sont servies réseau d'abord (mises à jour immédiates), cache en secours ; icônes et manifestes : cache d'abord.
    Aucune donnée métier n'est mise en cache ici : elles vivent dans le stockage local de chaque application. */
-const V = "angels-v102";
+const V = "angels-v103";
 const COQUE = ["./", "index.html", "parametres.html", "compta-groupe.html", "portail.html", "distribution.html", "transport.html", "agro.html", "hub.html", "verifier.html", "livreur.html", "vendeur.html", "passerelle-config.js", "print-engine.js", "pager-engine.js", "crm.html", "crm-engine.js", "marque.js", "demo.html", "demo-engine.js", "placement.html", "placement-engine.js", "assurance.html", "assurance-engine.js", "shell-engine.js", "habillage.js", "champs.css", "modules.css", "auth-engine.js", "sync-engine.js", "roles-engine.js", "qrcode.js", "jsqr.js", "signer.html", "rh-engine.js", "regul-engine.js", "prevision-engine.js", "inter-engine.js", "signal-engine.js", "rapport-engine.js", "etiquette-engine.js",
   "manifest.webmanifest", "manifest-hub.webmanifest", "manifest-transport.webmanifest", "manifest-agro.webmanifest", "manifest-vendeur.webmanifest", "manifest-portail.webmanifest", "manifest-livreur.webmanifest", "manifest-vendeur-app.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
@@ -69,5 +69,5 @@ self.addEventListener("notificationclick", e => {
 });
 self.addEventListener("push", e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { t: "ANGEL'S GROUP", b: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.t || d.titre || "🏍️ ANGEL'S GROUP", { body: d.b || d.corps || "Ouvrez l'application pour répondre.", tag: d.tag || "course", renotify: true, requireInteraction: true, vibrate: [400, 150, 400, 150, 800], icon: "icons/livreur-192.png", badge: "icons/livreur-192.png", data: { u: d.u || "livreur.html" } }));
+  e.waitUntil(self.registration.showNotification(d.t || d.titre || "🏍️ ANGEL'S GROUP", { body: d.b || d.corps || "Ouvrez l'application pour répondre.", tag: d.tag || "course", renotify: true, requireInteraction: true, vibrate: [400, 150, 400, 150, 800], icon: d.i || "icons/livreur-192.png", badge: d.i || "icons/livreur-192.png", data: { u: d.u || "livreur.html" } }));
 });
