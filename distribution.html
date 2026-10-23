@@ -335,9 +335,9 @@ const sb=c=>badge(ST[c.statut],STC[c.statut]);
 const lb=l=>badge(LST[l.statut],LSTC[l.statut]);
 
 /* ---------- Métier : commandes ---------- */
-function setStatut(c,to,note){
- if(!TRANS[c.statut].includes(to)){toast(`Transition interdite : ${ST[c.statut]} → ${ST[to]}`,"err");return false}
- c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;try{notifier(c,to,note)}catch(e){}try{const vv=c.vendeur_id&&S.vendeurs.find(x=>x.id===c.vendeur_id);if(vv&&["confirmee","en_cours","livree","echouee","annulee"].includes(to))pushVendeur(vv,"commande_vendeur",({confirmee:"✅ Commande confirmée",en_cours:"🏍️ Commande en route",livree:"📦 Commande livrée",echouee:"⚠️ Livraison échouée",annulee:"✖ Commande annulée"})[to],c.numero+" · "+ST[to],"cmd-"+c.id+"-"+to,"vendeur.html")}catch(e){}return true}
+function setStatut(c,to,note,force){   /* force : statut piloté par le dossier d'expédition (pas de livreur), hors circuit de livraison */
+ if(!force&&!TRANS[c.statut].includes(to)){toast(`Transition interdite : ${ST[c.statut]} → ${ST[to]}`,"err");return false}
+ c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;if(!force)try{notifier(c,to,note)}catch(e){}try{const vv=c.vendeur_id&&S.vendeurs.find(x=>x.id===c.vendeur_id);if(vv&&["confirmee","en_cours","livree","echouee","annulee"].includes(to))pushVendeur(vv,"commande_vendeur",({confirmee:"✅ Commande confirmée",en_cours:"🏍️ Commande en route",livree:"📦 Commande livrée",echouee:"⚠️ Livraison échouée",annulee:"✖ Commande annulée"})[to],c.numero+" · "+ST[to],"cmd-"+c.id+"-"+to,"vendeur.html")}catch(e){}return true}
 function numCmd(){S.seq.cmd++;return"CMD-"+new Date().getFullYear()+"-"+String(S.seq.cmd).padStart(4,"0")}
 function creerCmd(d){
  if(!garde(["admin","commercial","superviseur","vendeur"],null,d))throw new Error("Droits insuffisants pour créer une commande");
@@ -533,6 +533,7 @@ function annuler(c,motif){
  const act=activeLiv(c.id);
  if(!setStatut(c,"annulee","Annulée : "+motif))return false;
  if(act){act.statut="annulee";act.fin_at=now()}
+ expCmdAnnulee(c,motif);
  if(c.stock_sorti){c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),l.qte,"annulation",c.numero)});c.stock_sorti=false}
  audit("Annulation commande",c.numero+" — "+motif);return true}
 function affecter(c,lid,motif){
@@ -2530,7 +2531,7 @@ const vendLienPub=v=>{try{const P={boutique:v.nom,tel:String(v.tel||"").replace(
 const _suiviMemo={};
 async function vendSuivi(c){if(["brouillon","annulee"].includes(c.statut))return"";const k=c.id+"|"+c.statut+"|"+((c.hist||[]).length);if(_suiviMemo[k]!==undefined)return _suiviMemo[k];let u="";try{u=await suiviLienPortail(c)}catch(e){}return _suiviMemo[k]=/^https:\/\//.test(u)?u:""}
 async function vendEtatPub(v){const d=vendDue(v),mine=S.commandes.filter(c=>c.vendeur_id===v.id&&c.statut!=="brouillon").slice(-200).reverse();
- const cm=[];for(const c of mine){const cl=cli(c.client_id);cm.push({numero:c.numero,ref:c.app_ref||"",date:String(c.date||"").slice(0,10),statut:ST[c.statut]||c.statut,client:cl?cl.nom:"",montant:(c.montant_produits||0)-(c.remise||0),net:d.net?d.net(c):0,suivi:await vendSuivi(c)})}
+ const cm=[];for(const c of mine){const cl=cli(c.client_id);cm.push({numero:c.numero,ref:c.app_ref||"",date:String(c.date||"").slice(0,10),statut:ST[c.statut]||c.statut,client:cl?cl.nom:"",montant:(c.montant_produits||0)-(c.remise||0),net:d.net?d.net(c):0,suivi:await vendSuivi(c),exp:expResume(c)})}
  const dms=(S.demandes||[]).filter(x=>x.vendeur_id===v.id&&x.statut==="nouvelle").slice(-50).map(x=>({ref:x.ref,nom:x.nom,tel:x.tel,zone:x.zone,quartier:x.quartier,repere:x.repere,note:x.note||"",cree_le:x.cree_le,nb_photos:(x.photos||[]).length,gps:x.lat!=null&&x.lng!=null?{lat:x.lat,lng:x.lng}:null,acompte:x.acompte?{montant:x.acompte.montant,op:x.acompte.op,ref:x.acompte.ref}:null,lignes:(x.lignes||[]).map(l=>({desig:l.desig,qte:l.qte,pu:l.pu}))}));
  const dep=Date.now()-30*864e5,D30=(S.demandes||[]).filter(x=>x.vendeur_id===v.id&&x.via==="lien"&&Date.parse(x.cree_le)>=dep),src=k=>D30.filter(x=>(x.source||"lien")===k).length;
  return{nom:v.nom,ref:v.id,tel:String(v.tel||""),org:String(S.config.org||""),stats30:{dem:D30.length,qr:src("qr"),lien:src("lien"),live:src("live"),ok:D30.filter(x=>x.statut!=="nouvelle"&&x.statut!=="rejetee"&&x.statut!=="refusee").length},solde:d.restant,acquis:d.acquis,regle:d.regle,attente:d.attente,lien:vendLienPub(v),demandes:dms,zones:(S.config.zones||[]).map(z=>({nom:z.nom,frais:z.frais||0})),commandes:cm,
@@ -2982,7 +2983,23 @@ function expStatut(e,to,note,x){
  if(to==="annulee"&&!String(note||"").trim())throw new Error("Motif d'annulation obligatoire");if(["echec","retour_cours"].includes(to)&&!String(note||"").trim())throw new Error("Motif obligatoire");
  e.hist.push({ts:now(),par:who(),de:e.statut,a:to,note:String(note||"")});e.statut=to;
  if(to==="expediee")e.depart_reel=(x&&x.depart)||e.depart_reel;if(x&&x.reception)e.reception=Object.assign({ts:now(),par:who()},x.reception);
- if(EXN[to])expNotif(e,EXN[to]);audit("Expédition "+EXS[to][0],e.numero+(note?" — "+note:""));return true}
+ if(EXN[to])expNotif(e,EXN[to]);expSyncCmd(e,to);audit("Expédition "+EXS[to][0],e.numero+(note?" — "+note:""));return true}
+/* Lien Expédition ↔ Commande : le statut de la commande suit celui du dossier (le client n'a pas de livreur en course) */
+const EXP_CMD={expediee:"en_cours",transit:"en_cours",arrivee:"en_cours",en_livraison:"en_cours",livree:"livree",livree_part:"livree",echec:"echouee",retour_cours:"retour_cours",retournee:"retour_recu"};
+function expSyncCmd(e,to){
+ const cible=EXP_CMD[to];
+ (e.commande_ids||[]).forEach(id=>{const c=cmd(id);if(!c)return;
+  if(to==="annulee"){if(c.exp_id===e.id){delete c.exp_id;c.hist.push({ts:now(),de:c.statut,a:c.statut,par:who(),note:"Expédition "+e.numero+" annulée : la commande peut recevoir un nouveau dossier"})}return}
+  if(!cible||c.statut===cible||["livree","annulee","retour_recu"].includes(c.statut)||(c.statut==="retour_cours"&&cible!=="retour_recu"))return;
+  if(cible==="en_cours"&&!c.stock_sorti&&c.lignes.every(l=>!l.produit_id||(prod(l.produit_id)&&prod(l.produit_id).stock>=l.qte))){c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),-l.qte,"sortie_commande",c.numero)});c.stock_sorti=true}
+  setStatut(c,cible,"Expédition "+e.numero+" : "+EXS[to][0],true)})}
+/* Commande annulée : ses dossiers d'expédition encore ouverts sont annulés s'ils n'ont pas quitté l'entrepôt, sinon signalés */
+function expCmdAnnulee(c,motif){
+ expParCmd(c).filter(e=>EXT_OUVERT(e.statut)).forEach(e=>{
+  const autres=(e.commande_ids||[]).filter(i=>i!==c.id&&(cmd(i)||{}).statut!=="annulee");
+  if(autres.length){e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Commande "+c.numero+" annulée : à retirer du dossier"});return}
+  if(EXTR[e.statut].includes("annulee")){e.hist.push({ts:now(),par:who(),de:e.statut,a:"annulee",note:"Commande "+c.numero+" annulée : "+motif});e.statut="annulee";audit("Expédition annulée",e.numero+" — commande "+c.numero+" annulée")}
+  else{e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Commande "+c.numero+" annulée alors que l'expédition est partie : rappeler le transporteur"});try{toast("L'expédition "+e.numero+" est déjà partie : à rappeler ou à retourner","err")}catch(x){}}})}
 function expCloturer(e){
  if(!can("admin","superviseur"))throw new Error("Seuls l'administrateur et le superviseur clôturent");if(!EXT_FINAL.includes(e.statut)||e.statut==="annulee")throw new Error("Seule une expédition livrée ou retournée peut être clôturée");
  if(e.cloture_le)throw new Error("Déjà clôturée");const manque=e.docs.filter(d=>!d.ok);if(manque.length)throw new Error("Documents manquants : "+manque.map(d=>d.n).join(", "));
@@ -3862,6 +3879,7 @@ async function bootPortalCloud(token){
 /* ---------- Suivi client en direct + avis ---------- */
 const avisMoy=lid=>{const a=(S.avis||[]).filter(x=>x.livreur_id===lid);return{n:a.length,m:a.length?a.reduce((t,x)=>t+x.note,0)/a.length:0}};
 const avisTxt=lid=>{const r=avisMoy(lid);return r.n?`<b>★ ${r.m.toFixed(1)}</b> <span class="mu sm">(${r.n} avis)</span>`:'<span class="mu">—</span>'};
+function expResume(c){const e=expParCmd(c).filter(x=>x.statut!=="annulee")[0];return e?{numero:e.numero,statut:EXS[e.statut][0],transporteur:e.transporteur||"",bordereau:e.bordereau||"",eta:e.eta||""}:null}
 function suiviLocal(c){
  const l=livsOf(c.id).slice(-1)[0],lv=l&&liv(l.livreur_id),z=zone(c.adr.zone),av=l&&(S.avis||[]).find(a=>a.livraison_id===l.id);
  const pos=l&&l.statut==="en_cours"&&S.pos[l.livreur_id]&&Date.now()-new Date(S.pos[l.livreur_id].ts)<15*60000?S.pos[l.livreur_id]:null;
@@ -3870,7 +3888,7 @@ function suiviLocal(c){
   eta:l&&l.statut==="en_cours"?new Date(new Date(l.depart_at||Date.now()).getTime()+(z?z.delai_min:60)*60000).toISOString():null,
   pos:pos?{lat:pos.lat,lng:pos.lng,ts:pos.ts}:null,dest:geoFiable(c.adr)?c.adr.gps:null,hist:(c.hist||[]).map(h=>({a:h.a,ts:h.ts})),
   avis:av?{note:av.note,commentaire:av.commentaire}:null,peut_noter:!!(l&&c.statut==="livree"&&l.statut==="livree"&&!av),
-  a_payer:l&&["affectee","acceptee","en_cours"].includes(l.statut)?l.montant_attendu:null,_lid:l&&l.id,_lvid:l&&l.livreur_id}}
+  a_payer:l&&["affectee","acceptee","en_cours"].includes(l.statut)?l.montant_attendu:null,exp:expResume(c),_lid:l&&l.id,_lvid:l&&l.livreur_id}}
 const SUIVI_TIT={brouillon:"Commande bien reçue",attente:"Commande bien reçue",confirmee:"Commande confirmée",preparation:"Votre commande est en préparation",prete:"Prête : un livreur va être désigné",affectee:"Un livreur est désigné",en_cours:"Votre livreur est en route",livree:"Livrée ✔",echouee:"Livraison non aboutie",retour_cours:"Livraison non aboutie",retour_recu:"Livraison non aboutie",annulee:"Commande annulée"};
 function suiviHTML(d){
  const K={brouillon:0,attente:0,confirmee:1,preparation:2,prete:2,affectee:3,en_cours:4,livree:5},k=K[d.statut];
@@ -3881,6 +3899,7 @@ function suiviHTML(d){
  const w=String(d.w||"").replace(/\D/g,"");
  return`<div class="login"><div class="card"><div style="font-size:20px;font-weight:800;color:var(--b2)">${esc(d.org)}</div><div class="mu" style="margin-bottom:10px">Suivi de commande ${esc(d.numero)}</div>
  <div style="font-size:21px;font-weight:800">${SUIVI_TIT[d.statut]||esc(d.statut)}</div>
+ ${d.exp?`<div class="pill sm" style="margin-top:8px">🚚 Expédition <b>${esc(d.exp.numero)}</b> · ${esc(d.exp.statut)}${d.exp.transporteur?" · "+esc(d.exp.transporteur):""}${d.exp.bordereau?" · bordereau "+esc(d.exp.bordereau):""}${d.exp.eta?" · arrivée estimée "+esc(d.exp.eta):""}</div>`:""}
  ${d.eta&&d.statut==="en_cours"?`<div class="pill" style="margin-top:8px">⏱ Arrivée estimée vers <b>${hm(d.eta)}</b></div>`:""}
  ${d.livreur?`<div class="sm" style="margin-top:8px">🏍️ Votre livreur : <b>${esc(d.livreur)}</b></div>`:""}
  ${d.statut==="en_cours"?`<div id="sv_map" style="height:240px;border-radius:10px;overflow:hidden;background:#e8ebf5;margin-top:10px"></div><div class="sm mu" style="margin-top:4px">${d.pos?"Position mise à jour à "+hm(d.pos.ts):"Position du livreur non disponible pour le moment."}</div>`:""}
@@ -3924,7 +3943,7 @@ async function vendeurSigner(v,renouveler){const u=PGV(),cle=S.config.portail_ve
 function lienCourtCommande(p){const base=portailBase();if(!/\/portail$/.test(base))return null;const q=new URLSearchParams();Object.entries(p).forEach(([k,v])=>{if(v)q.set(k,String(v))});
  {const vv=p.ref&&S.vendeurs.find(x=>x.id===p.ref);if(vv&&sigCle(p.boutique,p.tel)===sigCle(vv.nom,vv.tel)&&lienSigne(vv))q.set("s",vv.lien_sig.s)}return base.replace(/\/portail$/,"/commander")+"?"+q.toString()}
 const msgRassure=()=>"\n🔒 Lien officiel "+(S.config.org||"ANGEL'S GROUP")+" : aucun paiement, mot de passe ou code ne vous est demandé sur cette page."
-function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,h:(v.hist||[]).map(x=>[x.a,x.ts]),...(S.config.suivi_carte!==false&&c.statut==="en_cours"?{x:v.dest?[v.dest.lat,v.dest.lng]:undefined,y:v.pos?[v.pos.lat,v.pos.lng,v.pos.ts]:undefined}:{})}}
+function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,...(v.exp?{xp:[v.exp.numero,v.exp.statut,v.exp.transporteur,v.exp.bordereau,v.exp.eta]}:{}),h:(v.hist||[]).map(x=>[x.a,x.ts]),...(S.config.suivi_carte!==false&&c.statut==="en_cours"?{x:v.dest?[v.dest.lat,v.dest.lng]:undefined,y:v.pos?[v.pos.lat,v.pos.lng,v.pos.ts]:undefined}:{})}}
 async function suiviLienPortail(c){return portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)))}
 const SUIVI_PH=/\n?Suivi de votre commande : \{\{SUIVI\}\}/;
 async function notifMsg(n){if(!/\{\{SUIVI\}\}/.test(n.message))return n.message;const c=cmd(n.commande_id);if(!c)return n.message.replace(SUIVI_PH,"");try{const lien=await suiviLienPortail(c);return n.message.replace(SUIVI_PH,m=>m.replace("{{SUIVI}}",()=>lien))}catch(e){return n.message.replace(SUIVI_PH,"")}}
