@@ -103,6 +103,24 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
     const c = await db.compteDe(txt(req.livreur_ref, 60)); if (!c) return err(404, "Compte livreur introuvable");
     const actif = !!req.actif; await db.bloquerUtilisateur(c.user_id, !actif); await db.majCompte(c.livreur_ref, { actif }); return rep(200, { ok: true, actif });
   }
+  if (a === "vendeur-compte-creer") {
+    const ref = txt(req.vendeur_ref, 60), nom = txt(req.nom, 80), ident = txt(req.ident, 80);
+    if (!ref || !nom || !ident) return err(400, "Vendeur, nom et identifiant obligatoires");
+    if (ident.includes("@") ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ident) : !/^[A-Za-z0-9._-]{3,}$/.test(ident)) return err(400, "Identifiant : 3 caractères minimum (lettres, chiffres, point, tiret)");
+    if (await db.vendeurDe(ref)) return err(409, "Ce vendeur a déjà un compte : réinitialisez son mot de passe");
+    const mdp = genererMdp(); let uid;
+    try { uid = await db.creerUtilisateur(emailDe(ident), mdp, { chg: true, role: "vendeur", nom }); } catch (e) { return err(409, "Cet identifiant existe déjà ou est refusé : " + txt(e && e.message, 120)); }
+    await db.ecrireVendeur({ vendeur_ref: ref, user_id: uid, nom, ident: ident.toLowerCase(), actif: true });
+    return rep(200, { ok: true, ident: ident.toLowerCase(), mdp });
+  }
+  if (a === "vendeur-compte-reset") {
+    const c = await db.vendeurDe(txt(req.vendeur_ref, 60)); if (!c) return err(404, "Compte vendeur introuvable");
+    const mdp = genererMdp(); await db.changerMdp(c.user_id, mdp, { chg: true, role: "vendeur", nom: c.nom }); return rep(200, { ok: true, mdp });
+  }
+  if (a === "vendeur-compte-actif") {
+    const c = await db.vendeurDe(txt(req.vendeur_ref, 60)); if (!c) return err(404, "Compte vendeur introuvable");
+    const actif = !!req.actif; await db.bloquerUtilisateur(c.user_id, !actif); await db.majVendeur(c.vendeur_ref, { actif }); return rep(200, { ok: true, actif });
+  }
   return err(400, "Action inconnue");
 }
 

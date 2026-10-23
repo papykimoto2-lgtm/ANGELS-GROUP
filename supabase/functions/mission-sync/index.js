@@ -1,5 +1,5 @@
 // POST /mission-sync (en-tête x-admin-key) : le bureau publie les missions (sans numéros), relève et acquitte les événements des livreurs,
-// crée / réinitialise / bloque les comptes livreurs. Actions : publier · evenements · acquitter · compte-creer · compte-reset · compte-actif.
+// crée / réinitialise / bloque les comptes livreurs et vendeurs (vendeur-compte-creer · vendeur-compte-reset · vendeur-compte-actif). Actions : publier · evenements · acquitter · compte-creer · compte-reset · compte-actif.
 import { CORS, traiterSync } from "../_shared/passerelle.js";
 import { dbPasserelle, cfgPasserelle } from "../_shared/serveur-passerelle.js";
 
