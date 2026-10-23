@@ -10,8 +10,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
  const swV=(fs.readFileSync(path.join(root,"sw.js"),"utf8").match(/const V = "angels-v(\d+)"/)||[])[1];
  const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));await p.goto(base+"/vendeur.html");await p.waitForTimeout(1200);
- const l=await p.evaluate(()=>({t:document.title,h:(document.querySelector(".hd")||{}).textContent,champs:!!document.getElementById("li")&&!!document.getElementById("lp"),liste:!!document.getElementById("lvl"),mdp:document.getElementById("lp").type}));
- chk("VD-1","écran de connexion au style livreur : en-tête « ANGEL'S — Vendeur », identifiant + mot de passe, sans liste publique des vendeurs",/Vendeur/.test(l.t)&&/ANGEL'S — Vendeur/.test(l.h)&&l.champs&&!l.liste&&l.mdp==="password",JSON.stringify(l));
+ const l=await p.evaluate(()=>({t:document.title,h:(document.querySelector(".hd")||{}).textContent,champs:!!document.getElementById("li")&&!!document.getElementById("lp"),liste:!!document.getElementById("vdl"),mdp:document.getElementById("lp").type}));
+ chk("VD-1","écran de connexion au style livreur : en-tête « ANGEL'S — Vendeur », identifiant + mot de passe, avec liste déroulante des vendeurs",/Vendeur/.test(l.t)&&/ANGEL'S — Vendeur/.test(l.h)&&l.champs&&l.liste&&l.mdp==="password",JSON.stringify(l));
  const css=await p.evaluate(()=>{const s=getComputedStyle(document.querySelector(".hd")),r=getComputedStyle(document.documentElement);return{bg:s.backgroundColor,b:r.getPropertyValue("--b").trim()}});
  chk("VD-2","mêmes couleurs que l'application livreur (en-tête #0b3b4c, accent #0e7490)",css.bg==="rgb(11, 59, 76)"&&css.b==="#0e7490",JSON.stringify(css));
  const m=await p.evaluate(()=>{user={id:"u"};moi={nom:"Boutique Awa"};D={commandes:[{numero:"CMD-1",statut:"En préparation",client:"Koné",montant:5000}],reglements:[],solde:2500,lien:"https://exemple.test/portail.html?v=1"};PAGE="accueil";MENU=false;vue();const h1=document.querySelector(".hd").textContent,btn=!!document.querySelector('[data-a="menu"]');MENU=true;vue();const items=[...document.querySelectorAll(".dr .mi")].map(x=>x.textContent);return{h1,btn,items}});
@@ -59,6 +59,17 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8")),sw=fs.readFileSync(path.join(root,"sw.js"),"utf8");
  chk("VD-15","installable : manifeste dédié (démarre sur vendeur.html, plein écran, mêmes couleurs que le livreur, icônes) relié à la page",man.start_url==="./vendeur.html"&&man.display==="standalone"&&man.theme_color==="#0e7490"&&man.icons.length>=3&&link==="manifest-vendeur-app.webmanifest"&&!man.share_target,JSON.stringify([man.start_url,link]));
  chk("VD-16","adresse courte /espace-vendeur vers l'application ; page, manifeste et icônes gardés pour l'ouverture hors ligne ; l'ancien espace /vendeur reste inchangé",(vj.rewrites||[]).some(r=>r.source==="/espace-vendeur"&&r.destination==="/vendeur.html")&&(vj.rewrites||[]).some(r=>r.source==="/vendeur"&&/distribution/.test(r.destination))&&sw.includes('"vendeur.html"')&&sw.includes("manifest-vendeur-app.webmanifest")&&sw.includes("icons/vendeur-192.png"));
+ /* liste déroulante des vendeurs à la connexion */
+ const pl=await ctx.newPage();let lst=0;
+ await pl.route("**/functions/v1/vendeurs-liste",async rt=>{lst++;rt.fulfill({status:200,headers:{"access-control-allow-origin":"*"},contentType:"application/json",body:JSON.stringify({ok:true,vendeurs:[{ident:"awa.boutique",nom:"Boutique Awa"},{ident:"koffi.mode",nom:"Koffi Mode"}]})})});
+ await pl.addInitScript(()=>{window.ANGELS_PASSERELLE={url:"https://x.supabase.co",key:"k"};try{localStorage.setItem("ang_vd_idents",JSON.stringify([{i:"koffi.mode",n:"Koffi Mode"}]))}catch(e){}});
+ await pl.goto(base+"/vendeur.html");await pl.waitForTimeout(1200);
+ await pl.click("#vdb");await pl.waitForTimeout(300);
+ const dd=await pl.evaluate(()=>({ouvert:!document.getElementById("vdl").hidden,items:[...document.querySelectorAll("#vdl li[data-i]")].map(x=>x.dataset.i+"|"+x.textContent)}));
+ chk("VD-17","écran de connexion : flèche ▾ et liste déroulante des vendeurs de la base (nom + identifiant), le vendeur déjà utilisé sur ce téléphone en tête",dd.ouvert&&dd.items.length===2&&/^koffi\.mode\|Koffi Mode · déjà utilisé sur ce téléphone/.test(dd.items[0])&&/^awa\.boutique/.test(dd.items[1])&&lst===1,JSON.stringify([dd,lst]));
+ await pl.click('#vdl li[data-i="awa.boutique"]');
+ const ch=await pl.evaluate(()=>({id:document.getElementById("li").value,focus:document.activeElement&&document.activeElement.id,ferme:document.getElementById("vdl").hidden}));
+ chk("VD-18","choisir un vendeur dans la liste remplit l'identifiant, ferme la liste et place le curseur sur le mot de passe",ch.id==="awa.boutique"&&ch.focus==="lp"&&ch.ferme===true,JSON.stringify(ch));
  chk("VD-7","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

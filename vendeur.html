@@ -37,6 +37,12 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-
 .kp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.kp>div{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:10px 12px}.kp b{display:block;font-size:20px}.kp span{font-size:12px;color:var(--mu)}
 .lg{display:grid;grid-template-columns:1fr 70px 100px 40px;gap:6px;margin-top:6px}.lg input{margin-top:0}.lg button{border:1px solid var(--er);color:var(--er);background:#fff;border-radius:10px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cmb{position:relative;display:block}.cmb input{padding-right:44px}
+.cmbb{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;font-size:20px;color:var(--mu);cursor:pointer;border-radius:10px;margin:0;padding:0}
+.cmbb .chev{display:block;width:9px;height:9px;margin:0 auto;border-right:2.5px solid var(--mu);border-bottom:2.5px solid var(--mu);transform:translateY(-3px) rotate(45deg)}
+.cmbl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;margin:0;padding:4px;list-style:none;background:#fff;border:1.5px solid var(--b);border-radius:12px;box-shadow:0 10px 28px rgba(15,40,60,.22);max-height:240px;overflow:auto;color:var(--tx)}
+.cmbl li{padding:12px;border-radius:9px;cursor:pointer;display:flex;flex-direction:column;gap:1px;font-size:15px}.cmbl li em{font-style:normal;font-weight:600;color:var(--b);font-size:12px}.cmbl li small{color:var(--mu);font-size:12px}
+.cmbl li:hover,.cmbl li:focus{background:#eaf3f6}.cmbl li.cmbv{color:var(--mu);font-size:13px;cursor:default}.cmbl li.cmbv:hover{background:none}
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--b2);color:#fff;padding:10px 16px;border-radius:99px;z-index:40;max-width:90%}
 </style>
 <link rel="stylesheet" href="champs.css">
@@ -56,9 +62,10 @@ const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"'
 const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const identDe=i=>String(i||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9._-]+/g,".").replace(/\.{2,}/g,".").replace(/^\.|\.$/g,"");
 const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():identDe(i)+"@users.angels-erp.app"};
-const LS={i:"ang_vd_ident",q:"ang_vd_file",e:"ang_vd_envoyees"};
+const LS={i:"ang_vd_ident",x:"ang_vd_idents",q:"ang_vd_file",e:"ang_vd_envoyees"};
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let sb=null,user=null,moi=null,PAGE="accueil",MENU=false,APPV="",D=null,erreur="",GPS=null;
+const memoIdent=(i,n)=>{if(!i)return;const a=lsGet(LS.x,[]).find(o=>o&&o.i===i);lsSet(LS.x,[{i,n:n||(a&&a.n)||""}])};
 const versionTxt=()=>APPV?"Version "+APPV:"";
 const enLigne=()=>navigator.onLine!==false;
 function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
@@ -70,12 +77,28 @@ async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession(
  const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false){const e=new Error(j.erreur||("Erreur "+r.status));e.status=r.status;throw e}return j}
 
 /* ---------- Connexion ---------- */
-function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Vendeur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label for="li">Identifiant</label><input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Cet espace est réservé aux vendeurs partenaires.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="sm mu appv" style="text-align:center;margin-top:6px">${versionTxt()}</div></div>`;
+function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Vendeur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label for="li">Identifiant</label><span class="cmb"><input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required role="combobox" aria-expanded="false" aria-controls="vdl"><button type="button" id="vdb" class="cmbb" aria-label="Choisir un vendeur dans la liste"><i class="chev" aria-hidden="true"></i></button><ul id="vdl" class="cmbl" role="listbox" hidden></ul></span><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Cet espace est réservé aux vendeurs partenaires.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="sm mu appv" style="text-align:center;margin-top:6px">${versionTxt()}</div></div>`;
+ /* Liste déroulante des vendeurs : ceux de la base (fonction « vendeurs-liste », identifiant + nom seulement), le vendeur enregistré sur cet appareil en tête ; hors ligne : celui de l'appareil. */
+ try{const ul=$("#vdl"),bt=$("#vdb"),inp=$("#li"),ouvre=v=>{ul.hidden=!v;inp.setAttribute("aria-expanded",v?"true":"false")};
+  let L=lsGet(LS.x,[]).slice(0,1).map(o=>Object.assign({},o,{loc:true})),ET=CFG.url?"charge":"hors";
+  const msg={charge:"Chargement des vendeurs…",hors:"Liste du serveur indisponible (hors ligne ou non activée). Saisissez votre identifiant.",vide:"Aucun vendeur actif enregistré. Saisissez votre identifiant."};
+  const dessine=()=>{ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}${o.loc?` <em>· déjà utilisé sur ce téléphone</em>`:""}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("")+(ET==="ok"&&L.length?"":`<li class="cmbv" aria-disabled="true">${esc(msg[ET]||msg.hors)}</li>`)};
+  dessine();
+  bt.onclick=()=>{dessine();ouvre(ul.hidden)};
+  const auto=()=>{if(!inp.value){dessine();ouvre(true)}};inp.addEventListener("focus",auto);inp.addEventListener("click",auto);
+  ul.onclick=e=>{const li=e.target.closest("li[data-i]");if(!li)return;inp.value=li.dataset.i;ouvre(false);$("#lp").focus()};
+  document.addEventListener("click",e=>{if(!e.target.closest(".cmb"))ouvre(false)});
+  inp.addEventListener("input",()=>ouvre(false));
+  if(CFG.url){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),4000);
+   fetch(FN+"vendeurs-liste",{cache:"no-store",signal:ac.signal}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{clearTimeout(to);if(!j||!j.ok||!Array.isArray(j.vendeurs))throw 0;
+    const me=L[0]&&L[0].i,R=j.vendeurs.filter(x=>x&&x.ident).map(x=>({i:String(x.ident),n:String(x.nom||""),loc:x.ident===me}));
+    if(!R.length){ET=L.length?"ok":"vide";return}
+    R.sort((p,q)=>(q.loc?1:0)-(p.loc?1:0));L=R;ET="ok";if(!ul.hidden)dessine()}).catch(()=>{ET=L.length?"ok":"hors";if(!ul.hidden)dessine()})}}catch(e){}
  try{const q=new URLSearchParams(location.search).get("id"),i=identDe(q||"")||lsGet(LS.i,"");if(i){$("#li").value=i;$("#lp").focus()}}catch(e){}
  $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button");b.disabled=true;try{await loadSb();client();const em=emailDe($("#li").value),pw=$("#lp").value;let{error}=await sb.auth.signInWithPassword({email:em,password:pw});
    /* le clavier du téléphone ajoute souvent une espace après le dernier mot : on réessaie sans les espaces de début et de fin */
    if(error&&/invalid login/i.test(error.message)&&pw.trim()&&pw!==pw.trim())({error}=await sb.auth.signInWithPassword({email:em,password:pw.trim()}));
-   if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect (identifiant envoyé : "+em.split("@")[0]+")":error.message);lsSet(LS.i,identDe($("#li").value));await demarrer()}catch(x){vueLogin(x.message)}}}
+   if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect (identifiant envoyé : "+em.split("@")[0]+")":error.message);lsSet(LS.i,identDe($("#li").value));memoIdent(identDe($("#li").value));await demarrer()}catch(x){vueLogin(x.message)}}}
 const mdpValide=m=>m.length>=10&&[/[a-z]/,/[A-Z]/,/\d/,/[^A-Za-z0-9]/].filter(r=>r.test(m)).length>=3;
 function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mot de passe</b><small>Obligatoire à la première connexion</small></div></div><div class="wrap"><div class="card"><form id="fc"><div class="sm mu">10 caractères minimum, avec au moins 3 types parmi : majuscule, minuscule, chiffre, symbole.</div><label>Nouveau mot de passe<input id="n1" type="password" autocomplete="new-password" required></label><label>Confirmer<input id="n2" type="password" autocomplete="new-password" required></label><div id="cm" class="al er hide"></div><button class="btn" type="submit">Enregistrer</button></form></div></div>`;
  $("#fc").onsubmit=async e=>{e.preventDefault();const a=$("#n1").value,b=$("#n2").value,m=$("#cm");const bad=a!==b?"Les deux mots de passe diffèrent":!mdpValide(a)?"Mot de passe trop faible : 10 caractères minimum, 3 types de caractères":"";
@@ -146,7 +169,7 @@ async function viderFile(){if(!sb||!enLigne())return;const F=file();if(!F.length
 async function charger(){try{await viderFile();const j=await api("vendeur-sync",{action:"etat"});D=j;erreur="";if(j.nom&&moi)moi.nom=j.nom}catch(x){if(x.status===401)return vueLogin("Session expirée : reconnectez-vous");erreur=x.reseau?"":"Les données de votre espace ne sont pas encore disponibles ("+x.message+")"}if(user)vue()}
 async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
  const md=user.user_metadata||{};if(md.role&&md.role!=="vendeur"){await sb.auth.signOut();user=null;return vueLogin("Cet espace est réservé aux vendeurs partenaires")}
- moi={nom:md.nom||""};if(md.chg)return vueChangement();
+ moi={nom:md.nom||""};if(md.nom)memoIdent(lsGet(LS.i,""),md.nom);if(md.chg)return vueChangement();
  await charger()}
 (async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}
  try{await loadSb();client();await demarrer()}catch(e){vueLogin(enLigne()?e.message:"Connexion Internet requise pour se connecter")}})();

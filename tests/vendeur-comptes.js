@@ -4,6 +4,7 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
 (async()=>{
  const P=await import("../supabase/functions/_shared/passerelle.js");
  const D={ven:[],users:[],n:0,etat:{},cmds:[]},db={
+  vendeursActifs:async()=>D.ven.filter(v=>v.actif).map(v=>({ident:v.ident,nom:v.nom,actif:v.actif})),
   ajouterCmdVendeur:async r=>{if(!D.cmds.some(c=>c.vendeur_ref===r.vendeur_ref&&c.ref===r.ref))D.cmds.push(Object.assign({id:D.cmds.length+1,traite:false},r))},nbCmdsVendeurEnAttente:async v=>D.cmds.filter(c=>c.vendeur_ref===v&&!c.traite).length,cmdsVendeurEnAttente:async n=>D.cmds.filter(c=>!c.traite).slice(0,n),acquitterCmdsVendeur:async ids=>{D.cmds.forEach(c=>{if(ids.includes(c.id))c.traite=true})},
   vendeurParUtilisateur:async u=>D.ven.find(x=>x.user_id===u)||null,ecrireEtatVendeur:async(r,e,m)=>{D.etat[r]={etat:e,maj_le:m}},etatVendeur:async r=>D.etat[r]||null,
   vendeurDe:async r=>D.ven.find(x=>x.vendeur_ref===r)||null,ecrireVendeur:async r=>{D.ven.push(r)},majVendeur:async(r,p)=>{Object.assign(D.ven.find(x=>x.vendeur_ref===r),p)},
@@ -58,5 +59,9 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
  chk("VC-18","le bureau relève les commandes en attente (clé obligatoire), les acquitte, et elles ne reviennent plus",q0.status===401&&q1.body.commandes.length===1&&q1.body.commandes[0].vendeur_ref==="v1"&&q2.body.acquittes===1&&q3.body.commandes.length===0);
  const z=P.nettoyerEtatVendeur({nom:"A",zones:[{nom:"Abobo",frais:1500,x:1},{nom:""}],commandes:[{numero:"C1",ref:"VD-20261023-AB12",suivi:"https://exemple.test/portail#/suivi/abc",client:"K"},{numero:"C2",suivi:"javascript:alert(1)"}]});
  chk("VC-19","projection : zones de livraison, référence de l'application et lien de suivi (https uniquement) conservés ; lien dangereux supprimé",z.zones.length===1&&z.zones[0].frais===1500&&z.commandes[0].ref==="VD-20261023-AB12"&&z.commandes[0].suivi.startsWith("https://")&&z.commandes[1].suivi==="");
+ /* liste déroulante de l'écran de connexion */
+ D.ven.length=0;D.ven.push({vendeur_ref:"a",ident:"Awa.Boutique",nom:"Boutique Awa",actif:true,user_id:"x1"},{vendeur_ref:"b",ident:"old.shop",nom:"Ancien",actif:false,user_id:"x2"},{vendeur_ref:"c",ident:"koffi.mode",nom:"Koffi Mode",actif:true,user_id:"x3",tel:"0700000000"});
+ const l0=await P.listerVendeurs(db,{listeVendeursLogin:true}),l1=await P.listerVendeurs(db,{listeVendeursLogin:false});
+ chk("VC-20","liste de connexion des vendeurs : seulement les comptes actifs, identifiant en minuscules + nom, rien d'autre (ni téléphone, ni référence) ; désactivable par réglage",l0.status===200&&l0.body.vendeurs.length===2&&l0.body.vendeurs[0].ident==="awa.boutique"&&Object.keys(l0.body.vendeurs[0]).sort().join()==="ident,nom"&&!JSON.stringify(l0.body).includes("0700000000")&&l1.body.vendeurs.length===0,JSON.stringify(l0.body));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");process.exit(ko?1:0);
 })();
