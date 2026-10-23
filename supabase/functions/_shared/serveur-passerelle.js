@@ -33,6 +33,7 @@ export function dbPasserelle(sb = client()) {
     nbCmdsVendeurEnAttente: async (ref) => { const r = await t("pg_vendeur_cmds").select("id", { count: "exact", head: true }).eq("vendeur_ref", ref).eq("traite", false); if (r.error) throw new Error(r.error.message); return r.count || 0; },
     cmdsVendeurEnAttente: async (n) => ok(await t("pg_vendeur_cmds").select("id,vendeur_ref,ref,donnees,cree_le").eq("traite", false).order("id").limit(n)) || [],
     acquitterCmdsVendeur: async (ids) => ok(await t("pg_vendeur_cmds").update({ traite: true }).in("id", ids)),
+    retirerCleVendeur: async (ref) => ok(await t("pd_vendeurs").delete().eq("vendeur", ref)),
     majVendeur: async (ref, patch) => ok(await t("pg_vendeurs").update(patch).eq("vendeur_ref", ref)),
     majCompte: async (ref, patch) => ok(await t("pg_livreurs").update(patch).eq("livreur_ref", ref)),
     mission: async (ref) => ok(await t("pg_missions").select("*").eq("livraison_ref", ref).maybeSingle()),

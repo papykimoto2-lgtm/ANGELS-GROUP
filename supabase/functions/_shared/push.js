@@ -16,33 +16,35 @@ export function endpointValide(e) {
 }
 const b64u = (v, min, max) => typeof v === "string" && /^[A-Za-z0-9_-]+={0,2}$/.test(v) && v.length >= min && v.length <= max;
 
-/* ---- Livreur : abonner / desabonner / etat ---- */
+/* ---- Livreur ou vendeur : abonner / desabonner / etat ---- */
 export async function traiterAbonnement(db, req, userId, agent = "") {
   if (!userId) return err(401, "Connexion requise");
-  const c = await db.compteParUtilisateur(userId); if (!c || !c.actif) return err(403, "Compte livreur inactif");
-  const a = String(req.action || "");
+  let c = await db.compteParUtilisateur(userId), vend = false;
+  if (!c && db.vendeurParUtilisateur) { c = await db.vendeurParUtilisateur(userId); vend = !!c; }
+  if (!c || !c.actif) return err(403, "Compte inactif");
+  const ref = vend ? c.vendeur_ref : c.livreur_ref, a = String(req.action || "");
   if (a === "abonner") {
     const s = req.subscription || {}, k = s.keys || {};
     if (!endpointValide(s.endpoint)) return err(400, "Service de notification non reconnu");
     if (!b64u(k.p256dh, 60, 120) || !b64u(k.auth, 16, 40)) return err(400, "Clés d'abonnement invalides");
-    await db.ecrireAbonnement({ user_id: userId, livreur_ref: c.livreur_ref, endpoint: s.endpoint, p256dh: k.p256dh, auth: k.auth, agent: txt(agent, 160), echecs: 0 });
-    const L = await db.abonnementsDe(c.livreur_ref);
+    await db.ecrireAbonnement(Object.assign({ user_id: userId, endpoint: s.endpoint, p256dh: k.p256dh, auth: k.auth, agent: txt(agent, 160), echecs: 0 }, vend ? { vendeur_ref: ref, livreur_ref: null } : { livreur_ref: ref }));
+    const L = await db.abonnementsDe(ref, vend);
     if (L.length > MAX_ABONNEMENTS) for (const x of L.slice(0, L.length - MAX_ABONNEMENTS)) await db.supprimerAbonnement(x.endpoint);
     return rep(200, { ok: true });
   }
-  if (a === "desabonner") { await db.supprimerAbonnementDe(c.livreur_ref, txt(req.endpoint, 600)); return rep(200, { ok: true }); }
-  if (a === "etat") return rep(200, { ok: true, abonnements: (await db.abonnementsDe(c.livreur_ref)).length });
+  if (a === "desabonner") { await db.supprimerAbonnementDe(ref, txt(req.endpoint, 600), vend); return rep(200, { ok: true }); }
+  if (a === "etat") return rep(200, { ok: true, abonnements: (await db.abonnementsDe(ref, vend)).length });
   return err(400, "Action inconnue");
 }
 
 /* ---- Bureau : envoi (clé d'administration) ---- */
 export async function traiterEnvoi(db, cfg, req, adminKey, envoyer, now = Date.now()) {
   if (!cfg.adminKey || !egal(adminKey, cfg.adminKey)) return err(401, "Clé d'administration invalide");
-  const ref = txt(req.livreur_ref, 60), titre = txt(req.titre, 80), corps = txt(req.corps, 160);
-  if (!ref || !titre) return err(400, "Livreur et titre obligatoires");
-  let url = txt(req.url, 120) || "livreur.html"; if (/^[a-z]+:/i.test(url) || url.startsWith("//")) url = "livreur.html";   // lien relatif uniquement
-  const payload = JSON.stringify({ t: titre, b: corps, tag: txt(req.tag, 60) || "angels", u: url });
-  const L = await db.abonnementsDe(ref); let envoyes = 0, supprimes = 0, echecs = 0;
+  const vend = !req.livreur_ref && !!req.vendeur_ref, ref = txt(vend ? req.vendeur_ref : req.livreur_ref, 60), titre = txt(req.titre, 80), corps = txt(req.corps, 160), defaut = vend ? "vendeur.html" : "livreur.html";
+  if (!ref || !titre) return err(400, "Destinataire et titre obligatoires");
+  let url = txt(req.url, 120) || defaut; if (/^[a-z]+:/i.test(url) || url.startsWith("//")) url = defaut;   // lien relatif uniquement
+  const payload = JSON.stringify(Object.assign({ t: titre, b: corps, tag: txt(req.tag, 60) || "angels", u: url }, vend ? { i: "icons/vendeur-192.png" } : {}));
+  const L = await db.abonnementsDe(ref, vend); let envoyes = 0, supprimes = 0, echecs = 0;
   for (const s of L) {
     let r; try { r = await envoyer({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); } catch { r = { status: 0 }; }
     const st = r && r.status || 0;

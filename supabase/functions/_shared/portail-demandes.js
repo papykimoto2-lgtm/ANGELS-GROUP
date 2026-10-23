@@ -173,14 +173,21 @@ async function cleVendeur(db, req) {
   return rep(200, { ok: true, cle });
 }
 /* Le vendeur relève SEULEMENT ses demandes (identifiant + clé) puis les acquitte : jamais celles d'un autre vendeur, jamais celles du bureau. */
-export async function traiterVendeur(db, req, cfg = {}) {
-  const v = idVendeur(req.vendeur), cle = String(req.cle || "").trim().toUpperCase();
-  const h = v && cle ? await db.empreinteVendeur(v) : null;
-  if (!h || !egal(h, await sha256hex("vendeur|" + cle))) return err(401, "Clé de relève invalide");
-  const a = String(req.action || "");
+/* `auth` = { vendeur } fourni par la fonction quand le vendeur s'est identifié par sa CONNEXION (jeton Supabase vérifié) : la clé de relève n'est alors pas exigée ;
+   l'identifiant du vendeur vient du compte, jamais du corps de la requête. */
+export async function traiterVendeur(db, req, cfg = {}, auth = null) {
+  let v, a;
+  if (auth && auth.vendeur) { v = idVendeur(auth.vendeur); if (!v) return err(401, "Compte vendeur invalide"); }
+  else {
+    v = idVendeur(req.vendeur); const cle = String(req.cle || "").trim().toUpperCase();
+    const h = v && cle ? await db.empreinteVendeur(v) : null;
+    if (!h || !egal(h, await sha256hex("vendeur|" + cle))) return err(401, "Clé de relève invalide");
+  }
+  a = String(req.action || "");
   if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteVendeur(v, 100) });
   if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), v) });
   if (a === "live_publier") return publierLive(db, v, req);
+  if (a === "live_lire") { const L = await db.lireLive(v); return rep(200, { ok: true, live: L ? { titre: L.titre, produits: L.produits, actif: !!L.actif, maj_le: L.maj_le } : null }); }
   if (a === "lien_signer" || a === "lien_renouveler") {   /* signature du lien / QR du vendeur ; « renouveler » invalide tous les anciens liens signés */
     if (!cfg.sel) return err(503, "Signature indisponible : secret du serveur non configuré");
     const rev = a === "lien_renouveler" ? await db.renouvelerLien(v) : await db.lienRev(v);

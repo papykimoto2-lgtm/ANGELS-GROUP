@@ -3,7 +3,8 @@
 let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label,o?"":info||"");o?ok++:ko++};
 (async()=>{
  const P=await import("../supabase/functions/_shared/passerelle.js");
- const D={ven:[],users:[],n:0,etat:{},cmds:[]},db={
+ const D={ven:[],users:[],n:0,etat:{},cmds:[],cles:[]},db={
+  retirerCleVendeur:async r=>{D.cles.push(r)},
   vendeursActifs:async()=>D.ven.filter(v=>v.actif).map(v=>({ident:v.ident,nom:v.nom,actif:v.actif})),
   ajouterCmdVendeur:async r=>{if(!D.cmds.some(c=>c.vendeur_ref===r.vendeur_ref&&c.ref===r.ref))D.cmds.push(Object.assign({id:D.cmds.length+1,traite:false},r))},nbCmdsVendeurEnAttente:async v=>D.cmds.filter(c=>c.vendeur_ref===v&&!c.traite).length,cmdsVendeurEnAttente:async n=>D.cmds.filter(c=>!c.traite).slice(0,n),acquitterCmdsVendeur:async ids=>{D.cmds.forEach(c=>{if(ids.includes(c.id))c.traite=true})},
   vendeurParUtilisateur:async u=>D.ven.find(x=>x.user_id===u)||null,ecrireEtatVendeur:async(r,e,m)=>{D.etat[r]={etat:e,maj_le:m}},etatVendeur:async r=>D.etat[r]||null,
@@ -63,5 +64,22 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
  D.ven.length=0;D.ven.push({vendeur_ref:"a",ident:"Awa.Boutique",nom:"Boutique Awa",actif:true,user_id:"x1"},{vendeur_ref:"b",ident:"old.shop",nom:"Ancien",actif:false,user_id:"x2"},{vendeur_ref:"c",ident:"koffi.mode",nom:"Koffi Mode",actif:true,user_id:"x3",tel:"0700000000"});
  const l0=await P.listerVendeurs(db,{listeVendeursLogin:true}),l1=await P.listerVendeurs(db,{listeVendeursLogin:false});
  chk("VC-20","liste de connexion des vendeurs : seulement les comptes actifs, identifiant en minuscules + nom, rien d'autre (ni téléphone, ni référence) ; désactivable par réglage",l0.status===200&&l0.body.vendeurs.length===2&&l0.body.vendeurs[0].ident==="awa.boutique"&&Object.keys(l0.body.vendeurs[0]).sort().join()==="ident,nom"&&!JSON.stringify(l0.body).includes("0700000000")&&l1.body.vendeurs.length===0,JSON.stringify(l0.body));
+ /* demandes des clients du vendeur : publication, commande liée, refus, clé de relève retirée */
+ D.ven.length=0;D.cles.length=0;D.users.length=0;D.cmds.length=0;D.etat={};
+ const m1=await P.traiterSync(db,cfg,{action:"vendeur-compte-creer",vendeur_ref:"vz",nom:"Zahara",ident:"zahara"},cfg.adminKey);
+ const uz=D.users[0].id;D.ven[0].user_id=uz;
+ chk("VC-21","création du compte vendeur : sa clé de relève est retirée (ses demandes ne lui sont plus réservées, elles arrivent dans son application)",m1.status===200&&D.cles.includes("vz"));
+ D.cles.length=0;
+ const DM={ref:"AB12CD",nom:"Mme Konan",tel:"0505777777",zone:"Abobo",quartier:"Anonkoua",repere:"Face à l'église",note:"Livrer avant 18h",cree_le:"2026-10-23T08:00:00Z",nb_photos:2,gps:{lat:5.4,lng:-4.0},acompte:{montant:5000,op:"Orange",ref:"MP123"},lignes:[{desig:"Robe wax",qte:1,pu:null},{desig:"Foulard",qte:2,pu:3000}],secret:"x"};
+ await P.traiterSync(db,cfg,{action:"vendeur-publier",vendeurs:[{vendeur_ref:"vz",etat:{nom:"Zahara",demandes:[DM,{ref:""},{ref:"ZZ99YY",nom:"Autre",lignes:[]}]}}]},cfg.adminKey);
+ const g=await P.traiterVendeurEtat(db,{action:"etat"},uz),dm=g.body.demandes;
+ chk("VC-22","les demandes clients sont publiées au vendeur (client, téléphone, adresse, articles avec prix éventuellement inconnu, acompte, nombre de captures) ; champ inconnu supprimé ; entrée sans référence ignorée ; clé de relève retirée à chaque publication",dm.length===2&&dm[0].tel==="0505777777"&&dm[0].lignes[0].pu===null&&dm[0].lignes[1].pu===3000&&dm[0].acompte.montant===5000&&dm[0].nb_photos===2&&dm[0].gps.lat===5.4&&!JSON.stringify(dm).includes('"secret"')&&D.cles.includes("vz"),JSON.stringify(dm));
+ const k1=await P.traiterVendeurEtat(db,Object.assign({action:"commander"},C,{ref:"VD-20261023-DM01",demande:"ab12cd"}),uz);
+ chk("VC-23","commande préparée à partir d'une demande : la référence de la demande suit la commande jusqu'au bureau",k1.status===200&&D.cmds[0].donnees.demande==="AB12CD",JSON.stringify(D.cmds[0]));
+ const r1=await P.traiterVendeurEtat(db,{action:"refuser",demande:"zz99yy",motif:"Rupture de stock"},uz),r2=await P.traiterVendeurEtat(db,{action:"refuser",demande:"zz99yy"},uz),r3=await P.traiterVendeurEtat(db,{action:"refuser",demande:"x"},uz),r4=await P.traiterVendeurEtat(db,{action:"refuser",demande:"zz99yy"},null);
+ const rf=D.cmds.filter(c=>c.donnees.type==="refus");
+ chk("VC-24","refus d'une demande : transmis au bureau (une seule fois même renvoyé), référence invalide refusée, jeton obligatoire",r1.status===200&&r2.status===200&&rf.length===1&&rf[0].donnees.demande==="ZZ99YY"&&rf[0].donnees.motif==="Rupture de stock"&&r3.status===400&&r4.status===401,JSON.stringify(rf));
+ const nz=P.nettoyerEtatVendeur({nom:"A",ref:"V1 <x>",tel:"07 01 02 03 04",org:"ANGEL'S GROUP",stats30:{dem:6,qr:3,lien:2,live:1,ok:4,x:9}});
+ chk("VC-25","projection : référence du vendeur (nettoyée), téléphone du vendeur, nom de l'entreprise et statistiques de 30 jours conservés ; champ inconnu supprimé",nz.ref==="V1x"&&nz.tel==="07 01 02 03 04"&&nz.org==="ANGEL'S GROUP"&&nz.stats30.dem===6&&nz.stats30.live===1&&nz.stats30.x===undefined,JSON.stringify(nz));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");process.exit(ko?1:0);
 })();
