@@ -1,0 +1,34 @@
+/* Compte serveur des vendeurs partenaires côté bureau : création (identifiant + mot de passe temporaire + WhatsApp), réinitialisation, blocage, liste du personnel sans vendeurs.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/vendeur-compte-bureau.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end()}r.writeHead(200,{"content-type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1300,height:1000}}),errs=[];let ok=0,ko=0;
+ const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+ const calls=[];
+ await ctx.route("**/functions/v1/mission-sync",async rt=>{const rq=rt.request(),b=JSON.parse(rq.postData()||"{}"),h={"access-control-allow-origin":"*","access-control-allow-headers":"*"};
+  if(rq.method()==="OPTIONS")return rt.fulfill({status:204,headers:h});
+  calls.push(b);const body=/^vendeur-compte-(creer)$/.test(b.action)?{ok:true,ident:b.ident,mdp:"Tmp-Vend-9Zk"}:b.action==="vendeur-compte-reset"?{ok:true,mdp:"Tmp-Reset-7Qp"}:{ok:true,evenements:[]};
+  rt.fulfill({status:200,headers:h,contentType:"application/json",body:JSON.stringify(body)})});
+ const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/distribution.html");await p.waitForTimeout(700);
+ const c=await p.evaluate(async()=>{ME=S.users.find(u=>u.role==="admin");S.config.appel_pont={url:"https://x.supabase.co/functions/v1",cle_admin:"k"};S.config.passerelle_actif=true;
+  const wo=window.open;let url="";window.open=u=>{url=u;return null};
+  vendForm(null);await new Promise(r=>setTimeout(r,200));const f=document.querySelector("#modal form");f.querySelector("[name=nom]").value="Boutique Awa Test";f.querySelector("[name=tel]").value="0701020304";f.requestSubmit();await new Promise(r=>setTimeout(r,800));
+  const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");const o={ident:v&&v.ident_serveur,id:(document.getElementById("aa-id")||{}).textContent,mdp:(document.getElementById("aa-m")||{}).textContent,wa:!!document.getElementById("aa-wa")};
+  const lienWa=document.getElementById("aa-wa");if(lienWa)lienWa.click();document.getElementById("aa-ok")&&document.getElementById("aa-ok").click();o.url=decodeURIComponent(url);o.vid=v&&v.id;return o});
+ chk("VB-1","création d'un vendeur avec passerelle active : compte serveur créé, identifiant mémorisé, mot de passe temporaire affiché avec bouton WhatsApp",c.ident==="boutique.awa.test"&&c.id===c.ident&&c.mdp==="Tmp-Vend-9Zk"&&c.wa&&calls.some(x=>x.action==="vendeur-compte-creer"&&x.vendeur_ref===c.vid),JSON.stringify([c,calls]));
+ chk("VB-2","le message WhatsApp contient le lien de l'application vendeur, l'identifiant et le mot de passe temporaire, et part vers le numéro du vendeur",/^https:\/\/wa\.me\/2250701020304\?text=/.test(c.url)&&c.url.includes("vendeur.html")&&c.url.includes("Identifiant : boutique.awa.test")&&c.url.includes("Tmp-Vend-9Zk"),c.url);
+ const r=await p.evaluate(async()=>{const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");const u=usr(v.user_id);ACT.pinUser(u.id);await new Promise(r=>setTimeout(r,200));
+  const titre=(document.querySelector("#modal h2,#modal .mh,#modal")||{}).textContent;document.querySelector("#modal form .btn:not(.ghost)").click();await new Promise(r=>setTimeout(r,800));
+  const o={titre,mdp:(document.getElementById("aa-m")||{}).textContent};document.getElementById("aa-ok")&&document.getElementById("aa-ok").click();
+  ACT.togUser(u.id);await new Promise(r=>setTimeout(r,400));o.actif=u.actif;return o});
+ chk("VB-3","« Réinitialiser le mot de passe » d'un vendeur : agit sur le compte serveur (vendeur-compte-reset) et montre le nouveau mot de passe temporaire",/application vendeur/i.test(r.titre)&&r.mdp==="Tmp-Reset-7Qp"&&calls.some(x=>x.action==="vendeur-compte-reset"),JSON.stringify([r,calls.map(x=>x.action)]));
+ chk("VB-4","désactiver le compte du vendeur le bloque aussi côté serveur (vendeur-compte-actif, actif=false)",r.actif===false&&calls.some(x=>x.action==="vendeur-compte-actif"&&x.actif===false),JSON.stringify(calls.map(x=>x.action+":"+x.actif)));
+ const l=await p.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");view="utilisateurs";render();return(document.querySelector("#app")||{}).textContent});
+ chk("VB-5","la liste « Utilisateurs & droits » n'affiche aucun vendeur partenaire",!/Boutique Awa Test/.test(l)&&!/Vendeur partenaire<\/td>/.test(l));
+ chk("VB-6","aucune erreur de script",errs.length===0,errs.join(" | "));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
+})();
