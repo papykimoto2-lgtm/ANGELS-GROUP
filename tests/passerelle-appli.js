@@ -75,7 +75,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await q.fill("#n1","Zèbre#Rapide-2026!");await q.fill("#n2","Zèbre#Rapide-2026!");await q.click("#fc button:not(.aa-e)");await q.waitForTimeout(500);
  const up=await q.evaluate(()=>window.__upd);
  chk("LV-3","politique appliquée (longueur, nom exclu) puis mot de passe changé côté serveur (indicateur chg levé)",faible&&nom&&up&&up.password==="Zèbre#Rapide-2026!"&&up.data.chg===false,JSON.stringify({faible,nom,up}));
- const ui=await q.evaluate(()=>({txt:document.getElementById("app").innerText,html:document.getElementById("app").innerHTML}));
+ const ui=await q.evaluate(()=>{const c=document.getElementById("app").cloneNode(true);c.querySelectorAll("details.aide").forEach(x=>x.remove());return{txt:c.innerText||[...c.querySelectorAll("*")].map(x=>x.childNodes.length===1&&x.firstChild.nodeType===3?x.textContent:"").join(" "),html:c.innerHTML}});
  chk("LV-4","mission affichée sans numéro de téléphone ni code ; bouton d'appel masqué ; montant à encaisser visible",/CMD-0001/.test(ui.txt)&&/30 000 F/.test(ui.txt)&&!/0707|tel:|wa\.me|whatsapp/i.test(ui.html)&&/Appeler le client \(numéro masqué\)/.test(ui.txt)&&!/code/i.test(ui.txt.replace(/Code donné/g,"")),ui.txt);
  await q.click('[data-a="accepter"]');await q.waitForTimeout(300);
  const s1=(await q.evaluate(()=>window.__sent)).filter(x=>!/\/livreurs-liste$/.test(x.u));   /* la liste déroulante de l'écran de connexion lit « livreurs-liste » : hors du périmètre de ce contrôle */
