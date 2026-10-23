@@ -216,6 +216,7 @@ details.plus>summary{cursor:pointer;color:var(--mu);font-weight:600;font-size:13
 <script src="sync-engine.js"></script>
 <script src="roles-engine.js"></script>
 <script src="pager-engine.js"></script>
+<script src="cascade-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
 <script src="tiers-engine.js"></script>
@@ -240,7 +241,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 const KEY="angels_erp_v1";
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const uid=p=>{const i=p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);try{if(S&&S.config&&S.config.mode_essai&&S.test_ids)S.test_ids[i]=1}catch(e){}return i};   /* mode essai : tout identifiant créé est marqué « Test » */
 const fcfa=n=>Math.round(n||0).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const now=()=>new Date().toISOString();
 const fdt=i=>i?new Date(i).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
@@ -289,6 +290,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"audit",l:"Journal d'audit",i:"📜",g:"Contrôle & documents",r:["admin","direction"]},
  {v:"rh",l:"Ressources humaines et paie",i:"🧑‍💼",g:"Administration",r:["admin","direction"]},
  {v:"utilisateurs",l:"Utilisateurs",i:"🔐",g:"Administration",r:["admin"]},
+ {v:"donnees_test",l:"Données de test",i:"🧪",g:"Administration",r:["admin"]},
  {v:"params",l:"Paramètres",i:"⚙️",g:"Administration",r:["admin"]},
  {v:"vHome",l:"Accueil",i:"🏠",g:"Mon espace",r:["vendeur"]},
  {v:"mesCmd",l:"Mes colis",i:"📦",g:"Mon espace",r:["vendeur"]},
@@ -740,7 +742,8 @@ function seed(){
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}
  if(d&&d.v===1&&ANGELS_AUTH.purgerDemo(d.users,[KEY,"angels_compta_distribution","angels_portail_v1"],"Distributions"))d=null;
  if(d&&d.v===1)S=d;else seed();
- S.vendeurs=S.vendeurs||[];S.reglements=S.reglements||[];S.tournees=S.tournees||[];S.clotures=S.clotures||[];S.entretiens=S.entretiens||[];S.forfaits=S.forfaits||[];S.abonnements=S.abonnements||[];ensureConfig();
+ S.test_ids=S.test_ids||{};S.test_corbeille=S.test_corbeille||[];S.vendeurs=S.vendeurs||[];S.reglements=S.reglements||[];S.tournees=S.tournees||[];S.clotures=S.clotures||[];S.entretiens=S.entretiens||[];S.forfaits=S.forfaits||[];S.abonnements=S.abonnements||[];ensureConfig();
+ if(!S.test_demo&&ANGELS_AUTH.demoOn()){S.test_demo=1;try{tdMarquerTout()}catch(e){}}   /* démonstration : tout ce qui existe après les migrations est donnée de test */
  const lim=Date.now()-S.config.gps_retention_jours*864e5;S.gps_hist=S.gps_hist.filter(p=>new Date(p.ts)>lim)}
 
 /* ---------- Interface : utilitaires ---------- */
@@ -863,7 +866,7 @@ function loginHTMLLocal(){
  <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
-function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
+function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{essaiBandeau()}catch(e){}try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
 function render0(){
  if(!S&&!CL.on)return;
  if(!ME){$("#app").innerHTML=loginHTML();return}
@@ -2726,6 +2729,134 @@ function gmCfgForm(){const C=gm().cfg;modal("⚙ Réglages de la maintenance",`<
  <label>Points de contrôle (un par ligne)<textarea name="items" rows="6" maxlength="600">${esc(C.chk_items.join("\n"))}</textarea></label><label>Points critiques (une anomalie immobilise l'engin) — un par ligne<textarea name="crit" rows="2" maxlength="300">${esc(C.chk_critiques.join("\n"))}</textarea></label>`,
  {label:"💾 Enregistrer",onSubmit:d=>gmRun(()=>{gmDroit();const C=gm().cfg,n=(v,a,b,l)=>Math.round(gmN(v,a,b,l)),items=String(d.items||"").split("\n").map(x=>x.trim()).filter(Boolean).slice(0,20);if(items.length<3)throw new Error("Au moins 3 points de contrôle");
   Object.assign(C,{pre_km:n(d.pre_km,0,5000,"Préavis km"),pre_j:n(d.pre_j,0,90,"Préavis jours"),panne_rec:n(d.panne_rec,2,20,"Seuil de pannes"),panne_rec_j:n(d.panne_rec_j,7,365,"Période"),s5_min:n(d.s5_min,0,100,"Score 5S"),chk_heure:n(d.chk_heure,0,23,"Heure"),chk_actif:!!d.chk_actif,chk_items:items,chk_critiques:String(d.crit||"").split("\n").map(x=>x.trim()).filter(x=>items.includes(x))});audit("Réglages maintenance","Mis à jour")},"Réglages enregistrés")})}
+/* ================= Données de test : marquage, correction et suppression en cascade (moteur commun : cascade-engine.js) =================
+   Une donnée est « Test » si son identifiant est dans S.test_ids : posé automatiquement pour tout ce qui est créé en MODE ESSAI (S.config.mode_essai, via uid()),
+   pour la démonstration, ou par l'administrateur sur l'existant (avec ses dépendances). Seul l'administrateur corrige / supprime ; une donnée RÉELLE n'est jamais touchée :
+   si elle dépend d'une donnée Test, elle BLOQUE la suppression. Tout ce qui part est conservé dans la corbeille (restaurable) ; les écritures comptables dérivées disparaissent
+   avec leurs sources (période clôturée : refus) ; les mouvements de stock supprimés sont annulés sur les produits conservés. */
+const TD_DEF={
+ client:{col:"clients",ic:"👤",l:"Clients",nom:c=>c.nom+(c.tel?" · "+c.tel:"")},
+ commande:{col:"commandes",ic:"🧾",l:"Commandes",nom:c=>c.numero+" · "+((cli(c.client_id)||{}).nom||"client ?")+" · "+fcfa(c.total)},
+ livraison:{col:"livraisons",ic:"🏍",l:"Livraisons",nom:l=>((cmd(l.commande_id)||{}).numero||"?")+" · "+((liv(l.livreur_id)||{}).nom||"?")+" · "+l.statut},
+ livreur:{col:"livreurs",ic:"🧑",l:"Livreurs",nom:l=>l.nom},
+ vendeur:{col:"vendeurs",ic:"🏪",l:"Vendeurs partenaires",nom:v=>v.nom},
+ produit:{col:"produits",ic:"📦",l:"Produits",nom:p=>(p.code||"")+" · "+p.nom},
+ moto:{col:"motos",ic:"🛵",l:"Engins roulants",nom:m=>m.immat+(m.modele?" · "+m.modele:"")},
+ equip:{col:"equip",ic:"📱",l:"Équipements",nom:e=>e.code+" · "+[e.marque,e.modele].filter(Boolean).join(" ")},
+ assurance:{col:"engin_assurances",ic:"🛡️",l:"Contrats d'assurance",nom:c=>c.police+" · "+c.assureur},
+ taxe:{col:"engin_taxes",ic:"🧾",l:"Taxes des engins",nom:x=>x.libelle+" · "+x.periode},
+ ot:{col:"gmao.ots",ic:"🛠️",l:"Ordres de travail",nom:o=>o.num+" · "+o.titre},
+ piece:{col:"gmao.pieces",ic:"🔩",l:"Pièces détachées",nom:p=>p.ref+" · "+p.nom},
+ fond:{col:"fonds",ic:"💵",l:"Paiements et fonds",nom:f=>f.type+" · "+fcfa(f.montant)+" · "+(f.mode||"")},
+ versement:{col:"versements",ic:"💸",l:"Versements des livreurs",nom:v=>fcfa(v.montant)+" · "+(v.mode||"")+" · "+((liv(v.livreur_id)||{}).nom||"?")},
+ depense:{col:"depenses",ic:"🧮",l:"Dépenses de mission",nom:d=>d.nature+" · "+fcfa(d.montant)},
+ incident:{col:"incidents",ic:"⚠️",l:"Incidents",nom:i=>i.ref+" · "+i.cat},
+ retour:{col:"retours",ic:"↩️",l:"Retours",nom:r=>((cmd(r.commande_id)||{}).numero||"?")+" · "+r.motif},
+ reglement:{col:"reglements",ic:"🏪",l:"Règlements aux vendeurs",nom:r=>fcfa(r.montant)+" · "+r.mode},
+ demande:{col:"demandes",ic:"📨",l:"Demandes de vendeurs",nom:d=>d.nom+" · "+(d.statut||"")},
+ abonnement:{col:"abonnements",ic:"🔁",l:"Abonnements",nom:a=>a.numero+" · "+(a.statut||"")},
+ tournee:{col:"tournees",ic:"🗺️",l:"Tournées",liste:false,nom:t=>t.numero},
+ entretien:{col:"entretiens",ic:"🔧",l:"Entretiens",liste:false,nom:e=>e.type+" · "+fcfa(e.cout)},
+ plein:{col:"pleins",ic:"⛽",l:"Pleins de carburant",liste:false,nom:p=>p.litres+" L · "+fcfa(p.montant)},
+ sinistre:{col:"engin_sinistres",ic:"💥",l:"Sinistres",liste:false,nom:s=>s.type+" · "+s.gravite},
+ engin_doc:{col:"engin_docs",ic:"📄",l:"Documents d'engins",liste:false,nom:d=>d.nom||d.type||d.id},
+ attribution:{col:"attributions",ic:"🔗",l:"Attributions de motos",liste:false,nom:a=>(liv(a.livreur_id)||{}).nom+" · "+a.du},
+ stock_mvt:{col:"stock_mvts",ic:"📊",l:"Mouvements de stock",liste:false,nom:m=>m.type+" · "+m.qte+" · "+(m.ref||"")},
+ avis:{col:"avis",ic:"⭐",l:"Avis clients",liste:false,cle:a=>a.livraison_id+"|"+a.livreur_id,nom:a=>"note "+a.note},
+ notif:{col:"notifs",ic:"🔔",l:"Notifications",liste:false,nom:n=>n.event+" · "+(n.nom||"")},
+ doc:{col:"docs",ic:"🧾",l:"Documents émis",liste:false,nom:d=>(d.numero||"")+" · "+d.type},
+ equip_mvt:{col:"equip_mvts",ic:"📋",l:"Mouvements d'équipements",liste:false,nom:m=>m.type},
+ caisse_mvt:{col:"caisse_mvts",ic:"🏦",l:"Mouvements de caisse",liste:false,nom:m=>(m.numero||"")+" · "+fcfa(m.montant)},
+ chat:{col:"chat",ic:"💬",l:"Messages",liste:false,nom:m=>String(m.texte||"").slice(0,40)},
+ prime:{col:"primes",ic:"🏆",l:"Primes",liste:false,nom:p=>fcfa(p.montant)},
+ quete_gain:{col:"quetes_gains",ic:"🎯",l:"Gains de quêtes",liste:false,nom:g=>g.nom},
+ reservation:{col:"reservations",ic:"📅",l:"Réservations de créneaux",liste:false,nom:r=>r.date},
+ ot_mvt:{col:"gmao.mvts",ic:"🔩",l:"Mouvements de pièces",liste:false,nom:m=>m.motif},
+ chk:{col:"gmao.chk",ic:"✅",l:"Contrôles avant départ",liste:false,nom:c=>fdt(c.ts)},
+ pp:{col:"gmao.pp",ic:"🔎",l:"Analyses 5 pourquoi",liste:false,nom:p=>p.probleme},
+ user:{col:"users",ic:"🔐",l:"Comptes de connexion",liste:false,nom:u=>u.nom+" ("+u.role+")"}
+};
+const TD_REL=(()=>{const f=(parent,child,fk)=>({parent,child,fk}),b=(parent,child,match,raison)=>({parent,child,match,bloque:true,raison});return[
+ f("client","commande","client_id"),f("client","abonnement","client_id"),
+ f("commande","livraison","commande_id"),f("commande","fond","commande_id"),f("commande","incident","commande_id"),f("commande","retour","commande_id"),f("commande","notif","commande_id"),f("commande","depense","commande_id"),f("commande","doc","commande_id"),
+ {parent:"commande",child:"stock_mvt",match:(m,c)=>!!m.ref&&m.ref===c.numero},
+ f("livraison","avis","livraison_id"),f("livraison","fond","livraison_id"),
+ f("livreur","livraison","livreur_id"),f("livreur","fond","livreur_id"),f("livreur","versement","livreur_id"),f("livreur","tournee","livreur_id"),f("livreur","depense","livreur_id"),f("livreur","prime","livreur_id"),f("livreur","chat","livreur_id"),f("livreur","quete_gain","livreur_id"),f("livreur","reservation","livreur_id"),f("livreur","plein","livreur_id"),f("livreur","attribution","livreur_id"),f("livreur","avis","livreur_id"),
+ {parent:"livreur",child:"user",match:(u,l)=>!!l.user_id&&u.id===l.user_id},b("livreur","equip",(e,l)=>e.livreur_id===l.id&&e.statut==="affecte","équipement encore affecté"),
+ f("vendeur","commande","vendeur_id"),f("vendeur","reglement","vendeur_id"),f("vendeur","demande","vendeur_id"),{parent:"vendeur",child:"user",match:(u,v)=>!!v.user_id&&u.id===v.user_id},
+ f("produit","stock_mvt","produit_id"),b("produit","commande",(c,p)=>(c.lignes||[]).some(l=>l.produit_id===p.id),"commande citant ce produit"),
+ f("moto","entretien","moto_id"),f("moto","plein","moto_id"),f("moto","taxe","moto_id"),f("moto","sinistre","moto_id"),f("moto","engin_doc","moto_id"),f("moto","attribution","moto_id"),f("moto","ot","moto_id"),f("moto","chk","moto_id"),f("moto","pp","moto_id"),
+ b("moto","livreur",(l,m)=>l.moto_id===m.id,"livreur auquel l'engin est affecté"),{parent:"moto",child:"assurance",fkTab:true,fk:"moto_ids",bloque:true,raison:"contrat d'assurance couvrant l'engin"},
+ f("equip","equip_mvt","eq"),f("ot","ot_mvt","ot_id"),f("piece","ot_mvt","piece_id"),b("piece","ot",(o,p)=>(o.pieces||[]).some(x=>x.piece_id===p.id),"ordre de travail utilisant cette pièce"),
+ {parent:"*",child:"caisse_mvt",match:(m,c,n)=>!!m.source_id&&m.source_id===n.id}
+]})();
+const tdIds=()=>S.test_ids=S.test_ids||{};
+const tdM=()=>ANGELS_CASCADE.moteur({types:Object.fromEntries(Object.entries(TD_DEF).map(([k,v])=>[k,{col:v.col,nom:v.nom,cle:v.cle}])),relations:TD_REL,
+ estTest:(s,t,o)=>t==="avis"?!!tdIds()[o.livraison_id]:!!(o.id&&tdIds()[o.id]),marquer:(s,t,o)=>{if(t!=="avis"&&o.id)tdIds()[o.id]=1},demarquer:(s,t,o)=>{if(t!=="avis"&&o.id)delete tdIds()[o.id]},protege:["pwd","hash","token"]});
+const tdDroit=()=>{if(CL.on)throw new Error("Disponible en mode local seulement");if(!supPeut())throw new Error("Réservé à l'administrateur")};
+function tdMarquerTout(){const M=tdM(),I=tdIds();Object.keys(TD_DEF).forEach(t=>M.col(S,t).forEach(o=>{if(t!=="avis"&&o.id)I[o.id]=1}));return Object.keys(I).length}
+/** Analyse complète d'une suppression : dépendances, réels qui bloquent, comptabilité, stock, protections */
+function tdAnalyse(type,id){const M=tdM(),a=M.analyser(S,type,id);if(!a)return null;const ids=new Set(a.tous.map(n=>n.type+"|"+n.id));
+ a.protege=a.tous.filter(n=>n.type==="user"&&((ME&&n.id===ME.id)||n.obj.role==="admin")).map(n=>"compte « "+n.obj.nom+" » (administrateur ou compte connecté)");
+ const cols={};a.tous.forEach(n=>{const c=TD_DEF[n.type].col;(cols[c]=cols[c]||new Set()).add(n.id)});
+ a.compta={n:0,numeros:[],cloturees:[]};try{const C=cpt();cptAuto().forEach(e=>{if(cols[e.source_table]&&cols[e.source_table].has(e.source_id)){a.compta.n++;if(C.nums[e.id])a.compta.numeros.push(C.nums[e.id]);if(cptClosed(e.date))a.compta.cloturees.push(e.libelle||e.id)}})}catch(e){}
+ a.stock=a.tous.filter(n=>n.type==="stock_mvt"&&!ids.has("produit|"+n.obj.produit_id)&&prod(n.obj.produit_id)).map(n=>({produit:n.obj.produit_id,qte:n.obj.qte}));
+ a.docs=a.tous.filter(n=>n.type==="doc"&&n.obj.numero).map(n=>n.obj.numero);
+ a.ok=a.ok&&!a.protege.length&&!a.compta.cloturees.length;return a}
+function tdRefus(a){const R=[];if(a.reels.length)R.push(a.reels.length+" élément(s) RÉEL(S) dépendent de cette donnée : "+a.reels.slice(0,4).map(n=>TD_DEF[n.type].l.toLowerCase()+" « "+n.libelle+" »").join(", ")+(a.reels.length>4?"…":"")+" (marquez-les Test pour les inclure, ou traitez-les d'abord)");
+ if(a.bloquants.length)R.push("référence(s) qui bloquent : "+a.bloquants.slice(0,4).map(n=>TD_DEF[n.type].l.toLowerCase()+" « "+n.libelle+" » ("+n.raison+")").join(", ")+(a.bloquants.length>4?"…":""));
+ if(a.protege.length)R.push("protégé : "+a.protege[0]);if(a.compta.cloturees.length)R.push("période comptable clôturée : "+a.compta.cloturees.length+" écriture(s) concernée(s)");return"Suppression impossible — "+R.join(" ; ")}
+function tdCorbeille(){return S.test_corbeille=S.test_corbeille||[]}
+/** Retire les nœuds, applique les effets de bord, empile la corbeille et renvoie l'entrée */
+function tdEffacer(a,motif){const M=tdM(),ids=new Set(a.tous.map(n=>n.type+"|"+n.id)),stock=[];
+ a.tous.filter(n=>n.type==="stock_mvt").forEach(n=>{if(ids.has("produit|"+n.obj.produit_id))return;const p=prod(n.obj.produit_id);if(p){p.stock-=n.obj.qte;stock.push({p:p.id,q:n.obj.qte})}});
+ const C=cpt(),nums={};a.tous.forEach(n=>{const k0=TD_DEF[n.type].col+":"+n.id;Object.keys(C.nums).forEach(k=>{if(k===k0||k.indexOf(k0+":")===0){nums[k]=C.nums[k];delete C.nums[k]}})});
+ const snap=M.retirer(S,a.tous);snap.nums=nums;snap.stock=stock;
+ const e={id:uid("tc"),le:now(),par:who(),type:a.racine.type,libelle:a.racine.libelle,n:snap.items.length,par_type:a.par,motif:String(motif||"").slice(0,160),snap};
+ const L=tdCorbeille();L.unshift(e);while(L.length>5||JSON.stringify(L).length>1500000)L.pop();return e}
+function tdSupprimer(type,id,motif){tdDroit();const a=tdAnalyse(type,id);if(!a)throw new Error("Enregistrement introuvable");if(!a.ok)throw new Error(tdRefus(a));
+ const e=tdEffacer(a,motif);audit("Données de test supprimées en cascade",TD_DEF[type].l+" « "+a.racine.libelle+" » — "+e.n+" enregistrement(s)"+(a.compta.n?" dont "+a.compta.n+" écriture(s) comptable(s) dérivée(s)":"")+(motif?" — "+motif:""));return e}
+function tdRestaurer(eid){tdDroit();const L=tdCorbeille(),i=L.findIndex(x=>x.id===eid);if(i<0)throw new Error("Sauvegarde introuvable");const e=L[i],n=tdM().restaurer(S,e.snap),C=cpt();
+ Object.keys(e.snap.nums||{}).forEach(k=>{if(!C.nums[k])C.nums[k]=e.snap.nums[k]});(e.snap.stock||[]).forEach(x=>{const p=prod(x.p);if(p)p.stock+=x.q});L.splice(i,1);audit("Suppression de données de test annulée",e.libelle+" — "+n+" enregistrement(s) restauré(s)");return n}
+function tdMarquer(type,id){tdDroit();const n=tdM().marquer(S,type,id);audit("Données marquées Test",TD_DEF[type].l+" « "+tdM().libelle(type,tdM().trouver(S,type,id))+" » — "+n+" enregistrement(s)");return n}
+function tdDemarquer(type,id){tdDroit();const M=tdM(),d=M.dependances(S,type,id);if(!d)throw new Error("Enregistrement introuvable");let n=0;[d.racine].concat(d.enfants).forEach(x=>{if(M.estTest(S,x.type,x.obj)){M.demarquer(S,x.type,x.id);n++}});audit("Marquage Test retiré",TD_DEF[type].l+" « "+d.racine.libelle+" » — "+n);return n}
+function tdModifier(type,id,valeurs){tdDroit();const M=tdM(),o=M.trouver(S,type,id);if(!o)throw new Error("Enregistrement introuvable");const ch=M.modifier(S,type,id,valeurs);
+ if(ch.length)audit("Donnée de test corrigée",TD_DEF[type].l+" « "+M.libelle(type,o)+" » : "+ch.map(c=>c.k+" "+JSON.stringify(c.avant)+" → "+JSON.stringify(c.apres)).join(" ; ").slice(0,300));return ch}
+/** Supprime toutes les données de test supprimables ; ce qui est bloqué est signalé et conservé */
+function tdPurgerTout(){tdDroit();const M=tdM(),I=tdIds(),racines=[];Object.keys(TD_DEF).forEach(t=>{if(TD_DEF[t].liste===false)return;M.col(S,t).forEach(o=>{if(o.id&&I[o.id])racines.push({t,id:o.id})})});
+ let n=0,bloques=[];const fusion={id:uid("tc"),le:now(),par:who(),type:"*",libelle:"Purge des données de test",n:0,par_type:{},motif:"",snap:{v:1,le:now(),items:[],nums:{},stock:[]}};
+ racines.forEach(r=>{if(!M.trouver(S,r.t,r.id))return;const a=tdAnalyse(r.t,r.id);if(!a)return;if(!a.ok){bloques.push({type:r.t,libelle:a.racine.libelle,raison:tdRefus(a)});return}
+  const e=tdEffacer(a,"");tdCorbeille().shift();fusion.snap.items=fusion.snap.items.concat(e.snap.items);Object.assign(fusion.snap.nums,e.snap.nums);fusion.snap.stock=fusion.snap.stock.concat(e.snap.stock);Object.keys(e.par_type).forEach(k=>fusion.par_type[k]=(fusion.par_type[k]||0)+e.par_type[k]);n+=e.n});
+ fusion.n=n;if(n){const L=tdCorbeille();L.unshift(fusion);while(L.length>5||JSON.stringify(L).length>1500000)L.pop();audit("Purge des données de test",n+" enregistrement(s) supprimé(s), "+bloques.length+" bloqué(s)")}return{supprimes:n,bloques}}
+const tdStats=()=>{const M=tdM(),I=tdIds(),r={};Object.keys(TD_DEF).forEach(t=>{const a=M.col(S,t),n=a.filter(o=>M.estTest(S,t,o)).length;r[t]={test:n,reel:a.length-n}});return r};
+function essaiBandeau(){let b=document.getElementById("essai-b");const on=!CL.on&&S&&S.config&&S.config.mode_essai&&ME&&ME.role==="admin";if(!on){if(b)b.remove();return}
+ if(!b){b=document.createElement("div");b.id="essai-b";b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:60;background:#6d28d9;color:#fff;padding:6px 12px;font-size:13px;text-align:center";document.body.appendChild(b)}
+ b.innerHTML='🧪 MODE ESSAI : tout ce que vous créez est marqué « Test » (supprimable en cascade) — <a href="#" data-act="essaiStop" style="color:#fff;text-decoration:underline">Quitter le mode essai</a>'}
+/* ---- écrans ---- */
+VIEWS.donnees_test=()=>{
+ if(CL.on)return'<h1>Données de test</h1><div class="al warn">Ce module fonctionne en mode local ; il n\'est pas encore disponible en mode serveur.</div>';
+ if(!supPeut())return'<h1>Données de test</h1><div class="al warn">Réservé à l\'administrateur.</div>';
+ const M=tdM(),T=ui.tdt||"commande",f=ui.tdf||"test",q=normTxt(ui.tdq||""),St=tdStats(),tot=Object.values(St).reduce((a,x)=>a+x.test,0),essai=!!S.config.mode_essai;
+ const types=Object.keys(TD_DEF).filter(t=>TD_DEF[t].liste!==false),all=M.col(S,T).filter(o=>(f==="tous"||(f==="test")===M.estTest(S,T,o))&&(!q||normTxt(M.libelle(T,o)).includes(q))).slice(-300).reverse();
+ return`<div class="between"><div><h1>Données de test</h1><div class="mu sm">Corriger ou supprimer en cascade ce qui est marqué « Test » : le réel n'est jamais touché</div></div><div class="flex"><button class="btn ${essai?"er":""}" data-act="essaiToggle">${essai?"⏹ Quitter le mode essai":"🧪 Activer le mode essai"}</button><button class="btn ghost" data-act="tdPurge">🗑 Supprimer toutes les données de test</button></div></div>
+ <div class="al ${essai?"warn":""}">${essai?"<b>Mode essai actif</b> : tout ce que vous créez est marqué Test.":"Mode essai inactif : ce que vous créez est réel."} Les données de démonstration et celles que vous marquez ci-dessous sont des données de test. <b>${tot}</b> enregistrement(s) marqué(s) Test.</div>
+ <div class="card noprint" style="padding:10px"><div class="flex" style="flex-wrap:wrap;gap:8px;align-items:center"><b>Type</b><select data-f="tdt" style="width:auto">${types.map(t=>`<option value="${t}" ${t===T?"selected":""}>${TD_DEF[t].ic} ${esc(TD_DEF[t].l)} (${St[t].test} test / ${St[t].reel} réel${St[t].reel>1?"s":""})</option>`).join("")}</select><select data-f="tdf" style="width:auto"><option value="test" ${f==="test"?"selected":""}>Données de test</option><option value="reel" ${f==="reel"?"selected":""}>Données réelles</option><option value="tous" ${f==="tous"?"selected":""}>Toutes</option></select><input data-f="tdq" placeholder="Rechercher…" value="${esc(ui.tdq||"")}" style="width:220px"></div></div>
+ ${tbl(["Enregistrement","Statut",""],all.map(o=>{const t=M.estTest(S,T,o),id=M.libelle(T,o)&&o.id;return`<tr><td>${esc(M.libelle(T,o))}</td><td>${t?badge("🧪 Test","wa"):badge("Réel","ok")}</td><td class="noprint" style="white-space:nowrap">${t?`<button class="btn sm ghost" data-act="tdEdit" data-id="${T}|${o.id}">✏ Modifier</button> <button class="btn sm ghost" data-act="tdDel" data-id="${T}|${o.id}">🗑 Supprimer…</button> <button class="btn sm ghost" data-act="tdUnmark" data-id="${T}|${o.id}">Retirer « Test »</button>`:`<button class="btn sm ghost" data-act="tdMark" data-id="${T}|${o.id}">🧪 Marquer comme test…</button>`}</td></tr>`}),"Aucun enregistrement")}
+ <h2>Corbeille (annulation possible)</h2>${tbl(["Date","Suppression","Contenu","Par",""],tdCorbeille().map(e=>`<tr><td>${fdt(e.le)}</td><td>${esc(e.type==="*"?e.libelle:(TD_DEF[e.type]||{l:e.type}).l+" « "+e.libelle+" »")}${e.motif?'<br><span class="sm mu">'+esc(e.motif)+"</span>":""}</td><td class="sm">${e.n} enregistrement(s)<br>${Object.entries(e.par_type||{}).map(([k,v])=>v+" "+esc((TD_DEF[k]||{l:k}).l.toLowerCase())).join(", ")}</td><td class="sm">${esc(e.par||"")}</td><td class="noprint"><button class="btn sm" data-act="tdRest" data-id="${e.id}">↩ Restaurer</button> <button class="btn sm ghost" data-act="tdDl" data-id="${e.id}">⬇ Sauvegarde</button></td></tr>`),"Corbeille vide")}`};
+function tdApercu(type,id,mode){const a=tdAnalyse(type,id);if(!a)return toast("Introuvable","err");const D=TD_DEF,lst=(L)=>L.slice(0,6).map(n=>esc(n.libelle)).join(" · ")+(L.length>6?" …":"");
+ const lignes=Object.entries(a.par).map(([t,n])=>{const L=a.tous.filter(x=>x.type===t);return`<tr><td>${D[t].ic} ${esc(D[t].l)}</td><td><b>${n}</b></td><td class="sm mu">${lst(L)}</td></tr>`}).join("");
+ const marq=mode==="marquer";
+ modal((marq?"Marquer comme test — ":"Supprimer en cascade — ")+a.racine.libelle,`<div class="pill">${D[type].ic} ${esc(D[type].l)} « ${esc(a.racine.libelle)} » et ses dépendances</div>
+ ${tbl(["Type","Nombre","Éléments"],[lignes],"Aucune dépendance")}
+ ${marq?`<div class="al warn">Tous ces enregistrements deviendront des données de test (modifiables et supprimables en cascade). Vérifiez qu'il ne s'agit pas de données réelles.</div>`:`
+ ${a.reels.length?`<div class="al er"><b>Bloqué — éléments réels</b> : ${lst(a.reels)}. Marquez-les Test (depuis la liste) pour les inclure, ou traitez-les d'abord.</div>`:""}
+ ${a.bloquants.length?`<div class="al er"><b>Bloqué — références</b> : ${a.bloquants.slice(0,6).map(n=>esc(n.libelle)+" ("+esc(n.raison)+")").join(" · ")}</div>`:""}
+ ${a.protege.length?`<div class="al er"><b>Protégé</b> : ${esc(a.protege[0])}</div>`:""}${a.compta.cloturees.length?`<div class="al er"><b>Période comptable clôturée</b> : ${a.compta.cloturees.length} écriture(s) ne peuvent pas disparaître.</div>`:""}
+ <div class="sm">${a.compta.n?`📒 <b>${a.compta.n}</b> écriture(s) comptable(s) dérivée(s) disparaîtront${a.compta.numeros.length?" (pièces "+a.compta.numeros.slice(0,5).map(esc).join(", ")+(a.compta.numeros.length>5?"…":"")+" : leurs numéros ne seront pas réutilisés)":""}.<br>`:""}${a.stock.length?`📦 Stock restitué sur ${a.stock.length} produit(s) conservé(s).<br>`:""}${a.docs.length?`🧾 Documents émis supprimés : ${a.docs.slice(0,5).map(esc).join(", ")}${a.docs.length>5?"…":""} (trous de numérotation).<br>`:""}Tout est conservé dans la <b>corbeille</b> : vous pourrez restaurer.</div>
+ ${a.ok?`<label>Motif (facultatif)<input name="motif" maxlength="160"></label>`:""}`}`,{label:marq?"Marquer comme test":"Supprimer définitivement",cls:marq?"":"danger",wide:true,onSubmit:marq?(d=>{try{tdMarquer(type,id);save();toast("Marqué comme test","ok");render();return true}catch(x){toast(x.message,"err");return false}}):(d=>{if(!a.ok){toast(tdRefus(a),"err");return false}try{tdSupprimer(type,id,d.motif);save();toast("Supprimé en cascade — restaurable depuis la corbeille","ok");render();return true}catch(x){toast(x.message,"err");return false}})})}
+function tdEditer(type,id){const M=tdM(),o=M.trouver(S,type,id);if(!o)return;const F=M.champs(S,type,o);
+ modal("Corriger — "+M.libelle(type,o),`<div class="al warn">Donnée de test : la correction ne recalcule ni le stock ni la comptabilité (celle-ci se met à jour toute seule depuis les sources). Les identifiants de liaison doivent exister.</div>${F.map(f=>`<label>${esc(f.k)}${f.fk?` <span class="mu sm">→ ${esc(TD_DEF[f.fk].l)}</span>`:""}${f.t==="bool"?`<select name="${esc(f.k)}"><option value="1" ${f.v?"selected":""}>Oui</option><option value="0" ${f.v?"":"selected"}>Non</option></select>`:f.t==="area"?`<textarea name="${esc(f.k)}" rows="2">${esc(f.v)}</textarea>`:`<input name="${esc(f.k)}" ${f.t==="number"?'type="number" step="any"':""} value="${esc(f.v==null?"":f.v)}">`}</label>`).join("")||'<p class="mu">Aucun champ simple modifiable.</p>'}`,
+ {label:"💾 Enregistrer",wide:F.length>8,onSubmit:d=>{try{const ch=tdModifier(type,id,d);save();toast(ch.length?ch.length+" champ(s) corrigé(s)":"Aucun changement","ok");render();return true}catch(x){toast(x.message,"err");return false}}})}
 VIEWS.equipements=()=>{
  if(CL.on)return'<h1>Équipements & engins</h1><div class="al warn">Ce module fonctionne en mode local ; il n\'est pas encore disponible en mode serveur.</div>';
  const s=eqStats(),T=ui.eqtab||"parc",nr=eqRet().filter(r=>r.statut==="a_retenir").length,E=enStats(),B=enBudget(),eng=["eng","carb","sin","ass","tax","doc"].includes(T),adm=can("admin","superviseur");
@@ -5724,7 +5855,7 @@ const MODULES=[
  {id:"arg",l:"Argent",i:"💰",vues:[["finance","Finance"],["caisse","Caisse"],["versements","Versements vendeurs"],["compta","Comptabilité"]]},
  {id:"tie",l:"Clients & offres",i:"👥",vues:[["clients","Clients"],["vendeurs","Vendeurs partenaires"],["abonnements","Abonnements"],["prestations","Prestations"]]},
  {id:"doc",l:"Documents & contrôle",i:"📄",vues:[["etats","États périodiques"],["documents","Documents"],["audit","Journal d'audit"]]},
- {id:"adm",l:"Administration",i:"⚙️",vues:[["rh","RH et paie"],["utilisateurs","Utilisateurs"],["params","Paramètres"]]}];
+ {id:"adm",l:"Administration",i:"⚙️",vues:[["rh","RH et paie"],["utilisateurs","Utilisateurs"],["donnees_test","Données de test"],["params","Paramètres"]]}];
 const MOD_DERN={};
 const modOf=v=>MODULES.find(m=>m.vues.some(x=>x[0]===v))||null;
 const vuesVisibles=(m,nav)=>m.vues.filter(([v])=>nav.some(n=>n.v===v));
@@ -5790,6 +5921,13 @@ Object.assign(ACT,{gmOtNew:id=>gmOtForm(id||""),gmOt:id=>{const o=gmOtById(id);i
  gmPieceNew:()=>gmPieceForm(null),gmPieceMod:id=>gmPieceForm(gmPiece(id)),gmEntree:id=>gmEntreeForm(gmPiece(id)),gmPrestaNew:()=>gmPrestaForm(null),gmPrestaMod:id=>gmPrestaForm(gmPresta(id)),gmPrestaArch:id=>{const p=gmPresta(id);if(p)gmRun(()=>{gmDroit();p.archive=true;audit("Prestataire archivé",p.nom)},"Prestataire archivé")},gmCfg:()=>gmCfgForm(),
  gmNav:id=>{const n=+id;ui.gmd=n===0?ymd(new Date()):ymd(new Date(new Date((ui.gmd||ymd(new Date()))+"T12:00:00").getTime()+n*864e5));render()},
  gmCsv:()=>csvDown("ordres_de_travail",["N°","Engin","Type","Priorité","Statut","Intervention","Demandé le","Début prévu","Fin prévue","Durée (h)","Main-d'œuvre","Prestataire (F)","Pièces","Coût total","Cause","Technicien"],gm().ots.map(o=>[o.num,(moto(o.moto_id)||{}).immat||"",GM_TYPES[o.type][0],GM_PRIO[o.priorite][0],GM_ST[o.statut][0],o.titre,o.date_demande,o.debut_prevu||"",o.fin_prevue||"",o.duree_h||"",o.cout_mo,o.cout_presta,o.cout_pieces,o.cout_total,o.cause_panne||"",o.technicien||""]))});
+Object.assign(ACT,{essaiToggle:()=>{try{tdDroit();S.config.mode_essai=!S.config.mode_essai;audit(S.config.mode_essai?"Mode essai activé":"Mode essai désactivé","");save();toast(S.config.mode_essai?"Mode essai activé : ce que vous créez est marqué Test":"Mode essai désactivé","ok");render()}catch(e){toast(e.message,"err")}},
+ essaiStop:()=>ACT.essaiToggle(),tdDel:id=>{const[t,i]=String(id).split("|");tdApercu(t,i,"supprimer")},tdMark:id=>{const[t,i]=String(id).split("|");tdApercu(t,i,"marquer")},tdEdit:id=>{const[t,i]=String(id).split("|");tdEditer(t,i)},
+ tdUnmark:id=>{const[t,i]=String(id).split("|");try{const n=tdDemarquer(t,i);save();toast(n+" enregistrement(s) redevenu(s) réel(s)","ok");render()}catch(e){toast(e.message,"err")}},
+ tdRest:id=>{try{const n=tdRestaurer(id);save();toast(n+" enregistrement(s) restauré(s)","ok");render()}catch(e){toast(e.message,"err")}},
+ tdDl:id=>{const e=tdCorbeille().find(x=>x.id===id);if(!e)return;const b=new Blob([JSON.stringify(e.snap)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sauvegarde-suppression-"+e.le.slice(0,10)+".json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)},
+ tdPurge:()=>{try{tdDroit()}catch(e){return toast(e.message,"err")}const St=tdStats(),tot=Object.values(St).reduce((a,x)=>a+x.test,0);if(!tot)return toast("Aucune donnée de test","err");
+  modal("Supprimer toutes les données de test",`<div class="al er"><b>${tot}</b> enregistrement(s) marqué(s) Test vont être supprimés avec leurs dépendances. Ce qui dépend d'une donnée réelle ou d'une période clôturée est conservé et signalé. Tout reste dans la corbeille.</div><label>Tapez <b>SUPPRIMER</b> pour confirmer<input name="conf" autocomplete="off" required></label>`,{label:"Supprimer",cls:"danger",onSubmit:d=>{if(String(d.conf).trim()!=="SUPPRIMER"){toast("Saisissez SUPPRIMER pour confirmer","err");return false}try{const r=tdPurgerTout();save();toast(r.supprimes+" enregistrement(s) supprimé(s)"+(r.bloques.length?", "+r.bloques.length+" conservé(s) (bloqués)":""),"ok");if(r.bloques.length)setTimeout(()=>modal("Éléments conservés",`<div class="sm">${r.bloques.slice(0,15).map(b=>`<p><b>${esc((TD_DEF[b.type]||{l:b.type}).l)} « ${esc(b.libelle)} »</b><br>${esc(b.raison)}</p>`).join("")}</div>`,{label:"Fermer",notice:false}),50);render();return true}catch(e){toast(e.message,"err");return false}}})}});
 Object.assign(ACT,{enEnt:id=>{const m=moto(id);if(m)entretienModal(m)},enPlein:id=>{const m=moto(id);if(m)enPleinForm(m)},enDocs:id=>{const m=moto(id);if(m)enDocLib(m)},enSin:id=>{const m=moto(id);if(m)enSinForm(m)},
  enMod:id=>{const m=moto(id);if(m)motoForm(m)},
  enDocsEdit:id=>{const m=moto(id);if(m)enDocsForm(m)},enDocNew:id=>enDocForm(id),enDocView:id=>{const x=enDocs().find(y=>y.id===id);if(x)enDocView(x)},enDocArch:id=>{const x=enDocs().find(y=>y.id===id);if(!x)return;try{enDocArchiver(x);save();render();const m=x.moto_id&&moto(x.moto_id);if(m&&document.querySelector("#modal .ov"))enDocLib(m)}catch(e){toast(e.message,"err")}},enDocArchToggle:()=>{ui.eda=ui.eda==="1"?"":"1";render()},
