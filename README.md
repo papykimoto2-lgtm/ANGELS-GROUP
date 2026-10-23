@@ -868,6 +868,13 @@ La commande est l'entrée de l'ERP : le formulaire « Nouvelle commande » suit 
 - **Bandeau « Bien démarrer »** (administrateur, page Commandes) tant que les zones, les produits ou la première commande manquent ; masquable.
 - **Bouton flottant « ➕ Nouvelle commande »** sur les autres pages et **touche N** (hors saisie).
 
+### Abonnements et prise de commande (tests/abonnement-commande.js)
+- **Aperçu dans le formulaire** : dès que le client (ou le vendeur partenaire) est choisi, un encadré indique « 🔁 Abonnement AB-… : livraison offerte — il en restera N/Q », « dernière livraison du forfait », « quota atteint : frais facturés normalement » ou « abonnement en attente / sans facture pour la période ». Le total à payer n'ajoute plus les frais offerts.
+- **Écran de succès** : rappelle l'abonnement appliqué, l'économie et le reste du quota ; alerte quand il ne reste qu'une livraison ou plus aucune.
+- **Modification d'une commande** : changer le client, le vendeur, la date ou l'adresse recalcule l'abonnement (retiré avec rétablissement des frais de zone, ou appliqué), et le consigne dans l'historique. Une modification sans rapport (observations…) ne touche jamais à l'abonnement.
+- **Page « Aujourd'hui »** : carte « abonnement(s) : quota presque atteint ».
+- Les programmations de livraison du portail passent par la même création de commande : l'abonnement s'applique (client reconnu par son téléphone). Les prestations ajoutées (express, course spéciale…) restent facturées : seuls les frais de livraison sont offerts.
+
 ## Types de colis et impression de l'affiche QR (tests/types-colis.js)
 
 **Types de colis** : chaque commande a un type (colis standard, courrier / documents, produit cassable, aliments / périssable, objet de valeur, lourd / volumineux) ; chaque type a son traitement, réglable dans Paramètres → « Types de colis et traitement » (une ligne par type : `id | nom | icône | signature | photo | urgent | délai (min) | mention | consigne`, le type « standard » est obligatoire). Effets : consigne affichée au livreur sur sa mission et dans le détail de la commande ; **signature** et/ou **photo de remise** obligatoires (contrôlées dans l'application livreur et par le serveur) ; **priorité urgente** automatique (aliments) ; **délai limite** après l'affectation avec alerte au centre et affichage rouge côté livreur ; **mention imprimée sur l'étiquette** (FRAGILE, PÉRISSABLE…). Le type se choisit dans le formulaire de commande du bureau et dans celui de l'application vendeur (liste publiée par le bureau) ; un type inconnu devient « standard ». Le serveur transporte le type (commande du vendeur, état publié, preuve de remise) : redéployer `mission-sync`, `vendeur-sync` et `mission-action` après mise à jour.
