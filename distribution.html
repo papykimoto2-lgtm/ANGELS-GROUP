@@ -87,7 +87,22 @@ label input,label select,label textarea{margin-top:3px;color:var(--tx);font-weig
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .tabs button{border:1px solid var(--bd);background:#fff;border-radius:99px;padding:6px 13px;cursor:pointer}
 .tabs button.on{background:var(--b);color:#fff;border-color:var(--b)}
-details.notice{margin:0 0 10px;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;background:var(--bbg);font-size:13px}details.notice summary{cursor:pointer;font-weight:700}details.notice .nb{margin-top:6px;line-height:1.55}
+aside .srch{margin:2px 0 6px;background:rgba(255,255,255,.12)}aside .srch small{margin-left:auto;opacity:.6;font-size:11px}
+.mtabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 14px;padding:4px;background:var(--card,#fff);border:1px solid var(--bd);border-radius:12px;position:sticky;top:0;z-index:5}
+.mtabs a{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;color:var(--tx);cursor:pointer;text-decoration:none;font-weight:600;font-size:13px;min-height:38px}
+.mtabs a:hover{background:rgba(127,127,127,.12)}.mtabs a.on{background:var(--b);color:#fff}.mtabs a .nb{margin-left:2px}
+.auj h1{margin:0 0 4px}.auj .cartes{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin:14px 0}
+.auj .carte{display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;padding:14px 16px;border:1px solid var(--bd);border-radius:14px;background:var(--card,#fff);color:var(--tx);cursor:pointer;font:inherit;min-height:96px}
+.auj .carte:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}.auj .carte .ic{font-size:22px}.auj .carte b{font-size:28px;line-height:1.1}.auj .carte.er{border-color:var(--er);background:var(--erbg)}.auj .carte.wa{border-color:var(--wa);background:var(--wabg)}
+.auj .rac{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.auj .rien{padding:26px;text-align:center;border:1px dashed var(--bd);border-radius:14px}
+.stp6{list-style:none;display:flex;margin:8px 0 12px;padding:0;gap:0}.stp6 li{flex:1;position:relative;text-align:center;font-size:11px;font-weight:600;color:var(--mu)}
+.stp6 li i{display:flex;align-items:center;justify-content:center;width:26px;height:26px;margin:0 auto 3px;border-radius:50%;background:var(--bd);color:var(--mu);font-style:normal;font-size:13px;position:relative;z-index:1}
+.stp6 li+li::before{content:"";position:absolute;top:12px;right:50%;width:100%;height:3px;background:var(--bd)}.stp6 li.ok i{background:var(--ok);color:#fff}.stp6 li.ok+li::before,.stp6 li.cur::before{background:var(--ok)}
+.stp6 li.cur i{background:var(--b);color:#fff;box-shadow:0 0 0 4px rgba(14,116,144,.2)}.stp6 li.cur{color:var(--tx);font-weight:800}.stp6.ko li{opacity:.5}
+.cmdprim{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}.cmdprim .btn{flex:1;min-width:200px;font-size:16px;padding:14px}
+details.plus{margin-top:8px}details.plus>summary{cursor:pointer;font-weight:700;padding:8px 0}details.plus .flex{flex-wrap:wrap;gap:6px}
+#rq{width:100%;font-size:17px;padding:12px}.rqr .rl{display:flex;justify-content:space-between;gap:8px;padding:10px 6px;border-bottom:1px solid var(--bd);cursor:pointer;border-radius:8px}.rqr .rl:hover{background:rgba(127,127,127,.12)}.rqr .rt{font-size:11px;text-transform:uppercase;opacity:.6;margin:10px 0 2px;font-weight:700}
+details.notice{margin:0 0 10px;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;background:var(--bbg);font-size:13px}details.notice summary{cursor:pointer;font-weight:700}details.notice .nbody{margin-top:6px;line-height:1.55}
 .al{padding:8px 12px;border-radius:8px;margin-bottom:6px;background:var(--bbg)}.al.warn{background:var(--wabg)}.al.err{background:var(--erbg)}
 .bars{display:flex;gap:8px;align-items:flex-end;height:110px}
 .bars div{flex:1;text-align:center;font-size:11px;color:var(--mu)}
@@ -236,6 +251,7 @@ const LSTC={livree:"ok",echouee:"er",refusee:"er",reaffectee:"mu",annulee:"mu",e
 const HORS_BUREAU=u=>u.role==="vendeur"||(u.role==="livreur"&&(S.livreurs||[]).some(l=>l.user_id===u.id&&l.type==="externe"));
 const ROLES={admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"};
 const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande → stock/préparation → livraison → argent → contrôle → administration
+ {v:"aujourdhui",l:"Aujourd'hui",i:"🏠",g:"Pilotage",r:["admin","direction","superviseur","commercial","preparateur","caissier"]},
  {v:"dashboard",l:"Tableau de bord",i:"📊",g:"Pilotage",r:["admin","direction","superviseur"]},
  {v:"carte",l:"Carte en direct",i:"🗺️",g:"Pilotage",r:["admin","superviseur","direction"]},
  {v:"vendeurs",l:"Vendeurs partenaires",i:"🏪",g:"Tiers & partenaires",r:["admin","commercial","superviseur"]},
@@ -766,7 +782,7 @@ function noticeHtml(titre){
  let vus=[];try{vus=JSON.parse(localStorage.getItem(NOTICE_CLE)||"[]")}catch(e){}
  const nouveau=!vus.includes(n[0]);
  if(nouveau){try{localStorage.setItem(NOTICE_CLE,JSON.stringify(vus.concat(n[0]).slice(-200)))}catch(e){}}
- return`<details class="notice" ${nouveau?"open":""}><summary>ℹ️ À quoi sert ce formulaire</summary><div class="nb"><b>Sert à</b> : ${esc(n[1])}${n[2]?`<br><b>Qui</b> : ${esc(n[2])}`:""}${n[3]?`<br><b>Ensuite</b> : ${esc(n[3])}`:""}</div></details>`}
+ return`<details class="notice" ${nouveau?"open":""}><summary>ℹ️ À quoi sert ce formulaire</summary><div class="nbody"><b>Sert à</b> : ${esc(n[1])}${n[2]?`<br><b>Qui</b> : ${esc(n[2])}`:""}${n[3]?`<br><b>Ensuite</b> : ${esc(n[3])}`:""}</div></details>`}
 function modal(title,body,o){stopScan();o=o||{};ui.onSubmit=o.onSubmit;ui.mid=(ui.mid||0)+1;const nt=o.onSubmit&&o.notice!==false?noticeHtml(title):"";
  $("#modal").innerHTML=`<div class="ov"><div class="md ${o.wide?"wide":""}"><div class="mh"><b>${esc(title)}</b><button class="x" data-act="closeModal" type="button">✕</button></div><form id="mf" autocomplete="off"><div class="mb">${nt}${body}</div>${o.onSubmit?`<div class="mf"><button type="button" class="btn ghost" data-act="closeModal">Annuler</button><button class="btn ${o.cls||""}">${o.label||"Valider"}</button></div>`:""}</form></div></div>`;
  const f=$("#mf input:not([type=hidden]),#mf select");if(f&&o.focus!==false)f.focus()}
@@ -821,8 +837,8 @@ function render0(){
  if(!ME){$("#app").innerHTML=loginHTML();return}
  if(ME.role==="vendeur"&&!ANGELS_ROLES.surcharge("distribution",S,ME.role)){if(!["vHome","mesCmd","mesReg","vExp"].includes(view))view="vHome";$("#app").innerHTML=vendeurHTML();return}
  if(ME.role==="livreur"){$("#app").innerHTML=livreurHTML()+sosBtnHTML;syncGPS();initMaps();setTimeout(offreCheck,0);return}
- const nav=NAV.filter(voirNav);if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(!nav.find(n=>n.v===view))view=nav[0].v;
- $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const n=nav.find(x=>x.v===view);return n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}${nav.map((n,k)=>(k===0||nav[k-1].g!==n.g?`<div class="gt">${n.g}</div>`:"")+`<a class="${n.v===view?"on":""}" data-act="nav" data-id="${n.v}">${n.i} ${n.l}${navBadge(n.v)}</a>`).join("")}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${VIEWS[view]()}</main></div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
+ const nav=NAV.filter(voirNav).filter(n=>!(CL.on&&n.v==="aujourdhui"));if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(!nav.find(n=>n.v===view))view=nav[0].v;
+ $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const m=modOf(view),n=nav.find(x=>x.v===view);return m?m.i+" "+m.l+(n&&n.l!==m.l?" · "+n.l:""):n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}<a class="srch" data-act="recherche" role="button">🔍 Rechercher <small>/</small></a>${modNavHtml(nav)}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${modTabsHtml(nav)}${VIEWS[view]()}</main></div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
 
 /* ============================================================
    VUES
@@ -1557,12 +1573,12 @@ function alertes(){
  const ne=S.commandes.filter(c=>c.statut==="prete"&&!c.colis).length;if(ne&&S.config.etiq_scan)a.push({k:"",m:`${ne} commande(s) prête(s) sans étiquettes colis : imprimez-les avant la remise au livreur`});
  if(can("admin","superviseur"))S.livreurs.forEach(l=>{const e=dossierEtat(l);if(!e.ok)a.push({k:S.config.dossier_obligatoire?"err":"warn",m:`Dossier de ${l.nom} incomplet : ${e.manques.slice(0,3).join(", ")}${e.manques.length>3?"…":""}${S.config.dossier_obligatoire?" — affectation bloquée":""}`});else if(e.bientot.length)a.push({k:"warn",m:`${l.nom} : échéance proche pour ${e.bientot.join(" et ")} (moins de 30 jours)`})});
  if(can("admin","superviseur"))S.livreurs.forEach(l=>{const r=risqueDetenu(l);if(r.bloque)a.unshift({k:"err",m:`💰 ${l.nom} : ${r.raisons.join(" ; ")} — nouvelles missions bloquées jusqu'au reversement`})});
- if(can("admin","superviseur")){const nc=S.vendeurs.reduce((t,v)=>t+aCollecter(v.id).length,0);if(nc)a.push({k:"warn",m:`${nc} commande(s) de vendeurs confirmée(s) à collecter chez le vendeur (Centre de livraison → Collectes)`});(S.collectes||[]).forEach(c=>{if(c.statut==="echouee")a.push({k:"err",m:`Collecte ${c.numero} non réalisée (${c.motif||"motif non précisé"}) : à réaffecter`});else if(c.statut==="planifiee"&&c.creneau&&Date.now()-new Date(c.creneau)>15*60000)a.push({k:"warn",m:`Collecte ${c.numero} : créneau dépassé, livreur sans réponse`})})}
+ if(can("admin","superviseur")){const nc=S.vendeurs.reduce((t,v)=>t+aCollecter(v.id).length,0);if(nc)a.push({k:"warn",m:`${nc} commande(s) de vendeurs confirmée(s) à collecter chez le vendeur (Livraison → Centre de livraison → Collectes)`});(S.collectes||[]).forEach(c=>{if(c.statut==="echouee")a.push({k:"err",m:`Collecte ${c.numero} non réalisée (${c.motif||"motif non précisé"}) : à réaffecter`});else if(c.statut==="planifiee"&&c.creneau&&Date.now()-new Date(c.creneau)>15*60000)a.push({k:"warn",m:`Collecte ${c.numero} : créneau dépassé, livreur sans réponse`})})}
  if(can("admin","preparateur")){const nr=(S.collectes||[]).filter(c=>c.statut==="collectee").length;if(nr)a.push({k:"",m:`${nr} collecte(s) arrivée(s) à réceptionner au dépôt`})}
- const nrp=(S.rappels||[]).filter(r=>r.statut==="ouvert").length;if(nrp&&can("admin","superviseur"))a.push({k:"warn",m:`${nrp} livreur(s) demandent à joindre un client (menu Notifications)`});
+ const nrp=(S.rappels||[]).filter(r=>r.statut==="ouvert").length;if(nrp&&can("admin","superviseur"))a.push({k:"warn",m:`${nrp} livreur(s) demandent à joindre un client (Commandes → Messages clients)`});
  {const nm=S.notifs.filter(n=>n.statut==="a_envoyer"&&n.event==="livreur_msg").length;if(nm)a.unshift({k:"warn",m:`💬 ${nm} message(s) de livreur à envoyer au client sans attendre (Notifications aux clients)`})}
  {const nc=chatNonLusCentre();if(nc&&can("admin","superviseur"))a.unshift({k:"warn",m:`💬 ${nc} message(s) de livreur non lu(s) (Centre de livraison → Messages)`})}
- const nn=S.notifs.filter(n=>n.statut==="a_envoyer").length;if(nn)a.push({k:"",m:`${nn} message(s) client à envoyer (menu Notifications)`});
+ const nn=S.notifs.filter(n=>n.statut==="a_envoyer").length;if(nn)a.push({k:"",m:`${nn} message(s) client à envoyer (Commandes → Messages clients)`});
  const ec=S.livraisons.filter(l=>l.ecart_statut==="a_valider").length;if(ec)a.push({k:"err",m:`${ec} écart(s) d'encaissement à valider`});
  {const ret=S.livraisons.filter(l=>isActive(l)&&cmd(l.commande_id)&&tcRetard(cmd(l.commande_id),l)).length;if(ret)a.push({k:"err",m:`${ret} livraison(s) à délai limité en retard (aliments, périssable)`})}
  const nv=S.commandes.filter(c=>c.vendeur_id&&c.statut==="attente").length;if(nv)a.push({k:"warn",m:`${nv} commande(s) de vendeurs partenaires à confirmer`});
@@ -1909,6 +1925,18 @@ document.addEventListener("change",e=>{
  if(t.matches("#f_pay,#f_vpay,#f_frais,#f_remise"))recalc()});
 document.addEventListener("input",e=>{if($("#f_client")&&e.target.matches(".l_qte,.l_pu,#f_acompte,#f_vmontant,#f_frais,#f_remise"))recalc()});
 
+/* Commande en parcours : les 6 étapes, une seule action principale (la suivante), le reste dans « Plus d'actions » */
+const PCM=[["Reçue","📝"],["Confirmée","✔"],["Préparation","🛠"],["Prête","📦"],["En livraison","🏍"],["Livrée","✅"]];
+function parcoursCmd(c){const k={brouillon:0,attente:0,confirmee:1,preparation:2,prete:3,affectee:4,en_cours:4,livree:5}[c.statut],ko=k==null;
+ return`<ol class="stp6${ko?" ko":""}" aria-label="Parcours de la commande">${PCM.map((e,i)=>`<li class="${ko?"":i<k?"ok":i===k?"cur":""}"${!ko&&i===k?' aria-current="step"':""}><i>${!ko&&i<k?"✓":e[1]}</i>${e[0]}</li>`).join("")}</ol>${ko?`<div class="al sm ${c.statut==="annulee"?"":"warn"}">${esc(ST[c.statut]||c.statut)}</div>`:""}`}
+const nBoutons=h=>(String(h).match(/<button/g)||[]).length;
+function cmdActions(b){
+ const info=b.filter(h=>/<button[^>]*\bdisabled\b/.test(h)),act=b.filter(h=>!info.includes(h));
+ const PRIO=[/data-act="cmdConfirm"/,/data-act="cmdPrep"/,/data-act="cmdPrete"/,/data-act="colPlan"/,/<button class="btn" data-act="assign"/,/data-act="recepRetour"/,/data-act="reprog"/,/data-act="acMmOk"/];
+ let prim=null;for(const re of PRIO){prim=act.find(h=>re.test(h));if(prim)break}
+ const autres=act.filter(h=>h!==prim),n=autres.reduce((t,h)=>t+nBoutons(h),0);
+ const infos=info.map(h=>`<div class="pill sm">${h.replace(/<button[^>]*>/,"").replace(/<\/button>/,"")}</div>`).join("");
+ return`${infos}${prim?`<div class="cmdprim noprint">${prim}</div>`:""}${n?(!prim&&n<=3?`<div class="flex noprint">${autres.join("")}</div>`:`<details class="plus noprint"><summary>⋯ Plus d'actions (${n})</summary><div class="flex">${autres.join("")}</div></details>`):""}`}
 function cmdDetail(id){
  const c=cmd(id),cl=cli(c.client_id),a=c.adr,ls=livsOf(c.id),act=activeLiv(c.id);
  const b=[];
@@ -1934,7 +1962,7 @@ function cmdDetail(id){
  if(cmdNiveau(c))b.push(`<button class="btn" data-act="cmdEdit" data-id="${c.id}">✏ Modifier la commande</button>`);
  if(supPeut()&&!CL.on)b.push(`<button class="btn er ghost" data-act="supCmd" data-id="${c.id}" title="Supprimer (uniquement une commande sans trace) ou voir pourquoi c'est impossible">🗑 Supprimer</button>`);
  if(can("admin"))b.push(`<button class="btn ghost" data-act="forceStatut" data-id="${c.id}">Correction exceptionnelle</button>`);
- modal(c.numero+" — "+cl.nom,`${c.saisie_le&&cxJour(new Date(c.date))!==cxJour(new Date(c.saisie_le))?`<div class="pill">📅 Commande du <b>${new Date(c.date).toLocaleDateString("fr-FR")}</b> · saisie le ${fdt(c.saisie_le)}</div>`:""}<div class="flex">${sb(c)}${c.priorite==="urgente"?badge("URGENT","er"):""}${badge(c.canal,"mu")}${tcDe(c.type_colis).id!=="standard"?badge(tcDe(c.type_colis).icone+" "+tcDe(c.type_colis).nom,"wa"):""}</div>${tcDe(c.type_colis).consigne?`<div class="al sm">${esc(tcDe(c.type_colis).icone)} <b>${esc(tcDe(c.type_colis).nom)}</b> : ${esc(tcDe(c.type_colis).consigne)}</div>`:""}
+ modal(c.numero+" — "+cl.nom,`${c.saisie_le&&cxJour(new Date(c.date))!==cxJour(new Date(c.saisie_le))?`<div class="pill">📅 Commande du <b>${new Date(c.date).toLocaleDateString("fr-FR")}</b> · saisie le ${fdt(c.saisie_le)}</div>`:""}<div class="flex">${sb(c)}${c.priorite==="urgente"?badge("URGENT","er"):""}${badge(c.canal,"mu")}${tcDe(c.type_colis).id!=="standard"?badge(tcDe(c.type_colis).icone+" "+tcDe(c.type_colis).nom,"wa"):""}</div>${tcDe(c.type_colis).consigne?`<div class="al sm">${esc(tcDe(c.type_colis).icone)} <b>${esc(tcDe(c.type_colis).nom)}</b> : ${esc(tcDe(c.type_colis).consigne)}</div>`:""}${parcoursCmd(c)}
  <div class="pill"><b>Destination</b> : ${esc(a.libelle||"")} · ${esc(a.zone)} ${esc(a.quartier||"")}<br>Repère : ${esc(a.repere||"—")}${a.instructions?"<br>Instructions : "+esc(a.instructions):""}<br>Tél. client : ${cl.tel?`<a href="tel:${esc(cl.tel)}">${esc(cl.tel)}</a>`:'<span class="mu">non renseigné (client divers)</span>'}<br>${geoBadge(a)}${can("admin","superviseur","commercial")?geoBtns(cl.id,a.id):can("vendeur")?`<div class="flex noprint" style="margin-top:6px"><button type="button" class="btn sm ghost" data-act="geoLink" data-id="${cl.id}|${a.id}">🔗 Lien portail client (position)</button></div>`:""}</div>
  ${tbl(["Produit","Qté","P.U.","Total"],c.lignes.map(l=>`<tr><td>${esc(lname(l))}</td><td>${l.qte}</td><td>${fcfa(l.pu)}</td><td>${fcfa(l.qte*l.pu)}</td></tr>`))}
  <div class="pill">Produits ${fcfa(c.montant_produits)} + livraison ${fcfa(c.frais)} − remise ${fcfa(c.remise)} = <b>${fcfa(c.total)}</b><br>Déjà payé : ${fcfa(paye(c))} · Reste dû : <b>${fcfa(soldeCmd(c))}</b> (${c.paiement==="avance"?"payé d'avance":c.paiement==="partiel"?"paiement partiel":"à la livraison"})</div>
@@ -1945,7 +1973,7 @@ function cmdDetail(id){
  ${act&&!can("vendeur")?`<div class="pill"><b>Mission en cours</b> : ${esc(liv(act.livreur_id).nom)} · ${lb(act)} · code client <b style="font-size:18px">${act.code}</b> ${cl.tel?`<a class="btn sm ghost" target="_blank" rel="noopener" href="${waLink(cl.tel,`${ORG()} — votre livraison ${c.numero} arrive. Code de confirmation à donner au livreur : ${act.code}`)}">Envoyer le code (WhatsApp)</a>`:'<span class="sm mu">(client divers : donnez le code au livreur par téléphone)</span>'}</div>`:""}
  ${ls.length&&!can("vendeur")?`<div class="sec">Livraisons (${ls.length})</div>${tbl(["Tentative","Livreur","Statut","Encaissé","Détail"],ls.map(l=>`<tr><td>#${l.tentative}</td><td>${esc(liv(l.livreur_id).nom)}</td><td>${lb(l)}</td><td>${l.montant_encaisse!=null?fcfa(l.montant_encaisse):"—"}</td><td class="sm">${esc(l.motif_echec||l.motif||"")}${l.recu_par?"Reçu par "+esc(l.recu_par):""}</td></tr>`))}`:""}
  <div class="sec">Historique</div><div class="sm">${c.hist.slice().reverse().map(h=>`<div>${fdt(h.ts)} — <b>${ST[h.a]}</b> · ${can("vendeur")?"":esc(h.par)}${h.note&&!can("vendeur")?" · "+esc(h.note):""}</div>`).join("")}</div>
- <div class="flex noprint">${b.join("")}</div>`,{wide:true,focus:false})}
+ ${cmdActions(b)}`,{wide:true,focus:false})}
 
 function assignModal(c){
  const old=activeLiv(c.id),zn=c.adr.zone;
@@ -2976,7 +3004,7 @@ document.addEventListener("submit",e=>{
   (async()=>{let r={ok:false};try{if(u&&u.actif)r=await ANGELS_AUTH.connecter(u,d.pin)}catch(x){toast(x.message,"err");if(bt)bt.disabled=false;return}
    if(r.ok){
     if(r.legacy||u.chg){const ok=await ANGELS_AUTH.ouvrirChangement({titre:"Créez votre mot de passe",nom:u.nom,min:mdpMin(),obligatoire:true,intro:r.legacy?"Les codes PIN ne sont plus acceptés : choisissez un mot de passe personnel pour continuer.":"Votre mot de passe est temporaire : choisissez un mot de passe personnel pour continuer.",enregistrer:async n=>{await ANGELS_AUTH.appliquer(u,n,false);S.tries[u.id]={n:0,until:0};save()}});if(!ok){if(bt)bt.disabled=false;return toast("Connexion annulée","err")}audit("Mot de passe défini (première connexion)",u.nom)}
-    tr0.n=0;ME=u;sessionStorage.setItem("angels_me",u.id);view="dashboard";ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:"ok"});audit("Connexion",u.nom);save();render();return}
+    tr0.n=0;ME=u;sessionStorage.setItem("angels_me",u.id);view=CL.on?"dashboard":"aujourdhui";ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:"ok"});audit("Connexion",u.nom);save();render();return}
    if(u)ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:u.actif?"ko":"inactif",motif:u.actif?"Mot de passe incorrect":"Compte désactivé"});
    if(tr0){tr0.n++;if(tr0.n>=+cfv("tentatives_max")){tr0.until=Date.now()+cfv("blocage_min")*6e4;tr0.n=0}try{save()}catch(e){}}
    if(bt)bt.disabled=false;toast("Utilisateur ou mot de passe incorrect","err")})()}});
@@ -4835,6 +4863,64 @@ function prefsForm(){modal("⚙️ Préférences d'affichage",`<label style="dis
  <label style="display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--tx);font-weight:600;margin-top:12px"><input type="checkbox" id="pf_e" style="width:auto;margin-top:4px" ${PREF.eco?"checked":""}> <span>📶 Économie de données<br><span class="sm mu" style="font-weight:400">Pas de vignettes, photos envoyées plus légères, vérification des nouvelles courses moins fréquente, cartes seulement à la demande.</span></span></label>
  <div class="sm mu" style="margin-top:10px">Ces réglages sont mémorisés sur ce téléphone.</div>`,{label:"Enregistrer",onSubmit:()=>{PREF={gros:$("#pf_g").checked,eco:$("#pf_e").checked};try{localStorage.setItem("angels_pref",JSON.stringify(PREF))}catch(e){}applyPref();closeModal();render();return true}})}
 
+/* ---------- Navigation en modules : 8 entrées au lieu de 30 ; chaque écran garde son identifiant (droits, tests, liens) et s'ouvre dans les onglets de son module ---------- */
+const MODULES=[
+ {id:"auj",l:"Aujourd'hui",i:"🏠",vues:[["aujourdhui","Aujourd'hui"],["dashboard","Tableau de bord"],["carte","Carte en direct"]]},
+ {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["vente_ligne","Vente en ligne"],["notifs","Messages clients"]]},
+ {id:"liv",l:"Livraison",i:"🏍️",vues:[["livraisons","Centre de livraison"],["expeditions","Expéditions"],["livreurs","Livreurs & motos"],["incidents","Incidents & retours"]]},
+ {id:"stk",l:"Stock",i:"📦",vues:[["produits","Produits & stock"],["journal","Mouvements"],["inventaire","Inventaire"]]},
+ {id:"arg",l:"Argent",i:"💰",vues:[["finance","Finance"],["caisse","Caisse"],["versements","Versements vendeurs"],["compta","Comptabilité"]]},
+ {id:"tie",l:"Clients & offres",i:"👥",vues:[["clients","Clients"],["vendeurs","Vendeurs partenaires"],["abonnements","Abonnements"],["prestations","Prestations"]]},
+ {id:"doc",l:"Documents & contrôle",i:"📄",vues:[["etats","États périodiques"],["documents","Documents"],["audit","Journal d'audit"]]},
+ {id:"adm",l:"Administration",i:"⚙️",vues:[["rh","RH et paie"],["utilisateurs","Utilisateurs"],["params","Paramètres"]]}];
+const MOD_DERN={};
+const modOf=v=>MODULES.find(m=>m.vues.some(x=>x[0]===v))||null;
+const vuesVisibles=(m,nav)=>m.vues.filter(([v])=>nav.some(n=>n.v===v));
+function modNavHtml(nav){return MODULES.map(m=>{const L=vuesVisibles(m,nav);if(!L.length)return"";const cur=modOf(view)===m,cible=(L.find(x=>x[0]===MOD_DERN[m.id])||L[0])[0],n=L.reduce((t,x)=>t+navN(x[0]),0);
+ return`<a class="${cur?"on":""}" data-act="nav" data-id="${cible}" data-mod="${m.id}" title="${esc(L.map(x=>x[1]).join(" · "))}">${m.i} ${m.l}${n?`<span class="nb" title="À traiter">${n}</span>`:""}</a>`}).join("")}
+function modTabsHtml(nav){const m=modOf(view);if(!m)return"";const L=vuesVisibles(m,nav);MOD_DERN[m.id]=view;if(L.length<2)return"";
+ return`<div class="mtabs noprint" role="tablist" aria-label="${esc(m.l)}">${L.map(([v,l])=>`<a role="tab" aria-selected="${v===view}" class="${v===view?"on":""}" data-act="nav" data-id="${v}">${esc(l)}${navBadge(v)}</a>`).join("")}</div>`}
+/* ---------- « Aujourd'hui » : ce qu'il y a à faire maintenant, selon le profil ; chaque carte ouvre directement le travail à faire ---------- */
+function aujCartes(){
+ const R=[],ok=v=>NAV.some(n=>n.v===v&&voirNav(n)),st=k=>S.commandes.filter(c=>c.statut===k).length;
+ const add=(k,i,n,l,v,o)=>{if(n>0)R.push(Object.assign({k,i,n,l,v},o||{}))};
+ if(ok("commandes")){add("conf","⏳",st("attente"),"à confirmer","commandes",{fs:"attente"});add("prep","🛠",st("confirmee"),"à préparer","commandes",{fs:"confirmee"})}
+ const pretes=S.commandes.filter(c=>c.statut==="prete"&&!expOuverte(c)).length;
+ if(ok("livraisons"))add("aff","📦",pretes,"à affecter à un livreur","livraisons",{cdt:"aff",cls:"wa"});else if(ok("commandes"))add("prete","📦",st("prete"),"prêtes à partir","commandes",{fs:"prete"});
+ if(ok("livraisons")){add("act","🏍",S.livraisons.filter(isActive).length,"course(s) en cours","livraisons",{cdt:"act"});add("col","🧺",(S.collectes||[]).filter(c=>c.statut==="collectee").length,"collecte(s) à réceptionner","commandes");
+  const ecarts=S.livraisons.filter(l=>l.ecart_statut==="a_valider").length,tr=st("echouee")+ecarts+st("retour_cours");add("trt","⚠",tr,"à traiter (échecs, écarts, retours)","livraisons",{cdt:"trt",cls:"er"})}
+ else if(ok("incidents"))add("trt","⚠",st("echouee")+st("retour_cours"),"incident(s) et retour(s)","incidents",{cls:"er"});
+ if(ok("expeditions")){const ex=(S.expeditions||[]).filter(e=>EXT_OUVERT(e.statut));add("exp","🌍",ex.length,"expédition(s) en cours","expeditions");add("expr","⏰",ex.filter(expRetard).length,"expédition(s) en retard","expeditions",{cls:"er"})}
+ if(ok("finance"))add("fin","💰",navN("finance"),"à valider (versements, clôtures)","finance",{cls:"wa"});
+ if(ok("caisse"))add("cai","💵",navN("caisse"),"à viser en caisse","caisse",{cls:"wa"});
+ if(ok("produits"))add("stk","📉",S.produits.filter(p=>p.actif!==false&&p.stock<=p.seuil).length,"produit(s) sous le seuil","produits",{cls:"wa"});
+ return R}
+VIEWS.aujourdhui=()=>{
+ if(CL.on||!S)return`<div class="card">Cette page n'est pas disponible en mode serveur.</div>`;
+ const C=aujCartes(),AL=(()=>{try{return alertes()}catch(e){return[]}})(),h=new Date().getHours();
+ return`<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${C.length||AL.length?"Voici ce qui demande votre attention maintenant.":"Tout est à jour."}</div>
+ <div class="rac noprint">${can("admin","commercial","superviseur")?'<button class="btn" data-act="newCmd" style="width:auto">➕ Nouvelle commande</button>':""}<button class="btn ghost" data-act="recherche" style="width:auto">🔍 Rechercher</button><button class="btn ghost" data-act="scanCmd" style="width:auto">📷 Scanner une étiquette</button></div>
+ ${C.length?`<div class="cartes">${C.map(c=>`<button type="button" class="carte ${c.cls||""}" data-act="auj" data-id="${c.k}"><span class="ic">${c.i}</span><b>${c.n}</b><span>${esc(c.l)}</span></button>`).join("")}</div>`:`<div class="rien">🎉 Rien à traiter pour le moment.</div>`}
+ ${AL.length?`<h2>Alertes</h2>${AL.slice(0,8).map(a=>`<div class="al ${a.k==="err"?"err":a.k==="warn"?"warn":""}">${esc(a.m)}</div>`).join("")}`:""}</div>`};
+/* ---------- Recherche rapide (touche « / » ou bouton) : commande, client, livreur, vendeur, produit, expédition ---------- */
+function rechercheRes(q){
+ q=normTxt(q);if(q.length<2||!S)return[];const ok=v=>NAV.some(n=>n.v===v&&voirNav(n)),R=[];
+ const has=(...t)=>normTxt(t.join(" ")).includes(q);
+ if(ok("commandes"))S.commandes.forEach(c=>{const cl=cli(c.client_id)||{};if(has(c.numero,cl.nom,c.adr.zone,c.adr.quartier,masqueOn()?"":cl.tel,c.app_ref))R.push({t:"Commandes",a:"cmdDetail",id:c.id,l:c.numero+" — "+(cl.nom||""),s:ST[c.statut]+" · "+fcfa(c.total)})});
+ if(ok("clients"))S.clients.forEach(c=>{if(has(c.nom,masqueOn()?"":c.tel))R.push({t:"Clients",a:"nav",id:"clients",l:c.nom,s:masqueOn()?"":c.tel||""})});
+ if(ok("livreurs"))S.livreurs.forEach(l=>{if(has(l.nom,masqueOn()?"":l.tel))R.push({t:"Livreurs",a:"nav",id:"livreurs",l:l.nom,s:l.statut||""})});
+ if(ok("vendeurs"))S.vendeurs.forEach(v=>{if(has(v.nom,masqueOn()?"":v.tel))R.push({t:"Vendeurs",a:"nav",id:"vendeurs",l:v.nom,s:v.boutique||""})});
+ if(ok("produits"))S.produits.forEach(p=>{if(has(p.nom,p.code))R.push({t:"Produits",a:"nav",id:"produits",l:p.nom,s:"stock "+p.stock})});
+ if(ok("expeditions"))(S.expeditions||[]).forEach(e=>{if(has(e.numero,e.dest&&e.dest.nom,e.bordereau))R.push({t:"Expéditions",a:"expOuvrir",id:e.id,l:e.numero+" — "+((e.dest||{}).nom||""),s:EXS[e.statut][0]})});
+ return R.slice(0,24)}
+function rechercheHtml(q){const L=rechercheRes(q);if(normTxt(q).length<2)return'<div class="mu sm">Tapez au moins 2 lettres : numéro de commande, nom du client, du livreur, du vendeur, produit…</div>';if(!L.length)return'<div class="mu sm">Aucun résultat.</div>';
+ let t="";return L.map(r=>(r.t!==t?(t=r.t,`<div class="rt">${esc(t)}</div>`):"")+`<div class="rl" data-act="rechGo" data-id="${esc(r.a)}|${esc(r.id)}"><b>${esc(r.l)}</b><span class="mu sm">${esc(r.s||"")}</span></div>`).join("")}
+Object.assign(ACT,{
+ auj:id=>{const c=aujCartes().find(x=>x.k===id);if(!c)return;if(c.fs!=null)ui.fs=c.fs;if(c.cdt)ui.cdt=c.cdt;document.body.classList.remove("menu-open");view=c.v;window.scrollTo(0,0);render()},
+ recherche:()=>{if(!ME||CL.on||!S)return;modal("🔍 Rechercher",`<input id="rq" type="search" placeholder="Commande, client, livreur, vendeur, produit…" autocomplete="off" aria-label="Rechercher"><div class="rqr" id="rqr">${rechercheHtml("")}</div>`,{focus:false});setTimeout(()=>{const i=document.getElementById("rq");if(i)i.focus()},30)},
+ rechGo:id=>{const[a,i]=String(id).split("|");closeModal();if(a==="nav")return ACT.nav(i);if(a==="cmdDetail"){view="commandes";render();return setTimeout(()=>ACT.cmdDetail(i),0)}if(a==="expOuvrir"){view="expeditions";render();return setTimeout(()=>ACT.expOuvrir(i),0)}}});
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="rq"){const r=document.getElementById("rqr");if(r)r.innerHTML=rechercheHtml(e.target.value)}});
+document.addEventListener("keydown",e=>{const t=e.target,tag=t&&t.tagName;if((e.key==="/"&&!e.ctrlKey&&!e.metaKey&&!(t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(tag)||t.isContentEditable)))||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k")){if(ME&&S&&!CL.on&&!document.getElementById("rq")){e.preventDefault();ACT.recherche()}}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("menu-open"))ACT.menuClose()});
 window.addEventListener("resize",()=>{if(window.innerWidth>1024&&document.body.classList.contains("menu-open"))ACT.menuClose()});
 /* ---------- Comptabilité SYSCOHADA (écritures automatiques, journaux, grand livre, balance, TVA, résultat/bilan, clôture) ----------
