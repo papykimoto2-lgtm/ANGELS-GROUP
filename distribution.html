@@ -157,6 +157,9 @@ details.plus>summary{cursor:pointer;color:var(--mu);font-weight:600;font-size:13
 .succ{text-align:center}.succ-n{font-size:28px;font-weight:800;color:var(--ok)}.succ-b{display:flex;flex-direction:column;gap:8px;margin-top:12px}.succ-b .btn{min-height:46px;width:100%}
 .demar{border-left:4px solid var(--b,#0e7490)}.dsteps{display:grid;gap:6px;margin-top:8px}.dst{display:flex;align-items:center;gap:8px}.dst b{flex:1;font-weight:600}.dst.ok b{color:var(--mu);text-decoration:line-through}.dst>span{width:26px;text-align:center}.dst.ok>span{color:var(--ok);font-weight:800}
 .fab{position:fixed;right:18px;bottom:78px;z-index:25;border:0;border-radius:99px;background:var(--b,#0e7490);color:#fff;font:inherit;font-weight:800;padding:12px 18px;box-shadow:0 6px 18px rgba(0,0,0,.28);cursor:pointer}.fab.hide{display:none}
+.alc{border:1px solid var(--bd);border-left:5px solid var(--b,#0e7490);border-radius:10px;padding:8px 12px;margin:6px 0;background:var(--card)}.alc.err{border-left-color:var(--er);background:#fdeeee}.alc.warn{border-left-color:var(--wa);background:#fff6e6}.alc.inf{border-left-color:#4a90c2;background:#eef5fb}
+.alc .ala{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.alc ul.als{margin:4px 0 0 18px;padding:0}.alc ul.als li{font-size:13px}.als-h{font-weight:800;margin:12px 0 2px}.al-n{display:inline-block;min-width:24px;padding:0 8px;border-radius:99px;background:var(--er);color:#fff;font-size:13px;text-align:center;vertical-align:middle}.ok-al{background:#e8f6ee;color:#14532d}
+.als-prog{height:6px;border-radius:3px;background:var(--bd);margin-bottom:8px;overflow:hidden}.als-prog i{display:block;height:6px;background:var(--b,#0e7490)}
 .kpi{transition:.15s}.kpi:hover{box-shadow:0 4px 14px rgba(15,37,112,.12);transform:translateY(-1px)}
 @media(max-width:760px){.login.hero{grid-template-columns:1fr}.hero-l{padding:28px 22px;min-height:0}.hero-l h1{font-size:23px}.hero-r{padding:22px 16px}.pcards{grid-template-columns:1fr}}
 
@@ -840,7 +843,7 @@ function loginHTMLLocal(){
  <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
-function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
+function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
 function render0(){
  if(!S&&!CL.on)return;
  if(!ME){$("#app").innerHTML=loginHTML();return}
@@ -1567,13 +1570,15 @@ const SIM_POS=()=>!CL.on&&ANGELS_AUTH.demoOn();
 function simulerPos(){const t0=new Date().toISOString();S.livreurs.forEach(l=>{if(S.pos[l.id]&&S.pos[l.id].ts&&Date.now()-new Date(S.pos[l.id].ts)<3600000)S.pos[l.id]=Object.assign({},S.pos[l.id],{ts:t0})});S.livraisons.filter(l=>l.statut==="en_cours").forEach(l=>{const c=cmd(l.commande_id),g=c&&c.adr.gps,p=S.pos[l.livreur_id];if(!g||!p)return;
  const d=Math.hypot(g.lat-p.lat,g.lng-p.lng);if(d<.0004)return;const k=.0006/d;S.pos[l.livreur_id]=Object.assign({},p,{lat:p.lat+(g.lat-p.lat)*Math.min(1,k),lng:p.lng+(g.lng-p.lng)*Math.min(1,k),ts:new Date().toISOString()})})}
 /* ---------- Tableau de bord ---------- */
+/* Seuils réglables des alertes de course (minutes) */
+const alSeuils=()=>Object.assign({non_acceptee:10,non_demarree:15,son:true},(S.config&&S.config.alertes)||{});
 function alertes(){
- const a=[],t=Date.now();
- S.livraisons.filter(isActive).forEach(l=>{const c=cmd(l.commande_id),z=zone(c.adr.zone),lim=(z?z.delai_min:60),lv=liv(l.livreur_id);
-  if((t-new Date(l.affectee_at))/60000>lim)a.push({k:"warn",m:`Retard : ${c.numero} (${lv.nom}) — délai prévu de ${lim} min dépassé`});
-  if(l.statut==="acceptee"&&(t-new Date(l.accept_at))/60000>15)a.push({k:"warn",m:`Course acceptée non démarrée depuis plus de 15 min : ${c.numero} (${lv.nom})`});
-  if(l.statut==="affectee"&&(t-new Date(l.affectee_at))/60000>10)a.push({k:"warn",m:`Mission non acceptée depuis plus de 10 min : ${c.numero} (${lv.nom})`});
-  if(l.statut==="en_cours"){const f=fraicheur(S.pos[l.livreur_id]);if(f.k!=="ok")a.push({k:"",m:`GPS ${f.k==="mu"?"absent":"non récent"} pour ${lv.nom} (${c.numero}). Cela ne prouve pas une faute : réseau, batterie ou téléphone possibles.`})}});
+ const a=[],t=Date.now(),sx=alSeuils();
+ S.livraisons.filter(isActive).forEach(l=>{const c=cmd(l.commande_id),z=zone(c.adr.zone),lim=(z?z.delai_min:60),lv=liv(l.livreur_id),ref={c:c.id,lv:lv.id},mn=Math.round((t-new Date(l.affectee_at))/60000);
+  if((t-new Date(l.affectee_at))/60000>lim)a.push({k:"warn",m:`Retard : ${c.numero} (${lv.nom}) — délai prévu de ${lim} min dépassé`,s:`Retard de ${mn-lim} min (délai prévu ${lim} min)`,...ref,min:mn-lim,kind:"retard"});
+  if(l.statut==="acceptee"&&(t-new Date(l.accept_at))/60000>sx.non_demarree)a.push({k:"warn",m:`Course acceptée non démarrée depuis plus de ${sx.non_demarree} min : ${c.numero} (${lv.nom})`,s:`Acceptée mais non démarrée (${Math.round((t-new Date(l.accept_at))/60000)} min)`,...ref,kind:"nondem"});
+  if(l.statut==="affectee"&&(t-new Date(l.affectee_at))/60000>sx.non_acceptee)a.push({k:"warn",m:`Mission non acceptée depuis plus de ${sx.non_acceptee} min : ${c.numero} (${lv.nom})`,s:`Mission non acceptée (${mn} min)`,...ref,kind:"nonacc"});
+  if(l.statut==="en_cours"){const f=fraicheur(S.pos[l.livreur_id]);if(f.k!=="ok")a.push({k:"",m:`GPS ${f.k==="mu"?"absent":"non récent"} pour ${lv.nom} (${c.numero}). Cela ne prouve pas une faute : réseau, batterie ou téléphone possibles.`,s:`GPS ${f.k==="mu"?"absent":"non récent"} (réseau, batterie ou téléphone possibles)`,...ref,kind:"gps"})}});
  if(can("admin","superviseur"))hzOuvertes().forEach(e=>a.unshift({k:"err",m:"📍 "+hzMsg(e)}));
  if(can("admin","superviseur"))vigImmobiles().forEach(x=>a.unshift({k:"err",m:`🛡️ ${x.l.nom} immobile depuis ${x.min} min pendant une course en cours (${fcfa(soldeLiv(x.l.id))} détenus) : appelez ${x.l.tel||"le livreur"} — vol ou incident possible`}));
  const nvp=S.commandes.filter(verifOuverte).length;if(nvp&&CENTRE())a.unshift({k:"err",m:`${nvp} paiement(s) déclaré(s) chez le vendeur à vérifier — le livreur attend avant de remettre le colis (fiche de la commande)`});
@@ -1600,6 +1605,81 @@ function alertes(){
  S.motos.filter(m=>m.statut!=="disponible"&&m.statut!=="affectee").forEach(m=>a.push({k:"warn",m:`Moto ${m.immat} : ${m.statut}`}));
  S.motos.filter(m=>m.km>=m.prochain_km).forEach(m=>a.push({k:"warn",m:`Entretien dû : moto ${m.immat} (${m.km} km)`}));
  return a}
+/* ---------- Centre d'alertes : priorité, regroupement par dossier, action sur chaque carte, prise en charge, report, traitement dans l'ordre ---------- */
+const AL_CATS=[["sec","🛡️ Sécurité"],["liv","🏍 Livraisons"],["arg","💰 Argent"],["cmd","🧾 Commandes"],["cli","💬 Clients"],["eq","👥 Équipe"],["stk","📦 Stock"]];
+/* [expression sur le message, niveau (0 critique · 1 à traiter · 2 information), thème, libellé de l'action, page, onglet du Centre, filtre de commandes, critique si l'alerte est rouge] */
+const AL_REGLES=[
+ [/^📍/,0,"sec","Voir la carte","carte"],[/^🛡️/,0,"sec","Voir la carte","carte"],[/^💰/,0,"arg","Ouvrir Finance","finance"],
+ [/paiement\(s\) déclaré\(s\) chez le vendeur à vérifier/,0,"arg","Vérifier les paiements","commandes"],[/paiement\(s\) Mobile Money de la boutique/,0,"arg","Vérifier les paiements","commandes"],
+ [/écart\(s\) d'encaissement/,1,"arg","Valider les écarts","livraisons","trt"],[/délai limité en retard/,0,"liv","Voir les courses","livraisons","act"],
+ [/^Retard :/,1,"liv"],[/^Course acceptée non démarrée/,1,"liv"],[/^Mission non acceptée/,1,"liv"],[/^GPS (absent|non récent)/,2,"liv"],
+ [/livreur\(s\) sur place : le client ne répond pas/,1,"cli","Voir les rappels","notifs"],[/échec\(s\) « client injoignable »/,1,"liv","Voir les incidents","incidents"],
+ [/sans étiquettes colis/,2,"cmd","Voir les commandes prêtes","commandes","","prete"],[/^Dossier de /,1,"eq","Voir les livreurs","livreurs","","",1],
+ [/commande\(s\) de vendeurs confirmée\(s\) à collecter/,1,"liv","Voir les collectes","livraisons","col"],[/^Collecte /,1,"liv","Voir les collectes","livraisons","col","",1],
+ [/collecte\(s\) arrivée\(s\) à réceptionner/,2,"liv","Réceptionner","livraisons","col"],[/demandent à joindre un client/,1,"cli","Voir les messages","notifs"],
+ [/message\(s\) de livreur à envoyer au client/,1,"cli","Envoyer les messages","notifs"],[/message\(s\) de livreur non lu\(s\)/,1,"liv","Lire les messages","livraisons","msg"],
+ [/message\(s\) client à envoyer/,2,"cli","Envoyer les messages","notifs"],[/livraison\(s\) échouée\(s\) à traiter/,1,"liv","Traiter les échecs","livraisons","trt"],
+ [/commande\(s\) de vendeurs partenaires à confirmer/,1,"cmd","Confirmer","commandes","","attente"],[/boutique en ligne à confirmer/,1,"cmd","Confirmer","commandes","","attente"],
+ [/sans position GPS : envoyez/,2,"cli","Voir les commandes","commandes"],[/prête\(s\) à affecter/,1,"liv","Affecter","livraisons","aff"],
+ [/retour\(s\) à réceptionner/,2,"liv","Réceptionner","commandes","","retour_cours"],[/^Stock bas/,2,"stk","Voir le stock","produits"],
+ [/^Moto |^Entretien dû/,2,"eq","Voir les motos","livreurs"]];
+let AL_MAP={},AL_VUS=null,AL_T=0;
+const alHash=k=>{let h=5381;for(let i=0;i<k.length;i++)h=((h<<5)+h+k.charCodeAt(i))|0;return(h>>>0).toString(36)};
+function alClasse(a){for(const r of AL_REGLES)if(r[0].test(a.m))return{n:r[7]&&a.k==="err"?0:r[1],cat:r[2],lab:r[3]||"Ouvrir",view:r[4]||"commandes",cdt:r[5]||"",fs:r[6]||""};
+ return{n:a.k?1:2,cat:"eq",lab:"Voir",view:"dashboard",cdt:"",fs:""}}
+function alertesPlus(){
+ const L=alertes(),items=[],dos={},now0=Date.now(),sv=S.alertes_suivi=S.alertes_suivi||{};AL_MAP={};
+ L.forEach(a=>{const c=alClasse(a);
+  if(a.c&&cmd(a.c)){const k="c:"+a.c;let d=dos[k];if(!d){const cm=cmd(a.c),lv=liv(a.lv),cl=cli(cm.client_id);d=dos[k]={key:k,dossier:true,c:a.c,lv:a.lv,sig:[],n:3,cat:"liv",titre:cm.numero+(cl?" · "+cl.nom:""),sous:"Livreur : "+(lv?lv.nom:"?")+" · "+(cm.adr.zone||""),min:0};items.push(d)}
+   d.sig.push({t:a.s||a.m,kind:a.kind});d.n=Math.min(d.n,c.n);d.min=Math.max(d.min,a.min||0);return}
+  const tel=((a.m.match(/appelez ([+\d][\d ().-]{5,})/)||[])[1]||"").trim();
+  items.push(Object.assign({key:"m:"+a.m.replace(/\d+/g,"#").replace(/\s+/g," "),m:a.m,k:a.k,tel},c))});
+ items.forEach(it=>{it.h=alHash(it.key);AL_MAP[it.h]=it;it.score=(3-it.n)*1000+(it.dossier?it.sig.length*10+Math.min(it.min,99):0);const e=sv[it.key];it.sv=e&&(!e.jusqu||e.jusqu>now0)?e:null});
+ Object.keys(sv).forEach(k=>{if(!items.some(i=>i.key===k)||(sv[k].jusqu&&sv[k].jusqu<=now0))delete sv[k]});
+ items.sort((a,b)=>b.score-a.score);
+ const act=items.filter(i=>!i.sv);
+ return{items,actifs:act,pris:items.filter(i=>i.sv&&!i.sv.jusqu),reportes:items.filter(i=>i.sv&&i.sv.jusqu),aTraiter:act.filter(i=>i.n<2)}}
+/* Suggestion de réaffectation : livreur disponible et libre, de préférence dans la zone de la commande */
+function alSuggest(c,exclu){const zn=c.adr.zone,L=lvActifs().filter(l=>l.id!==exclu&&l.statut==="disponible"&&!S.livraisons.some(x=>x.livreur_id===l.id&&isActive(x))&&!(l.moto_id&&moto(l.moto_id)&&!["disponible","affectee"].includes(moto(l.moto_id).statut)));
+ L.sort((a,b)=>(a.zone===zn?0:1)-(b.zone===zn?0:1)||a.nom.localeCompare(b.nom));return L[0]?{l:L[0],zone:L[0].zone===zn}:null}
+function alBoutons(it){const B=[];
+ if(it.dossier){const cm=cmd(it.c),lv=liv(it.lv),reaff=it.sig.some(s=>["nonacc","nondem","retard"].includes(s.kind));
+  B.push(`<button class="btn sm" data-act="cmdDetail" data-id="${it.c}">📋 Ouvrir</button>`);
+  if(lv&&lv.tel&&!masqueOn())B.push(`<a class="btn sm ghost" style="text-decoration:none" href="tel:${esc(String(lv.tel).replace(/[^+\d]/g,""))}">📞 Appeler ${esc(lv.nom.split(" ")[0])}</a>`);
+  if(reaff&&cm&&can("admin","superviseur","commercial"))B.push(`<button class="btn sm ghost" data-act="assign" data-id="${it.c}">🏍 Réaffecter</button>`)}
+ else{B.push(`<button class="btn sm" data-act="alGo" data-id="${esc(it.view)}|${esc(it.cdt)}|${esc(it.fs)}">${esc(it.lab)} →</button>`);
+  if(it.tel&&!masqueOn())B.push(`<a class="btn sm ghost" style="text-decoration:none" href="tel:${esc(it.tel.replace(/[^+\d]/g,""))}">📞 Appeler</a>`)}
+ return B.join(" ")}
+function alCarte(it,mode){const cls=it.n===0?"err":it.n===1?"warn":"inf",ic=it.n===0?"🔴":it.n===1?"🟠":"🔵";
+ const corps=it.dossier?`<div><b>${esc(it.titre)}</b> <span class="mu sm">${esc(it.sous)}</span></div><ul class="als">${it.sig.map(x=>`<li>${esc(x.t)}</li>`).join("")}</ul>`:`<div>${ic} ${esc(it.m)}</div>`;
+ let sug="";if(it.dossier&&mode==="actif"&&it.sig.some(s=>["nonacc","nondem","retard"].includes(s.kind))){const cm=cmd(it.c),g=cm&&alSuggest(cm,it.lv);if(g)sug=`<div class="sm mu">💡 Suggestion : ${esc(g.l.nom)} (disponible${g.zone?", même zone":""})</div>`}
+ let pied;
+ if(mode==="pris")pied=`<span class="sm">✋ Pris en charge par <b>${esc(it.sv.par)}</b> à ${esc(fdt(it.sv.ts).slice(-5))}</span><button class="btn sm ghost" data-act="alRel" data-id="${it.h}">Relâcher</button>`;
+ else if(mode==="rep")pied=`<span class="sm">⏰ Reportée jusqu'à ${esc(new Date(it.sv.jusqu).toTimeString().slice(0,5))} (${esc(it.sv.par)})</span><button class="btn sm ghost" data-act="alRel" data-id="${it.h}">Reprendre</button>`;
+ else pied=`${alBoutons(it)} <button class="btn sm ghost" data-act="alPris" data-id="${it.h}" title="Vous prenez cette alerte en charge : elle passe sous « Pris en charge » pour les autres">✋ Je m'en occupe</button><button class="btn sm ghost" data-act="alRep" data-id="${it.h}|30">⏰ 30 min</button><button class="btn sm ghost" data-act="alRep" data-id="${it.h}|120">⏰ 2 h</button>`;
+ return`<div class="alc ${cls}">${corps}${sug}<div class="ala">${pied}</div></div>`}
+function alPanel(){const R=alertesPlus(),cat=ui.alc||"",F=x=>!cat||x.cat===cat,A=R.actifs.filter(F),crit=A.filter(i=>i.n===0),imp=A.filter(i=>i.n===1),inf=A.filter(i=>i.n===2);
+ const nb=c=>R.aTraiter.filter(i=>!c||i.cat===c).length,adm=can("admin","superviseur"),sec=(t,L,m)=>L.length?`<div class="als-h">${t} <b>${L.length}</b></div>${L.map(i=>alCarte(i,m||"actif")).join("")}`:"";
+ const det=(t,L,m,open)=>L.length?`<details class="plus" ${open?"open":""}><summary>${t} (${L.length})</summary>${L.map(i=>alCarte(i,m)).join("")}</details>`:"";
+ return`<div class="between" style="flex-wrap:wrap;gap:8px"><h2 style="margin:0">Alertes ${R.aTraiter.length?`<span class="al-n">${R.aTraiter.length}</span>`:""}</h2><div class="flex noprint">${R.aTraiter.length?`<button class="btn sm" data-act="alOrdre">▶ Traiter dans l'ordre (${R.aTraiter.length})</button>`:""}${adm?`<button class="btn sm ghost" data-act="alReglages">⚙ Réglages</button>`:""}</div></div>
+ ${tabs("alc",[["","Tout ("+nb("")+")"],...AL_CATS.map(c=>[c[0],c[1]+" ("+nb(c[0])+")"])])}
+ ${crit.length||imp.length?sec("🔴 Critique",crit)+sec("🟠 À traiter",imp):`<div class="al ok-al">✅ Aucune alerte à traiter${cat?" dans ce thème":""}.</div>`}
+ ${det("🔵 Pour information",inf,"actif",ui.alinfo==="1")}${det("✋ Pris en charge",R.pris.filter(F),"pris")}${det("⏰ Reportées",R.reportes.filter(F),"rep")}`}
+/* Aujourd'hui : seulement l'essentiel */
+function alTop(n){const R=alertesPlus(),L=R.aTraiter.slice(0,n);if(!R.aTraiter.length)return"";
+ return`<h2>Alertes <span class="al-n">${R.aTraiter.length}</span></h2>${L.map(i=>alCarte(i,"actif")).join("")}${R.aTraiter.length>n?`<button class="btn ghost" data-act="alGo" data-id="dashboard||" style="margin-top:6px">Voir les ${R.aTraiter.length} alertes →</button>`:""}`}
+/* Traitement dans l'ordre : une alerte à la fois, la plus urgente d'abord */
+function alOrdre(){const R=alertesPlus(),L=R.aTraiter,i=Math.min(ui.alo||0,L.length-1);
+ if(!L.length){closeModal();toast("Plus aucune alerte à traiter","ok");return}
+ const it=L[i];modal(`Alerte ${i+1} sur ${L.length}`,`<div class="als-prog"><i style="width:${Math.round((i+1)/L.length*100)}%"></i></div>${alCarte(it,"actif")}<div class="flex" style="margin-top:10px"><button type="button" class="btn ghost" data-act="alOrdreNav" data-id="-1" ${i===0?"disabled":""}>← Précédente</button><button type="button" class="btn ghost" data-act="alOrdreNav" data-id="1" ${i>=L.length-1?"disabled":""}>Passer →</button></div>`,{notice:false,focus:false})}
+function alMaj(){const o=document.querySelector("#modal .als-prog");render();if(o)alOrdre()}
+function alSuivi(h,jusqu){const it=AL_MAP[h];if(!it){toast("Alerte déjà résolue","ok");return false}const sv=S.alertes_suivi=S.alertes_suivi||{};sv[it.key]={par:who(),ts:now(),jusqu:jusqu||0};audit(jusqu?"Alerte reportée":"Alerte prise en charge",(it.dossier?it.titre:it.m).slice(0,120));save();return true}
+/* Nouvelle alerte critique : son et message (une fois par alerte, jamais au premier affichage) */
+function alSonner(){if(!ME||!S||CL.on||!can("admin","superviseur")||Date.now()-AL_T<4000)return;AL_T=Date.now();
+ let R;try{R=alertesPlus()}catch(e){return}const crit=R.actifs.filter(i=>i.n===0).map(i=>i.key);
+ if(AL_VUS===null){AL_VUS=new Set(crit);return}
+ const nv=crit.filter(k=>!AL_VUS.has(k));crit.forEach(k=>AL_VUS.add(k));
+ if(nv.length&&alSeuils().son!==false){try{sonUnlock();bip(880,0,.15);bip(660,.2,.15)}catch(e){}const it=R.actifs.find(i=>i.key===nv[0]);toast("🔴 Nouvelle alerte critique : "+(it?(it.dossier?it.titre:it.m).slice(0,90):""),"err")}}
 function statsPer(){
  const bn=perBornes("d","7"),inP=i=>dansBornes(bn,i);
  const fz=ui.dz||"",fl=ui.dl||"",fc=ui.dc||"",fq=ui.dlieu||"";
@@ -1641,7 +1721,7 @@ const hr=new Date().getHours(),hello=hr<12?"Bonjour":hr<18?"Bon après-midi":"Bo
  ${kpi("Prêtes à affecter",S.commandes.filter(c=>c.statut==="prete").length,"w")}${kpi("En cours",actifs.length)}${kpi("En retard",al.filter(a=>a.m.startsWith("Retard")).length,"e")}
  ${kpi("Échecs à traiter",S.commandes.filter(c=>c.statut==="echouee").length,"e")}${kpi("Retours à réceptionner",S.commandes.filter(c=>c.statut==="retour_cours").length,"w")}
  ${kpi("Livreurs disponibles",dispo,"o")}${kpi("Livreurs en mission",enM)}${kpi("Restant à encaisser",fcfa(aEnc),"w")}${kpi("Encaissé non reversé",fcfa(aRev),aRev?"e":"")}</div>
- <h2>Alertes</h2>${al.length?al.map(a=>`<div class="al ${a.k}">${esc(a.m)}</div>`).join(""):'<div class="al">Aucune alerte.</div>'}
+ ${alPanel()}
  <h2>Performance (période${ui.dz||ui.dl||ui.dc||ui.dlieu?" · filtrée":""})</h2><div class="grid">
  ${kpi("Commandes créées",s.cmds)}${kpi("Livrées",s.ok,"o")}${kpi("Échouées",s.ko,"e")}${kpi("Taux de réussite",s.taux.toFixed(0)+" %")}
  ${kpi("Livrées dans les délais",s.delais.toFixed(0)+" %")}${kpi("Durée moyenne",Math.round(s.duree)+" min")}${kpi("Livraisons / livreur",s.parLiv.toFixed(1))}${kpi("Tentatives / commande",s.tent.toFixed(2))}${(()=>{const a=S.avis||[];return kpi("Satisfaction client",a.length?(a.reduce((t,x)=>t+x.note,0)/a.length).toFixed(1)+" / 5 ("+a.length+")":"—","o")})()}</div>
@@ -2877,7 +2957,12 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  tab:id=>{const[k,v]=id.split("|");ui[k]=v;render()},
  logout:()=>{if(CL.on){if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}return CL.logout()}if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}try{ANGELS_AUTH.trace(S,{app:"distribution",uid:ME.id,nom:ME.nom,role:ME.role,ev:"out"});save()}catch(e){}sessionStorage.removeItem("angels_me");ME=null;render()},
  closeModal,
- demarrageOff:()=>{S.config.demarrage_ok=true;save();render()},demarrageGo:id=>{if(id==="params")ui.ptab="zones";view=id;window.scrollTo(0,0);render()},newCmd:()=>formCmd(),addLigne,delLigne:(_,t)=>{if(document.querySelectorAll(".lrow").length>1){t.closest(".lrow").remove();recalc()}},
+ demarrageOff:()=>{S.config.demarrage_ok=true;save();render()},demarrageGo:id=>{if(id==="params")ui.ptab="zones";view=id;window.scrollTo(0,0);render()},newCmd:()=>formCmd(),
+ alGo:id=>{const[v,c,f]=String(id).split("|");closeModal();view=v;if(v==="dashboard")ui.alc="";if(v==="livraisons"&&c)ui.cdt=c;if(f)ui.fs=f;document.body.classList.remove("menu-open");window.scrollTo(0,0);render()},
+ alPris:h=>{if(alSuivi(h,0))alMaj()},alRep:v=>{const[h,m]=String(v).split("|");if(alSuivi(h,Date.now()+(+m||30)*60000))alMaj()},
+ alRel:h=>{const it=AL_MAP[h];if(it&&S.alertes_suivi){delete S.alertes_suivi[it.key];save()}alMaj()},
+ alOrdre:()=>{ui.alo=0;alOrdre()},alOrdreNav:d=>{ui.alo=Math.max(0,(ui.alo||0)+(+d));alOrdre()},
+ alReglages:()=>{if(!can("admin","superviseur"))return;const sx=alSeuils();modal("⚙ Réglages des alertes",`<div class="g2"><label>Mission non acceptée après (min)<input type="number" name="na" min="1" max="120" required value="${sx.non_acceptee}"></label><label>Course acceptée non démarrée après (min)<input type="number" name="nd" min="1" max="120" required value="${sx.non_demarree}"></label></div><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="son" style="width:auto" ${sx.son!==false?"checked":""}> 🔔 Son et message à chaque nouvelle alerte critique</label><div class="sm mu" style="margin-top:6px">Le retard se calcule avec le délai de la zone (Paramètres → Zones & tarifs).</div>`,{label:"Enregistrer",onSubmit:d=>{const na=Math.round(+d.na),nd=Math.round(+d.nd);if(!(na>=1&&na<=120&&nd>=1&&nd<=120)){toast("Les délais doivent être compris entre 1 et 120 minutes","err");return false}S.config.alertes={non_acceptee:na,non_demarree:nd,son:!!d.son};audit("Réglages des alertes",na+" min / "+nd+" min / son "+(d.son?"oui":"non"));save();render();return true}})},addLigne,delLigne:(_,t)=>{if(document.querySelectorAll(".lrow").length>1){t.closest(".lrow").remove();recalc()}},
  cmdDetail:id=>cmdDetail(id),
  cmdConfirm:id=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"confirmer"}),"Commande confirmée",()=>cmdDetail(id));if(setStatut(cmd(id),"confirmee","Confirmation")){audit("Confirmation commande",cmd(id).numero);done("Commande confirmée");cmdDetail(id)}},
  cmdPrep:id=>{if(CL.on)return CL.go(()=>CL.rpc("commande_action",{p_cid:id,p_action:"preparer"}),null,()=>cmdDetail(id));if(setStatut(cmd(id),"preparation","Début de préparation")){done();cmdDetail(id)}},
@@ -4955,11 +5040,11 @@ function aujCartes(){
  return R}
 VIEWS.aujourdhui=()=>{
  if(CL.on||!S)return`<div class="card">Cette page n'est pas disponible en mode serveur.</div>`;
- const C=aujCartes(),AL=(()=>{try{return alertes()}catch(e){return[]}})(),h=new Date().getHours();
- return`<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${C.length||AL.length?"Voici ce qui demande votre attention maintenant.":"Tout est à jour."}</div>
+ const C=aujCartes(),h=new Date().getHours();
+ return`<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${C.length||alertesPlus().aTraiter.length?"Voici ce qui demande votre attention maintenant.":"Tout est à jour."}</div>
  <div class="rac noprint">${can("admin","commercial","superviseur")?'<button class="btn" data-act="newCmd" style="width:auto">➕ Nouvelle commande</button>':""}<button class="btn ghost" data-act="recherche" style="width:auto">🔍 Rechercher</button><button class="btn ghost" data-act="scanCmd" style="width:auto">📷 Scanner une étiquette</button></div>
  ${C.length?`<div class="cartes">${C.map(c=>`<button type="button" class="carte ${c.cls||""}" data-act="auj" data-id="${c.k}"><span class="ic">${c.i}</span><b>${c.n}</b><span>${esc(c.l)}</span></button>`).join("")}</div>`:`<div class="rien">🎉 Rien à traiter pour le moment.</div>`}
- ${AL.length?`<h2>Alertes</h2>${AL.slice(0,8).map(a=>`<div class="al ${a.k==="err"?"err":a.k==="warn"?"warn":""}">${esc(a.m)}</div>`).join("")}`:""}</div>`};
+ ${alTop(3)}</div>`};
 /* ---------- Recherche rapide (touche « / » ou bouton) : commande, client, livreur, vendeur, produit, expédition ---------- */
 function rechercheRes(q){
  q=normTxt(q);if(q.length<2||!S)return[];const ok=v=>NAV.some(n=>n.v===v&&voirNav(n)),R=[];
