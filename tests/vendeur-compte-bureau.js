@@ -46,6 +46,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   _vendSig="";await passSync(true);window.fetch=f;return window.__pub2});
  const ev2=pz&&pz.vendeurs[0].etat;
  chk("VB-10","la publication contient les zones de livraison, la référence de l'application sur la commande importée et un lien de suivi sécurisé",!!ev2&&ev2.zones.length>=1&&ev2.zones[0].nom===imp.zone&&ev2.commandes.some(c=>c.ref==="VD-20261023-ZZ99AA")&&ev2.commandes.every(c=>typeof c.suivi==="string"),JSON.stringify(ev2&&ev2.commandes.slice(0,2)));
+ const ib=await p.evaluate(async()=>{ME=S.users.find(u=>u.role==="admin");view="params";ui.ptab="liv";render();const t=document.getElementById("ptl")?document.getElementById("ptl").textContent:document.body.textContent;const h=document.body.innerHTML;
+  return{titre:/Installer l'application des vendeurs/.test(t),lien:/vendeur\.html/.test(h),qr:(h.match(/<svg/g)||[]).length>=2,wa:/wa\.me\/\?text=[^"]*vendeur\.html/.test(h.replace(/%2F/gi,"/").replace(/%3A/gi,":").replace(/%2E/gi,"."))||/wa\.me\/\?text=[^"]*vendeur/.test(h)}});
+ chk("VB-11","Paramètres → Livreurs & GPS : bloc « Installer l'application des vendeurs » avec lien vendeur.html, QR code et envoi WhatsApp",ib.titre&&ib.lien&&ib.qr&&ib.wa,JSON.stringify(ib));
  chk("VB-6","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

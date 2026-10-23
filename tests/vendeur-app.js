@@ -53,6 +53,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("VD-13","hors ligne : la commande est gardée sur le téléphone (« À envoyer ») et rien n'est perdu",q.file===1&&/À envoyer/.test(q.txt)&&sent.length===n0);
  mode="ok";const r2=await p.evaluate(async()=>{await charger();return{file:file().length,env:envoyees().length}});
  chk("VD-14","retour du réseau : la file part toute seule, sans doublon, la commande passe en « Transmise au bureau »",r2.file===0&&sent.length===n0+1&&r2.env>=2,JSON.stringify([r2,sent.length,n0]));
+ /* installation : manifeste dédié, adresse courte, cache hors ligne */
+ const man=await (await p.request.get(base+"/manifest-vendeur-app.webmanifest")).json();
+ const link=await p.evaluate(()=>document.querySelector("link[rel=manifest]").getAttribute("href"));
+ const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8")),sw=fs.readFileSync(path.join(root,"sw.js"),"utf8");
+ chk("VD-15","installable : manifeste dédié (démarre sur vendeur.html, plein écran, mêmes couleurs que le livreur, icônes) relié à la page",man.start_url==="./vendeur.html"&&man.display==="standalone"&&man.theme_color==="#0e7490"&&man.icons.length>=3&&link==="manifest-vendeur-app.webmanifest"&&!man.share_target,JSON.stringify([man.start_url,link]));
+ chk("VD-16","adresse courte /espace-vendeur vers l'application ; page, manifeste et icônes gardés pour l'ouverture hors ligne ; l'ancien espace /vendeur reste inchangé",(vj.rewrites||[]).some(r=>r.source==="/espace-vendeur"&&r.destination==="/vendeur.html")&&(vj.rewrites||[]).some(r=>r.source==="/vendeur"&&/distribution/.test(r.destination))&&sw.includes('"vendeur.html"')&&sw.includes("manifest-vendeur-app.webmanifest")&&sw.includes("icons/vendeur-192.png"));
  chk("VD-7","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();
