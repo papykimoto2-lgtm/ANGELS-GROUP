@@ -2499,10 +2499,15 @@ function passAppliquer(ev){if(ev.type==="incident"&&String((ev.donnees||{}).natu
  return ok?"":"refusé par le bureau"}
 /* Espace vendeur : projection publiée sur le serveur (sans téléphone de client) pour chaque vendeur ayant un compte serveur */
 const vendLienPub=v=>{try{const P={boutique:v.nom,tel:String(v.tel||"").replace(/\D/g,""),ref:v.id};return lienCourtCommande(P)||portailLien("#/commander/"+b64({o:S.config.org,w:S.config.whatsapp||"",v:v.nom,t:v.tel,i:v.id,z:S.config.zones.map(z=>z.nom)}))}catch(e){return""}};
-function vendEtatPub(v){const d=vendDue(v),mine=S.commandes.filter(c=>c.vendeur_id===v.id&&c.statut!=="brouillon").slice(-200).reverse();
- return{nom:v.nom,solde:d.restant,acquis:d.acquis,regle:d.regle,attente:d.attente,lien:vendLienPub(v),
-  commandes:mine.map(c=>{const cl=cli(c.client_id);return{numero:c.numero,date:String(c.date||"").slice(0,10),statut:ST[c.statut]||c.statut,client:cl?cl.nom:"",montant:(c.montant_produits||0)-(c.remise||0),net:d.net?d.net(c):0}}),
+const _suiviMemo={};
+async function vendSuivi(c){if(["brouillon","annulee"].includes(c.statut))return"";const k=c.id+"|"+c.statut+"|"+((c.hist||[]).length);if(_suiviMemo[k]!==undefined)return _suiviMemo[k];let u="";try{u=await suiviLienPortail(c)}catch(e){}return _suiviMemo[k]=/^https:\/\//.test(u)?u:""}
+async function vendEtatPub(v){const d=vendDue(v),mine=S.commandes.filter(c=>c.vendeur_id===v.id&&c.statut!=="brouillon").slice(-200).reverse();
+ const cm=[];for(const c of mine){const cl=cli(c.client_id);cm.push({numero:c.numero,ref:c.app_ref||"",date:String(c.date||"").slice(0,10),statut:ST[c.statut]||c.statut,client:cl?cl.nom:"",montant:(c.montant_produits||0)-(c.remise||0),net:d.net?d.net(c):0,suivi:await vendSuivi(c)})}
+ return{nom:v.nom,solde:d.restant,acquis:d.acquis,regle:d.regle,attente:d.attente,lien:vendLienPub(v),zones:(S.config.zones||[]).map(z=>({nom:z.nom,frais:z.frais||0})),commandes:cm,
   reglements:S.reglements.filter(r=>r.vendeur_id===v.id).slice(-100).reverse().map(r=>({date:new Date(r.ts||Date.now()).toISOString().slice(0,10),montant:r.montant,libelle:[r.mode,r.note].filter(Boolean).join(" — ")}))}}
+/* Commande déposée par un vendeur depuis son application : importée comme une commande « en attente de confirmation » (le bureau confirme avant toute livraison) */
+function vendCmdImporter(e){const v=S.vendeurs.find(x=>x.id===e.vendeur_ref);if(!v)return"vendeur inconnu";if(S.commandes.some(c=>c.app_ref===e.ref))return null;const d=e.donnees||{};
+ const u0=ME;ME=usr(v.user_id)||ME;try{const c=creerCmdVendeur(v,{nom:d.nom,tel:d.tel,zone:d.zone,quartier:d.quartier,repere:d.repere,ins:d.ins,obs:d.obs,gps:d.gps||null,lignes:(d.lignes||[]).map(l=>({desig:l.desig,qte:l.qte,pu:l.pu})),pay:d.pay,paye_vendeur:d.paye_vendeur});c.app_ref=e.ref;audit("Commande déposée par le vendeur (application)",v.nom+" — "+c.numero);return null}catch(x){return String(x&&x.message||x)}finally{ME=u0}}
 let _vendSig="";
 async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1")return;if(!P||_passBusy||(!force&&Date.now()-_passLast<10000)||!S.livraisons)return;_passBusy=true;_passLast=Date.now();let chg=false;
  try{
@@ -2511,11 +2516,13 @@ async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localSt
   if(E.length){const ids=[];for(const ev of E){if(ev.type==="confirmer"&&ev.donnees&&ev.donnees.preuve)ev.preuve=(await passPost(P,"mission-sync",{action:"preuve",livraison_ref:ev.livraison_ref})).preuve||null;const r=passAppliquer(ev);if(r){audit("Action livreur non appliquée",`${ev.type} — ${r}`);toast("Action d'un livreur non appliquée : "+r,"err")}ids.push(ev.id)}chg=true;save();await passPost(P,"mission-sync",{action:"acquitter",ids});if(ME){if(view==="carte"&&CARTE.map&&!$("#modal").innerHTML&&E.every(x=>x.type==="position"))carteTick();else render()}}
   (S.rappels||[]).forEach(r=>{if(r.statut==="ouvert"&&r.type==="code"){const l=byId(S.livraisons,r.livraison_id);if(!l||!isActive(l)){r.statut="traite";r.par="livraison terminée";r.fin=now();chg=true}}});
  (S.rappels||[]).forEach(r=>{if(r.statut==="ouvert"&&r.type==="position"){const c=cmd(r.commande_id);if(c&&c.adr&&c.adr.gps){r.statut="traite";r.par="position reçue";r.fin=now();chg=true}}});
+ /* 1b. commandes déposées par les vendeurs depuis leur application */
+  {const CV=(await passPost(P,"mission-sync",{action:"vendeur-commandes"})).commandes||[];if(CV.length){const ids=[];let n=0;for(const e of CV){const r=vendCmdImporter(e);if(r){audit("Commande vendeur non importée",String(e.ref)+" — "+r);toast("Commande d'un vendeur non importée : "+r,"err")}else n++;ids.push(e.id)}chg=true;save();await passPost(P,"mission-sync",{action:"vendeur-acquitter",ids});if(n){toast(n+" nouvelle(s) commande(s) de vendeur à confirmer","ok");if(ME&&["commandes","dashboard","vendeurs"].includes(view))render()}}}
  /* 2. publication de la projection sans numéros */
   const lim=Date.now()-2*864e5,L=S.livraisons.filter(l=>liv(l.livreur_id)&&cmd(l.commande_id)&&(isActive(l)||(l.fin_at&&new Date(l.fin_at).getTime()>lim))).slice(-300),M=L.map(passProjection).concat(passStatsMissions()),sig=JSON.stringify(M.map(m=>[m.livraison_ref,m.statut,m.payload,m.code,m.colis]));
   S.pass=S.pass||{refs:[]};const refs=M.map(m=>m.livraison_ref),retirer=S.pass.refs.filter(x=>!refs.includes(x));
   if(sig!==_passSig||retirer.length){const r=await passPost(P,"mission-sync",{action:"publier",missions:M,retirer});if(!r.ignorees)_passSig=sig;if(retirer.length){S.pass.refs=refs;chg=true}else S.pass.refs=refs}
-  {const V=S.vendeurs.filter(v=>v.ident_serveur).map(v=>({vendeur_ref:v.id,etat:vendEtatPub(v)})),sv=JSON.stringify(V);if(V.length&&sv!==_vendSig){const r=await passPost(P,"mission-sync",{action:"vendeur-publier",vendeurs:V});if(!r.ignores)_vendSig=sv}}
+  {const V=[];for(const v of S.vendeurs.filter(v=>v.ident_serveur))V.push({vendeur_ref:v.id,etat:await vendEtatPub(v)});const sv=JSON.stringify(V);if(V.length&&sv!==_vendSig){const r=await passPost(P,"mission-sync",{action:"vendeur-publier",vendeurs:V});if(!r.ignores)_vendSig=sv}}
   await pushFlush();S.pass_err=""
  }catch(e){S.pass_err=String(e&&e.message||e).slice(0,160)}finally{_passBusy=false}
  if(chg){try{save()}catch(e){}}}

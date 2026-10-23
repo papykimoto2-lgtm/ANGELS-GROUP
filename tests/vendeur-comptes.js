@@ -3,7 +3,8 @@
 let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label,o?"":info||"");o?ok++:ko++};
 (async()=>{
  const P=await import("../supabase/functions/_shared/passerelle.js");
- const D={ven:[],users:[],n:0,etat:{}},db={
+ const D={ven:[],users:[],n:0,etat:{},cmds:[]},db={
+  ajouterCmdVendeur:async r=>{if(!D.cmds.some(c=>c.vendeur_ref===r.vendeur_ref&&c.ref===r.ref))D.cmds.push(Object.assign({id:D.cmds.length+1,traite:false},r))},nbCmdsVendeurEnAttente:async v=>D.cmds.filter(c=>c.vendeur_ref===v&&!c.traite).length,cmdsVendeurEnAttente:async n=>D.cmds.filter(c=>!c.traite).slice(0,n),acquitterCmdsVendeur:async ids=>{D.cmds.forEach(c=>{if(ids.includes(c.id))c.traite=true})},
   vendeurParUtilisateur:async u=>D.ven.find(x=>x.user_id===u)||null,ecrireEtatVendeur:async(r,e,m)=>{D.etat[r]={etat:e,maj_le:m}},etatVendeur:async r=>D.etat[r]||null,
   vendeurDe:async r=>D.ven.find(x=>x.vendeur_ref===r)||null,ecrireVendeur:async r=>{D.ven.push(r)},majVendeur:async(r,p)=>{Object.assign(D.ven.find(x=>x.vendeur_ref===r),p)},
   creerUtilisateur:async(email,mdp,meta)=>{if(D.users.some(u=>u.email===email))throw new Error("exists");const id="u"+(++D.n);D.users.push({id,email,mdp,meta,banni:false});return id},
@@ -42,5 +43,20 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
  chk("VC-13","compte vendeur bloqué : lecture refusée (403)",g3.status===403);
  D.ven[0].actif=true;D.ven.push({vendeur_ref:"v9",user_id:"u9",nom:"Sans état",actif:true});const g4=await P.traiterVendeurEtat(db,{action:"etat"},"u9");
  chk("VC-14","vendeur sans projection publiée : espace vide (pas d'erreur)",g4.status===200&&g4.body.commandes.length===0&&g4.body.solde===0);
+ /* commande déposée par le vendeur depuis son application */
+ const C={ref:"VD-20261023-AB12",nom:"Mme Konan",tel:"0505777777",zone:"Abobo",quartier:"Anonkoua",repere:"Face à l'église",ins:"",lignes:[{desig:"Robe wax",qte:1,pu:15000},{desig:"Foulard",qte:2,pu:3000}],pay:"partiel",paye_vendeur:5000,gps:{lat:5.4,lng:-4.0}};
+ const o0=await P.traiterVendeurEtat(db,Object.assign({action:"commander"},C),null),o1=await P.traiterVendeurEtat(db,Object.assign({action:"commander"},C),uid1),o2=await P.traiterVendeurEtat(db,Object.assign({action:"commander"},C),uid1);
+ chk("VC-15","commande : sans jeton 401 ; avec jeton acceptée ; renvoyée (réseau coupé puis repris) : aucun doublon",o0.status===401&&o1.status===200&&o2.status===200&&D.cmds.length===1&&D.cmds[0].donnees.paye_vendeur===5000&&D.cmds[0].donnees.gps.lat===5.4,JSON.stringify(D.cmds));
+ const bad=async(patch)=>(await P.traiterVendeurEtat(db,Object.assign({action:"commander"},C,{ref:"VD-"+Math.random().toString(36).slice(2,10)},patch),uid1)).status;
+ chk("VC-16","contrôles : référence invalide, aucun article, quantité 0, prix négatif, zone absente, téléphone invalide, acompte supérieur au total : tous refusés (400)",[await bad({ref:"x"}),await bad({lignes:[]}),await bad({lignes:[{desig:"A",qte:0,pu:10}]}),await bad({lignes:[{desig:"A",qte:1,pu:-5}]}),await bad({zone:""}),await bad({tel:"abc<script>"}),await bad({paye_vendeur:999999})].every(x=>x===400)&&D.cmds.length===1);
+ for(let i=0;i<45;i++)D.cmds.push({id:100+i,vendeur_ref:"v1",ref:"ZZ-"+i+"-xxxx",donnees:{},traite:false});
+ const o3=await P.traiterVendeurEtat(db,Object.assign({action:"commander"},C,{ref:"VD-limite-0001"}),uid1);
+ chk("VC-17","trop de commandes déjà en attente chez le bureau : refus (429)",o3.status===429);
+ D.cmds.length=1;
+ const q0=await P.traiterSync(db,cfg,{action:"vendeur-commandes"},"mauvaise"),q1=await P.traiterSync(db,cfg,{action:"vendeur-commandes"},cfg.adminKey);
+ const q2=await P.traiterSync(db,cfg,{action:"vendeur-acquitter",ids:[1]},cfg.adminKey),q3=await P.traiterSync(db,cfg,{action:"vendeur-commandes"},cfg.adminKey);
+ chk("VC-18","le bureau relève les commandes en attente (clé obligatoire), les acquitte, et elles ne reviennent plus",q0.status===401&&q1.body.commandes.length===1&&q1.body.commandes[0].vendeur_ref==="v1"&&q2.body.acquittes===1&&q3.body.commandes.length===0);
+ const z=P.nettoyerEtatVendeur({nom:"A",zones:[{nom:"Abobo",frais:1500,x:1},{nom:""}],commandes:[{numero:"C1",ref:"VD-20261023-AB12",suivi:"https://exemple.test/portail#/suivi/abc",client:"K"},{numero:"C2",suivi:"javascript:alert(1)"}]});
+ chk("VC-19","projection : zones de livraison, référence de l'application et lien de suivi (https uniquement) conservés ; lien dangereux supprimé",z.zones.length===1&&z.zones[0].frais===1500&&z.commandes[0].ref==="VD-20261023-AB12"&&z.commandes[0].suivi.startsWith("https://")&&z.commandes[1].suivi==="");
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");process.exit(ko?1:0);
 })();

@@ -59,7 +59,8 @@ export function nettoyerEtatVendeur(e) {
   const L = (x, n) => (Array.isArray(x) ? x.slice(0, n) : []);
   return {
     nom: txt(e.nom, 80), solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
-    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net) })),
+    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "" })),
+    zones: L(e.zones, 60).map((z) => ({ nom: txt(z && z.nom, 60), frais: montant(z && z.frais) })).filter((z) => z.nom),
     reglements: L(e.reglements, 100).map((r) => ({ date: txt(r && r.date, 10), montant: montant(r && r.montant), libelle: txt(r && r.libelle, 80) })),
   };
 }
@@ -69,6 +70,20 @@ export async function traiterVendeurEtat(db, req, userId) {
   const c = await db.vendeurParUtilisateur(userId); if (!c || !c.actif) return err(403, "Compte vendeur inactif ou introuvable");
   const a = String(req.action || "etat");
   if (a === "etat") { const r = await db.etatVendeur(c.vendeur_ref); return rep(200, Object.assign({ ok: true, nom: c.nom, commandes: [], reglements: [], solde: 0, lien: "" }, r && r.etat ? r.etat : {}, { maj_le: r ? r.maj_le : null })); }
+  if (a === "commander") {   /* le vendeur dépose une commande : mise en file pour le bureau (idempotent par ref), jamais livrée avant la confirmation du bureau */
+    const ref = txt(req.ref, 40); if (!/^[A-Za-z0-9_-]{6,40}$/.test(ref)) return err(400, "Référence de commande invalide");
+    const lignes = (Array.isArray(req.lignes) ? req.lignes.slice(0, 30) : []).map((l) => ({ desig: txt(l && l.desig, 100), qte: Math.round(Number(l && l.qte)), pu: Math.round(Number(l && l.pu)) }));
+    if (!lignes.length || lignes.some((l) => !l.desig || !Number.isInteger(l.qte) || l.qte < 1 || l.qte > 999 || !Number.isInteger(l.pu) || l.pu < 0 || l.pu > 10000000)) return err(400, "Chaque article doit avoir une désignation, une quantité (1 à 999) et un prix");
+    const pay = ["livraison", "paye", "partiel"].includes(req.pay) ? req.pay : "livraison", prods = lignes.reduce((t, l) => t + l.qte * l.pu, 0), pv = pay === "paye" ? prods : pay === "partiel" ? Math.floor(Number(req.paye_vendeur) || 0) : 0;
+    if (pay === "partiel" && (pv <= 0 || pv > prods)) return err(400, "Montant déjà payé invalide");
+    const zone = txt(req.zone, 60), tel = txt(req.tel, 20);
+    if (!zone) return err(400, "Zone de livraison obligatoire");
+    if (tel && !/^[0-9 +().-]{6,20}$/.test(tel)) return err(400, "Téléphone invalide");
+    if (await db.nbCmdsVendeurEnAttente(c.vendeur_ref) >= 40) return err(429, "Trop de commandes en attente de traitement par le bureau : patientez");
+    const gps = req.gps && Number.isFinite(+req.gps.lat) && Number.isFinite(+req.gps.lng) && Math.abs(+req.gps.lat) <= 90 && Math.abs(+req.gps.lng) <= 180 ? { lat: +(+req.gps.lat).toFixed(6), lng: +(+req.gps.lng).toFixed(6) } : null;
+    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
+    return rep(200, { ok: true, ref });
+  }
   return err(400, "Action inconnue");
 }
 
@@ -132,6 +147,11 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
       await db.ecrireEtatVendeur(ref, nettoyerEtatVendeur(e), new Date(now).toISOString()); ecrits++;
     }
     return rep(200, { ok: true, ecrits, ignores, vendeurs_inconnus: inconnus });
+  }
+  if (a === "vendeur-commandes") return rep(200, { ok: true, commandes: await db.cmdsVendeurEnAttente(100) });
+  if (a === "vendeur-acquitter") {
+    const ids = (Array.isArray(req.ids) ? req.ids : []).map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 500);
+    if (ids.length) await db.acquitterCmdsVendeur(ids); return rep(200, { ok: true, acquittes: ids.length });
   }
   if (a === "vendeur-compte-creer") {
     const ref = txt(req.vendeur_ref, 60), nom = txt(req.nom, 80), ident = txt(req.ident, 80);

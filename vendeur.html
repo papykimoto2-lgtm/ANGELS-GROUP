@@ -35,6 +35,8 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-
 .mi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:14px 12px;margin-top:8px;border:1px solid var(--bd);border-radius:12px;background:#fff;font-weight:700;color:var(--b2);cursor:pointer}
 .mi.on{background:#e3eef3;border-color:var(--b)}.mi.er{color:var(--er)}
 .kp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.kp>div{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:10px 12px}.kp b{display:block;font-size:20px}.kp span{font-size:12px;color:var(--mu)}
+.lg{display:grid;grid-template-columns:1fr 70px 100px 40px;gap:6px;margin-top:6px}.lg input{margin-top:0}.lg button{border:1px solid var(--er);color:var(--er);background:#fff;border-radius:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--b2);color:#fff;padding:10px 16px;border-radius:99px;z-index:40;max-width:90%}
 </style>
 <link rel="stylesheet" href="champs.css">
@@ -54,9 +56,9 @@ const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"'
 const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
 const identDe=i=>String(i||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9._-]+/g,".").replace(/\.{2,}/g,".").replace(/^\.|\.$/g,"");
 const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():identDe(i)+"@users.angels-erp.app"};
-const LS={i:"ang_vd_ident"};
+const LS={i:"ang_vd_ident",q:"ang_vd_file",e:"ang_vd_envoyees"};
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-let sb=null,user=null,moi=null,PAGE="accueil",MENU=false,APPV="",D=null,erreur="";
+let sb=null,user=null,moi=null,PAGE="accueil",MENU=false,APPV="",D=null,erreur="",GPS=null;
 const versionTxt=()=>APPV?"Version "+APPV:"";
 const enLigne=()=>navigator.onLine!==false;
 function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
@@ -81,17 +83,44 @@ function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mo
   try{const{error}=await sb.auth.updateUser({password:a,data:{chg:false}});if(error)throw error;toast("Mot de passe modifié","ok");await demarrer()}catch(x){m.textContent=x.message;m.classList.remove("hide")}}}
 
 /* ---------- Pages ---------- */
-const PAGES=[["accueil","🏠 Accueil"],["commandes","📦 Mes commandes"],["reglages_v","💰 Mes règlements"],["lien","🔗 Mon lien client"],["compte","⚙️ Mon compte"]];
+const PAGES=[["accueil","🏠 Accueil"],["nouvelle","➕ Nouvelle commande"],["commandes","📦 Mes commandes"],["reglages_v","💰 Mes règlements"],["lien","🔗 Mon lien client"],["compte","⚙️ Mon compte"]];
 function drawerHtml(){return`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu">${PAGES.map(([k,t])=>`<button class="mi${PAGE===k?" on":""}" data-a="page" data-p="${k}">${t}</button>`).join("")}<button class="mi er" data-a="quitter">⎋ Se déconnecter</button><div class="sm mu appv" style="text-align:center;margin-top:12px">${versionTxt()}</div></nav></div>`}
 const vide=t=>`<div class="card mu">${t}</div>`;
+const file=()=>lsGet(LS.q,[]),envoyees=()=>lsGet(LS.e,[]);
+const refCmd=()=>"VD-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,8).toUpperCase();
+function carteCmd(x){const sv=x.suivi?`<div style="display:flex;gap:6px;margin-top:8px"><button class="btn ghost" style="margin:0" data-a="suivi" data-u="${esc(x.suivi)}">📍 Suivi</button><button class="btn wa" style="margin:0" data-a="suiviwa" data-u="${esc(x.suivi)}" data-n="${esc(x.numero||"")}">💬 Envoyer au client</button></div>`:"";
+ return`<div class="card"><div class="between"><b>${esc(x.numero||"")}</b><span class="bd">${esc(x.statut||"")}</span></div><div class="sm mu">${esc(x.client||"")}${x.montant!=null?" · "+fcfa(x.montant):""}${x.date?" · "+esc(x.date):""}</div>${sv}</div>`}
+function cartesAttente(c){const vus=new Set(c.map(x=>x.ref).filter(Boolean));
+ const q=file().map(o=>`<div class="card"><div class="between"><b>${esc(o.nom||"Client")}</b><span class="bd" style="background:#fff1d6;color:#7a4a00">⏳ À envoyer</span></div><div class="sm mu">${fcfa(o.lignes.reduce((t,l)=>t+l.qte*l.pu,0))} · partira au retour du réseau</div></div>`).join("");
+ const e=envoyees().filter(o=>!vus.has(o.ref)).map(o=>`<div class="card"><div class="between"><b>${esc(o.nom||"Client")}</b><span class="bd">Transmise au bureau</span></div><div class="sm mu">${fcfa(o.total)} · en attente de confirmation par le bureau</div></div>`).join("");
+ return q+e}
+function formCmd(){const Z=(D&&D.zones)||[];return`<h2 class="pg">Nouvelle commande</h2><form id="fcmd" class="card" autocomplete="off"><div class="sm mu">Rien n'est livré avant la confirmation du bureau.</div>
+ <label>Nom du client <span class="mu sm">(vide = client divers)</span><input name="nom" maxlength="80"></label>
+ <label>Téléphone du client <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel" maxlength="20"></label>
+ <label>Zone de livraison${Z.length?`<select name="zone" required><option value="">Choisir…</option>${Z.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)}${z.frais?" — "+fcfa(z.frais):""}</option>`).join("")}</select>`:`<input name="zone" required maxlength="60">`}</label>
+ <div class="g2"><label>Quartier<input name="quartier" maxlength="80"></label><label>Repère<input name="repere" maxlength="120"></label></div>
+ <div id="gpsl" class="sm mu" style="margin-top:6px">Position GPS : non renseignée</div><button type="button" class="btn ghost" data-a="gps">📍 Utiliser ma position actuelle</button>
+ <div class="sec" style="margin-top:12px;font-weight:700">Articles</div><div id="lg">${ligneHtml()}</div><button type="button" class="btn ghost" data-a="addl">➕ Ajouter un article</button>
+ <div id="tot" class="sm" style="margin-top:8px"></div>
+ <label>Paiement<select name="pay"><option value="livraison">Le client paie à la livraison</option><option value="paye">Déjà payé au vendeur</option><option value="partiel">Acompte payé au vendeur</option></select></label>
+ <label id="lpv" class="hide">Montant déjà payé<input name="pv" type="number" min="0" inputmode="numeric"></label>
+ <label>Consignes de livraison <span class="mu sm">(facultatif)</span><input name="ins" maxlength="200"></label>
+ <div id="ce" class="al er hide"></div><button class="btn" type="submit">Envoyer la commande</button></form>`}
+const ligneHtml=()=>`<div class="lg"><input class="ld" placeholder="Article" maxlength="100"><input class="lq" type="number" min="1" value="1" inputmode="numeric"><input class="lp" type="number" min="0" placeholder="Prix" inputmode="numeric"><button type="button" data-a="dell" aria-label="Retirer">✕</button></div>`;
 function corps(){const c=(D&&D.commandes)||[],r=(D&&D.reglements)||[];
- if(PAGE==="commandes")return`<h2 class="pg">Mes commandes</h2>${c.length?c.map(x=>`<div class="card"><div class="between"><b>${esc(x.numero||"")}</b><span class="bd">${esc(x.statut||"")}</span></div><div class="sm mu">${esc(x.client||"")}${x.montant!=null?" · "+fcfa(x.montant):""}</div></div>`).join(""):vide("Aucune commande pour le moment. Les commandes de vos clients apparaîtront ici.")}`;
+ if(PAGE==="nouvelle")return formCmd();
+ if(PAGE==="commandes")return`<h2 class="pg">Mes commandes</h2><button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${cartesAttente(c)}${c.length?c.map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Les commandes de vos clients apparaîtront ici."))}`;
  if(PAGE==="reglages_v")return`<h2 class="pg">Mes règlements</h2>${r.length?r.map(x=>`<div class="card"><div class="between"><b>${fcfa(x.montant)}</b><span class="sm mu">${esc(x.date||"")}</span></div><div class="sm mu">${esc(x.libelle||"")}</div></div>`).join(""):vide("Aucun règlement enregistré pour le moment.")}`;
  if(PAGE==="lien")return`<h2 class="pg">Mon lien client</h2>${D&&D.lien?`<div class="card"><div class="sm mu">Partagez ce lien à vos clients : leurs commandes arrivent dans votre espace.</div><input readonly value="${esc(D.lien)}" onclick="this.select()"><button class="btn" data-a="copier">📋 Copier le lien</button><button class="btn wa" data-a="wa">💬 Envoyer par WhatsApp</button></div>`:vide("Votre lien client sera disponible dès que le bureau aura activé votre espace.")}`;
  if(PAGE==="compte")return`<h2 class="pg">Mon compte</h2><div class="card"><b>${esc((moi&&moi.nom)||"Vendeur partenaire")}</b><div class="sm mu">Identifiant : ${esc(identDe(lsGet(LS.i,"")))}</div><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button></div><div class="sm mu appv" style="text-align:center">${versionTxt()}</div>`;
- return`<h2 class="pg">Accueil</h2><div class="kp"><div><b>${c.length}</b><span>commande(s)</span></div><div><b>${fcfa((D&&D.solde)||0)}</b><span>solde à régler</span></div></div>${erreur?`<div class="al">${esc(erreur)}</div>`:""}${c.length?c.slice(0,5).map(x=>`<div class="card"><div class="between"><b>${esc(x.numero||"")}</b><span class="bd">${esc(x.statut||"")}</span></div><div class="sm mu">${esc(x.client||"")}</div></div>`).join(""):vide("Aucune commande pour le moment. Partagez votre lien client pour recevoir des commandes.")}`}
+ return`<h2 class="pg">Accueil</h2><div class="kp"><div><b>${c.length}</b><span>commande(s)</span></div><div><b>${fcfa((D&&D.solde)||0)}</b><span>solde à régler</span></div></div><button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${erreur?`<div class="al">${esc(erreur)}</div>`:""}${cartesAttente(c)}${c.length?c.slice(0,5).map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Partagez votre lien client pour recevoir des commandes."))}`}
 function vue(){if(!user)return;$("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Vendeur")}</b><small>Espace vendeur partenaire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml():""}<div class="wrap">${!enLigne()?'<div class="al">📡 <b>Hors ligne</b> — les informations affichées peuvent ne pas être à jour.</div>':""}<div class="inst"></div>${corps()}</div>`}
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
+ if(a==="suivi")return window.open(b.dataset.u,"_blank");
+ if(a==="suiviwa")return window.open("https://wa.me/?text="+encodeURIComponent("Suivez votre livraison"+(b.dataset.n?" ("+b.dataset.n+")":"")+" : "+b.dataset.u),"_blank");
+ if(a==="addl"){$("#lg").insertAdjacentHTML("beforeend",ligneHtml());return}
+ if(a==="dell"){const L=document.querySelectorAll("#lg .lg");if(L.length>1)b.closest(".lg").remove();else b.closest(".lg").querySelectorAll("input").forEach(i=>i.value=i.classList.contains("lq")?"1":"");totaux();return}
+ if(a==="gps"){if(!navigator.geolocation)return toast("Position indisponible sur cet appareil","err");$("#gpsl").textContent="Recherche de la position…";navigator.geolocation.getCurrentPosition(p=>{GPS={lat:p.coords.latitude,lng:p.coords.longitude};$("#gpsl").textContent="📍 Position enregistrée (précision "+Math.round(p.coords.accuracy)+" m)"},()=>{GPS=null;$("#gpsl").textContent="Position refusée ou indisponible : décrivez le repère"},{enableHighAccuracy:true,timeout:15000});return}
  if(a==="menu"){MENU=!MENU;vue()}
  else if(a==="page"){PAGE=b.dataset.p;MENU=false;vue()}
  else if(a==="mdp")vueChangement();
@@ -100,8 +129,21 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-a]")
  else if(a==="quitter"){try{await sb.auth.signOut()}catch(x){}user=null;moi=null;D=null;MENU=false;PAGE="accueil";vueLogin()}});
 addEventListener("keydown",e=>{if(e.key==="Escape"&&MENU){MENU=false;vue()}});
 addEventListener("online",()=>{if(user)charger()});addEventListener("offline",()=>{if(user)vue()});
-/* Les données viennent du serveur (fonction « vendeur-sync », étape suivante) ; tant qu'elle n'est pas disponible, l'espace s'ouvre vide avec une explication. */
-async function charger(){try{const j=await api("vendeur-sync",{action:"etat"});D=j;erreur="";if(j.nom&&moi)moi.nom=j.nom}catch(x){if(x.status===401)return vueLogin("Session expirée : reconnectez-vous");erreur=x.reseau?"":"Les données de votre espace ne sont pas encore disponibles ("+x.message+")"}if(user)vue()}
+/* ---------- Dépôt d'une commande (hors ligne d'abord : mise en file, envoi au retour du réseau, sans doublon grâce à la référence) ---------- */
+function totaux(){const t=[...document.querySelectorAll("#lg .lg")].reduce((s,l)=>s+(+l.querySelector(".lq").value||0)*(+l.querySelector(".lp").value||0),0),e=$("#tot");if(e)e.innerHTML="Total articles : <b>"+fcfa(t)+"</b>"}
+document.addEventListener("input",e=>{if(e.target.closest("#lg"))totaux()});
+document.addEventListener("change",e=>{if(e.target.name==="pay"){$("#lpv").classList.toggle("hide",e.target.value!=="partiel")}});
+document.addEventListener("submit",async e=>{if(e.target.id!=="fcmd")return;e.preventDefault();const f=e.target,m=$("#ce"),bt=f.querySelector("button[type=submit]");
+ const lignes=[...f.querySelectorAll("#lg .lg")].map(l=>({desig:l.querySelector(".ld").value.trim(),qte:Math.round(+l.querySelector(".lq").value),pu:Math.round(+l.querySelector(".lp").value||0)})).filter(l=>l.desig||l.pu);
+ const o={ref:refCmd(),nom:f.nom.value.trim(),tel:f.tel.value.trim(),zone:f.zone.value,quartier:f.quartier.value.trim(),repere:f.repere.value.trim(),ins:f.ins.value.trim(),lignes,pay:f.pay.value,paye_vendeur:Math.round(+f.pv.value||0),gps:GPS};
+ const total=lignes.reduce((t,l)=>t+l.qte*l.pu,0),bad=!o.zone?"Choisissez la zone de livraison":!lignes.length?"Ajoutez au moins un article":lignes.some(l=>!l.desig||!(l.qte>=1))?"Chaque article doit avoir un nom et une quantité":o.pay==="partiel"&&!(o.paye_vendeur>0&&o.paye_vendeur<=total)?"Indiquez le montant déjà payé (au plus le total des articles)":"";
+ if(bad){m.textContent=bad;m.classList.remove("hide");return}m.classList.add("hide");bt.disabled=true;
+ try{await api("vendeur-sync",Object.assign({action:"commander"},o));lsSet(LS.e,[{ref:o.ref,nom:o.nom,total},...envoyees()].slice(0,30));toast("Commande envoyée au bureau","ok")}
+ catch(x){if(x.reseau||!enLigne()){lsSet(LS.q,[...file(),Object.assign({},o,{total})]);toast("📡 Hors ligne : commande gardée sur le téléphone, elle partira au retour du réseau","ok")}else{m.textContent=x.message;m.classList.remove("hide");bt.disabled=false;return}}
+ GPS=null;PAGE="commandes";vue();charger()});
+async function viderFile(){if(!sb||!enLigne())return;const F=file();if(!F.length)return;const reste=[];for(const o of F){try{await api("vendeur-sync",Object.assign({action:"commander"},o));lsSet(LS.e,[{ref:o.ref,nom:o.nom,total:o.total},...envoyees()].slice(0,30))}catch(x){if(x.reseau||x.status===401)reste.push(o);else toast("Commande refusée par le serveur : "+x.message,"err")}}lsSet(LS.q,reste)}
+/* Les données viennent du serveur (fonction « vendeur-sync ») ; si elle est injoignable, l’espace s’ouvre avec une explication. */
+async function charger(){try{await viderFile();const j=await api("vendeur-sync",{action:"etat"});D=j;erreur="";if(j.nom&&moi)moi.nom=j.nom}catch(x){if(x.status===401)return vueLogin("Session expirée : reconnectez-vous");erreur=x.reseau?"":"Les données de votre espace ne sont pas encore disponibles ("+x.message+")"}if(user)vue()}
 async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
  const md=user.user_metadata||{};if(md.role&&md.role!=="vendeur"){await sb.auth.signOut();user=null;return vueLogin("Cet espace est réservé aux vendeurs partenaires")}
  moi={nom:md.nom||""};if(md.chg)return vueChangement();
