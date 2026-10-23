@@ -100,7 +100,7 @@ function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — 
  try{const ul=$("#lvl"),bt=$("#lvb"),inp=$("#li"),ouvre=v=>{ul.hidden=!v;inp.setAttribute("aria-expanded",v?"true":"false")};
   let L=lsGet(LS.x,[]).slice(0,1).map(o=>Object.assign({},o,{loc:true})),ET=CFG.url?"charge":"hors";
   const msg={charge:"Chargement des livreurs…",hors:"Liste du serveur indisponible (hors ligne ou non activée). Saisissez votre identifiant.",vide:"Aucun livreur actif enregistré. Saisissez votre identifiant."};
-  const dessine=()=>{ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}${o.loc?` <em>· enregistré ici</em>`:""}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("")+(ET==="ok"&&L.length?"":`<li class="cmbv" aria-disabled="true">${esc(msg[ET]||msg.hors)}</li>`)};
+  const dessine=()=>{ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}${o.loc?` <em>· déjà utilisé sur ce téléphone</em>`:""}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("")+(ET==="ok"&&L.length?"":`<li class="cmbv" aria-disabled="true">${esc(msg[ET]||msg.hors)}</li>`)};
   dessine();
   bt.onclick=()=>{dessine();ouvre(ul.hidden)};
   const auto=()=>{if(!inp.value){dessine();ouvre(true)}};inp.addEventListener("focus",auto);inp.addEventListener("click",auto);
