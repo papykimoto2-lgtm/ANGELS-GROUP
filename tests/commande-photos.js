@@ -14,7 +14,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const img=async col=>Buffer.from((await p.evaluate(c=>{const cv=document.createElement("canvas");cv.width=1200;cv.height=900;const x=cv.getContext("2d");x.fillStyle=c;x.fillRect(0,0,1200,900);x.fillStyle="#fff";x.font="80px sans-serif";x.fillText("Capture "+c,100,450);return cv.toDataURL("image/jpeg",.9).split(",")[1]},col)),"base64");
  const f1=async n=>{const o=[];for(let i=0;i<n;i++)o.push({name:"p"+i+".jpg",mimeType:"image/jpeg",buffer:await img(["#cc3333","#3366cc","#33aa55","#aa33aa","#ff9900","#00aaff","#111111","#888888","#ff00ff","#00ffcc"][i])});return o};
  await p.evaluate(()=>formCmd());
- const s1=await p.evaluate(()=>({champ:!!document.getElementById("f_phf"),libelle:/Photos jointes/.test(document.getElementById("modal").innerText)}));
+ const s1=await p.evaluate(()=>({champ:!!document.getElementById("f_phf"),libelle:/Photos jointes/.test(document.getElementById("modal").textContent)}));
  chk("CP-1","nouvelle commande : zone « Photos jointes (facultatif) » avec bouton d'ajout de photos / captures",s1.champ&&s1.libelle,JSON.stringify(s1));
  await p.setInputFiles("#f_phf",await f1(3));await p.waitForFunction(()=>document.querySelectorAll("#f_ph .wthumb").length===3,null,{timeout:8000});
  const s2=await p.evaluate(()=>({n:document.querySelectorAll("#f_ph .wthumb").length,cpt:document.getElementById("f_phn").textContent,jpeg:[...document.querySelectorAll("#f_ph img")].every(i=>/^data:image\/jpeg;base64,/.test(i.src)),taille:Math.max(...[...document.querySelectorAll("#f_ph img")].map(i=>i.src.length))}));
