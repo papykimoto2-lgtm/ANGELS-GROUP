@@ -884,6 +884,18 @@ Chaque forfait peut **inclure** des prestations (livraison express, course spéc
 ### Demande d'expédition depuis l'application vendeur (tests/vendeur-expedition.js)
 Dans « Nouvelle commande » de l'application vendeur, la case **🌍 Envoi hors Abidjan** (visible si le bureau a publié des destinations) remplace la zone par la **portée**, la **destination** du catalogue et le **poids** ; le tarif est estimé à l'écran. La commande part avec `portee`, `dest` et `poids` ; le serveur (fonction `vendeur-sync`) les contrôle et les transmet, et à la réception le bureau **recalcule le tarif**, crée le **dossier d'expédition** lié et met la commande « en attente ». Une destination devenue inconnue n'empêche pas la commande : elle est créée sans expédition avec une note dans les observations. **Déploiement serveur** : la fonction `vendeur-sync` (fichier `_shared/passerelle.js`) doit être redéployée.
 
+### Centre d'alertes du tableau de bord (tests/alertes-centre.js)
+Les alertes ne sont plus une liste de phrases : elles sont **classées, regroupées et actionnables**.
+- **Priorité** : 🔴 critique (sécurité, argent bloquant, livraisons à délai limité en retard), 🟠 à traiter, 🔵 pour information (GPS, stock, étiquettes, motos), cette dernière catégorie étant repliée.
+- **Regroupement par dossier** : une carte par course avec tous ses signaux (retard, non démarrée, non acceptée, GPS) au lieu d'une ligne par signal.
+- **Une action sur chaque carte** : Ouvrir la commande, Appeler le livreur, Réaffecter (avec suggestion du livreur libre, de préférence dans la zone), ou le bouton de la page concernée (Valider les écarts, Traiter les échecs, Confirmer…) ; appel direct pour les alertes de sécurité.
+- **✋ Je m'en occupe** (nom et heure visibles par les autres, section « Pris en charge ») et **⏰ report** de 30 min ou 2 h (section « Reportées », retour automatique à l'échéance). Une alerte résolue efface sa prise en charge.
+- **Thèmes avec compteurs** : Sécurité, Livraisons, Argent, Commandes, Clients, Équipe, Stock.
+- **▶ Traiter dans l'ordre** : une alerte à la fois, la plus urgente d'abord, avec progression.
+- **⚙ Réglages** (administrateur, superviseur) : délais « mission non acceptée » et « course non démarrée », son des alertes critiques.
+- **Son et message** à chaque *nouvelle* alerte critique (jamais au premier affichage, une seule fois par alerte).
+- La page **Aujourd'hui** n'affiche que les 3 alertes les plus urgentes et le lien « Voir les N alertes ».
+
 ## Types de colis et impression de l'affiche QR (tests/types-colis.js)
 
 **Types de colis** : chaque commande a un type (colis standard, courrier / documents, produit cassable, aliments / périssable, objet de valeur, lourd / volumineux) ; chaque type a son traitement, réglable dans Paramètres → « Types de colis et traitement » (une ligne par type : `id | nom | icône | signature | photo | urgent | délai (min) | mention | consigne`, le type « standard » est obligatoire). Effets : consigne affichée au livreur sur sa mission et dans le détail de la commande ; **signature** et/ou **photo de remise** obligatoires (contrôlées dans l'application livreur et par le serveur) ; **priorité urgente** automatique (aliments) ; **délai limite** après l'affectation avec alerte au centre et affichage rouge côté livreur ; **mention imprimée sur l'étiquette** (FRAGILE, PÉRISSABLE…). Le type se choisit dans le formulaire de commande du bureau et dans celui de l'application vendeur (liste publiée par le bureau) ; un type inconnu devient « standard ». Le serveur transporte le type (commande du vendeur, état publié, preuve de remise) : redéployer `mission-sync`, `vendeur-sync` et `mission-action` après mise à jour.
