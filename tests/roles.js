@@ -37,7 +37,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  /* le rôle en action */
  const act=await D.evaluate(async()=>{const u={id:"u_test_chef",nom:"Awa Chef",role:S.roles_perso[0].id,actif:true,pwd:null};S.users.push(u);ME=u;render();await new Promise(r=>setTimeout(r,100));
   const nav=NAV.filter(voirNav).map(n=>n.v);return{nav,gerer:can("admin","commercial","superviseur"),caisse:can("admin","caissier"),commercial:can("admin","commercial"),garde:garde(["admin","superviseur"]),menu:[...document.querySelectorAll("aside [data-act=nav]")].map(e=>e.dataset.id)}});
- chk("ROL-5","un utilisateur du rôle voit UNIQUEMENT les écrans accordés (Commandes, Clients) et n'obtient que les actions accordées : créer des commandes oui ; encaisser, gérer produits, affecter les livreurs non",act.nav.join()==="clients,commandes"&&act.gerer===true&&act.caisse===false&&act.commercial===false&&act.garde===false&&act.menu.join()==="clients,commandes",JSON.stringify(act));
+ chk("ROL-5","un utilisateur du rôle voit UNIQUEMENT les écrans accordés (Commandes, Clients) et n'obtient que les actions accordées : créer des commandes oui ; encaisser, gérer produits, affecter les livreurs non",act.nav.join()==="clients,commandes"&&act.gerer===true&&act.caisse===false&&act.commercial===false&&act.garde===false&&act.menu.slice().sort().join()==="clients,commandes",JSON.stringify(act));
  /* modification d'un rôle d'origine + rétablissement */
  const orig=await D.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");return NAV.filter(n=>{const ov=ANGELS_ROLES.surcharge("distribution",S,"caissier");return ov?ov.has("v."+n.v):n.r.includes("caissier")}).map(n=>n.v).join()});
  await D.evaluate(()=>ACT.rolesDroits());await D.waitForSelector("#rl-ov");

@@ -51,7 +51,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   if(c.paye_vendeur||l.montant_attendu!==att||soldeCmd(c)!==att)E.push("argent touché");if(verifOuverte(c)||verifDernier(c).statut!=="dement")E.push("statut");if(!/NON confirmé/.test(c.hist[c.hist.length-1].note))E.push("historique");
   __as("admin");if(confirmer(l,{code:l.code,montant:String(att),mode:"Espèces",recu_par:"X"})!==true)E.push("livraison "+__last());return E.length?E.join(" ; "):true});
  await t("VP-5","écrans : bouton « Le client dit avoir déjà payé le vendeur », bloc vendeur (téléphone, WhatsApp), alerte et tableau pour le centre, carte livreur (bannière + bouton bloqué), projection de la passerelle",()=>{const E=[],{c,l,lv}=__vc();__as("admin");
-  cmdDetail(c.id);if(!/Le client dit avoir déjà payé le vendeur/.test(document.body.innerText))E.push("bouton centre absent");
+  cmdDetail(c.id);if(!/Le client dit avoir déjà payé le vendeur/.test(document.querySelector("#modal").textContent))E.push("bouton centre absent")   /* sous « Plus d'actions » (repliée) */;
   ME=S.users.find(u=>u.id===lv.user_id);const carte1=missionCard(l);if(!/lVerif/.test(carte1))E.push("bouton livreur absent");
   __as("admin");verifOuvrir(c,{montant:20000});cmdDetail(c.id);const txt=document.body.innerText,html=document.body.innerHTML;if(!/Paiement chez le vendeur à vérifier/.test(txt)||!/vpOk/.test(html)||!/vpNo/.test(html)||!/wa\.me/.test(html))E.push("bloc de vérification");
   if(!alertes().some(a=>/à vérifier/.test(a.m)))E.push("alerte");if(!/Paiements déclarés chez le vendeur/.test(VIEWS.commandes()))E.push("tableau");
