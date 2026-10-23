@@ -903,8 +903,8 @@ Dans **Livreur** (« GPS, mot de passe et alertes ») et **Vendeur** (« Mon com
 - **ℹ️ Aide** : un encadré « Comment ça marche ? » en haut de chaque page (ouvert à la première visite, replié ensuite, état conservé pendant la session) ; masquable par une case à cocher.
 Les réglages sont gardés sur le téléphone (`localStorage`) et appliqués avant le premier affichage ; le code est commun (`ui-mobile.js`).
 
-### Équipements mobiles de livraison et de collecte (tests/equipements.js)
-Nouveau module **Livraison › Équipements mobiles** (administrateur et superviseur) : le parc des téléphones, terminaux de scan, imprimantes portables d'étiquettes, batteries, supports moto, sacs et tenues des livreurs et collecteurs.
+### Équipements & engins roulants de livraison et de collecte (tests/equipements.js, tests/engins.js)
+Nouveau module **Livraison › Équipements & engins** (administrateur et superviseur) : le parc des téléphones, terminaux de scan, imprimantes portables d'étiquettes, batteries, supports moto, sacs et tenues des livreurs et collecteurs.
 - **Parc** : code automatique `EQ-0001`, type, marque, modèle, **IMEI** contrôlé (15 chiffres, clé de Luhn) ou numéro de série unique, **carte SIM et forfait data** (date de fin), achat (date, prix, fournisseur), garantie, état, caution, accessoires. Filtres par type, statut et recherche (code, modèle, IMEI, livreur) ; archivage ; export CSV ; état du parc imprimable ; étiquette QR à coller sur l'équipement.
 - **Affectation** à un livreur avec état remis, accessoires, caution et **fiche de décharge à faire signer** (imprimable) ; un seul smartphone, terminal ou imprimante par livreur ; **transfert** direct d'un livreur à un autre.
 - **Retour** (état, accessoires manquants, remise en stock ou à réparer), **réparation** (motif, réparateur, coût cumulé, issue réparé ou réformé), **perte et vol** (référence de déclaration exigée pour un vol), **réforme**.
@@ -914,6 +914,13 @@ Nouveau module **Livraison › Équipements mobiles** (administrateur et supervi
 - **Alertes** (centre d'alertes, thème « Équipe ») : forfait data bientôt expiré ou expiré, garantie qui se termine, réparation trop longue, équipement non rendu (livreur archivé), stock minimum par type, retenues à solder. Délais réglables (⚙ Réglages).
 - Un livreur qui détient du matériel ne peut pas être archivé tant que les retours ne sont pas enregistrés ; le module est aussi dans la recherche rapide.
 - Limites : mode local seulement (pas en mode serveur) ; l'application Livreur n'affiche pas encore « Mon matériel ».
+
+**Engins roulants** (onglets *Engins roulants*, *Carburant*, *Sinistres*) : la fiche « moto » devient une fiche d'engin et garde tout l'existant (entretiens, attribution, historique, amortissement comptable).
+- **Types** : moto, vélo, vélo électrique, tricycle cargo, voiture, utilitaire / camionnette, camion ; énergie, n° de châssis, couleur, charge utile. Les anciens engins sont des motos.
+- **Documents réglementaires** (carte grise, assurance avec assureur, visite technique, vignette) avec numéro et échéance : badges ✓ / « N j » / « expirée », alerte avant l'échéance (délai réglable), alerte critique si expirée ; réglage facultatif qui **refuse d'affecter une mission** à un livreur dont l'engin a un document expiré. Sans objet pour les vélos.
+- **Carburant** : pleins (litres, montant, kilométrage croissant, station) qui mettent à jour le compteur ; **consommation L/100 km et coût au km** par engin ; **alerte de consommation anormale** (dernier plein trop au-dessus de la moyenne, seuil réglable).
+- **Sinistres** : accident, panne, amende, vol (référence de déclaration exigée), dégât ; gravité ; un sinistre grave ou un vol immobilise l'engin ; coût et **retenue au livreur** (onglet *Retenues*, avec le matériel) ; clôture avec résolution ; alerte si ouvert trop longtemps.
+- **Coût d'exploitation** par engin et pour le parc (entretien + carburant + sinistres), **décharge d'engin** à signer (documents, état des lieux), état du parc roulant imprimable, export CSV, recherche rapide par immatriculation, trace dans le journal d'audit.
 
 ## Types de colis et impression de l'affiche QR (tests/types-colis.js)
 

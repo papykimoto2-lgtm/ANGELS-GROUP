@@ -15,7 +15,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   window.__ko=fn=>{try{fn();return null}catch(e){return e.message}};window.__d=n=>ymd(new Date(Date.now()+n*864e5));
   window.__mk=(o)=>eqCreer(Object.assign({type:"smartphone",marque:"Samsung",modele:"A15",serie:"490154203237518",prix:90000,caution:20000},o||{}))});
  await t("EQ-1","module : entrée « Équipements mobiles » dans Livraison (admin et superviseur seulement), écran avec indicateurs et onglets, recherche rapide",()=>{__rst();const E=[];__as("admin");const nv=NAV.find(n=>n.v==="equipements");if(!nv)return"NAV";if(!voirNav(nv))E.push("admin sans accès");
-  __mk();view="equipements";render();const h=document.getElementById("app").innerText;if(!/Équipements mobiles/.test(h)||!/Valeur du parc/.test(h)||!/Par livreur/.test(h)||!/Retenues/.test(h)||!/Journal/.test(h))E.push("écran");
+  __mk();view="equipements";render();const h=document.getElementById("app").innerText;if(!/Équipements & engins/.test(h)||!/Valeur du parc/.test(h)||!/Par livreur/.test(h)||!/Retenues/.test(h)||!/Journal/.test(h))E.push("écran");
   if(!MODULES.find(m=>m.id==="liv").vues.some(v=>v[0]==="equipements"))E.push("module Livraison");
   const r=rechercheRes("EQ-0001");if(!r.some(x=>x.t==="Équipements"))E.push("recherche");
   __as("preparateur");if(voirNav(nv))E.push("préparateur avec accès");__as("admin");return E.length?E.join(" | "):true});
