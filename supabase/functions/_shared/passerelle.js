@@ -58,7 +58,9 @@ const montant = (v) => { const n = Math.round(Number(v)); return Number.isFinite
 export function nettoyerEtatVendeur(e) {
   const L = (x, n) => (Array.isArray(x) ? x.slice(0, n) : []);
   return {
-    nom: txt(e.nom, 80), solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
+    nom: txt(e.nom, 80), ref: txt(e.ref, 60).replace(/[^A-Za-z0-9_-]/g, ""), tel: txt(e.tel, 20), org: txt(e.org, 80),
+    stats30: { dem: montant(e.stats30 && e.stats30.dem), qr: montant(e.stats30 && e.stats30.qr), lien: montant(e.stats30 && e.stats30.lien), live: montant(e.stats30 && e.stats30.live), ok: montant(e.stats30 && e.stats30.ok) },
+    solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
     commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "" })),
     demandes: L(e.demandes, 50).map((d) => ({ ref: txt(d && d.ref, 12), nom: txt(d && d.nom, 80), tel: txt(d && d.tel, 20), zone: txt(d && d.zone, 80), quartier: txt(d && d.quartier, 120), repere: txt(d && d.repere, 200), note: txt(d && d.note, 500), cree_le: txt(d && d.cree_le, 30), nb_photos: Math.max(0, Math.min(9, Math.round(Number(d && d.nb_photos)) || 0)),
       gps: d && d.gps && Number.isFinite(+d.gps.lat) && Number.isFinite(+d.gps.lng) ? { lat: +(+d.gps.lat).toFixed(6), lng: +(+d.gps.lng).toFixed(6) } : null,

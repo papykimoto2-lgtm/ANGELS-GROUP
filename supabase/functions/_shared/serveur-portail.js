@@ -3,7 +3,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 export const cfgPortail = () => ({ adminKey: Deno.env.get("ADMIN_KEY"), sel: Deno.env.get("PORTAIL_SEL") || Deno.env.get("ADMIN_KEY") || "", limiteHeure: +(Deno.env.get("PORTAIL_LIMITE_HEURE") || 20), fileMax: +(Deno.env.get("PORTAIL_FILE_MAX") || 2000) });
 
-export function dbPortail(sb = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false, autoRefreshToken: false } })) {
+export const clientPortail = () => createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false, autoRefreshToken: false } });
+
+export function dbPortail(sb = clientPortail()) {
   const ok = (r) => { if (r.error) throw new Error(r.error.message); return r; };
   const t = () => sb.from("pd_demandes");
   const supprimerPhotos = async (refs) => { if (refs.length) ok(await sb.from("pd_photos").delete().in("demande_ref", refs)); };
@@ -39,6 +41,7 @@ export function dbPortail(sb = createClient(Deno.env.get("SUPABASE_URL"), Deno.e
     ecrireLive: async (row) => ok(await sb.from("pd_lives").upsert(row, { onConflict: "vendeur" })),
     ecrireCleVendeur: async (v, h) => ok(await sb.from("pd_vendeurs").upsert({ vendeur: v, cle_hash: h, cree_le: new Date().toISOString() }, { onConflict: "vendeur" })),
     empreinteVendeur: async (v) => { const r = ok(await sb.from("pd_vendeurs").select("cle_hash").eq("vendeur", v).maybeSingle()).data; return r ? r.cle_hash : null; },
+    vendeurParUtilisateur: async (uid) => ok(await sb.from("pg_vendeurs").select("vendeur_ref,actif").eq("user_id", uid).maybeSingle()).data,
     enAttenteVendeur: async (v, n) => ok(await t().select("id,ref,type,message,cree_le,nb_photos").eq("traite", false).eq("vendeur", v).order("id").limit(n)).data || [],
     acquitterVendeur: async (v, ids) => { const r = ok(await t().update({ traite: true, traite_le: new Date().toISOString() }).eq("vendeur", v).in("id", ids).select("ref")); await supprimerPhotos((r.data || []).map((x) => x.ref)); },
     ecrireCatalogue: async (c) => ok(await sb.from("portail_catalogue").upsert({ id: 1, boutique: c.boutique, photos: c.photos, maj_le: new Date().toISOString() }, { onConflict: "id" })),

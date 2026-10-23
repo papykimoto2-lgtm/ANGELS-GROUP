@@ -79,5 +79,7 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o?"PASS":"FAIL",id,label
  const r1=await P.traiterVendeurEtat(db,{action:"refuser",demande:"zz99yy",motif:"Rupture de stock"},uz),r2=await P.traiterVendeurEtat(db,{action:"refuser",demande:"zz99yy"},uz),r3=await P.traiterVendeurEtat(db,{action:"refuser",demande:"x"},uz),r4=await P.traiterVendeurEtat(db,{action:"refuser",demande:"zz99yy"},null);
  const rf=D.cmds.filter(c=>c.donnees.type==="refus");
  chk("VC-24","refus d'une demande : transmis au bureau (une seule fois même renvoyé), référence invalide refusée, jeton obligatoire",r1.status===200&&r2.status===200&&rf.length===1&&rf[0].donnees.demande==="ZZ99YY"&&rf[0].donnees.motif==="Rupture de stock"&&r3.status===400&&r4.status===401,JSON.stringify(rf));
+ const nz=P.nettoyerEtatVendeur({nom:"A",ref:"V1 <x>",tel:"07 01 02 03 04",org:"ANGEL'S GROUP",stats30:{dem:6,qr:3,lien:2,live:1,ok:4,x:9}});
+ chk("VC-25","projection : référence du vendeur (nettoyée), téléphone du vendeur, nom de l'entreprise et statistiques de 30 jours conservés ; champ inconnu supprimé",nz.ref==="V1x"&&nz.tel==="07 01 02 03 04"&&nz.org==="ANGEL'S GROUP"&&nz.stats30.dem===6&&nz.stats30.live===1&&nz.stats30.x===undefined,JSON.stringify(nz));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");process.exit(ko?1:0);
 })();

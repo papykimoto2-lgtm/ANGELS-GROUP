@@ -70,6 +70,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("VB-16","quand le bureau confirme la commande, une notification push « Commande confirmée » est mise en file pour le vendeur",st.length===1&&st[0][0]===1&&/Commande confirmée/.test(st[0][1])&&st[0][2]==="vendeur.html",JSON.stringify(st));
  const fl=await p.evaluate(async()=>{window.__env=[];const f=window.fetch;window.fetch=async(u,o)=>{try{const b=JSON.parse(o.body);if(/push-envoyer/.test(u))window.__env.push(b)}catch(e){}return f(u,o)};S.push_file=[];pushVendeur(S.vendeurs.find(x=>x.nom==="Boutique Awa Test"),"demande_vendeur","📥 Test","corps","t1","vendeur.html#demandes");await pushFlush();window.fetch=f;return window.__env});
  chk("VB-17","la file d'envoi partage vers le serveur avec l'identifiant du vendeur (et non d'un livreur)",fl.length===1&&fl[0].vendeur_ref&&!fl[0].livreur_ref&&fl[0].url==="vendeur.html#demandes",JSON.stringify(fl));
+ const pj=await p.evaluate(async()=>{const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");S.config.org="ANGEL'S TEST";const e=await vendEtatPub(v);return{ref:e.ref===v.id,tel:e.tel===String(v.tel),org:e.org,st:e.stats30}});
+ chk("VB-18","la publication contient la référence et le téléphone du vendeur, le nom de l'entreprise et ses statistiques de 30 jours (commandes reçues par QR, lien, live, acceptées) pour son QR signé et ses résultats",pj.ref&&pj.tel&&pj.org==="ANGEL'S TEST"&&typeof pj.st.dem==="number"&&["qr","lien","live","ok"].every(k=>typeof pj.st[k]==="number"),JSON.stringify(pj));
  chk("VB-6","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();
