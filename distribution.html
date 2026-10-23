@@ -538,6 +538,7 @@ function annuler(c,motif){
  audit("Annulation commande",c.numero+" — "+motif);return true}
 function affecter(c,lid,motif){
  if(!garde(["admin","superviseur"]))return false;
+ {const eo=expOuverte(c);if(eo){toast("La commande "+c.numero+" a un dossier d'expédition ouvert ("+eo.numero+") : elle ne peut pas être affectée à un livreur","err");return false}}
  const lv=liv(lid),old=activeLiv(c.id);
  if(!lv){toast("Livreur introuvable","err");return false}
  if(S.config.dossier_obligatoire&&!dossierEtat(lv).ok){toast("Dossier de "+lv.nom+" incomplet ou expiré : affectation impossible","err");return false}
@@ -1891,7 +1892,7 @@ function zoneBar(){const fz=ui.fz||"",pr=S.commandes.filter(c=>c.statut==="prete
  return`<div class="card noprint" style="padding:10px"><div class="flex" style="flex-wrap:wrap;gap:6px;align-items:center"><b>📍 Zone</b><button class="btn sm ${fz?"ghost":""}" data-act="fzSet" data-id="" title="${esc(nb(""))}">Toutes (${pr.length+ac.length})</button>${zs.map(z=>{const k=pr.filter(c=>zoneDe(c)===z).length+ac.filter(l=>zoneDe(cmd(l.commande_id)||{})===z).length;return`<button class="btn sm ${fz===z?"":"ghost"}" data-act="fzSet" data-id="${esc(z)}" title="${esc(nb(z))}">${esc(z)} (${k})</button>`}).join("")}</div>${fz?`<div class="sm mu" style="margin-top:6px">Zone « ${esc(fz)} » : ${nb(fz)}. Le filtre s'applique aux commandes à affecter, aux courses actives et aux tournées.</div>`:""}</div>`}
 VIEWS.livraisons=()=>{
  const fz=ui.fz||"",fl=ui.fl||"",bn=perBornes("lv","all"),fq=ui.flieu||"",okD=(c,i)=>bn.k==="all"||dansBornes(bn,i),okQ=c=>lieuOk(c,fq);
- const prete=S.commandes.filter(c=>c.statut==="prete"&&(!fz||zoneDe(c)===fz)&&okQ(c)&&okD(c,c.date)).sort((a,b)=>(b.priorite==="urgente")-(a.priorite==="urgente")||(fz?0:zoneDe(a).localeCompare(zoneDe(b)))||new Date(a.date)-new Date(b.date));
+ const prete=S.commandes.filter(c=>c.statut==="prete"&&!expOuverte(c)&&(!fz||zoneDe(c)===fz)&&okQ(c)&&okD(c,c.date)).sort((a,b)=>(b.priorite==="urgente")-(a.priorite==="urgente")||(fz?0:zoneDe(a).localeCompare(zoneDe(b)))||new Date(a.date)-new Date(b.date));
  const act=S.livraisons.filter(l=>isActive(l)&&(!fz||cmd(l.commande_id).adr.zone===fz)&&(!fl||l.livreur_id===fl)&&okQ(cmd(l.commande_id))&&okD(null,l.affectee_at));
  const sel=ui.mapLiv&&S.pos[ui.mapLiv];
  const iframe=sel?`<div class="card"><div class="between"><b>Dernière position de ${esc(liv(ui.mapLiv).nom)}</b>${badge(fraicheur(sel).t,fraicheur(sel).k)}</div><iframe style="width:100%;height:280px;border:0;margin-top:8px;border-radius:8px" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${sel.lng-0.012},${sel.lat-0.01},${sel.lng+0.012},${sel.lat+0.01}&layer=mapnik&marker=${sel.lat},${sel.lng}"></iframe><div class="sm mu">Carte OpenStreetMap (connexion Internet requise). Précision ±${Math.round(sel.acc||0)} m. <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${sel.lat}&mlon=${sel.lng}#map=16/${sel.lat}/${sel.lng}">Ouvrir en grand</a></div></div>`:"";
@@ -2963,7 +2964,7 @@ function expCreer(o){
  if(!EXRO()&&!can("vendeur"))throw new Error("Droits insuffisants pour créer une expédition");
  if(!EXP_TYPE_L[o.type])throw new Error("Type d'expédition invalide");
  const dn=o.dest||{};if(!String(dn.nom||"").trim())throw new Error("Le destinataire est obligatoire");
- const cids=(o.commande_ids||[]).filter(Boolean);cids.forEach(id=>{const c=cmd(id);if(!c)throw new Error("Commande introuvable");if(can("vendeur")&&(!vend()||c.vendeur_id!==vend().id))throw new Error("Cette commande ne vous appartient pas")});
+ const cids=(o.commande_ids||[]).filter(Boolean);cids.forEach(id=>{const c=cmd(id);if(!c)throw new Error("Commande introuvable");if(activeLiv(c.id))throw new Error("La commande "+c.numero+" est déjà affectée à un livreur : retirez la course avant de créer un dossier d'expédition");if(can("vendeur")&&(!vend()||c.vendeur_id!==vend().id))throw new Error("Cette commande ne vous appartient pas")});
  const e={id:uid("x"),numero:numExp(),type:o.type,statut:"brouillon",commande_ids:cids,origine:String(o.origine||S.config.org||"").trim(),dest:{nom:String(dn.nom).trim(),tel:String(dn.tel||"").trim(),adresse:String(dn.adresse||"").trim(),ville:String(dn.ville||"").trim(),pays:String(dn.pays||"Côte d'Ivoire").trim()},
   colis:[],transporteur:String(o.transporteur||"").trim(),mode:o.mode||"Route",responsable:o.responsable||"",livreur_id:o.livreur_id||"",depart_prevu:o.depart_prevu||"",eta:o.eta||"",depart_reel:null,bordereau:"",
   frais:{transport:Math.max(0,+(o.frais&&o.frais.transport)||0),manutention:0,emballage:0,autres:0},docs:(o.docs||[]).map(n=>({n,ok:false})),reception:null,cloture_le:null,obs:String(o.obs||"").trim(),
@@ -2978,21 +2979,38 @@ function expStatut(e,to,note,x){
  if(!EXRW()&&!(EXRO()&&["brouillon","annulee"].includes(to)))throw new Error("Droits insuffisants");
  if(!EXTR[e.statut].includes(to))throw new Error("Transition interdite : "+EXS[e.statut][0]+" → "+EXS[to][0]);
  if(to==="prete"&&(!e.colis.length||!e.dest.nom))throw new Error("Ajoutez au moins un colis avant de déclarer l'expédition prête");
- if(to==="expediee"){if(!e.transporteur&&!e.livreur_id&&!e.responsable)throw new Error("Désignez un transporteur, un livreur ou un responsable");if(!(x&&x.depart)&&!e.depart_reel)throw new Error("Indiquez la date de départ")}
- if(["livree","livree_part"].includes(to)){const r=x&&x.reception;if(!r||!String(r.nom||"").trim())throw new Error("Nom du réceptionnaire obligatoire");if(to==="livree_part"&&!String(r.obs||"").trim())throw new Error("Décrivez les différences constatées")}
+ if(to==="expediee"){for(const id of e.commande_ids||[]){const c=cmd(id);if(!c||c.stock_sorti||["livree","annulee","retour_recu"].includes(c.statut))continue;for(const l of c.lignes){if(!l.produit_id)continue;const p=prod(l.produit_id);if(!p||p.stock<l.qte)throw new Error("Stock insuffisant pour "+c.numero+" : "+(p?p.nom:"?")+" ("+(p?p.stock:0)+" dispo, "+l.qte+" requis)")}}
+  if(!e.transporteur&&!e.livreur_id&&!e.responsable)throw new Error("Désignez un transporteur, un livreur ou un responsable");if(!(x&&x.depart)&&!e.depart_reel)throw new Error("Indiquez la date de départ")}
+ if(["livree","livree_part"].includes(to)){const r=x&&x.reception;if(!r||!String(r.nom||"").trim())throw new Error("Nom du réceptionnaire obligatoire");if(to==="livree_part"&&!String(r.obs||"").trim())throw new Error("Décrivez les différences constatées");var encPlan=expEncPlan(e,r)}
+ if(to==="retournee"&&!(x&&x.retour&&["stock","quarantaine","autre"].includes(x.retour.dec)))throw new Error("Décision sur la marchandise retournée obligatoire (remise en stock, quarantaine ou autre)");
  if(to==="annulee"&&!String(note||"").trim())throw new Error("Motif d'annulation obligatoire");if(["echec","retour_cours"].includes(to)&&!String(note||"").trim())throw new Error("Motif obligatoire");
- e.hist.push({ts:now(),par:who(),de:e.statut,a:to,note:String(note||"")});e.statut=to;
- if(to==="expediee")e.depart_reel=(x&&x.depart)||e.depart_reel;if(x&&x.reception)e.reception=Object.assign({ts:now(),par:who()},x.reception);
- if(EXN[to])expNotif(e,EXN[to]);expSyncCmd(e,to);audit("Expédition "+EXS[to][0],e.numero+(note?" — "+note:""));return true}
+ e.hist.push({ts:now(),par:who(),de:e.statut,a:to,note:String(note||"")});e.statut=to;if(x&&x.retour)e.retour=Object.assign({ts:now(),par:who()},x.retour);
+ if(to==="expediee")e.depart_reel=(x&&x.depart)||e.depart_reel;if(x&&x.reception){e.reception=Object.assign({ts:now(),par:who()},x.reception);expEncaisser(e,encPlan)}
+ if(EXN[to])expNotif(e,EXN[to]);expSyncCmd(e,to,x);audit("Expédition "+EXS[to][0],e.numero+(note?" — "+note:""));return true}
 /* Lien Expédition ↔ Commande : le statut de la commande suit celui du dossier (le client n'a pas de livreur en course) */
 const EXP_CMD={expediee:"en_cours",transit:"en_cours",arrivee:"en_cours",en_livraison:"en_cours",livree:"livree",livree_part:"livree",echec:"echouee",retour_cours:"retour_cours",retournee:"retour_recu"};
-function expSyncCmd(e,to){
+function expSyncCmd(e,to,x){
  const cible=EXP_CMD[to];
  (e.commande_ids||[]).forEach(id=>{const c=cmd(id);if(!c)return;
   if(to==="annulee"){if(c.exp_id===e.id){delete c.exp_id;c.hist.push({ts:now(),de:c.statut,a:c.statut,par:who(),note:"Expédition "+e.numero+" annulée : la commande peut recevoir un nouveau dossier"})}return}
   if(!cible||c.statut===cible||["livree","annulee","retour_recu"].includes(c.statut)||(c.statut==="retour_cours"&&cible!=="retour_recu"))return;
   if(cible==="en_cours"&&!c.stock_sorti&&c.lignes.every(l=>!l.produit_id||(prod(l.produit_id)&&prod(l.produit_id).stock>=l.qte))){c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),-l.qte,"sortie_commande",c.numero)});c.stock_sorti=true}
+  if(cible==="retour_recu"){const dec=(x&&x.retour&&x.retour.dec)||"autre";
+   if(dec==="stock"&&c.stock_sorti){c.lignes.forEach(l=>{if(l.produit_id)stockMvt(prod(l.produit_id),l.qte,"retour_stock",c.numero)});c.stock_sorti=false}
+   (S.retours=S.retours||[]).push({id:uid("r"),commande_id:c.id,ts:now(),motif:(x&&x.retour&&x.retour.motif)||"Expédition "+e.numero+" retournée",etat:"Expédition",decision:dec==="stock"?"Remise en stock":dec==="quarantaine"?"Quarantaine":"Autre",par:who(),qtes:c.lignes.map(l=>l.qte)})}
   setStatut(c,cible,"Expédition "+e.numero+" : "+EXS[to][0],true)})}
+/* Paiement à la réception : le montant remis au transporteur / réceptionnaire est rattaché aux commandes du dossier (acompte en caisse ou en compte Mobile Money), sans livreur */
+function expEncPlan(e,r){   /* contrôles avant tout changement d'état */
+ const m=Math.round(+(r&&r.montant)||0);if(!(m>0))return null;
+ const L=(e.commande_ids||[]).map(cmd).filter(c=>c&&soldeCmd(c)>0),tot=L.reduce((a,c)=>a+soldeCmd(c),0);
+ if(!L.length)throw new Error("Aucun solde à encaisser sur les commandes de ce dossier");if(m>tot)throw new Error("Montant trop élevé : au plus "+fcfa(tot)+" restent dus");
+ const mode=r.mode||"Espèces",mob=estMobile(mode),ref=mob?String(r.ref_paiement||"").trim().toUpperCase():"";
+ if(mob&&ref.length<4)throw new Error("Référence de la transaction Mobile Money obligatoire");if(ref&&refUtilisee(ref))throw new Error("Cette référence de transaction est déjà enregistrée");
+ return{m,L,mode,ref}}
+function expEncaisser(e,p){
+ if(!p)return;let reste=p.m;
+ p.L.forEach((c,i)=>{const a=Math.min(reste,soldeCmd(c));if(a<=0)return;reste-=a;S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,expedition_id:e.id,montant:a,mode:p.mode,ref:i===0&&p.ref?p.ref:null,ts:now(),par:who()})});
+ e.reception.encaisse=p.m;audit("Encaissement à la réception",e.numero+" — "+fcfa(p.m)+" ("+p.mode+")")}
 /* Commande annulée : ses dossiers d'expédition encore ouverts sont annulés s'ils n'ont pas quitté l'entrepôt, sinon signalés */
 function expCmdAnnulee(c,motif){
  expParCmd(c).filter(e=>EXT_OUVERT(e.statut)).forEach(e=>{
@@ -3005,6 +3023,7 @@ function expCloturer(e){
  if(e.cloture_le)throw new Error("Déjà clôturée");const manque=e.docs.filter(d=>!d.ok);if(manque.length)throw new Error("Documents manquants : "+manque.map(d=>d.n).join(", "));
  if(["livree","livree_part"].includes(e.statut)&&!e.reception)throw new Error("Réception non enregistrée");e.cloture_le=now();e.hist.push({ts:now(),par:who(),de:e.statut,a:e.statut,note:"Clôture"});audit("Expédition clôturée",e.numero)}
 function expParCmd(c){return(S.expeditions||[]).filter(e=>(e.commande_ids||[]).includes(c.id))}
+const expOuverte=c=>expParCmd(c).find(e=>EXT_OUVERT(e.statut))||null;
 function expAppliquer(c,d){   /* commande à portée hors Abidjan : tarif recalculé ici, dossier d'expédition créé et lié */
  if(!d.portee||d.portee==="local")return;const x=destOf(d.dest),kg=+d.poids;
  c.frais=fraisExp(x,kg);calcCmd(c);
@@ -3017,7 +3036,7 @@ function expBloc(c){
  ${L.map(e=>`<div class="sm" style="padding:3px 0"><b>${esc(e.numero)}</b> · ${badge(EXS[e.statut][0],EXS[e.statut][1])} · ${esc(EXP_TYPE_L[e.type])}${e.bordereau?" · bordereau "+esc(e.bordereau):""} <a href="#" data-act="expOuvrir" data-id="${e.id}">ouvrir le dossier</a></div>`).join("")}
  ${!L.length&&EXRW()?`<button class="btn sm ghost" data-act="expDepuisCmd" data-id="${c.id}">➕ Créer le dossier d'expédition</button>`:""}</div>`}
 function expForm(c0){
- const cs=S.commandes.filter(c=>!["annulee","brouillon","livree"].includes(c.statut)&&!c.exp_id).slice(0,200),ch=c0||null,cl=ch&&cli(ch.client_id);
+ const cs=S.commandes.filter(c=>!["annulee","brouillon","livree"].includes(c.statut)&&!c.exp_id&&!activeLiv(c.id)).slice(0,200),ch=c0||null,cl=ch&&cli(ch.client_id);
  modal("Nouvelle expédition",`<div class="g2"><label>Type d'expédition<select name="type">${EXP_TYPES.map(t=>`<option value="${t[0]}" ${ch&&ch.exp?(t[0]==="transporteur"?"selected":""):""}>${t[1]}</option>`).join("")}</select></label>
  <label>Commande liée <span class="mu sm">(facultatif)</span><select name="cmd" id="x_cmd"><option value="">— Saisie manuelle —</option>${cs.map(c=>`<option value="${c.id}" ${ch&&ch.id===c.id?"selected":""}>${esc(c.numero)} · ${esc((cli(c.client_id)||{}).nom||"")}</option>`).join("")}</select></label></div>
  <div class="g2"><label>Destinataire *<input name="nom" required value="${esc(cl?cl.nom:"")}"></label><label>Téléphone<input name="tel" inputmode="tel" value="${esc(cl?cl.tel:"")}"></label></div>
@@ -3042,12 +3061,14 @@ function expDetail(id){
  ${e.reception?`<div class="pill" style="margin-top:8px">✅ Reçu par <b>${esc(e.reception.nom)}</b> le ${e.reception.date||""} · ${esc(e.reception.etat||"conforme")}${e.reception.obs?"<br>"+esc(e.reception.obs):""}${e.reception.signature?`<br><img alt="Signature" src="${e.reception.signature}" style="max-height:60px;background:#fff;border-radius:6px">`:""}</div>`:""}
  <h3 style="margin:8px 0 4px">Historique</h3>${e.hist.slice().reverse().map(h=>`<div class="sm mu">· ${fdt(h.ts)} — ${esc(h.a?EXS[h.a][0]:"")} par ${esc(h.par||"")}${h.note?" : "+esc(h.note):""}</div>`).join("")}
  <div class="flex noprint" style="flex-wrap:wrap;gap:6px;margin-top:10px">${B.join("")}<button class="btn ghost" data-act="expPrint" data-id="${e.id}">🖨 Bordereau</button></div>`,{label:"Fermer",onSubmit:()=>true,focus:false,wide:true})}
+const expSolde=e=>(e.commande_ids||[]).map(cmd).filter(Boolean).reduce((a,c)=>a+soldeCmd(c),0);
 function expRecepForm(e,to){
  modal("Réception — "+e.numero,`<div class="g2"><label>Nom du réceptionnaire *<input name="nom" required></label><label>Date de réception<input type="date" name="date" value="${cxJour()}"></label></div>
  <label>État de la marchandise<select name="etat"><option value="conforme">Conforme</option><option value="differences">Différence de quantité</option><option value="avaries">Avaries</option><option value="pertes">Pertes</option></select></label>
  <label>Observations <span class="mu sm">(obligatoires si livraison partielle)</span><input name="obs"></label>
+ ${expSolde(e)>0?`<div class="sec">Paiement à la réception</div><div class="al sm">Reste dû sur les commandes : <b>${fcfa(expSolde(e))}</b>. Laissez vide si rien n'a été payé.</div><div class="g3"><label>Montant encaissé<input type="number" name="montant" min="0" max="${expSolde(e)}" placeholder="0"></label><label>Mode<select name="mode">${opts(S.config.modes||["Espèces"])}</select></label><label>Réf. Mobile Money<input name="ref_paiement" autocomplete="off"></label></div>`:""}
  <div class="sec">Signature</div><canvas id="x_sig" width="420" height="120" style="width:100%;max-width:420px;height:120px;background:#fff;border:1px solid var(--bd);border-radius:8px;touch-action:none"></canvas><div><a href="#" id="x_sigc" class="sm">effacer la signature</a></div>`,
- {label:"Confirmer la réception",onSubmit:(d,f)=>{try{const cv=f.querySelector("#x_sig"),r={nom:d.nom,date:d.date,etat:d.etat,obs:d.obs};if(cv&&cv.dataset.d)r.signature=cv.toDataURL("image/png");
+ {label:"Confirmer la réception",onSubmit:(d,f)=>{try{const cv=f.querySelector("#x_sig"),r={nom:d.nom,date:d.date,etat:d.etat,obs:d.obs,montant:d.montant,mode:d.mode,ref_paiement:d.ref_paiement};if(cv&&cv.dataset.d)r.signature=cv.toDataURL("image/png");
   expStatut(e,to,(d.etat!=="conforme"?EXS[to][0]+" — "+d.etat:"Réception confirmée"),{reception:r});save();toast("Réception enregistrée","ok");render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});
  const cv=$("#x_sig");if(!cv)return;const g=cv.getContext("2d");g.lineWidth=2;g.lineCap="round";let dn=false;const pt=ev=>{const r=cv.getBoundingClientRect();return[(ev.clientX-r.left)*cv.width/r.width,(ev.clientY-r.top)*cv.height/r.height]};
  cv.onpointerdown=ev=>{dn=true;cv.dataset.d="1";const[x,y]=pt(ev);g.beginPath();g.moveTo(x,y);cv.setPointerCapture(ev.pointerId)};cv.onpointermove=ev=>{if(!dn)return;const[x,y]=pt(ev);g.lineTo(x,y);g.stroke()};cv.onpointerup=()=>{dn=false};
@@ -3089,6 +3110,7 @@ Object.assign(ACT,{expNew:()=>{if(EXRO())expForm()},expDepuisCmd:id=>{if(EXRW())
  expTo:id=>{const[i,to]=String(id).split("|"),e=expOf(i);if(!e)return;try{
   if(["livree","livree_part"].includes(to))return expRecepForm(e,to);
   if(to==="expediee"){modal("Départ — "+e.numero,`<label>Date de départ<input type="date" name="d" value="${e.depart_reel||cxJour()}"></label><label>Transporteur / agence<input name="t" value="${esc(e.transporteur)}"></label><label>N° de bordereau<input name="b" value="${esc(e.bordereau)}"></label>`,{label:"Confirmer le départ",onSubmit:d=>{try{if(d.t.trim())e.transporteur=d.t.trim();if(d.b.trim())e.bordereau=d.b.trim();expStatut(e,"expediee","Départ le "+d.d,{depart:d.d});save();render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});return}
+  if(to==="retournee"){modal("Retour réceptionné — "+e.numero,`<label>Décision sur la marchandise<select name="dec">${opts([{v:"stock",t:"Remise en stock"},{v:"quarantaine",t:"Mise en quarantaine"},{v:"autre",t:"Autre traitement"}])}</select></label><label>Motif / observations<input name="m"></label>`,{label:"Confirmer le retour",onSubmit:d=>{try{expStatut(e,"retournee",d.m||"Retour réceptionné",{retour:{dec:d.dec,motif:d.m}});save();render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});return}
   if(["annulee","echec","retour_cours"].includes(to)){modal(EXS[to][0]+" — "+e.numero,`<label>Motif *<input name="m" required></label>`,{label:"Valider",onSubmit:d=>{try{expStatut(e,to,d.m);save();render();setTimeout(()=>expDetail(e.id),0);return true}catch(x){toast(fixErr(x),"err");return false}}});return}
   expStatut(e,to,"");save();render();setTimeout(()=>expDetail(e.id),0)}catch(x){toast(fixErr(x),"err")}},
  expClore:id=>{const e=expOf(id);try{expCloturer(e);save();render();setTimeout(()=>expDetail(e.id),0)}catch(x){toast(fixErr(x),"err")}},
