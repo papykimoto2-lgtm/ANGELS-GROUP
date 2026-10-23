@@ -52,6 +52,26 @@ const TYPES = ["accepter", "refuser", "prise_en_charge", "demarrer", "confirmer"
 const txt = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
 const nombre = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
 
+/* ================= Espace vendeur : projection publiée par le bureau, lue par le vendeur connecté ================= */
+/* On ne garde que des champs connus, bornés : jamais de téléphone, de code ni d'adresse de client. */
+const montant = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
+export function nettoyerEtatVendeur(e) {
+  const L = (x, n) => (Array.isArray(x) ? x.slice(0, n) : []);
+  return {
+    nom: txt(e.nom, 80), solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
+    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net) })),
+    reglements: L(e.reglements, 100).map((r) => ({ date: txt(r && r.date, 10), montant: montant(r && r.montant), libelle: txt(r && r.libelle, 80) })),
+  };
+}
+/* Vendeur connecté (jeton vérifié par la fonction : userId fourni) : lit SA projection, rien d'autre. */
+export async function traiterVendeurEtat(db, req, userId) {
+  if (!userId) return err(401, "Connexion requise");
+  const c = await db.vendeurParUtilisateur(userId); if (!c || !c.actif) return err(403, "Compte vendeur inactif ou introuvable");
+  const a = String(req.action || "etat");
+  if (a === "etat") { const r = await db.etatVendeur(c.vendeur_ref); return rep(200, Object.assign({ ok: true, nom: c.nom, commandes: [], reglements: [], solde: 0, lien: "" }, r && r.etat ? r.etat : {}, { maj_le: r ? r.maj_le : null })); }
+  return err(400, "Action inconnue");
+}
+
 /* ================= Bureau (clé d'administration) ================= */
 export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
   if (!cfg.adminKey || !egal(adminKey, cfg.adminKey)) return err(401, "Clé d'administration invalide");
@@ -102,6 +122,16 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
   if (a === "compte-actif") {
     const c = await db.compteDe(txt(req.livreur_ref, 60)); if (!c) return err(404, "Compte livreur introuvable");
     const actif = !!req.actif; await db.bloquerUtilisateur(c.user_id, !actif); await db.majCompte(c.livreur_ref, { actif }); return rep(200, { ok: true, actif });
+  }
+  if (a === "vendeur-publier") {   /* le bureau publie, pour chaque vendeur ayant un compte, la projection de son espace (sans téléphone de client) */
+    const L = Array.isArray(req.vendeurs) ? req.vendeurs.slice(0, 300) : [], inconnus = []; let ecrits = 0, ignores = 0;
+    for (const v of L) {
+      const ref = txt(v && v.vendeur_ref, 60), e = v && v.etat;
+      if (!ref || !e || typeof e !== "object") { ignores++; continue; }
+      if (!(await db.vendeurDe(ref))) { if (!inconnus.includes(ref)) inconnus.push(ref); continue; }
+      await db.ecrireEtatVendeur(ref, nettoyerEtatVendeur(e), new Date(now).toISOString()); ecrits++;
+    }
+    return rep(200, { ok: true, ecrits, ignores, vendeurs_inconnus: inconnus });
   }
   if (a === "vendeur-compte-creer") {
     const ref = txt(req.vendeur_ref, 60), nom = txt(req.nom, 80), ident = txt(req.ident, 80);

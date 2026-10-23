@@ -29,6 +29,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("VB-4","désactiver le compte du vendeur le bloque aussi côté serveur (vendeur-compte-actif, actif=false)",r.actif===false&&calls.some(x=>x.action==="vendeur-compte-actif"&&x.actif===false),JSON.stringify(calls.map(x=>x.action+":"+x.actif)));
  const l=await p.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");view="utilisateurs";render();return(document.querySelector("#app")||{}).textContent});
  chk("VB-5","la liste « Utilisateurs & droits » n'affiche aucun vendeur partenaire",!/Boutique Awa Test/.test(l)&&!/Vendeur partenaire<\/td>/.test(l));
+ const pub=await p.evaluate(async()=>{const v=S.vendeurs.find(x=>x.nom==="Boutique Awa Test");const cl=S.clients[0];cl.tel="0799887766";
+  const c=S.commandes[0];c.vendeur_id=v.id;c.client_id=cl.id;S.reglements.push({id:"rg1",vendeur_id:v.id,montant:1000,mode:"Espèces",note:"acompte",ts:Date.now(),par:"x"});
+  window.__pub=null;const f=window.fetch;window.fetch=async(u,o)=>{try{const b=JSON.parse(o.body);if(b.action==="vendeur-publier")window.__pub=b}catch(e){}return f(u,o)};
+  await passSync(true);window.fetch=f;return window.__pub});
+ const pv=pub&&pub.vendeurs&&pub.vendeurs[0];
+ chk("VB-7","le bureau publie l'espace du vendeur (commandes avec numéro, statut lisible, client, solde, règlements, lien client) ; aucun téléphone de client",!!pv&&pv.etat.commandes.length>=1&&pv.etat.commandes[0].numero&&/[a-zé]/i.test(pv.etat.commandes[0].statut)&&pv.etat.reglements.length===1&&pv.etat.reglements[0].montant===1000&&pv.etat.lien.includes("ref="+pv.vendeur_ref)&&!JSON.stringify(pub).includes("0799887766"),JSON.stringify(pub).slice(0,500));
  chk("VB-6","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();
