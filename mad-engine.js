@@ -153,7 +153,7 @@
   }
   function construireMessage(d, org) {
     d = assainir(d);
-    return "Réservation chauffeur + véhicule — " + (org || "") + " (réf. " + d.ref + ")\nNom : " + d.nom + "\nTél : " + d.tel + "\nDu " + d.date_debut.split("-").reverse().join("/") + " au " + d.date_fin.split("-").reverse().join("/") + ", de " + d.h_debut + " à " + d.h_fin + "\nPrise en charge : " + d.depart + (d.destination ? "\nDestination : " + d.destination : "") + (d.passagers ? "\nPassagers : " + d.passagers : "") + (d.note ? "\nNote : " + d.note : "") + "\n[RESERVATION:" + b64(d) + "]";
+    return "Réservation chauffeur + véhicule — " + (org || "") + " (réf. " + d.ref + ")\nNom : " + d.nom + "\nTél : " + d.tel + "\nDu " + d.date_debut.split("-").reverse().join("/") + " au " + d.date_fin.split("-").reverse().join("/") + ", de " + d.h_debut + " à " + d.h_fin + "\nPrise en charge : " + d.depart + (d.destination ? "\nDestination : " + d.destination : "") + (d.passagers ? "\nPassagers : " + d.passagers : "") + (d.note ? "\nNote : " + d.note : "") + "\n[RESERVATION:" + b64(Object.assign({ f: d.ref }, d)) + "]";
   }
   /** Extrait toutes les demandes d'un texte collé (WhatsApp, e-mail) : [{ok:demande}|{ko:message}] */
   function lireMessages(texte) {

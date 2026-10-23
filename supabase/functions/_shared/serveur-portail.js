@@ -23,9 +23,10 @@ export function dbPortail(sb = clientPortail()) {
       return (ok(await sb.from("pd_photos").select("data").eq("demande_ref", ref).order("idx")).data || []).map((x) => x.data);
     },
     /* le bureau ne relève pas les demandes destinées à un vendeur qui a une clé de relève : elles ne sont lisibles que par lui */
-    enAttenteListe: async (n) => {
+    enAttenteListe: async (n, types) => {
       const reg = (ok(await sb.from("pd_vendeurs").select("vendeur")).data || []).map((x) => x.vendeur).filter((x) => /^[A-Za-z0-9_-]+$/.test(x));
       let q = t().select("id,ref,type,message,cree_le,nb_photos").eq("traite", false);
+      if (Array.isArray(types) && types.length) q = q.in("type", types);
       if (reg.length) q = q.or(`vendeur.is.null,vendeur.not.in.(${reg.join(",")})`);
       return ok(await q.order("id").limit(n)).data || [];
     },
