@@ -1,0 +1,51 @@
+/* Étiquettes QR des colis imprimées par le vendeur depuis son téléphone : jetons créés à l'enregistrement de la commande, publiés au vendeur (liste blanche), impression 80 × 80 mm ou A4, QR identiques à ceux du bureau.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/etiquettes-vendeur.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end()}r.writeHead(200,{"Content-Type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+(async()=>{
+ const G=await import("../supabase/functions/_shared/passerelle.js");
+ const cmds=[],db={vendeurParUtilisateur:async u=>u==="V1"?{vendeur_ref:"v1",actif:true,nom:"Awa"}:null,ajouterCmdVendeur:async r=>{cmds.push(r)},nbCmdsVendeurEnAttente:async()=>0};
+ const cmd=async(extra)=>G.traiterVendeurEtat(db,Object.assign({action:"commander",ref:"VD-20261022-"+Math.random().toString(36).slice(2,8).toUpperCase(),nom:"K",zone:"Cocody",lignes:[{desig:"Vase",qte:1,pu:5000}],pay:"livraison"},extra),"V1");
+ await cmd({nb_colis:3});await cmd({});await cmd({nb_colis:99});await cmd({nb_colis:"abc"});
+ chk("EV-1","serveur : nombre de colis de la commande du vendeur (3 gardé, absent ou illisible = 1, plafonné à 20)",[3,1,20,1].every((n,i)=>cmds[i]&&cmds[i].donnees.nb_colis===n),JSON.stringify(cmds.map(c=>c.donnees.nb_colis)));
+ const z=G.nettoyerEtatVendeur({nom:"A",commandes:[{numero:"C1",etiq:{colis:[{n:1,tok:"AB2CD",x:1},{n:2,tok:"mauvais"},{n:0,tok:"ZZZZZ"},{n:21,tok:"ZZZZZ"},{n:3,tok:"XY7ZK"}],dest:"Cocody · Riviera",urgent:1,mention:"fragile",icone:"🥂",tel:"0102030405"}},{numero:"C2",etiq:{colis:[{n:1,tok:"x"}]}},{numero:"C3"}]});
+ const e=z.commandes[0].etiq;
+ chk("EV-2","serveur : l'état publié au vendeur ne garde que des étiquettes valides (jeton de 5 caractères, rang 1 à 20), sans téléphone ni autre champ ; aucune étiquette valide = aucune",e&&e.colis.length===2&&e.colis[0].tok==="AB2CD"&&e.colis[1].n===3&&e.dest==="Cocody · Riviera"&&e.urgent===true&&!("tel" in e)&&!("x" in e.colis[0])&&z.commandes[1].etiq===null&&z.commandes[2].etiq===null,JSON.stringify(z.commandes));
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),errs=[];
+ const p=await ctx.newPage();p.on("pageerror",e=>errs.push("B "+e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/distribution.html");await p.waitForTimeout(300);
+ const B=await p.evaluate(async()=>{window.toast=m=>{};ME=S.users.find(u=>u.role==="admin"&&u.actif);const v=S.vendeurs[0],z=(S.config.zones[0]||{}).nom||"Cocody";
+  const ex=(ref,nb,tc)=>{vendCmdImporter({vendeur_ref:v.id,ref,donnees:{nom:"K",zone:z,lignes:[{desig:"Vase",qte:1,pu:5000}],pay:"livraison",nb_colis:nb,type_colis:tc}});return S.commandes.find(c=>c.app_ref===ref)};
+  const a=ex("E1",3,"fragile"),b1=ex("E2",undefined),c=ex("E3",99);
+  const o={n:[a.colis.length,b1.colis.length,c.colis.length],tok:a.colis.every(k=>/^[A-Z0-9]{5}$/.test(k.tok)&&k.tok!==a.colis[0].tok||k.n===1)};
+  const dup=a.colis.map(k=>k.tok);o.uniques=new Set(dup).size===dup.length;
+  const e=await vendEtatPub(v),x=e.commandes.find(y=>y.numero===a.numero);o.etiq=x&&x.etiq&&x.etiq.colis.length===3&&x.etiq.mention==="FRAGILE"&&x.etiq.dest.includes(z);
+  a.statut="livree";const e2=await vendEtatPub(v);o.livree=e2.commandes.find(y=>y.numero===a.numero).etiq===null;a.statut="attente";
+  const bureau=colisPayload(a,a.colis[1]);o.bureau=bureau;o.num=a.numero;o.tok=a.colis[1].tok;o.chk=checkColis(bureau,a).ok;
+  return o});
+ chk("EV-3","bureau : à l'enregistrement de la commande du vendeur, les colis sont créés (3, 1 par défaut, plafond 20, jetons uniques de 5 caractères)",eq(B.n,[3,1,20])&&B.uniques&&/^[A-Z0-9]{5}$/.test(B.tok),JSON.stringify(B));
+ chk("EV-4","bureau : le vendeur reçoit les étiquettes de ses commandes en cours (rang, jetons, destination, mention du type), plus rien une fois la commande livrée",B.etiq&&B.livree,JSON.stringify(B));
+ const pv=await ctx.newPage();pv.on("pageerror",e=>errs.push("V "+e.message));await pv.goto(base+"/vendeur.html");await pv.waitForTimeout(900);
+ const N=B.num,T=B.tok,QR=B.bureau;
+ const V1=await pv.evaluate(async({N,T})=>{user={id:"u"};moi={nom:"Awa"};
+  D={org:"ANGEL'S GROUP",nom:"Boutique Awa",zones:[{nom:"Cocody",frais:1000}],commandes:[{numero:N,statut:"En préparation",client:"K",montant:5000,etiq:{colis:[{n:1,tok:"AB2CD"},{n:2,tok:T},{n:3,tok:"XY7ZK"}],dest:"Cocody · Riviera",urgent:true,mention:"FRAGILE",icone:"🥂"}},{numero:"CMD-SANS",statut:"En préparation",client:"L",montant:100,etiq:null}],demandes:[],reglements:[],solde:0,lien:"https://x.test/p"};
+  PAGE="commandes";vue();const bt=[...document.querySelectorAll('[data-a="etiq"]')].map(x=>x.textContent.trim()+"|"+x.dataset.f);
+  const sauf=window.qrcode,vus=[];window.qrcode=(...a)=>{const q=sauf(...a),ad=q.addData.bind(q);q.addData=t=>{vus.push(t);return ad(t)};return q};
+  let doc80=null,doc4=null;window.__nh=0;window.__printHook=w=>{window.__nh++;if(!doc80)doc80=w.document.documentElement.outerHTML;else doc4=w.document.documentElement.outerHTML};
+  document.querySelector('[data-a="etiq"][data-f="80"]').click();await new Promise(r=>setTimeout(r,500));document.querySelector('[data-a="etiq"][data-f="a4"]').click();await new Promise(r=>setTimeout(r,500));window.qrcode=sauf;
+  const cnt=(h,re)=>(h.match(re)||[]).length;
+  return{nh:window.__nh,bt,vus:vus.slice(0,3),n80:doc80?cnt(doc80,/class="lab"/g):-1,svg80:doc80?cnt(doc80,/<svg/g):-1,a4:doc4?cnt(doc4,/class="lab"/g):-1,fmt80:/size:80mm 80mm/.test(doc80||""),fmtA4:/size:A4/.test(doc4||"")&&/class="grid"/.test(doc4||""),txt:doc80&&["URGENT","FRAGILE","Cocody · Riviera","Code : <b>AB2CD</b>","1/3","3/3","Boutique Awa","ANGEL'S GROUP"].every(t=>doc80.includes(t)),num:doc80&&doc80.includes(N)}},{N,T});
+ chk("EV-5","vendeur : boutons « Étiquettes colis (N) » et « Feuille A4 » seulement sur les commandes qui ont des étiquettes",V1.bt.length===2&&/Étiquettes colis \(3\)\|80/.test(V1.bt[0])&&/A4\|a4/.test(V1.bt[1]),JSON.stringify(V1.bt));
+ chk("EV-6","vendeur : impression 80 × 80 mm (3 étiquettes, un QR chacune) ou feuille A4 en grille, avec numéro, rang, destination, mentions URGENT et FRAGILE, code, expéditeur ; un seul appel d'impression par demande (jamais de page blanche)",V1.nh===2&&V1.n80===3&&V1.svg80===3&&V1.fmt80&&V1.a4===3&&V1.fmtA4&&V1.txt&&V1.num,JSON.stringify(V1));
+ chk("EV-7","cohérence : le QR imprimé par le vendeur est exactement celui que le bureau attend (AGE1|numéro|rang/total|jeton), accepté par le contrôle du bureau",V1.vus[1]===QR.replace(/\/3\|.*$/,"/3|"+T)&&B.chk&&/^AGE1\|CMD-[^|]+\|2\/3\|[A-Z0-9]{5}$/.test(QR),JSON.stringify({vu:V1.vus,bureau:QR}));
+ const V2=await pv.evaluate(()=>{D.commandes=[];D.types=undefined;PAGE="nouvelle";vue();const nb=document.querySelector('select[name=nb_colis]');const o={opts:nb?nb.options.length:0};let pris=null;const D0=D;window.api=async(f,b)=>{if(b&&b.action==="commander")pris=b;return b&&b.action==="etat"?Object.assign({ok:true},D0):{ok:true}};
+  const f=document.getElementById("fcmd");f.nom.value="K";f.zone.value="Cocody";f.querySelector(".ld").value="Vase";f.querySelector(".lp").value="5000";nb.value="4";o.libelle=/étiquette/i.test(f.innerText);f.requestSubmit();return new Promise(r=>setTimeout(()=>{o.envoye=pris&&pris.nb_colis;r(o)},400))});
+ chk("EV-8","vendeur : choix du nombre de colis (1 à 10) dans le formulaire, transmis avec la commande",V2.opts===10&&V2.envoye===4&&V2.libelle,JSON.stringify(V2));
+ const V3=await pv.evaluate(()=>{window.api=undefined;D={org:"X",nom:"A",commandes:[],demandes:[],reglements:[],zones:[]};lsSet(LS.e,[{ref:"VD-1",nom:"Koné",total:5000}]);PAGE="commandes";vue();return/étiquettes de vos colis seront à imprimer/.test(document.querySelector(".wrap").innerText)});
+ chk("EV-9","vendeur : une commande envoyée mais pas encore enregistrée par le bureau explique que les étiquettes viendront après",V3===true,JSON.stringify(V3));
+ function eq(a,c){return JSON.stringify(a)===JSON.stringify(c)}
+ console.log(errs.length?errs.join("\n"):"");console.log(`RÉSULTAT : ${ok} réussis, ${ko} échecs`);await b.close();srv.close();process.exit(ko||errs.length?1:0);
+})();
