@@ -328,6 +328,17 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
       if (!mode) return refuse(400, "Opérateur obligatoire"); if (rf.length < 4) return refuse(400, "Référence de la transaction obligatoire (4 caractères minimum)");
       Object.assign(ev, { montant, mode, ref_paiement: rf, note: txt(d.note, 100) }); ev.description = "VERSEMENT|" + montant + "|" + mode + "|" + rf;
     }
+    else if (nat === "CONTROLE") {   /* contrôle avant départ de l'engin : les points en anomalie (noms) ; le bureau ouvre un ordre de travail si besoin */
+      if (!/^stats:/.test(ref)) return refuse(409, "Contrôle impossible depuis cette mission");
+      const ko = [...new Set((Array.isArray(d.ko) ? d.ko : []).slice(0, 20).map((x) => txt(x, 60)).filter(Boolean))];
+      const km = d.km == null || d.km === "" ? null : Math.round(nombre(d.km)); if (km != null && !(km >= 0 && km <= 1e7)) return refuse(400, "Kilométrage invalide");
+      Object.assign(ev, { ko, km, note: txt(d.note, 200) }); ev.description = "CONTROLE|" + ko.length;
+    }
+    else if (nat === "PANNE") {   /* panne signalée par le livreur : « je peux encore rouler » ou « engin à l'arrêt » */
+      if (!/^stats:/.test(ref)) return refuse(409, "Signalement impossible depuis cette mission");
+      const sujet = txt(d.sujet, 80), gravite = d.gravite === "arret" ? "arret" : "roule"; if (sujet.length < 3) return refuse(400, "Décrivez la panne (3 caractères minimum)");
+      Object.assign(ev, { sujet, gravite, note: txt(d.note, 200) }); ev.description = "PANNE|" + gravite + "|" + sujet;
+    }
     else if (nat === "CLOTURE") {   /* « Terminer ma tournée » : le bureau enregistre la demande, le caissier clôture */
       if (!/^stats:/.test(ref)) return refuse(409, "Demande impossible depuis cette mission"); ev.description = "CLOTURE";
     }
