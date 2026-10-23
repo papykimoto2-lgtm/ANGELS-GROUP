@@ -273,6 +273,13 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
 
 /* Liste des livreurs actifs pour l'écran de connexion (liste déroulante). Publique par nature (appelée avant toute connexion) :
    seuls l'identifiant de connexion et le nom sont exposés, jamais téléphone, mission ni identifiant interne ; désactivable (LISTE_LIVREURS_LOGIN=0). */
+/* Liste des vendeurs partenaires actifs (identifiant de connexion + nom) pour la liste déroulante de l'écran de connexion de l'application vendeur. */
+export async function listerVendeurs(db, cfg) {
+  if (cfg && cfg.listeVendeursLogin === false) return rep(200, { ok: true, vendeurs: [] });
+  const L = (await db.vendeursActifs()) || [];
+  return rep(200, { ok: true, vendeurs: L.filter((x) => x && x.ident && x.actif !== false).slice(0, 200).map((x) => ({ ident: String(x.ident).toLowerCase(), nom: String(x.nom || "").slice(0, 80) })) });
+}
+
 export async function listerLivreurs(db, cfg) {
   if (cfg && cfg.listeLogin === false) return rep(200, { ok: true, livreurs: [] });
   const L = (await db.livreursActifs()) || [];
