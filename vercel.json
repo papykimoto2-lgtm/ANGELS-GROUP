@@ -106,11 +106,7 @@
     },
     {
       "source": "/vendeur",
-      "destination": "/distribution.html"
-    },
-    {
-      "source": "/livreur",
-      "destination": "/livreur.html"
+      "destination": "/vendeur.html"
     },
     {
       "source": "/distribution",

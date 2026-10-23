@@ -74,7 +74,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   if(m.display!=="standalone")bad.push("display");if(!/app=vendeur/.test(m.start_url))bad.push("start_url");if(!(m.icons||[]).some(i=>i.purpose==="maskable"))bad.push("maskable");
   for(const i of m.icons||[]){const r=await p.request.get(base+"/"+i.src);if(r.status()!==200)bad.push("icône "+i.src)}
   t("PWA-V1","manifeste de l'espace vendeur complet (id propre, start_url ?app=vendeur, icônes)",bad.length?bad.join(", "):true);
-  const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8"));t("PWA-V2","adresse courte /vendeur → Livraison",(vj.rewrites||[]).some(r=>r.source==="/vendeur"&&/distribution/.test(r.destination))?true:"rewrite absent");
+  const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8"));t("PWA-V2","adresse courte /vendeur → application vendeur dédiée",(vj.rewrites||[]).some(r=>r.source==="/vendeur"&&r.destination==="/vendeur.html")?true:"rewrite absent");
   const vp=await ctx.newPage();await vp.goto(base+"/distribution.html?app=vendeur");await vp.evaluate(()=>navigator.serviceWorker.ready);await vp.waitForTimeout(500);
   const info=await vp.evaluate(()=>({man:document.querySelector("link[rel=manifest]").getAttribute("href"),titre:document.title,cartes:[...document.querySelectorAll(".pcard")].map(x=>x.innerText),opts:[...document.querySelectorAll("#lf [name=u] option")].map(o=>o.textContent)}));
   t("PWA-V3","?app=vendeur : manifeste, titre dédiés",info.man==="manifest-vendeur.webmanifest"&&/vendeur/i.test(info.titre)?true:JSON.stringify(info));
