@@ -55,13 +55,19 @@ const nombre = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN
 /* ================= Espace vendeur : projection publiée par le bureau, lue par le vendeur connecté ================= */
 /* On ne garde que des champs connus, bornés : jamais de téléphone, de code ni d'adresse de client. */
 const montant = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
+/* Étiquettes des colis publiées au vendeur pour qu'il les imprime : jetons de 5 caractères, rang, destination ; rien d'autre (jamais de téléphone ni d'adresse complète) */
+function etiquettesVendeur(x) {
+  const K = (Array.isArray(x && x.colis) ? x.colis : []).slice(0, 20).filter((k) => k && Number.isInteger(k.n) && k.n >= 1 && k.n <= 20 && /^[A-Z0-9]{5}$/.test(String(k.tok || "")));
+  if (!K.length) return null;
+  return { colis: K.map((k) => ({ n: k.n, tok: String(k.tok) })), dest: txt(x.dest, 100), urgent: !!x.urgent, mention: txt(x.mention, 14), icone: txt(x.icone, 4) };
+}
 export function nettoyerEtatVendeur(e) {
   const L = (x, n) => (Array.isArray(x) ? x.slice(0, n) : []);
   return {
     nom: txt(e.nom, 80), ref: txt(e.ref, 60).replace(/[^A-Za-z0-9_-]/g, ""), tel: txt(e.tel, 20), org: txt(e.org, 80),
     stats30: { dem: montant(e.stats30 && e.stats30.dem), qr: montant(e.stats30 && e.stats30.qr), lien: montant(e.stats30 && e.stats30.lien), live: montant(e.stats30 && e.stats30.live), ok: montant(e.stats30 && e.stats30.ok) },
     solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
-    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "", tc: c && c.tc && c.tc.nom ? { icone: txt(c.tc.icone, 4), nom: txt(c.tc.nom, 40) } : null, exp: c && c.exp && c.exp.numero ? { numero: txt(c.exp.numero, 30), statut: txt(c.exp.statut, 40), transporteur: txt(c.exp.transporteur, 60), bordereau: txt(c.exp.bordereau, 40), eta: txt(c.exp.eta, 10) } : null })),
+    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "", tc: c && c.tc && c.tc.nom ? { icone: txt(c.tc.icone, 4), nom: txt(c.tc.nom, 40) } : null, etiq: etiquettesVendeur(c && c.etiq), exp: c && c.exp && c.exp.numero ? { numero: txt(c.exp.numero, 30), statut: txt(c.exp.statut, 40), transporteur: txt(c.exp.transporteur, 60), bordereau: txt(c.exp.bordereau, 40), eta: txt(c.exp.eta, 10) } : null })),
     demandes: L(e.demandes, 50).map((d) => ({ ref: txt(d && d.ref, 12), nom: txt(d && d.nom, 80), tel: txt(d && d.tel, 20), zone: txt(d && d.zone, 80), quartier: txt(d && d.quartier, 120), repere: txt(d && d.repere, 200), note: txt(d && d.note, 500), cree_le: txt(d && d.cree_le, 30), nb_photos: Math.max(0, Math.min(9, Math.round(Number(d && d.nb_photos)) || 0)),
       gps: d && d.gps && Number.isFinite(+d.gps.lat) && Number.isFinite(+d.gps.lng) ? { lat: +(+d.gps.lat).toFixed(6), lng: +(+d.gps.lng).toFixed(6) } : null,
       acompte: d && d.acompte && Number.isFinite(+d.acompte.montant) ? { montant: montant(d.acompte.montant), op: txt(d.acompte.op, 30), ref: txt(d.acompte.ref, 40) } : null,
@@ -93,8 +99,8 @@ export async function traiterVendeurEtat(db, req, userId) {
     if (tel && !/^[0-9 +().-]{6,20}$/.test(tel)) return err(400, "Téléphone invalide");
     if (await db.nbCmdsVendeurEnAttente(c.vendeur_ref) >= 40) return err(429, "Trop de commandes en attente de traitement par le bureau : patientez");
     const gps = req.gps && Number.isFinite(+req.gps.lat) && Number.isFinite(+req.gps.lng) && Math.abs(+req.gps.lat) <= 90 && Math.abs(+req.gps.lng) <= 180 ? { lat: +(+req.gps.lat).toFixed(6), lng: +(+req.gps.lng).toFixed(6) } : null;
-    const demande = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(), type_colis = txt(req.type_colis, 20).toLowerCase().replace(/[^a-z0-9_]/g, "");
-    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, type_colis: type_colis || undefined, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
+    const demande = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(), type_colis = txt(req.type_colis, 20).toLowerCase().replace(/[^a-z0-9_]/g, ""), nb_colis = Math.max(1, Math.min(20, Math.round(Number(req.nb_colis)) || 1));
+    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, type_colis: type_colis || undefined, nb_colis, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
     return rep(200, { ok: true, ref });
   }
   return err(400, "Action inconnue");
