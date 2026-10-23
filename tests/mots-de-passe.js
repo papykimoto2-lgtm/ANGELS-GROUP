@@ -82,9 +82,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const dl=await di.evaluate(async()=>{ACT.newLiv?ACT.newLiv():null;return null});
  const dc=await di.evaluate(async()=>{const forms=[];livForm(null);await new Promise(r=>setTimeout(r,200));const h=document.getElementById("modal").innerHTML;const pinField=/name="pin"/.test(h);const f=document.querySelector("#modal form");f.querySelector("[name=nom]").value="Livreur Test";f.querySelector("[name=tel]").value="0701020399";const z=f.querySelector("[name=zone]");if(z&&z.options.length)z.value=z.options[0].value;f.requestSubmit();await new Promise(r=>setTimeout(r,1800));const o=document.getElementById("aa-ov");const u=S.users.find(x=>x.nom==="Livreur Test");return{pinField,temp:o&&o.querySelector("#aa-m")&&o.querySelector("#aa-m").textContent.length,chg:u&&u.chg,pwd:!!(u&&u.pwd),legacy:u&&u.pin_h}});
  chk("MP-14","Distributions : création de livreur sans PIN, mot de passe temporaire généré",!dc.pinField&&dc.temp===14&&dc.chg===true&&dc.pwd&&dc.legacy===undefined,JSON.stringify(dc));
- const dd=await open("distribution.html");const dm=await dd.evaluate(async()=>{const u=S.users.find(x=>x.role==="vendeur");delete u.pwd;u.pin_h=ANGELS_AUTH.legacy(u.id,"5555");save();return u.id});
+ const dd=await open("distribution.html");const dm=await dd.evaluate(async()=>{const u=S.users.find(x=>x.role==="caissier");delete u.pwd;u.pin_h=ANGELS_AUTH.legacy(u.id,"5555");save();return u.id});
  await login(dd,dm,"5555","pin");const dov=await ov(dd);
- chk("MP-15","Distributions : migration d'un ancien PIN (vendeur) avec création obligatoire de mot de passe",dov&&/Créez votre mot de passe/.test(dov.t),JSON.stringify(dov));
+ chk("MP-15","Distributions : migration d'un ancien PIN (caissier) avec création obligatoire de mot de passe",dov&&/Créez votre mot de passe/.test(dov.t),JSON.stringify(dov));
  /* Hub / Paramètres */
  const hp=await open("parametres.html");
  const hubOpen=await hp.evaluate(()=>{document.querySelector('[data-um="trans"]')&&document.querySelector('[data-um="trans"]').click();return!!document.getElementById("ugate")});
