@@ -86,6 +86,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("VD-22","refuser une demande : motif demandé, transmis au serveur, la demande disparaît",rf.length===1&&rf[0].demande==="AB12CD"&&rf[0].motif==="Rupture de stock"&&await p.evaluate(()=>demandes().length===0),JSON.stringify(rf));
  const cp=await p.evaluate(()=>{PAGE="compte";vue();return document.querySelector(".wrap").textContent});
  chk("VD-23","« Mon compte » : carte « Notifications sur le téléphone » avec l'état des notifications",/Notifications sur le téléphone/.test(cp)&&/État :/.test(cp),cp.slice(0,200));
+ /* les deux applications (livreur et vendeur) s'installent côte à côte et gardent chacune leur session */
+ const ml=JSON.parse(fs.readFileSync(path.join(root,"manifest-livreur.webmanifest"),"utf8")),mv=JSON.parse(fs.readFileSync(path.join(root,"manifest-vendeur-app.webmanifest"),"utf8"));
+ const dans=(m)=>new URL(m.start_url,"https://x.test/").pathname.startsWith(new URL(m.scope,"https://x.test/").pathname);
+ const nom=(m)=>m.name+"|"+m.short_name;
+ chk("VD-24","installables côte à côte : identifiants, portées, adresses de démarrage, noms et icônes distincts ; chaque adresse de démarrage dans sa portée, sans recouvrement entre les deux portées",ml.id!==mv.id&&ml.scope!==mv.scope&&ml.start_url!==mv.start_url&&nom(ml)!==nom(mv)&&dans(ml)&&dans(mv)&&!new URL(mv.start_url,"https://x.test/").pathname.startsWith(new URL(ml.scope,"https://x.test/").pathname)&&!new URL(ml.start_url,"https://x.test/").pathname.startsWith(new URL(mv.scope,"https://x.test/").pathname)&&ml.icons[0].src!==mv.icons[0].src,JSON.stringify([ml.id,mv.id,ml.scope,mv.scope]));
+ const src=fs.readFileSync(path.join(root,"vendeur.html"),"utf8"),srcL=fs.readFileSync(path.join(root,"livreur.html"),"utf8");
+ const cle=(src.match(/storageKey:SESSION_CLE/)||[]).length,val=(src.match(/const SESSION_CLE="([^"]+)"/)||[])[1];
+ chk("VD-25","sessions séparées : l'application vendeur enregistre sa connexion sous sa propre clé, différente de celle de l'application livreur (même adresse, même stockage) : se connecter dans l'une ne déconnecte pas l'autre",cle===1&&!!val&&!/storageKey/.test(srcL)&&val!=="sb-angels-livreur-auth",String(val));
  chk("VD-7","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

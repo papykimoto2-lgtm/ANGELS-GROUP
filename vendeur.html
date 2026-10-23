@@ -70,7 +70,9 @@ const versionTxt=()=>APPV?"Version "+APPV:"";
 const enLigne=()=>navigator.onLine!==false;
 function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
 function loadSb(){return new Promise((ok,ko)=>{if(window.supabase)return ok();const sc=document.createElement("script");sc.src=SB_LIB;sc.integrity=SB_SRI;sc.crossOrigin="anonymous";sc.onload=ok;sc.onerror=()=>ko(new Error("Connexion Internet requise pour se connecter"));document.head.appendChild(sc)})}
-const client=()=>sb||(sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}}));
+/* Session propre à l'application vendeur : l'application livreur (même adresse, même stockage du navigateur) garde la sienne, les deux peuvent être installées et connectées sur le même téléphone */
+const SESSION_CLE="sb-angels-vendeur-auth";
+const client=()=>sb||(sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,storageKey:SESSION_CLE}}));
 async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession();t=data&&data.session&&data.session.access_token}catch(e){}
  if(!t){const e=new Error("Session expirée : reconnectez-vous");e.status=401;throw e}
  let r;try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)})}catch(x){const e=new Error("Réseau indisponible");e.reseau=true;throw e}
