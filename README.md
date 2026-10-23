@@ -846,6 +846,10 @@ Le CRM fusionne par téléphone les fiches de **toutes les applications présent
 ## Démonstration d'une instance (`demo.html`)
 Page à envoyer à un prospect : bouton « Lancer la démonstration » → charge des **données fictives** (12 travailleurs, 6 entreprises, 6 besoins, factures et paies ; 7 assurés, 4 compagnies, devis comparatifs, polices, sinistres, renouvellements ; CRM fusionné ; commandes de démonstration de Distribution) **sur l'appareil du visiteur seulement**, puis ouvre l'application (profil Administrateur, mot de passe de démonstration `Demo@Angels2026`). Tant que `angels_demo_local` vaut 1, la **synchronisation est coupée** : rien ne part vers Supabase. « Effacer la démonstration » remet l'appareil à vide. Les modules chargés dépendent de `ERP_MARQUE.modules`. Fichiers : `demo.html`, `demo-engine.js`. Test : `node tests/demo-logistica.js` (10).
 
+## Notices explicatives des formulaires (tests/notices-formulaires.js)
+
+Chaque formulaire du bureau (`distribution.html`) affiche en tête un encadré « ℹ️ À quoi sert ce formulaire » : à quoi il sert, qui l'utilise, ce qui se passe ensuite. Il est déplié à la première ouverture puis replié (mémorisé par appareil, la mémoire n'est pas obligatoire). Les textes sont dans la table `NOTICES` (début du titre → texte) ; `modal(titre, corps, { notice:false })` désactive la notice d'un formulaire. Les fenêtres de simple consultation n'en ont pas.
+
 ## Paiement livreur, finances et caisse (tests/finances-livreur.js)
 
 - **Droits** : paiement et reversement de livreur, validation des versements Mobile Money : administrateur et caissier ; acceptation ou rejet d'un écart d'encaissement : administrateur, superviseur et direction. Le contrôle est fait à l'ouverture de l'écran **et** à l'enregistrement, pas seulement à l'affichage des boutons.

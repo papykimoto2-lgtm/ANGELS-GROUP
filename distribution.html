@@ -87,6 +87,7 @@ label input,label select,label textarea{margin-top:3px;color:var(--tx);font-weig
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .tabs button{border:1px solid var(--bd);background:#fff;border-radius:99px;padding:6px 13px;cursor:pointer}
 .tabs button.on{background:var(--b);color:#fff;border-color:var(--b)}
+details.notice{margin:0 0 10px;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;background:var(--bbg);font-size:13px}details.notice summary{cursor:pointer;font-weight:700}details.notice .nb{margin-top:6px;line-height:1.55}
 .al{padding:8px 12px;border-radius:8px;margin-bottom:6px;background:var(--bbg)}.al.warn{background:var(--wabg)}.al.err{background:var(--erbg)}
 .bars{display:flex;gap:8px;align-items:flex-end;height:110px}
 .bars div{flex:1;text-align:center;font-size:11px;color:var(--mu)}
@@ -694,8 +695,79 @@ function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){
  const lim=Date.now()-S.config.gps_retention_jours*864e5;S.gps_hist=S.gps_hist.filter(p=>new Date(p.ts)>lim)}
 
 /* ---------- Interface : utilitaires ---------- */
-function modal(title,body,o){stopScan();o=o||{};ui.onSubmit=o.onSubmit;ui.mid=(ui.mid||0)+1;
- $("#modal").innerHTML=`<div class="ov"><div class="md ${o.wide?"wide":""}"><div class="mh"><b>${esc(title)}</b><button class="x" data-act="closeModal" type="button">✕</button></div><form id="mf" autocomplete="off"><div class="mb">${body}</div>${o.onSubmit?`<div class="mf"><button type="button" class="btn ghost" data-act="closeModal">Annuler</button><button class="btn ${o.cls||""}">${o.label||"Valider"}</button></div>`:""}</form></div></div>`;
+/* ---------- Notices explicatives des formulaires : encadré repliable en tête de chaque formulaire (ouvert à la première ouverture, replié ensuite, mémorisé par appareil) ----------
+   [début du titre (insensible à la casse et aux pictogrammes), à quoi sert le formulaire, qui l'utilise, ce qui se passe ensuite] */
+const NOTICES=[
+ ["Nouvelle commande à livrer", "Enregistrer une commande client à livrer : client, adresse, articles, paiement.", "", "Elle reste en brouillon jusqu'à sa confirmation ; les frais suivent la zone ; le stock sort quand la commande est préparée."],
+ ["Nouvelle expédition", "Préparer l'envoi de colis hors livraison locale : client, transfert entre sites ou transporteur externe.", "Administrateur, superviseur, commercial, préparateur.", "Ajoutez les colis, déclarez le dossier prêt, puis confirmez le départ. La commande liée suit le dossier."],
+ ["Départ —", "Confirmer le départ réel de l'expédition (date, transporteur, bordereau).", "Administrateur, superviseur, préparateur.", "Le stock est vérifié puis sort ; la commande liée passe « en cours de livraison » ; le client est prévenu."],
+ ["Réception —", "Enregistrer la remise de l'expédition au destinataire.", "Administrateur, superviseur, préparateur.", "Nom du réceptionnaire obligatoire (signature conseillée) ; décrivez les différences si la livraison est partielle. Un montant encaissé peut être saisi : il est rattaché aux commandes du dossier, sans dépasser le solde dû. La commande passe « livrée »."],
+ ["Retour réceptionné —", "Constater le retour d'une expédition et décider du sort de la marchandise.", "Administrateur, superviseur, préparateur.", "« Remise en stock » restitue la marchandise ; le retour est tracé et la commande passe « retour réceptionné »."],
+ ["Réceptionner le retour", "Constater le retour d'une livraison échouée : quantités revenues, état, décision.", "", "« Remise en stock » restitue la marchandise ; le retour est tracé."],
+ ["Transport et frais —", "Compléter ou corriger le transporteur, le bordereau, les dates et les frais du dossier.", "Administrateur, superviseur, préparateur.", "Chaque modification est tracée dans l'historique du dossier."],
+ ["Ajouter un colis —", "Décrire un colis du dossier : contenu, poids, volume.", "Administrateur, superviseur, préparateur.", "Le colis figure sur le bordereau d'expédition. Au moins un colis est nécessaire avant « prête »."],
+ ["Paiement —", "Payer à un livreur sa commission ou lui accorder une avance.", "Administrateur et caissier.", "Une commission ne dépasse pas le reste dû ; une avance exige une justification et reste dans la limite fixée dans Paramètres. Les espèces sortent de la caisse ouverte ; en Mobile Money, la référence est obligatoire et unique."],
+ ["Reversement —", "Enregistrer l'argent que le livreur rend au bureau, après comptage.", "Administrateur et caissier.", "Le montant ne dépasse pas ce qu'il doit. Les espèces entrent en caisse ; en Mobile Money, la référence de la transaction est obligatoire."],
+ ["Versement par Mobile Money", "Déclarer un transfert d'argent au bureau depuis votre téléphone.", "Livreur.", "Le caissier vérifie le SMS de confirmation puis valide ou rejette. Une fois validé, votre solde à reverser diminue."],
+ ["Clôture de tournée —", "Arrêter les comptes de fin de journée avec le livreur : montant remis comparé au montant dû.", "", "Un écart demande un motif. Le reversement est enregistré et la tournée reçoit un numéro de clôture."],
+ ["Confirmer la livraison —", "Valider la remise au client.", "Livreur.", "Il faut le code à 4 chiffres du client, le montant encaissé et le mode de paiement ; colis à scanner et signature selon les réglages. Un écart sur le montant doit être expliqué."],
+ ["Livraison impossible", "Signaler qu'une livraison n'a pas pu avoir lieu (motif et observation).", "Livreur.", "La commande passe « échouée » et le superviseur est informé : nouvelle tentative, retour ou annulation."],
+ ["Prise en charge —", "Contrôler les colis avant de partir en livraison.", "Livreur.", "Scannez l'étiquette de chaque colis (ou saisissez son code). Tant qu'il en manque un, la prise en charge est refusée."],
+ ["Dépense de mission", "Enregistrer une dépense autorisée avancée par un livreur (stationnement, péage, carburant sur justificatif).", "", "La dépense est tracée et passée en charge dans la comptabilité automatique."],
+ ["Payer les bonus —", "Payer au livreur les bonus gagnés (zones chaudes et quêtes).", "", "Le montant ne peut pas dépasser le bonus restant dû."],
+ ["Correction exceptionnelle —", "Forcer le statut d'une commande en cas d'erreur de saisie.", "Administrateur uniquement.", "Le stock et les fonds ne sont pas recalculés. L'opération et sa justification sont inscrites au journal d'audit."],
+ ["Règlement groupé", "Régler plusieurs vendeurs partenaires en une seule opération.", "", "Chaque vendeur reçoit ce qui lui est dû, avec le mode et la note saisis."],
+ ["Règlement —", "Verser à un vendeur partenaire ce qui lui est dû.", "", "Montant au plus égal au restant dû (commandes livrées et encaissées, commission déduite)."],
+ ["Encaisser la facture", "Enregistrer le paiement d'une facture d'abonnement.", "", "Pour un paiement Mobile Money ou par virement, indiquez la référence de la transaction."],
+ ["Avoir sur la facture", "Corriger ou annuler en partie une facture en émettant un avoir.", "", "Montant limité au reste de la facture, motif obligatoire. La facture d'origine n'est pas supprimée."],
+ ["Ouverture de caisse", "Démarrer la session de la caisse avec le fond de départ compté.", "", "Sans session ouverte, aucun mouvement en espèces ne peut être enregistré en caisse."],
+ ["Clôture de caisse", "Compter les espèces et arrêter la session de caisse.", "", "Comptez d'abord ; le solde théorique s'affiche ensuite si le comptage à l'aveugle est activé. Un écart demande une explication."],
+ ["Remise de fonds", "Sortir de l'argent de la caisse vers la banque ou la direction.", "", "Pièce justificative obligatoire ; le mouvement est tracé et réduit le solde de la caisse."],
+ ["Nouvelle caisse", "Créer une caisse (principale ou petite caisse).", "", "Elle devra être ouverte avant d'enregistrer des mouvements."],
+ ["Entrée de stock", "Enregistrer une marchandise reçue : produit, quantité, coût d'achat, référence de réception.", "", "Le stock augmente et le mouvement est tracé au journal des mouvements."],
+ ["Ajuster le stock", "Corriger le stock d'un produit après comptage.", "", "Justification obligatoire ; l'écart est tracé au journal des mouvements."],
+ ["Ouvrir un inventaire", "Relever le stock théorique de tous les produits actifs pour les compter.", "", "Un seul inventaire peut être ouvert à la fois. Les écarts sont appliqués à la validation."],
+ ["Valider l'inventaire", "Appliquer au stock les écarts constatés au comptage.", "", "Le stock réel est corrigé et chaque écart est tracé au journal des mouvements."],
+ ["Créer une tournée", "Regrouper plusieurs commandes prêtes pour un même livreur.", "", "Le livreur reçoit l'ensemble des missions de la tournée."],
+ ["Planifier la collecte", "Organiser le passage d'un livreur chez un vendeur pour récupérer les colis.", "", "Le vendeur voit un code à 4 chiffres dans son espace : il ne le remet au livreur que contre les colis."],
+ ["Réaffecter la collecte", "Changer le livreur ou le créneau d'une collecte.", "", "La collecte passe au nouveau livreur, sur le nouveau créneau."],
+ ["Réceptionner la collecte", "Compter les colis déposés au dépôt après une collecte chez un vendeur.", "", "Les commandes complètes passent en préparation ; un écart est signalé."],
+ ["Colis collectés —", "Valider la collecte chez le vendeur.", "Livreur.", "Saisissez le code remis par le vendeur et le nombre de colis pris pour chaque commande. Le nombre d'essais est limité."],
+ ["Clé de relève —", "Donner à un vendeur sa clé d'accès à ses demandes clients.", "", "La clé n'est affichée qu'une fois ; en créer une autre annule la précédente. Inutile si le vendeur a un compte dans son application."],
+ ["Ajouter un livreur —", "Réserver un livreur sur un créneau du planning.", "", "Le livreur retrouve son créneau dans son application."],
+ ["Régler le planning", "Définir les créneaux réservables par les livreurs.", "", "Les livreurs réservent ensuite leurs créneaux."],
+ ["Nouvel utilisateur", "Créer un accès au bureau pour un membre de l'équipe.", "", "Un mot de passe temporaire est généré et montré une seule fois ; la personne le change à sa première connexion. Les livreurs et les vendeurs ont leurs propres applications."],
+ ["Réinitialiser le mot de passe —", "Donner un nouveau mot de passe temporaire à un utilisateur qui l'a perdu.", "", "Il est montré une seule fois et l'utilisateur devra le changer à sa prochaine connexion."],
+ ["Accès de l'application livreur —", "Créer ou réinitialiser le compte du livreur dans son application.", "", "L'identifiant et un mot de passe temporaire sont montrés une seule fois ; le livreur le change à sa première connexion."],
+ ["Accès de l'application vendeur —", "Créer ou réinitialiser le compte du vendeur dans son application.", "", "L'identifiant et un mot de passe temporaire sont montrés une seule fois. Un vendeur avec compte reçoit ses demandes clients dans son application."],
+ ["Dossier d'identité —", "Compléter le dossier du livreur : pièces, garant, caution, échéances.", "Administrateur et superviseur (données personnelles sensibles).", "Une échéance proche (moins de 30 jours) est signalée ; un dossier incomplet peut bloquer l'affectation si l'option est activée."],
+ ["Entretien —", "Enregistrer une intervention sur une moto : type, date, kilométrage, coût.", "", "Elle alimente le suivi d'entretien de la moto."],
+ ["Nouvel abonnement professionnel", "Abonner un client ou un vendeur partenaire à un forfait.", "", "Les factures sont émises à chaque cycle ; l'encaissement se fait depuis la facture."],
+ ["Nouvelle adresse —", "Ajouter une adresse de livraison à la fiche d'un client.", "", "Elle est proposée à la prochaine commande de ce client."],
+ ["Identifier le client", "Rattacher une fiche de passage à un vrai client.", "", "Si le téléphone existe déjà, la fiche est rapprochée du client connu."],
+ ["Paiement déjà fait chez le vendeur", "Déclarer que le client dit avoir déjà payé les articles au vendeur partenaire.", "", "Ne remettez pas le colis avant la réponse : le centre appelle le vendeur et confirme ou non le paiement."],
+ ["Le client dit avoir déjà payé le vendeur", "Déclarer que le client dit avoir déjà payé les articles au vendeur partenaire.", "", "Ne remettez pas le colis avant la réponse : le centre appelle le vendeur et confirme ou non le paiement."],
+ ["Le vendeur confirme", "Confirmer, après appel au vendeur, le paiement déjà fait par le client.", "", "Le nom de la personne jointe est obligatoire ; le montant confirmé est enregistré comme déjà payé."],
+ ["Le vendeur dément", "Enregistrer que le vendeur n'a reçu aucun paiement.", "", "Le client paie normalement à la remise ; la décision est tracée."],
+ ["Écriture manuelle", "Passer une écriture comptable que l'automatisme ne fait pas.", "", "L'écriture doit être équilibrée (débit = crédit) avec des comptes existants."],
+ ["Budget mensuel", "Fixer un plafond mensuel pour un compte de charge (classe 6).", "", "Le réalisé du mois est comparé à ce plafond."],
+ ["Clôture de période", "Verrouiller la comptabilité jusqu'à une date.", "", "Les écritures de la période ne pourront plus être modifiées : vérifiez les balances avant."],
+ ["Réglages comptables", "Définir la TVA et la tenue des stocks utilisées par la comptabilité automatique.", "", "Les écritures automatiques suivent ces réglages."],
+ ["Importer des commandes (CSV)", "Créer plusieurs commandes à partir d'un fichier CSV.", "", "Un rapport d'import indique les lignes acceptées et celles refusées avec la raison."],
+ ["Import du relevé (CSV)", "Charger les lignes d'un relevé bancaire depuis un fichier CSV.", "", "Un rapport d'import indique les lignes retenues ; elles servent ensuite au pointage."],
+ ["Importer des mouvements de caisse (CSV)", "Charger des mouvements de caisse depuis un fichier CSV.", "", "Un rapport signale les lignes refusées."],
+ ["Importer le plan comptable (CSV)", "Charger ou compléter le plan comptable depuis un fichier CSV.", "", "Un rapport d'import indique les comptes ajoutés et les lignes refusées."]
+];
+const NOTICE_CLE="ang_notices_vus";
+const noticeDe=t=>{const k=String(t||"").replace(/^[^\p{L}\p{N}]+/u,"").trim().toLowerCase();return NOTICES.find(n=>k.startsWith(n[0].toLowerCase()))||null};
+function noticeHtml(titre){
+ const n=noticeDe(titre);if(!n)return"";
+ let vus=[];try{vus=JSON.parse(localStorage.getItem(NOTICE_CLE)||"[]")}catch(e){}
+ const nouveau=!vus.includes(n[0]);
+ if(nouveau){try{localStorage.setItem(NOTICE_CLE,JSON.stringify(vus.concat(n[0]).slice(-200)))}catch(e){}}
+ return`<details class="notice" ${nouveau?"open":""}><summary>ℹ️ À quoi sert ce formulaire</summary><div class="nb"><b>Sert à</b> : ${esc(n[1])}${n[2]?`<br><b>Qui</b> : ${esc(n[2])}`:""}${n[3]?`<br><b>Ensuite</b> : ${esc(n[3])}`:""}</div></details>`}
+function modal(title,body,o){stopScan();o=o||{};ui.onSubmit=o.onSubmit;ui.mid=(ui.mid||0)+1;const nt=o.onSubmit&&o.notice!==false?noticeHtml(title):"";
+ $("#modal").innerHTML=`<div class="ov"><div class="md ${o.wide?"wide":""}"><div class="mh"><b>${esc(title)}</b><button class="x" data-act="closeModal" type="button">✕</button></div><form id="mf" autocomplete="off"><div class="mb">${nt}${body}</div>${o.onSubmit?`<div class="mf"><button type="button" class="btn ghost" data-act="closeModal">Annuler</button><button class="btn ${o.cls||""}">${o.label||"Valider"}</button></div>`:""}</form></div></div>`;
  const f=$("#mf input:not([type=hidden]),#mf select");if(f&&o.focus!==false)f.focus()}
 const closeModal=()=>{stopScan();$("#modal").innerHTML="";ui.onSubmit=null};
 function ask(title,label,cb,opts){opts=opts||{};modal(title,`<label>${label}<textarea name="v" rows="2" required></textarea></label>`,{label:opts.label||"Confirmer",cls:opts.cls||"",onSubmit:d=>{if(!String(d.v).trim()){toast("Champ obligatoire","err");return false}return cb(d.v.trim())}})}
