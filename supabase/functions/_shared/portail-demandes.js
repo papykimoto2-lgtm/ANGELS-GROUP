@@ -10,8 +10,11 @@ export { CORS } from "./pont.js";
 
 const rep = (status, body) => ({ status, body });
 const err = (status, message) => rep(status, { ok: false, erreur: message });
-const MARQ = /\[(BOUTIQUE|LIVRAISON|ABONNEMENT):([A-Za-z0-9_-]{8,5000})\]/g;
+const MARQ = /\[(BOUTIQUE|LIVRAISON|ABONNEMENT|RESERVATION):([A-Za-z0-9_-]{8,5000})\]/g;
 const TAILLE_MAX = 6000, PAR_MESSAGE_MAX = 3;
+/* Le bureau Distributions relève les trois types historiques ; les réservations de chauffeur sont relevées par Transport (types: ["RESERVATION"]) : chacun ne voit, donc n'acquitte, que ses demandes. */
+const TYPES_HERITES = ["BOUTIQUE", "LIVRAISON", "ABONNEMENT"], TYPES_TOUS = TYPES_HERITES.concat("RESERVATION");
+const typesDemandes = (t) => { const L = Array.isArray(t) ? t.filter((x) => TYPES_TOUS.includes(x)) : []; return L.length ? L : TYPES_HERITES; };
 const CAPTURE = /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/, CAPTURES_MAX = 5, CAPTURE_TAILLE = 150000, CAPTURES_TOTAL = 600000;
 /* Captures d'écran du client (JPEG compressés par le portail) : bornées en nombre, en taille unitaire et en volume total */
 function lireCaptures(req) {
@@ -125,7 +128,7 @@ async function publierLive(db, v, req) {
 export async function traiterBureau(db, cfg, req, adminKey) {
   if (!cfg.adminKey || !egal(adminKey, cfg.adminKey)) return err(401, "Clé d'administration invalide");
   const a = String(req.action || "");
-  if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteListe(100) });
+  if (a === "lister") return rep(200, { ok: true, demandes: await db.enAttenteListe(100, typesDemandes(req.types)) });
   if (a === "photos") return rep(200, { ok: true, photos: await db.photosDe(refDemande(req.ref), null) });
   if (a === "publier") return publierCatalogue(db, req);
   if (a === "cle_vendeur") return cleVendeur(db, req);
