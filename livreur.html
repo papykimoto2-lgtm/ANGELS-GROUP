@@ -189,7 +189,10 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  ${act&&p.msg_possible!==false&&["acceptee","en_cours"].includes(m.statut)?`<button class="btn ghost" data-a="msgc" data-r="${esc(m.livraison_ref)}">💬 Message au client</button>${msgsCarte(m)}`:""}
  ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
 let STATS=null,SP="s7";
-const recevoir=a=>{a=a||[];STATS=a.find(m=>m.statut==="stats")||null;return a.filter(m=>m.statut!=="stats")};
+/* Pseudo-missions : « stats:… » (chiffres du livreur) et « col:… » (collectes chez les vendeurs) ne sont pas des livraisons */
+let COLS=[];
+const estCol=m=>/^col:/.test(m.livraison_ref||"");
+const recevoir=a=>{a=a||[];STATS=a.find(m=>m.statut==="stats")||null;COLS=a.filter(estCol);return a.filter(m=>m.statut!=="stats"&&!estCol(m))};
 /* ---------- Menu (☰) : commandes en cours + meilleur itinéraire, traitées récemment, GPS et compte ---------- */
 let PAGE="cours",MENU=false,GPSST="",ITIN={sel:null,res:null,busy:false};
 const gpsOn=()=>lsGet(LS.g,{on:true}).on!==false;
@@ -337,7 +340,7 @@ function gainsHtml(){const P=PL(),X=P.p,A=P.argent,Q=P.prime,M=P.moto,R=P.regles
  ${boostBandeau()}${bonusHtml()}
  ${A?`<div class="card"><b>💰 Argent à reverser au bureau</b><div style="font-size:26px;font-weight:800;margin:4px 0;color:${A.solde>0?"var(--er)":"var(--ok)"}">${fcfa(A.solde)}</div>
   <div class="sm">📦 Montant collecté (produits) : <b>${fcfa(A.produits)}</b><br>🛵 Frais de livraison collectés : <b>${fcfa(A.frais)}</b>${A.gardes?`<br>➖ Frais gardés par vous : <b>${fcfa(A.gardes)}</b>`:""}${A.rev?`<br>➖ Déjà reversé : <b>${fcfa(A.rev)}</b>`:""}${A.attente?`<br>⏳ ${fcfa(A.attente)} déclaré, en validation par la caisse`:""}</div>
-  ${A.solde>0?`<div class="sm mu" style="margin-top:6px">Remettez les espèces au caissier, ou envoyez par Mobile Money${(A.comptes||[]).length?" à : "+A.comptes.map(esc).join(" · "):""} puis prévenez le bureau avec la référence de la transaction.</div>`:""}</div>`:""}
+  ${A.solde-(A.attente||0)>0?`<div class="sm mu" style="margin-top:6px">Remettez les espèces au caissier, ou envoyez par Mobile Money${(A.comptes||[]).length?" à : "+A.comptes.map(esc).join(" · "):""} puis déclarez-le avec la référence de la transaction.</div><button class="btn" data-a="verser">📲 J'ai envoyé par Mobile Money</button>`:""}${versementsHtml(A)}</div>`:""}
  ${Q&&Q.actif?`<div class="card"><b>🏆 Ma prime — ${esc(Q.periode)}</b>
   <div class="between" style="margin-top:6px"><span style="font-size:26px;font-weight:800">${Q.score}<small style="font-size:14px"> / 100</small></span><span>${Q.palier?`<span class="bd" style="background:#e8f7ee;color:#118a4b">${esc(Q.palier)} · ${fcfa(Q.montant)}</span>`:'<span class="bd">Pas encore de palier</span>'}</span></div>${barre(Q.score/100)}
   ${Q.suivant?`<div class="sm">Prochain palier <b>${esc(Q.suivant.nom)}</b> (${fcfa(Q.suivant.montant)}) : encore <b>${Q.suivant.manque}</b> point(s).</div>`:'<div class="sm" style="color:#118a4b">Palier maximum atteint 🎉</div>'}
@@ -354,6 +357,7 @@ function statsHtml(){const P=((STATS||{}).payload||{}).p,j7=((STATS||{}).payload
  const mx=Math.max(1,...j7.map(d=>d.n));
  return`<h2 class="pg">Mes statistiques</h2>${chips}
  <div class="kp"><div><b>${X.livrees}</b><span>livraisons</span></div><div><b style="color:${X.echecs?"var(--er)":"inherit"}">${X.echecs}</b><span>échecs</span></div><div><b>${X.livrees+X.echecs?X.taux.toFixed(0)+" %":"—"}</b><span>réussite</span></div><div><b>${minTxt(X.duree)}</b><span>durée moyenne</span></div><div><b>${X.livrees?X.delais.toFixed(0)+" %":"—"}</b><span>dans les délais</span></div><div><b>${X.nnotes?X.note.toFixed(1)+" ★":"—"}</b><span>note des clients</span></div><div><b>${fcfa(X.encaisse)}</b><span>encaissé</span></div><div><b>${fcfa(X.gains)}</b><span>mes gains (commissions)</span></div></div>
+ ${avisCarte()}
  <div class="card"><b>Activité</b><div class="sm mu">${X.jours} jour(s) travaillé(s)${X.moy?" · "+X.moy.toFixed(1)+" livraison(s) par jour":""}${X.best?" · meilleur jour : "+new Date(X.best[0]+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" ("+X.best[1]+")":""}</div></div>
  ${X.motifs.length?`<div class="card"><b>Échecs : motifs fréquents</b>${X.motifs.map(m=>`<div class="between sm" style="margin-top:4px"><span>${esc(m[0])}</span><b>${m[1]}</b></div>`).join("")}</div>`:""}
  ${X.zones.length?`<div class="card"><b>Zones les plus livrées</b>${X.zones.map(m=>`<div class="between sm" style="margin-top:4px"><span>${esc(m[0])}</span><b>${m[1]}</b></div>`).join("")}</div>`:""}
@@ -407,6 +411,7 @@ function enteteLivreur(L,act){
  const tu=(v,l)=>`<div style="text-align:center"><div style="font-size:22px;font-weight:800;line-height:1.1">${v}</div><div style="font-size:12px;opacity:.8">${l}</div></div>`;
  return`<div class="card" style="background:#0b3c4f;color:#fff;border:0"><div class="between"><b>${stat}</b><span class="sm" style="opacity:.8">${enLigne()?"":"📡 hors ligne"}</span></div>
  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px">${tu(act.length,"à faire")}${tu(fait.length,"livrées aujourd'hui")}${tu(A?fcfa(A.solde):"—","à reverser")}</div></div>
+ ${cloturePanel()}
  <div class="card"><b>🏁 Ma tournée</b><div class="sm" style="margin-top:4px">${fait.length} course(s) livrée(s) aujourd'hui · montants des livraisons du jour : <b>${fcfa(coll)}</b><br>À remettre au caissier : <b>${A?fcfa(A.solde):"—"}</b>${A&&A.attente?` · ${fcfa(A.attente)} en validation par la caisse`:""}</div>
  <div class="sm mu" style="margin-top:4px">${act.length?act.length+" course(s) restante(s)"+(nonEnc?" dont "+nonEnc+" en cours":"")+" : terminez-les pour clôturer votre tournée.":A&&A.solde>0?"Tournée terminée : remettez l'argent au caissier ou déclarez le versement (Mes gains).":"Tournée terminée."}</div></div>`}
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
@@ -418,7 +423,7 @@ function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.fil
   :PAGE==="gains"?gainsHtml()
   :PAGE==="plan"?planHtml()
   :PAGE==="chat"?chatHtml()
-  :`<h2 class="pg">Commandes en cours</h2>${enteteLivreur(L,act)}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${itinCard()}${(setTimeout(itinAuto,0),"")}${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}`;
+  :`<h2 class="pg">Commandes en cours</h2>${enteteLivreur(L,act)}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${colsHtml()}${itinCard()}${(setTimeout(itinAuto,0),"")}${act.length?act.map(carte).join(""):'<div class="card mu">Aucune mission pour le moment. Les nouvelles missions apparaissent ici automatiquement.</div>'}`;
  $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml(act.length,fin.length):""}<div class="wrap">${PAGE==="reglages"?"":'<div class="inst"></div>'}${alertes}${corps}</div><button type="button" class="sosb" data-a="sos" aria-label="Alerte SOS">🆘<small>SOS</small></button>`}
 document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.it!=null){ITIN.sel=ITIN.sel||new Set();if(t.checked){if(ITIN.sel.size>=10){t.checked=false;return toast("10 commandes au plus par itinéraire","err")}ITIN.sel.add(t.dataset.it)}else ITIN.sel.delete(t.dataset.it);ITIN.res=null}
  else if(t.dataset&&t.dataset.gp!=null){lsSet(LS.g,{on:t.checked});if(!t.checked&&watch!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watch);watch=null}else suivi();toast(t.checked?"Partage de la position activé pendant les courses":"Partage de la position coupé","ok")}});
@@ -435,6 +440,50 @@ async function vider(){if(vidage||!sb||!enLigne()||!file().length)return;vidage=
   catch(x){if(x.reseau||x.status===401)break;lsSet(LS.f,file().slice(1));if(f.type!=="position"){const R=rejets();R.push({id:f.id,msg:f.type+" — "+f.cmd+" : "+x.message});lsSet(LS.r,R.slice(-20))}}}}
  finally{vidage=false}
  if(n)toast(n+" action(s) envoyée(s)","ok");await charger()}
+/* ---------- Collectes chez les vendeurs, versement, clôture de tournée, avis (actions envoyées au bureau par le serveur) ---------- */
+const dtc=t=>{try{return new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
+const COLS_ACTIVES=["col_planifiee","col_acceptee","col_en_route"];
+function carteCollecte(m){const p=m.payload||{},a=p.adresse||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
+ if(m.statut==="col_planifiee")b=`<div style="display:flex;gap:6px"><button class="btn ok" style="margin:8px 0 0" data-a="colacc" data-r="${esc(m.livraison_ref)}">✔ Accepter</button><button class="btn er" style="margin:8px 0 0" data-a="colref" data-r="${esc(m.livraison_ref)}">✖ Impossible</button></div>`;
+ else if(m.statut==="col_acceptee")b=`<button class="btn" data-a="colgo" data-r="${esc(m.livraison_ref)}">🏍️ Je pars chez le vendeur</button><button class="btn er" data-a="colref" data-r="${esc(m.livraison_ref)}">✖ Impossible</button>`;
+ else if(m.statut==="col_en_route")b=`<button class="btn ok" data-a="colcollect" data-r="${esc(m.livraison_ref)}">📦 Colis collectés</button><button class="btn wa" data-a="colref" data-r="${esc(m.livraison_ref)}">Vendeur absent / impossible</button>`;
+ const L={col_planifiee:"À accepter",col_acceptee:"Acceptée",col_en_route:"En route"}[m.statut]||"";
+ return`<div class="card" style="border-left:4px solid #b86e00"><div class="between"><b>🧺 Collecte ${esc(p.numero||m.commande_ref)}</b><span class="bd">${esc(L)}</span></div>
+ <div style="margin-top:4px"><b>${esc(p.vendeur_nom||"Vendeur")}</b>${p.vendeur_tel?` · <a href="tel:${esc(String(p.vendeur_tel).replace(/[^0-9+]/g,""))}">📞 ${esc(p.vendeur_tel)}</a>`:""}</div>
+ <div class="sm mu">📍 ${esc([a.quartier,a.zone].filter(Boolean).join(", "))}${a.repere?" · "+esc(a.repere):""}${p.creneau?" · 🕒 "+esc(dtc(p.creneau)):""}</div>
+ ${p.note?`<div class="sm" style="margin-top:4px">💬 ${esc(p.note)}</div>`:""}
+ <ul class="sm" style="margin:6px 0 0;padding-left:18px">${(p.lignes||[]).map(l=>`<li><b>${esc(l.numero)}</b> — ${esc(l.resume||"")}</li>`).join("")}</ul>
+ <a class="btn ghost" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=two-wheeler">🗺 Itinéraire</a>${b}</div>`}
+const colsHtml=()=>{const L=COLS.filter(m=>COLS_ACTIVES.includes(m.statut));return L.length?`<h2 class="pg">Collectes chez les vendeurs (${L.length})</h2>`+L.map(carteCollecte).join(""):""};
+const colSend=(r,act,x,ok)=>envoyer(r,"incident",Object.assign({nature:"COLLECTE",action:act},x||{}),ok);
+function colRefuser(r){formModal("Collecte impossible",`<label>Motif<select name="m"><option>Vendeur absent</option><option>Colis non prêts</option><option>Adresse introuvable</option><option>Panne ou problème moto</option><option>Autre</option></select></label><label>Précision (facultatif)<input name="n" maxlength="120"></label>`,"Envoyer",async d=>{const m=d.m+(d.n&&d.n.trim()?" — "+d.n.trim():"");await colSend(r,"refuser",{motif:m},"Collecte signalée impossible")})}
+function colCollecter(r){const m=COLS.find(x=>x.livraison_ref===r),L=((m||{}).payload||{}).lignes||[];if(!m)return;
+ formModal("Colis collectés — "+esc(((m.payload||{}).numero)||""),`<div class="pill">Chez <b>${esc((m.payload||{}).vendeur_nom||"")}</b></div><label>Code remis par le vendeur<input name="code" inputmode="numeric" maxlength="4" required autocomplete="off" style="font-size:22px;letter-spacing:6px;text-align:center"></label>
+ <div class="sec" style="margin-top:10px;font-weight:700">Colis pris, commande par commande</div>${L.map(l=>`<label>${esc(l.numero)} <span class="mu sm">${esc(l.resume||"")}</span><input class="cnt" type="number" min="0" max="99" name="k_${esc(l.commande_id)}" value="1" style="width:100px"></label>`).join("")}
+ <div class="sm mu">Vérifiez les articles avec le vendeur. 0 colis = commande non remise (elle reste en attente).</div>`,"Valider la collecte",async d=>{
+  if(!/^\d{4}$/.test(String(d.code||"").trim()))return toast("Saisissez le code à 4 chiffres du vendeur","err");
+  const colis={};L.forEach(l=>{colis[l.commande_id]=Math.max(0,Math.min(99,Math.floor(+d["k_"+l.commande_id])||0))});
+  if(!Object.values(colis).some(n=>n>0))return toast("Indiquez le nombre de colis pris pour au moins une commande","err");
+  await colSend(r,"collecter",{code:String(d.code).trim(),colis},"Colis collectés — direction le dépôt")})}
+function versementForm(){const P=PL(),A=P.argent;if(!A)return;const max=Math.max(0,A.solde-(A.attente||0));if(max<=0)return toast("Rien à reverser (ou déjà déclaré)","err");
+ const modes=(A.modes||[]);
+ formModal("Versement par Mobile Money",`<div class="pill">Restant à reverser : <b>${fcfa(max)}</b></div>${(A.comptes||[]).length?`<div class="sm">Comptes : ${A.comptes.map(esc).join(" · ")}</div>`:""}<label>Montant envoyé (F)<input type="number" name="m" min="1" max="${max}" required value="${max}" inputmode="numeric"></label>
+ <label>Opérateur${modes.length?`<select name="mode">${modes.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:`<input name="mode" required maxlength="40" placeholder="Wave, Orange Money, MTN…">`}</label>
+ <label>Référence de la transaction (SMS de confirmation)<input name="ref" required autocomplete="off" maxlength="60" placeholder="ex. MP261012.1234.A56789"></label><label>Note (facultatif)<input name="note" maxlength="100"></label>
+ <div class="sm mu">La caisse vérifie la réception avant de valider : tant que ce n'est pas validé, le montant reste à votre charge.</div>`,"Déclarer le versement",async d=>{
+  const m=Math.round(+d.m),ref=String(d.ref||"").trim().toUpperCase();
+  if(!(m>0)||m>max)return toast("Montant invalide (maximum "+fcfa(max)+")","err");if(ref.replace(/[^A-Z0-9]/g,"").length<4)return toast("Référence de la transaction obligatoire","err");if(!String(d.mode||"").trim())return toast("Choisissez l'opérateur","err");
+  await envoyer(refSos(),"incident",{nature:"VERSEMENT",montant:m,mode:String(d.mode).trim(),ref,note:String(d.note||"").trim()},"Versement déclaré : la caisse va le valider")})}
+function versementsHtml(A){const V=(A&&A.versements)||[];return V.length?`<div class="sm" style="margin-top:8px">${V.map(v=>`<div>${esc(dtc(v.ts))} · ${fcfa(v.montant)} · ${esc(v.mode)} ${esc(v.ref)} — ${v.statut==="declare"?'<span class="bd" style="background:#fff1d6;color:#7a4a00">⏳ En validation</span>':v.statut==="valide"?'<span class="bd" style="background:#e8f7ee;color:#118a4b">✅ Encaissé</span>':'<span class="bd" style="background:#fde5e5;color:var(--er)">✖ Rejeté</span>'}${v.motif?` <span class="mu">${esc(v.motif)}</span>`:""}</div>`).join("")}</div>`:""}
+function cloturePanel(){const A=PL().argent,C=A&&A.cloture;if(!C)return"";const dem=C.demande,restant=Math.max(0,(C.du||0)-(C.attente||0));
+ const der=C.derniere?`<div class="sm" style="margin-top:6px">Dernière clôture le ${esc(dtc(C.derniere.le))} : remis <b>${fcfa(C.derniere.remis)}</b>${C.derniere.ecart>0?` · <span style="color:var(--er)">écart ${fcfa(C.derniere.ecart)}</span> ${esc(C.derniere.motif||"")}`:" · sans écart"}</div>`:"";
+ if(!C.nb&&C.du<=0&&!dem)return der?`<div class="card"><b>🏁 Clôture de tournée</b>${der}</div>`:"";
+ return`<div class="card"><b>🏁 Clôture de tournée</b><div class="sm" style="margin-top:4px">${C.nb} course(s) livrée(s) depuis ${C.derniere?"la dernière clôture":"le début"} · collecté <b>${fcfa(C.collecte)}</b>${C.gardes?` · frais gardés ${fcfa(C.gardes)}`:""}${C.direct?` · payé direct ${fcfa(C.direct)}`:""}</div><div class="sm">À remettre au caissier : <b>${fcfa(restant)}</b></div>
+ ${dem?`<div class="al">⏳ Clôture demandée à ${esc(dtc(dem))} : présentez-vous au caissier avec l'argent.</div>`:C.actives?`<div class="sm mu">${C.actives} course(s) en cours : terminez-les pour clôturer.</div>`:`<button class="btn" data-a="cloturer">🏁 Terminer ma tournée</button>`}${der}</div>`}
+function avisCarte(){const V=PL().avis;if(!V)return"";if(!V.n)return`<div class="card"><b>⭐ Avis des clients</b><div class="sm mu">Pas encore d'avis.</div></div>`;
+ const etoiles=Math.round(V.m),ch=n=>"★".repeat(n)+"☆".repeat(5-n);
+ return`<div class="card"><b>⭐ Avis des clients</b><div class="between" style="margin-top:6px"><span style="font-size:26px;font-weight:800">${V.m.toFixed(1)}<small style="font-size:14px"> / 5</small></span><span style="color:#d79b00;font-size:20px">${ch(etoiles)}</span></div><div class="sm mu">${V.n} avis de clients</div>
+ ${(V.derniers||[]).filter(x=>x.commentaire).map(x=>`<div class="pill sm"><span style="color:#d79b00">${ch(Math.round(x.note))}</span> ${esc(x.commentaire)}</div>`).join("")}</div>`}
 const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse introuvable","Client absent"]).map(x=>`<option>${esc(x)}</option>`).join("");
 const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
 /* ---------- Preuves de livraison : scan des colis, signature (livreur ou client sur son téléphone), photo, position ---------- */
@@ -501,6 +550,9 @@ async function preuveCollecter(r,p,o){const pv=pvDe(r),cv=o.querySelector("#sg")
  const sig=!pv.cli&&cv&&cv._any?cv.toDataURL("image/png"):"";if(p.exige_signature&&!pv.cli&&!sig)return{err:"Signature du destinataire obligatoire : signez à l'écran ou faites signer sur le téléphone du client"};
  const g=await posActuelle();return{d:{scans:tot?scansDe(r,"remise"):undefined,signature:sig||undefined,photo:pv.photo||undefined,gps:g?{lat:g.lat,lng:g.lng}:undefined}}}
 const ACT={
+ colacc:r=>colSend(r,"accepter",{},"Collecte acceptée"),colgo:r=>colSend(r,"partir",{},"Bonne route : direction le vendeur"),colref:r=>colRefuser(r),colcollect:r=>colCollecter(r),
+ verser:()=>versementForm(),
+ cloturer:()=>{if(confirm("Terminer votre tournée ? Le caissier sera prévenu : présentez-vous avec l'argent."))envoyer(refSos(),"incident",{nature:"CLOTURE"},"Clôture demandée : présentez-vous au caissier avec l'argent")},
  sos:()=>sosOuvrir(),
  pushon:async()=>{await pushActiver();vueMissions()},pushoff:async()=>{await pushCouper();vueMissions()},pushnon:()=>{lsSet(LS.d,1);vueMissions()},
  pushtest:async()=>{try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("🔔 Test",{body:"Les notifications fonctionnent sur ce téléphone.",tag:"test",icon:"icons/livreur-192.png",data:{u:"livreur.html"}})}catch(e){toast("Test impossible : "+e.message,"err")}},

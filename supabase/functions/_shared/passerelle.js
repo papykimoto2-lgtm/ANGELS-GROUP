@@ -278,7 +278,49 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     p.contact = Object.assign({}, p.contact, { statut: "attente", demande_le: new Date(now).toISOString() }); if (!p.contact.arrive_at) p.contact.arrive_at = p.contact.demande_le;
     ev.motif = txt(d.motif, 120) || "Je suis arrivé : le client ne répond pas";
   }
-  else if (type === "incident") { ev.nature = txt(d.nature, 60); ev.description = txt(d.description, 300); if (!ev.description) return refuse(400, "Décrivez l'incident"); }
+  else if (type === "incident") {
+    ev.nature = txt(d.nature, 60); ev.description = txt(d.description, 300);
+    const nat = ev.nature.toUpperCase();
+    if (nat === "COLLECTE") {   /* collecte chez un vendeur (mission « col:… ») : accepter · refuser · partir · collecter (code du vendeur vérifié ici) */
+      if (!/^col:/.test(ref) || !String(st).startsWith("col_")) return refuse(409, "Cette mission n'est pas une collecte");
+      const act = String(d.action || ""); ev.action = act; ev.description = "COLLECTE|" + act;
+      if (act === "accepter") { if (st !== "col_planifiee") return refuse(409, "Cette collecte ne peut plus être acceptée"); maj.statut = "col_acceptee"; }
+      else if (act === "partir") { if (st !== "col_acceptee") return refuse(409, "Acceptez d'abord la collecte"); maj.statut = "col_en_route"; }
+      else if (act === "refuser") {
+        if (!["col_planifiee", "col_acceptee", "col_en_route"].includes(st)) return refuse(409, "Collecte déjà terminée");
+        const motif = txt(d.motif, 200); if (motif.length < 3) return refuse(400, "Motif obligatoire (3 caractères minimum)"); ev.motif = motif; maj.statut = "col_echouee";
+      }
+      else if (act === "collecter") {
+        if (!["col_acceptee", "col_en_route"].includes(st)) return refuse(409, "Cette collecte n'est pas en cours");
+        const k = await db.code(ref); if (!k) return refuse(409, "Code du vendeur indisponible : contactez le bureau");
+        if (k.verrou_jusqua && Date.parse(k.verrou_jusqua) > now) return refuse(429, "Trop d'essais : code verrouillé, patientez ou contactez le bureau");
+        if (!egal(await empreinteCode(ref, d.code == null ? "" : d.code), k.code_hash)) {
+          const essais = (k.essais || 0) + 1, max = cfg.essaisCodeMax || 5;
+          await db.majCode(ref, essais >= max ? { essais: 0, verrou_jusqua: new Date(now + 15 * 60000).toISOString() } : { essais });
+          return refuse(403, essais >= max ? "Code incorrect : verrouillé 15 minutes" : "Code du vendeur incorrect");
+        }
+        const ids = new Set((Array.isArray(p.lignes) ? p.lignes : []).map((l) => String(l && l.commande_id))), colis = {}; let tot = 0;
+        for (const [cid, n] of Object.entries(d.colis && typeof d.colis === "object" ? d.colis : {})) {
+          if (!ids.has(String(cid))) return refuse(400, "Commande étrangère à cette collecte");
+          const q = Math.round(nombre(n)); if (!(q >= 0 && q <= 99)) return refuse(400, "Nombre de colis : entre 0 et 99"); colis[cid] = q; tot += q;
+        }
+        if (!tot) return refuse(400, "Indiquez le nombre de colis pris pour au moins une commande");
+        ev.colis = colis; await db.majCode(ref, { essais: 0, verrou_jusqua: null }); maj.statut = "col_collectee";
+      }
+      else return refuse(400, "Action de collecte inconnue");
+    }
+    else if (nat === "VERSEMENT") {   /* déclaration d'un versement Mobile Money : le bureau vérifie la référence puis la caisse valide */
+      if (!/^stats:/.test(ref)) return refuse(409, "Déclaration impossible depuis cette mission");
+      const montant = Math.round(nombre(d.montant)), mode = txt(d.mode, 40), rf = txt(d.ref, 60).toUpperCase().replace(/[^A-Z0-9._-]/g, "");
+      if (!(montant >= 1 && montant <= 1e9)) return refuse(400, "Montant invalide");
+      if (!mode) return refuse(400, "Opérateur obligatoire"); if (rf.length < 4) return refuse(400, "Référence de la transaction obligatoire (4 caractères minimum)");
+      Object.assign(ev, { montant, mode, ref_paiement: rf, note: txt(d.note, 100) }); ev.description = "VERSEMENT|" + montant + "|" + mode + "|" + rf;
+    }
+    else if (nat === "CLOTURE") {   /* « Terminer ma tournée » : le bureau enregistre la demande, le caissier clôture */
+      if (!/^stats:/.test(ref)) return refuse(409, "Demande impossible depuis cette mission"); ev.description = "CLOTURE";
+    }
+    else if (!ev.description) return refuse(400, "Décrivez l'incident");
+  }
 
   if (maj.statut !== st || type === "prise_en_charge" || type === "arrive" || type === "rappel_client") await db.majMission(ref, { statut: maj.statut, payload: p, maj_le: new Date(now).toISOString() });
   await db.ajouterEvenement({ livraison_ref: ref, livreur_ref: c.livreur_ref, type, donnees: ev });

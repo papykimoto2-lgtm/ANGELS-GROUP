@@ -166,3 +166,15 @@ Mise en service : appliquer les migrations 020 à 022 puis `supabase functions d
 - `portail-vendeur` accepte désormais **deux identifications** : `{ vendeur, cle }` (clé de relève, inchangé) ou le **jeton de connexion** du vendeur (en-tête `Authorization`) — le serveur retrouve alors le vendeur par son compte (`pg_vendeurs`), sans clé ; l'identifiant du vendeur n'est jamais lu dans la requête. Actions : `lien_signer` · `lien_renouveler` · `live_publier` · `live_lire` · `stats` (+ `lister` · `photos` · `acquitter`). Déploiement : `supabase functions deploy portail-vendeur --no-verify-jwt`.
 - Pourquoi : la création du compte vendeur retire sa clé de relève ; sans cette identification par connexion, le vendeur perdrait son QR signé, son Live et ses statistiques.
 - Le bureau publie en plus, dans l'espace du vendeur : `ref`, `tel`, `org` et `stats30` (commandes reçues par QR / lien / live / acceptées).
+
+### Application livreur : collectes, versement, clôture de tournée, avis
+
+Aucune migration : ces actions réutilisent le type d'événement `incident` (comme le SOS, le planning et le chat) avec une `nature`.
+
+| Nature (`mission-action`, jeton du livreur) | Mission | Contrôles côté serveur |
+|---|---|---|
+| `COLLECTE` + `action` = `accepter` · `partir` · `refuser` · `collecter` | pseudo-mission `col:<id>` publiée par le bureau (statuts `col_planifiee` → `col_acceptee` → `col_en_route` → `col_collectee` / `col_echouee`) | transitions d'état, motif obligatoire pour refuser, **code du vendeur vérifié sur son empreinte** (essais limités, verrou 15 min), colis par commande limités aux commandes de la collecte (au moins un colis) |
+| `VERSEMENT` (montant, opérateur, référence, note) | `stats:<livreur>` | montant 1 à 1 000 000 000, opérateur et référence (4 caractères minimum, nettoyée et mise en majuscules) ; le bureau refuse les doublons de référence et les montants supérieurs au reste à reverser, la caisse valide |
+| `CLOTURE` | `stats:<livreur>` | le bureau enregistre la demande (refusée tant qu'une course est en cours) |
+
+Un refus côté bureau (doublon, montant trop élevé, course en cours) est signalé au livreur par un message du centre. Le bureau publie en plus, dans les statistiques du livreur : historique des versements, opérateurs Mobile Money, récapitulatif de clôture et avis des clients. Mise en service : `supabase functions deploy mission-action` (avec vérification JWT).
