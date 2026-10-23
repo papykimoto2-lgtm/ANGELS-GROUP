@@ -389,7 +389,7 @@ function pushCarte(){const E={actif:`<span style="color:var(--ok)">✔ actives</
   ${PUSHST==="actif"?'<button class="btn ghost" data-a="pushoff">🔕 Couper les notifications</button><button class="btn ghost" data-a="pushtest">🔔 Tester</button>':PUSHST==="inactif"?'<button class="btn" data-a="pushon">🔔 Activer les notifications</button>':""}</div>`}
 function reglagesHtml(){const st=GPSST==="granted"?'<span style="color:var(--ok)">✔ autorisé</span>':GPSST==="denied"?'<span style="color:var(--er)">✖ refusé</span> : autorisez la localisation dans les réglages du navigateur (icône à gauche de l\'adresse)':GPSST==="prompt"?"à demander":"inconnu";
  const sd=ANGELS_SIGNAL.dev();
- return`<h2 class="pg">GPS et compte</h2>
+ return`<h2 class="pg">GPS et compte</h2>${ANGELS_UI.confortHtml()}
  <div class="card"><b>📍 GPS</b><div class="sm mu" style="margin:4px 0 8px">Votre position n'est partagée avec le bureau que pendant une course en cours, et sert au calcul du meilleur itinéraire.</div>
   <div>Autorisation du téléphone : ${st}</div><button class="btn" data-a="gpsact">📍 Activer le GPS</button>
   <label class="chk" style="margin-top:12px"><input type="checkbox" data-gp="1" ${gpsOn()?"checked":""}><span>Partager ma position avec le bureau pendant les courses</span></label></div>
@@ -418,6 +418,15 @@ function enteteLivreur(L,act){
  ${cloturePanel()}
  <div class="card"><b>🏁 Ma tournée</b><div class="sm" style="margin-top:4px">${fait.length} course(s) livrée(s) aujourd'hui · montants des livraisons du jour : <b>${fcfa(coll)}</b><br>À remettre au caissier : <b>${A?fcfa(A.solde):"—"}</b>${A&&A.attente?` · ${fcfa(A.attente)} en validation par la caisse`:""}</div>
  <div class="sm mu" style="margin-top:4px">${act.length?act.length+" course(s) restante(s)"+(nonEnc?" dont "+nonEnc+" en cours":"")+" : terminez-les pour clôturer votre tournée.":A&&A.solde>0?"Tournée terminée : remettez l'argent au caissier ou déclarez le versement (Mes gains).":"Tournée terminée."}</div></div>`}
+/* Aide courte de chaque page (ouverte la première fois, repliée ensuite ; masquable dans « GPS, mot de passe et alertes ») */
+const AIDE_L={cours:["Une nouvelle mission arrive : acceptez-la ou refusez-la.","Récupérez et comptez les colis (scan du QR ou code de 5 caractères), puis démarrez la course.","À la livraison : demandez le code au client, encaissez le montant indiqué, puis confirmez. Photo ou signature si elles sont demandées.","Client injoignable ou problème ? Utilisez les boutons de la mission : le centre est prévenu."],
+ recent:["Les commandes que vous avez terminées ou qui ont échoué ces derniers jours."],
+ stats:["Vos statistiques : livraisons, taux de réussite, durée moyenne et note des clients."],
+ gains:["Vos commissions, l'argent encaissé et ce que vous devez remettre au caissier.","Après remise de l'argent, déclarez le versement : la caisse le valide."],
+ plan:["Votre planning : réservez vos créneaux de travail et vos pauses."],
+ chat:["Vos échanges avec le centre de livraison."],
+ reglages:["Autorisez le GPS, changez votre mot de passe, activez les alertes et réglez le confort d'affichage (thème sombre, texte plus grand)."]};
+const aideL=()=>ANGELS_UI.aide("l_"+PAGE,"Comment ça marche ?",AIDE_L[PAGE]||AIDE_L.cours);
 function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1)),fin=L.filter(m=>!ACTIFS.includes(m.statut)).slice(0,15);
  const aEnc=act.reduce((s,m)=>s+(+(m.payload||{}).montant_attendu||0),0);
  const alertes=`${pushBandeau()}${chatBandeau()}${pauseBandeau()}${boostBandeau()}${!enLigne()?`<div class="al">📡 <b>Hors ligne</b> — vous voyez les missions du ${esc((cache()||{t:Date.now()}).t?heureC((cache()||{t:Date.now()}).t):"")} ; vos actions sont gardées sur le téléphone et partiront au retour du réseau.</div>`:""}${file().length?`<div class="al">⏳ <b>${file().length}</b> action(s) en attente d'envoi.</div>`:""}${rejets().map(r=>`<div class="al er">❌ Action refusée par le serveur : ${esc(r.msg)} <button class="btn ghost" style="margin-top:6px" data-a="rejOk" data-r="${esc(r.id)}">J'ai compris</button></div>`).join("")}${erreur?`<div class="al">${esc(erreur)}</div>`:""}`;
@@ -428,7 +437,7 @@ function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.fil
   :PAGE==="plan"?planHtml()
   :PAGE==="chat"?chatHtml()
   :`<h2 class="pg">Commandes en cours</h2>${enteteLivreur(L,act)}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${colsHtml()}${act.length?act.map(carte).join(""):ANGELS_UI.vide("missions","Aucune mission pour le moment","Les nouvelles missions apparaissent ici automatiquement.")}${itinCard()}${(setTimeout(itinAuto,0),"")}`;
- $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml(act.length,fin.length):""}<div class="wrap">${PAGE==="reglages"?"":'<div class="inst"></div>'}${alertes}${corps}</div><button type="button" class="sosb" data-a="sos" aria-label="Alerte SOS">🆘<small>SOS</small></button>${tabsLiv(act.length)}`;ANGELS_UI.monter(true)}
+ $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml(act.length,fin.length):""}<div class="wrap">${PAGE==="reglages"?"":'<div class="inst"></div>'}${alertes}${aideL()}${corps}</div><button type="button" class="sosb" data-a="sos" aria-label="Alerte SOS">🆘<small>SOS</small></button>${tabsLiv(act.length)}`;ANGELS_UI.monter(true)}
 document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.it!=null){ITIN.sel=ITIN.sel||new Set();if(t.checked){if(ITIN.sel.size>=10){t.checked=false;return toast("10 commandes au plus par itinéraire","err")}ITIN.sel.add(t.dataset.it)}else ITIN.sel.delete(t.dataset.it);ITIN.res=null}
  else if(t.dataset&&t.dataset.gp!=null){lsSet(LS.g,{on:t.checked});if(!t.checked&&watch!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watch);watch=null}else suivi();toast(t.checked?"Partage de la position activé pendant les courses":"Partage de la position coupé","ok")}});
 addEventListener("keydown",e=>{if(e.key==="Escape"&&MENU){MENU=false;if(user)vueMissions()}});

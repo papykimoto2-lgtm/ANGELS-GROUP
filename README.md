@@ -896,6 +896,13 @@ Les alertes ne sont plus une liste de phrases : elles sont **classées, regroup�
 - **Son et message** à chaque *nouvelle* alerte critique (jamais au premier affichage, une seule fois par alerte).
 - La page **Aujourd'hui** n'affiche que les 3 alertes les plus urgentes et le lien « Voir les N alertes ».
 
+### Confort et aide des applications mobiles (tests/confort-mobile.js)
+Dans **Livreur** (« GPS, mot de passe et alertes ») et **Vendeur** (« Mon compte »), une carte **🎨 Confort d'affichage** :
+- **Thème** : automatique (suit le téléphone), clair ou **sombre** (variables de couleur et couleurs écrites en dur adaptées ; les QR codes restent sur fond blanc pour rester lisibles).
+- **Taille du texte** : normal, grand (×1,15) ou très grand (×1,3).
+- **ℹ️ Aide** : un encadré « Comment ça marche ? » en haut de chaque page (ouvert à la première visite, replié ensuite, état conservé pendant la session) ; masquable par une case à cocher.
+Les réglages sont gardés sur le téléphone (`localStorage`) et appliqués avant le premier affichage ; le code est commun (`ui-mobile.js`).
+
 ## Types de colis et impression de l'affiche QR (tests/types-colis.js)
 
 **Types de colis** : chaque commande a un type (colis standard, courrier / documents, produit cassable, aliments / périssable, objet de valeur, lourd / volumineux) ; chaque type a son traitement, réglable dans Paramètres → « Types de colis et traitement » (une ligne par type : `id | nom | icône | signature | photo | urgent | délai (min) | mention | consigne`, le type « standard » est obligatoire). Effets : consigne affichée au livreur sur sa mission et dans le détail de la commande ; **signature** et/ou **photo de remise** obligatoires (contrôlées dans l'application livreur et par le serveur) ; **priorité urgente** automatique (aliments) ; **délai limite** après l'affectation avec alerte au centre et affichage rouge côté livreur ; **mention imprimée sur l'étiquette** (FRAGILE, PÉRISSABLE…). Le type se choisit dans le formulaire de commande du bureau et dans celui de l'application vendeur (liste publiée par le bureau) ; un type inconnu devient « standard ». Le serveur transporte le type (commande du vendeur, état publié, preuve de remise) : redéployer `mission-sync`, `vendeur-sync` et `mission-action` après mise à jour.
