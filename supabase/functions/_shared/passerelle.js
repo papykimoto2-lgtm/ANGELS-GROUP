@@ -61,11 +61,12 @@ export function nettoyerEtatVendeur(e) {
     nom: txt(e.nom, 80), ref: txt(e.ref, 60).replace(/[^A-Za-z0-9_-]/g, ""), tel: txt(e.tel, 20), org: txt(e.org, 80),
     stats30: { dem: montant(e.stats30 && e.stats30.dem), qr: montant(e.stats30 && e.stats30.qr), lien: montant(e.stats30 && e.stats30.lien), live: montant(e.stats30 && e.stats30.live), ok: montant(e.stats30 && e.stats30.ok) },
     solde: montant(e.solde), acquis: montant(e.acquis), regle: montant(e.regle), attente: montant(e.attente), lien: /^https:\/\//.test(String(e.lien || "")) ? txt(e.lien, 600) : "",
-    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "", exp: c && c.exp && c.exp.numero ? { numero: txt(c.exp.numero, 30), statut: txt(c.exp.statut, 40), transporteur: txt(c.exp.transporteur, 60), bordereau: txt(c.exp.bordereau, 40), eta: txt(c.exp.eta, 10) } : null })),
+    commandes: L(e.commandes, 200).map((c) => ({ numero: txt(c && c.numero, 30), ref: txt(c && c.ref, 40), date: txt(c && c.date, 10), statut: txt(c && c.statut, 60), client: txt(c && c.client, 80), montant: montant(c && c.montant), net: montant(c && c.net), suivi: /^https:\/\//.test(String(c && c.suivi || "")) ? txt(c.suivi, 1500) : "", tc: c && c.tc && c.tc.nom ? { icone: txt(c.tc.icone, 4), nom: txt(c.tc.nom, 40) } : null, exp: c && c.exp && c.exp.numero ? { numero: txt(c.exp.numero, 30), statut: txt(c.exp.statut, 40), transporteur: txt(c.exp.transporteur, 60), bordereau: txt(c.exp.bordereau, 40), eta: txt(c.exp.eta, 10) } : null })),
     demandes: L(e.demandes, 50).map((d) => ({ ref: txt(d && d.ref, 12), nom: txt(d && d.nom, 80), tel: txt(d && d.tel, 20), zone: txt(d && d.zone, 80), quartier: txt(d && d.quartier, 120), repere: txt(d && d.repere, 200), note: txt(d && d.note, 500), cree_le: txt(d && d.cree_le, 30), nb_photos: Math.max(0, Math.min(9, Math.round(Number(d && d.nb_photos)) || 0)),
       gps: d && d.gps && Number.isFinite(+d.gps.lat) && Number.isFinite(+d.gps.lng) ? { lat: +(+d.gps.lat).toFixed(6), lng: +(+d.gps.lng).toFixed(6) } : null,
       acompte: d && d.acompte && Number.isFinite(+d.acompte.montant) ? { montant: montant(d.acompte.montant), op: txt(d.acompte.op, 30), ref: txt(d.acompte.ref, 40) } : null,
       lignes: L(d && d.lignes, 30).map((l) => ({ desig: txt(l && l.desig, 120), qte: Math.max(1, Math.min(9999, Math.round(Number(l && l.qte)) || 1)), pu: l && l.pu != null && l.pu !== "" && Number.isFinite(+l.pu) ? Math.max(0, Math.round(+l.pu)) : null })).filter((l) => l.desig) })).filter((d) => d.ref),
+    types: L(e.types, 20).map((t) => ({ id: txt(t && t.id, 20).toLowerCase().replace(/[^a-z0-9_]/g, ""), nom: txt(t && t.nom, 40), icone: txt(t && t.icone, 4), consigne: txt(t && t.consigne, 200) })).filter((t) => t.id && t.nom),
     zones: L(e.zones, 60).map((z) => ({ nom: txt(z && z.nom, 60), frais: montant(z && z.frais) })).filter((z) => z.nom),
     reglements: L(e.reglements, 100).map((r) => ({ date: txt(r && r.date, 10), montant: montant(r && r.montant), libelle: txt(r && r.libelle, 80) })),
   };
@@ -92,8 +93,8 @@ export async function traiterVendeurEtat(db, req, userId) {
     if (tel && !/^[0-9 +().-]{6,20}$/.test(tel)) return err(400, "Téléphone invalide");
     if (await db.nbCmdsVendeurEnAttente(c.vendeur_ref) >= 40) return err(429, "Trop de commandes en attente de traitement par le bureau : patientez");
     const gps = req.gps && Number.isFinite(+req.gps.lat) && Number.isFinite(+req.gps.lng) && Math.abs(+req.gps.lat) <= 90 && Math.abs(+req.gps.lng) <= 180 ? { lat: +(+req.gps.lat).toFixed(6), lng: +(+req.gps.lng).toFixed(6) } : null;
-    const demande = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
+    const demande = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(), type_colis = txt(req.type_colis, 20).toLowerCase().replace(/[^a-z0-9_]/g, "");
+    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, type_colis: type_colis || undefined, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
     return rep(200, { ok: true, ref });
   }
   return err(400, "Action inconnue");
@@ -252,6 +253,7 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     const photo = typeof d.photo === "string" && d.photo ? d.photo : "";
     if (photo && (!JPG.test(photo) || photo.length > PHOTO_MAX)) return refuse(400, "Photo illisible : reprenez-la");
     if (p.exige_signature && !pr.signature_client && !sigL) return refuse(400, "Signature du destinataire obligatoire pour cette commande");
+    if (p.exige_photo && !photo && !pr.photo) return refuse(400, "Photo de la remise obligatoire pour ce type de colis");
     const g = d.gps && typeof d.gps === "object" ? { lat: nombre(d.gps.lat), lng: nombre(d.gps.lng), precision: Math.round(nombre(d.gps.precision) || 0) } : null, gps = g && Math.abs(g.lat) <= 90 && Math.abs(g.lng) <= 180 ? g : null;
     const patch = {}; if (sigL) patch.signature = sigL; if (photo) patch.photo = photo; if (gps) patch.gps = gps;
     if (Object.keys(patch).length) await db.ecrirePreuve(ref, patch);

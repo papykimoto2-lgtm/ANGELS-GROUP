@@ -171,6 +171,8 @@ function codeBloc(m){const p=m.payload||{},r=esc(m.livraison_ref);
  const t=lsGet(LS.p,{})["c:"+m.livraison_ref];
  return t?`<div class="sm" style="color:#b86e00;margin:6px 0 0">📞 Demande envoyée au centre à ${new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} : il appelle le client puis vous libère le code. Patientez sur place.</div>`
   :`<button class="btn ghost" data-a="codenr" data-r="${r}">📵 Le client n'a pas reçu le code (ou n'a pas de smartphone)</button>`}
+const typeColisLiv=p=>{const t=p&&p.type_colis;if(!t||t.id==="standard")return"";const lim=t.limite?new Date(t.limite).getTime():0,ret=lim&&Date.now()>lim;
+ return`<div class="al" style="margin:8px 0 0;${ret?"background:#fde5e5":"background:#fff8e1"}">${esc(t.icone||"📦")} <b>${esc(t.nom)}</b>${t.consigne?" — "+esc(t.consigne):""}${lim?`<br>⏱ ${ret?"<b>Délai dépassé</b> (à livrer avant ":"À livrer avant "}<b>${heureC(lim)}</b>${ret?")":""}`:""}</div>`};
 const parcoursMission=m=>{const e=ANGELS_UI.etapeMission(m.statut,!!(m.payload||{}).collecte_at);return ANGELS_UI.parcours(e.i,e.ko)};
 const tabsLiv=n=>ANGELS_UI.tabbar([{k:"cours",l:"Missions",i:"missions",n:n},{k:"chat",l:"Messages",i:"messages",n:chatNonLus()},{k:"plan",l:"Planning",i:"planning"},{k:"gains",l:"Gains",i:"gains"},{k:"reglages",l:"Moi",i:"moi"}],PAGE,"r");
 function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
@@ -181,7 +183,7 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
   (vp&&vp.statut==="a_verifier"?"":`<button class="btn ok" data-a="confirmer" data-r="${esc(m.livraison_ref)}">✔ Confirmer la livraison</button>`)+(vp&&vp.statut==="a_verifier"?"":codeBloc(m))+`<button class="btn wa" data-a="echec" data-r="${esc(m.livraison_ref)}">Livraison impossible</button>`}
  const act=ACTIFS.includes(m.statut),nq=enFile(m.livraison_ref).length;
  if(m.attente)b=`<div class="al">⏳ <b>Confirmation en attente d'envoi</b> : le serveur vérifiera le code dès le retour du réseau. Ne la refaites pas.</div>`;else if(nq)b=(b||"")+`<div class="sm" style="color:#b86e00;margin-top:6px">⏳ ${nq} action(s) en attente d'envoi</div>`;
- return`<div class="card mc ${p.priorite==="urgente"?"urg":""}"><div class="between"><b>${esc(m.commande_ref)}</b><span>${p.priorite==="urgente"?'<span class="bd" style="background:#fde5e5;color:#c62828">URGENT</span> ':""}<span class="bd">${esc(STATUTS[m.statut]||m.statut)}</span></span></div>${parcoursMission(m)}
+ return`<div class="card mc ${p.priorite==="urgente"?"urg":""}"><div class="between"><b>${esc(m.commande_ref)}</b><span>${p.priorite==="urgente"?'<span class="bd" style="background:#fde5e5;color:#c62828">URGENT</span> ':""}<span class="bd">${esc(STATUTS[m.statut]||m.statut)}</span></span></div>${parcoursMission(m)}${typeColisLiv(m.payload)}
  <div style="margin-top:6px"><b>${esc(p.client_nom)}</b><br>📍 ${adrTxt(a)}${a.repere?`<br><span class="mu">${esc(a.repere)}</span>`:""}${a.instructions?`<br><i>${esc(a.instructions)}</i>`:""}${p.obs?`<br><span class="sm mu">${esc(p.obs)}</span>`:""}</div>
  ${act?`<div class="pill sm">${(p.lignes||[]).map(l=>esc(l.qte+" × "+l.desig)).join("<br>")}</div>`:""}
  <div class="pill between"><span>${(p.lignes||[]).reduce((s,x)=>s+(+x.qte||0),0)} article(s)${p.nb_colis?" · "+p.nb_colis+" colis":""}</span><b>${p.montant_attendu>0?fcfa(p.montant_attendu):"Déjà payé"}</b></div>
@@ -529,7 +531,7 @@ const preuveChamps=(p,r)=>{const tot=p.exige_colis&&p.colis_total>0?p.colis_tota
  return(tot?colisHtml("remise",tot):"")+`<div class="sec" style="margin-top:10px"><b>✍ Signature du destinataire</b>${p.exige_signature?" <span class='mu'>(obligatoire)</span>":""}</div><div id="sg_cli"></div>
  <canvas id="sg" width="440" height="150" style="width:100%;height:150px;border:2px dashed #9db0b8;border-radius:10px;background:#fff;touch-action:none"></canvas>
  <div style="display:flex;gap:6px;margin-top:6px"><button type="button" class="btn ghost" id="sg_clr" style="width:auto">Effacer</button><button type="button" class="btn ghost" id="sg_qr">📲 Faire signer sur le téléphone du client</button></div><div id="sg_box"></div>
- <label style="margin-top:10px">📷 Photo du colis remis (recommandé)<input type="file" accept="image/*" capture="environment" id="ph_in"></label><div id="ph_pv"></div>`};
+ <label style="margin-top:10px">📷 Photo du colis remis ${p.exige_photo?"(obligatoire)":"(recommandé)"}<input type="file" accept="image/*" capture="environment" id="ph_in"></label><div id="ph_pv"></div>`};
 function preuveBind(o,r,p,num){const pv=pvDe(r),tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;pv.cli=null;pv.photo="";if(tot)colisBind(o,r,"remise",tot,num);
  const cv=o.querySelector("#sg"),x=cv.getContext("2d");x.lineWidth=3;x.lineCap="round";x.lineJoin="round";x.strokeStyle="#10242c";let dr=false;cv._any=false;
  const pt=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)*cv.width/b.width,(e.clientY-b.top)*cv.height/b.height]};
@@ -550,7 +552,7 @@ function preuveBind(o,r,p,num){const pv=pvDe(r),tot=p.exige_colis&&p.colis_total
 async function preuveCollecter(r,p,o){const pv=pvDe(r),cv=o.querySelector("#sg"),tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;
  if(tot&&pv.remise.length<tot)return{err:"Scannez les "+tot+" colis remis ("+pv.remise.length+" validés)"};
  const sig=!pv.cli&&cv&&cv._any?cv.toDataURL("image/png"):"";if(p.exige_signature&&!pv.cli&&!sig)return{err:"Signature du destinataire obligatoire : signez à l'écran ou faites signer sur le téléphone du client"};
- const g=await posActuelle();return{d:{scans:tot?scansDe(r,"remise"):undefined,signature:sig||undefined,photo:pv.photo||undefined,gps:g?{lat:g.lat,lng:g.lng}:undefined}}}
+ if(p.exige_photo&&!pv.photo)return{err:"Photo de la remise obligatoire pour ce type de colis (colis "+((p.type_colis||{}).nom||"")+")"};const g=await posActuelle();return{d:{scans:tot?scansDe(r,"remise"):undefined,signature:sig||undefined,photo:pv.photo||undefined,gps:g?{lat:g.lat,lng:g.lng}:undefined}}}
 const ACT={
  colacc:r=>colSend(r,"accepter",{},"Collecte acceptée"),colgo:r=>colSend(r,"partir",{},"Bonne route : direction le vendeur"),colref:r=>colRefuser(r),colcollect:r=>colCollecter(r),
  verser:()=>versementForm(),
