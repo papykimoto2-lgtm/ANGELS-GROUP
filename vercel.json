@@ -93,6 +93,10 @@
       "destination": "/portail.html"
     },
     {
+      "source": "/espace-vendeur",
+      "destination": "/vendeur.html"
+    },
+    {
       "source": "/compta-groupe",
       "destination": "/compta-groupe.html"
     },

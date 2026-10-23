@@ -1,0 +1,64 @@
+/* Application vendeur dédiée (même charpente que l'application livreur) : connexion, menu ☰, pages, version, aucune fuite vers le logiciel du bureau.
+   Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/vendeur-app.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const types={".html":"text/html; charset=utf-8",".js":"application/javascript",".css":"text/css",".png":"image/png",".webmanifest":"application/manifest+json"};
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end()}r.writeHead(200,{"content-type":types[path.extname(f)]||"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:400,height:800}}),errs=[];let ok=0,ko=0;
+ const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+ const swV=(fs.readFileSync(path.join(root,"sw.js"),"utf8").match(/const V = "angels-v(\d+)"/)||[])[1];
+ const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));await p.goto(base+"/vendeur.html");await p.waitForTimeout(1200);
+ const l=await p.evaluate(()=>({t:document.title,h:(document.querySelector(".hd")||{}).textContent,champs:!!document.getElementById("li")&&!!document.getElementById("lp"),liste:!!document.getElementById("lvl"),mdp:document.getElementById("lp").type}));
+ chk("VD-1","écran de connexion au style livreur : en-tête « ANGEL'S — Vendeur », identifiant + mot de passe, sans liste publique des vendeurs",/Vendeur/.test(l.t)&&/ANGEL'S — Vendeur/.test(l.h)&&l.champs&&!l.liste&&l.mdp==="password",JSON.stringify(l));
+ const css=await p.evaluate(()=>{const s=getComputedStyle(document.querySelector(".hd")),r=getComputedStyle(document.documentElement);return{bg:s.backgroundColor,b:r.getPropertyValue("--b").trim()}});
+ chk("VD-2","mêmes couleurs que l'application livreur (en-tête #0b3b4c, accent #0e7490)",css.bg==="rgb(11, 59, 76)"&&css.b==="#0e7490",JSON.stringify(css));
+ const m=await p.evaluate(()=>{user={id:"u"};moi={nom:"Boutique Awa"};D={commandes:[{numero:"CMD-1",statut:"En préparation",client:"Koné",montant:5000}],reglements:[],solde:2500,lien:"https://exemple.test/portail.html?v=1"};PAGE="accueil";MENU=false;vue();const h1=document.querySelector(".hd").textContent,btn=!!document.querySelector('[data-a="menu"]');MENU=true;vue();const items=[...document.querySelectorAll(".dr .mi")].map(x=>x.textContent);return{h1,btn,items}});
+ chk("VD-3","accueil : nom du vendeur, bouton ☰, menu avec Accueil, Mes commandes, Mes règlements, Mon lien client, Mon compte, Se déconnecter",/Boutique Awa/.test(m.h1)&&m.btn&&["Accueil","Mes commandes","Mes règlements","Mon lien client","Mon compte","Se déconnecter"].every(t=>m.items.some(i=>i.includes(t))),JSON.stringify(m));
+ const pg=await p.evaluate(()=>{const o={};for(const k of ["commandes","reglages_v","lien","compte"]){PAGE=k;MENU=false;vue();o[k]=document.querySelector(".wrap").textContent}return o});
+ chk("VD-4","pages : commande listée, règlements vides expliqués, lien client affiché, compte avec changement de mot de passe",/CMD-1/.test(pg.commandes)&&/Aucun règlement/.test(pg.reglages_v)&&/portail\.html\?v=1/.test(await p.evaluate(()=>{PAGE="lien";vue();return document.querySelector(".wrap").innerHTML}))&&/Changer mon mot de passe/.test(pg.compte),JSON.stringify(pg));
+ const v=await p.evaluate(()=>{PAGE="compte";vue();return(document.querySelector(".appv")||{}).textContent});
+ await p.evaluate(()=>navigator.serviceWorker.ready);await p.waitForTimeout(800);
+ const v2=await p.evaluate(()=>{PAGE="compte";vue();lireVersion();return new Promise(r=>setTimeout(()=>r((document.querySelector(".appv")||{}).textContent),500))});
+ chk("VD-5","la version de l'application s'affiche (« Version N » = cache du service worker)",v2==="Version "+swV,v2+" / "+swV);
+ const net=[];p.on("request",r=>net.push(r.url()));await p.evaluate(()=>{PAGE="accueil";vue()});
+ const bureau=await p.evaluate(()=>typeof S==="undefined"&&typeof ANGELS_ROLES==="undefined"&&!document.querySelector("script[src*=sync-engine]"));
+ chk("VD-6","l'application ne charge pas le moteur du logiciel du bureau (aucune donnée du bureau sur l'appareil du vendeur)",bureau===true);
+ /* dépôt de commande : formulaire, contrôles, envoi, file hors ligne, suivi */
+ const sent=[];let mode="ok",importee=false;
+ await ctx.route("**/functions/v1/vendeur-sync",async rt=>{const rq=rt.request(),h={"access-control-allow-origin":"*","access-control-allow-headers":"*"};if(rq.method()==="OPTIONS")return rt.fulfill({status:204,headers:h});
+  if(mode==="net")return rt.abort();const b=JSON.parse(rq.postData()||"{}");if(b.action==="commander")sent.push(b);
+  rt.fulfill({status:200,headers:h,contentType:"application/json",body:JSON.stringify(b.action==="commander"?{ok:true,ref:b.ref}:{ok:true,nom:"Boutique Awa",commandes:importee?[{numero:"CMD-9",ref:sent[0]&&sent[0].ref,statut:"En cours de livraison",client:"Konan",montant:21000,suivi:"https://exemple.test/portail#/suivi/abc"}]:[],reglements:[],solde:0,zones:[{nom:"Abobo",frais:1500},{nom:"Cocody",frais:2000}],lien:""})})});
+ const f1=await p.evaluate(()=>{sb={auth:{getSession:async()=>({data:{session:{access_token:"t"}}})}};user={id:"u"};moi={nom:"Boutique Awa"};D={commandes:[],reglements:[],solde:0,zones:[{nom:"Abobo",frais:1500},{nom:"Cocody",frais:2000}],lien:""};PAGE="nouvelle";MENU=false;vue();
+  const f=document.getElementById("fcmd");return{champs:["nom","tel","zone","quartier","repere","pay","ins"].every(n=>f[n]),zones:[...f.zone.options].map(o=>o.textContent).join("|"),menu:(MENU=true,vue(),[...document.querySelectorAll(".dr .mi")].map(x=>x.textContent).join("|"))}});
+ chk("VD-8","formulaire de commande : client, téléphone, zone (liste publiée par le bureau avec les frais), quartier, repère, paiement, consignes ; entrée « Nouvelle commande » dans le menu",f1.champs&&/Abobo — 1 500 F/.test(f1.zones)&&/Nouvelle commande/.test(f1.menu),JSON.stringify(f1));
+ const v1=await p.evaluate(async()=>{MENU=false;vue();const f=document.getElementById("fcmd");return{valide:f.checkValidity(),zone:f.zone.validity.valueMissing,envoye:0}});
+ chk("VD-9","contrôle avant envoi : le formulaire refuse l'envoi sans zone de livraison",v1.valide===false&&v1.zone===true,JSON.stringify(v1));
+ await p.evaluate(()=>{PAGE="nouvelle";vue()});
+ await p.fill("#fcmd [name=nom]","Mme Konan");await p.fill("#fcmd [name=tel]","0505777777");await p.selectOption("#fcmd [name=zone]","Abobo");await p.fill("#fcmd [name=quartier]","Anonkoua");await p.fill("#fcmd .ld","Robe wax");await p.fill("#fcmd .lp","15000");await p.click("[data-a=addl]");
+ await p.evaluate(()=>{const L=document.querySelectorAll("#lg .lg");L[1].querySelector(".ld").value="Foulard";L[1].querySelector(".lq").value="2";L[1].querySelector(".lp").value="3000";totaux()});
+ const tot=await p.evaluate(()=>document.getElementById("tot").textContent);
+ await p.selectOption("#fcmd [name=pay]","partiel");const pvVisible=await p.evaluate(()=>!document.getElementById("lpv").classList.contains("hide"));
+ await p.fill("#fcmd [name=pv]","5000");await p.click("#fcmd button[type=submit]");await p.waitForTimeout(600);
+ const o=sent[0];
+ chk("VD-10","envoi : total calculé, acompte demandé, commande transmise au serveur avec référence unique, articles, zone et acompte ; l'application affiche « Mes commandes »",/21\s?000/.test(tot.replace(/\u202f|\u00a0/g," "))&&pvVisible&&o&&/^VD-\d{8}-[A-Z0-9]{6}$/.test(o.ref)&&o.lignes.length===2&&o.zone==="Abobo"&&o.pay==="partiel"&&o.paye_vendeur===5000&&o.nom==="Mme Konan",JSON.stringify(sent));
+ const att=await p.evaluate(()=>document.querySelector(".wrap").textContent);
+ chk("VD-11","la commande transmise apparaît « Transmise au bureau » en attendant sa confirmation",/Transmise au bureau/.test(att)&&/Mme Konan/.test(att),att.slice(0,200));
+ importee=true;const mine=await p.evaluate(async()=>{await charger();PAGE="commandes";vue();return{txt:document.querySelector(".wrap").textContent,btn:!!document.querySelector("[data-a=suivi]"),wa:!!document.querySelector("[data-a=suiviwa]")}});
+ chk("VD-12","quand le bureau a importé la commande : elle remplace la ligne d'attente, statut visible, boutons « Suivi » et « Envoyer au client » (WhatsApp)",/CMD-9/.test(mine.txt)&&/En cours de livraison/.test(mine.txt)&&!/Transmise au bureau/.test(mine.txt)&&mine.btn&&mine.wa,JSON.stringify(mine).slice(0,300));
+ mode="net";const n0=sent.length;
+ await p.evaluate(()=>{PAGE="nouvelle";vue()});await p.selectOption("#fcmd [name=zone]","Cocody");await p.fill("#fcmd .ld","Sac");await p.fill("#fcmd .lp","12000");await p.click("#fcmd button[type=submit]");await p.waitForTimeout(600);
+ const q=await p.evaluate(()=>({file:file().length,txt:document.querySelector(".wrap").textContent}));
+ chk("VD-13","hors ligne : la commande est gardée sur le téléphone (« À envoyer ») et rien n'est perdu",q.file===1&&/À envoyer/.test(q.txt)&&sent.length===n0);
+ mode="ok";const r2=await p.evaluate(async()=>{await charger();return{file:file().length,env:envoyees().length}});
+ chk("VD-14","retour du réseau : la file part toute seule, sans doublon, la commande passe en « Transmise au bureau »",r2.file===0&&sent.length===n0+1&&r2.env>=2,JSON.stringify([r2,sent.length,n0]));
+ /* installation : manifeste dédié, adresse courte, cache hors ligne */
+ const man=await (await p.request.get(base+"/manifest-vendeur-app.webmanifest")).json();
+ const link=await p.evaluate(()=>document.querySelector("link[rel=manifest]").getAttribute("href"));
+ const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8")),sw=fs.readFileSync(path.join(root,"sw.js"),"utf8");
+ chk("VD-15","installable : manifeste dédié (démarre sur vendeur.html, plein écran, mêmes couleurs que le livreur, icônes) relié à la page",man.start_url==="./vendeur.html"&&man.display==="standalone"&&man.theme_color==="#0e7490"&&man.icons.length>=3&&link==="manifest-vendeur-app.webmanifest"&&!man.share_target,JSON.stringify([man.start_url,link]));
+ chk("VD-16","adresse courte /espace-vendeur vers l'application ; page, manifeste et icônes gardés pour l'ouverture hors ligne ; l'ancien espace /vendeur reste inchangé",(vj.rewrites||[]).some(r=>r.source==="/espace-vendeur"&&r.destination==="/vendeur.html")&&(vj.rewrites||[]).some(r=>r.source==="/vendeur"&&/distribution/.test(r.destination))&&sw.includes('"vendeur.html"')&&sw.includes("manifest-vendeur-app.webmanifest")&&sw.includes("icons/vendeur-192.png"));
+ chk("VD-7","aucune erreur de script",errs.length===0,errs.join(" | "));
+ console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
+})();

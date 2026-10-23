@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0e7490">
+<link rel="manifest" href="manifest-vendeur-app.webmanifest">
+<link rel="icon" type="image/png" href="icons/vendeur-192.png">
+<link rel="apple-touch-icon" href="icons/vendeur-apple-180.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Espace vendeur">
+<title>Vendeur — ANGEL'S GROUP</title>
+<style>
+:root{--b:#0e7490;--b2:#0b3b4c;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:12px 16px 40px}
+.hd{background:var(--b2);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hd small{opacity:.75;display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+label{display:block;font-weight:600;margin:10px 0 0}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:#fff;margin-top:4px}
+.btn{display:block;width:100%;padding:13px;border:0;border-radius:11px;background:var(--b);color:#fff;font-weight:700;margin-top:8px;cursor:pointer}
+.btn.ok{background:var(--ok)}.btn.er{background:var(--er)}.btn.ghost{background:#fff;color:var(--b);border:1px solid var(--b)}.btn.wa{background:var(--wa)}
+.btn:disabled{opacity:.5}
+.mu{color:var(--mu)}.sm{font-size:13px}
+.between{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.al{border-radius:10px;padding:10px;margin:10px 0;background:#fff1d6;color:#7a4a00}.al.er{background:#fde5e5;color:var(--er)}
+.bd{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:700;background:#e3eef3;color:var(--b2)}
+.hide{display:none!important}
+.bg{width:auto!important;margin:0!important;padding:8px 14px!important;font-size:20px;line-height:1}
+.pg{font-size:18px;margin:6px 0 2px}
+.dr{position:fixed;inset:0;z-index:30;display:flex;justify-content:flex-end}.dr .bk{position:absolute;inset:0;background:rgba(10,20,30,.55)}
+.dr nav{position:relative;background:#fff;width:min(86vw,340px);height:100%;padding:16px;overflow:auto;box-shadow:-8px 0 24px rgba(0,0,0,.25)}
+.mi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:14px 12px;margin-top:8px;border:1px solid var(--bd);border-radius:12px;background:#fff;font-weight:700;color:var(--b2);cursor:pointer}
+.mi.on{background:#e3eef3;border-color:var(--b)}.mi.er{color:var(--er)}
+.kp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.kp>div{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:10px 12px}.kp b{display:block;font-size:20px}.kp span{font-size:12px;color:var(--mu)}
+.lg{display:grid;grid-template-columns:1fr 70px 100px 40px;gap:6px;margin-top:6px}.lg input{margin-top:0}.lg button{border:1px solid var(--er);color:var(--er);background:#fff;border-radius:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--b2);color:#fff;padding:10px 16px;border-radius:99px;z-index:40;max-width:90%}
+</style>
+<link rel="stylesheet" href="champs.css">
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="hide"></div>
+<script src="passerelle-config.js"></script>
+<script src="marque.js"></script>
+<script>
+/* Application VENDEUR PARTENAIRE : même charpente et même style que l'application livreur (en-tête, cartes, menu ☰, connexion serveur).
+   Le vendeur n'ouvre jamais le logiciel du bureau : il ne voit que ses propres commandes, règlements et son lien client. */
+"use strict";
+const CFG=(()=>{const d=window.ANGELS_PASSERELLE||{};try{const o=JSON.parse(localStorage.getItem("angels_supabase")||"null");if(o&&o.off)return{};if(o&&o.url&&o.key)return{url:o.url,key:o.key}}catch(e){}return d})(),FN=String(CFG.url||"").replace(/\/+$/,"")+"/functions/v1/";
+const SB_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",SB_SRI="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o";
+const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fcfa=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/[  ]/g," ")+" F";
+const identDe=i=>String(i||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9._-]+/g,".").replace(/\.{2,}/g,".").replace(/^\.|\.$/g,"");
+const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():identDe(i)+"@users.angels-erp.app"};
+const LS={i:"ang_vd_ident",q:"ang_vd_file",e:"ang_vd_envoyees"};
+const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let sb=null,user=null,moi=null,PAGE="accueil",MENU=false,APPV="",D=null,erreur="",GPS=null;
+const versionTxt=()=>APPV?"Version "+APPV:"";
+const enLigne=()=>navigator.onLine!==false;
+function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
+function loadSb(){return new Promise((ok,ko)=>{if(window.supabase)return ok();const sc=document.createElement("script");sc.src=SB_LIB;sc.integrity=SB_SRI;sc.crossOrigin="anonymous";sc.onload=ok;sc.onerror=()=>ko(new Error("Connexion Internet requise pour se connecter"));document.head.appendChild(sc)})}
+const client=()=>sb||(sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}}));
+async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession();t=data&&data.session&&data.session.access_token}catch(e){}
+ if(!t){const e=new Error("Session expirée : reconnectez-vous");e.status=401;throw e}
+ let r;try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)})}catch(x){const e=new Error("Réseau indisponible");e.reseau=true;throw e}
+ const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false){const e=new Error(j.erreur||("Erreur "+r.status));e.status=r.status;throw e}return j}
+
+/* ---------- Connexion ---------- */
+function vueLogin(msg){$("#app").innerHTML=`<div class="hd"><div><b>ANGEL'S — Vendeur</b><small>Connexion sécurisée</small></div></div><div class="wrap"><div class="card"><form id="fl" autocomplete="on"><label for="li">Identifiant</label><input id="li" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required><label>Mot de passe<input id="lp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required></label>${msg?`<div class="al er">${esc(msg)}</div>`:""}<button class="btn" type="submit">Se connecter</button></form></div><div class="inst"></div><div class="sm mu">Votre mot de passe est vérifié par le serveur. Cet espace est réservé aux vendeurs partenaires.</div><div class="sm mu sanix" style="margin-top:14px;text-align:center">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="sm mu appv" style="text-align:center;margin-top:6px">${versionTxt()}</div></div>`;
+ try{const q=new URLSearchParams(location.search).get("id"),i=identDe(q||"")||lsGet(LS.i,"");if(i){$("#li").value=i;$("#lp").focus()}}catch(e){}
+ $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button");b.disabled=true;try{await loadSb();client();const em=emailDe($("#li").value),pw=$("#lp").value;let{error}=await sb.auth.signInWithPassword({email:em,password:pw});
+   /* le clavier du téléphone ajoute souvent une espace après le dernier mot : on réessaie sans les espaces de début et de fin */
+   if(error&&/invalid login/i.test(error.message)&&pw.trim()&&pw!==pw.trim())({error}=await sb.auth.signInWithPassword({email:em,password:pw.trim()}));
+   if(error)throw new Error(/invalid login/i.test(error.message)?"Identifiant ou mot de passe incorrect (identifiant envoyé : "+em.split("@")[0]+")":error.message);lsSet(LS.i,identDe($("#li").value));await demarrer()}catch(x){vueLogin(x.message)}}}
+const mdpValide=m=>m.length>=10&&[/[a-z]/,/[A-Z]/,/\d/,/[^A-Za-z0-9]/].filter(r=>r.test(m)).length>=3;
+function vueChangement(){$("#app").innerHTML=`<div class="hd"><div><b>Nouveau mot de passe</b><small>Obligatoire à la première connexion</small></div></div><div class="wrap"><div class="card"><form id="fc"><div class="sm mu">10 caractères minimum, avec au moins 3 types parmi : majuscule, minuscule, chiffre, symbole.</div><label>Nouveau mot de passe<input id="n1" type="password" autocomplete="new-password" required></label><label>Confirmer<input id="n2" type="password" autocomplete="new-password" required></label><div id="cm" class="al er hide"></div><button class="btn" type="submit">Enregistrer</button></form></div></div>`;
+ $("#fc").onsubmit=async e=>{e.preventDefault();const a=$("#n1").value,b=$("#n2").value,m=$("#cm");const bad=a!==b?"Les deux mots de passe diffèrent":!mdpValide(a)?"Mot de passe trop faible : 10 caractères minimum, 3 types de caractères":"";
+  if(bad){m.textContent=bad;m.classList.remove("hide");return}
+  try{const{error}=await sb.auth.updateUser({password:a,data:{chg:false}});if(error)throw error;toast("Mot de passe modifié","ok");await demarrer()}catch(x){m.textContent=x.message;m.classList.remove("hide")}}}
+
+/* ---------- Pages ---------- */
+const PAGES=[["accueil","🏠 Accueil"],["nouvelle","➕ Nouvelle commande"],["commandes","📦 Mes commandes"],["reglages_v","💰 Mes règlements"],["lien","🔗 Mon lien client"],["compte","⚙️ Mon compte"]];
+function drawerHtml(){return`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu">${PAGES.map(([k,t])=>`<button class="mi${PAGE===k?" on":""}" data-a="page" data-p="${k}">${t}</button>`).join("")}<button class="mi er" data-a="quitter">⎋ Se déconnecter</button><div class="sm mu appv" style="text-align:center;margin-top:12px">${versionTxt()}</div></nav></div>`}
+const vide=t=>`<div class="card mu">${t}</div>`;
+const file=()=>lsGet(LS.q,[]),envoyees=()=>lsGet(LS.e,[]);
+const refCmd=()=>"VD-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,8).toUpperCase();
+function carteCmd(x){const sv=x.suivi?`<div style="display:flex;gap:6px;margin-top:8px"><button class="btn ghost" style="margin:0" data-a="suivi" data-u="${esc(x.suivi)}">📍 Suivi</button><button class="btn wa" style="margin:0" data-a="suiviwa" data-u="${esc(x.suivi)}" data-n="${esc(x.numero||"")}">💬 Envoyer au client</button></div>`:"";
+ return`<div class="card"><div class="between"><b>${esc(x.numero||"")}</b><span class="bd">${esc(x.statut||"")}</span></div><div class="sm mu">${esc(x.client||"")}${x.montant!=null?" · "+fcfa(x.montant):""}${x.date?" · "+esc(x.date):""}</div>${sv}</div>`}
+function cartesAttente(c){const vus=new Set(c.map(x=>x.ref).filter(Boolean));
+ const q=file().map(o=>`<div class="card"><div class="between"><b>${esc(o.nom||"Client")}</b><span class="bd" style="background:#fff1d6;color:#7a4a00">⏳ À envoyer</span></div><div class="sm mu">${fcfa(o.lignes.reduce((t,l)=>t+l.qte*l.pu,0))} · partira au retour du réseau</div></div>`).join("");
+ const e=envoyees().filter(o=>!vus.has(o.ref)).map(o=>`<div class="card"><div class="between"><b>${esc(o.nom||"Client")}</b><span class="bd">Transmise au bureau</span></div><div class="sm mu">${fcfa(o.total)} · en attente de confirmation par le bureau</div></div>`).join("");
+ return q+e}
+function formCmd(){const Z=(D&&D.zones)||[];return`<h2 class="pg">Nouvelle commande</h2><form id="fcmd" class="card" autocomplete="off"><div class="sm mu">Rien n'est livré avant la confirmation du bureau.</div>
+ <label>Nom du client <span class="mu sm">(vide = client divers)</span><input name="nom" maxlength="80"></label>
+ <label>Téléphone du client <span class="mu sm">(facultatif)</span><input name="tel" inputmode="tel" maxlength="20"></label>
+ <label>Zone de livraison${Z.length?`<select name="zone" required><option value="">Choisir…</option>${Z.map(z=>`<option value="${esc(z.nom)}">${esc(z.nom)}${z.frais?" — "+fcfa(z.frais):""}</option>`).join("")}</select>`:`<input name="zone" required maxlength="60">`}</label>
+ <div class="g2"><label>Quartier<input name="quartier" maxlength="80"></label><label>Repère<input name="repere" maxlength="120"></label></div>
+ <div id="gpsl" class="sm mu" style="margin-top:6px">Position GPS : non renseignée</div><button type="button" class="btn ghost" data-a="gps">📍 Utiliser ma position actuelle</button>
+ <div class="sec" style="margin-top:12px;font-weight:700">Articles</div><div id="lg">${ligneHtml()}</div><button type="button" class="btn ghost" data-a="addl">➕ Ajouter un article</button>
+ <div id="tot" class="sm" style="margin-top:8px"></div>
+ <label>Paiement<select name="pay"><option value="livraison">Le client paie à la livraison</option><option value="paye">Déjà payé au vendeur</option><option value="partiel">Acompte payé au vendeur</option></select></label>
+ <label id="lpv" class="hide">Montant déjà payé<input name="pv" type="number" min="0" inputmode="numeric"></label>
+ <label>Consignes de livraison <span class="mu sm">(facultatif)</span><input name="ins" maxlength="200"></label>
+ <div id="ce" class="al er hide"></div><button class="btn" type="submit">Envoyer la commande</button></form>`}
+const ligneHtml=()=>`<div class="lg"><input class="ld" placeholder="Article" maxlength="100"><input class="lq" type="number" min="1" value="1" inputmode="numeric"><input class="lp" type="number" min="0" placeholder="Prix" inputmode="numeric"><button type="button" data-a="dell" aria-label="Retirer">✕</button></div>`;
+function corps(){const c=(D&&D.commandes)||[],r=(D&&D.reglements)||[];
+ if(PAGE==="nouvelle")return formCmd();
+ if(PAGE==="commandes")return`<h2 class="pg">Mes commandes</h2><button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${cartesAttente(c)}${c.length?c.map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Les commandes de vos clients apparaîtront ici."))}`;
+ if(PAGE==="reglages_v")return`<h2 class="pg">Mes règlements</h2>${r.length?r.map(x=>`<div class="card"><div class="between"><b>${fcfa(x.montant)}</b><span class="sm mu">${esc(x.date||"")}</span></div><div class="sm mu">${esc(x.libelle||"")}</div></div>`).join(""):vide("Aucun règlement enregistré pour le moment.")}`;
+ if(PAGE==="lien")return`<h2 class="pg">Mon lien client</h2>${D&&D.lien?`<div class="card"><div class="sm mu">Partagez ce lien à vos clients : leurs commandes arrivent dans votre espace.</div><input readonly value="${esc(D.lien)}" onclick="this.select()"><button class="btn" data-a="copier">📋 Copier le lien</button><button class="btn wa" data-a="wa">💬 Envoyer par WhatsApp</button></div>`:vide("Votre lien client sera disponible dès que le bureau aura activé votre espace.")}`;
+ if(PAGE==="compte")return`<h2 class="pg">Mon compte</h2><div class="card"><b>${esc((moi&&moi.nom)||"Vendeur partenaire")}</b><div class="sm mu">Identifiant : ${esc(identDe(lsGet(LS.i,"")))}</div><button class="btn ghost" data-a="mdp">🔑 Changer mon mot de passe</button></div><div class="sm mu appv" style="text-align:center">${versionTxt()}</div>`;
+ return`<h2 class="pg">Accueil</h2><div class="kp"><div><b>${c.length}</b><span>commande(s)</span></div><div><b>${fcfa((D&&D.solde)||0)}</b><span>solde à régler</span></div></div><button class="btn" data-a="page" data-p="nouvelle">➕ Nouvelle commande</button>${erreur?`<div class="al">${esc(erreur)}</div>`:""}${cartesAttente(c)}${c.length?c.slice(0,5).map(carteCmd).join(""):(file().length||envoyees().length?"":vide("Aucune commande pour le moment. Partagez votre lien client pour recevoir des commandes."))}`}
+function vue(){if(!user)return;$("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Vendeur")}</b><small>Espace vendeur partenaire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml():""}<div class="wrap">${!enLigne()?'<div class="al">📡 <b>Hors ligne</b> — les informations affichées peuvent ne pas être à jour.</div>':""}<div class="inst"></div>${corps()}</div>`}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
+ if(a==="suivi")return window.open(b.dataset.u,"_blank");
+ if(a==="suiviwa")return window.open("https://wa.me/?text="+encodeURIComponent("Suivez votre livraison"+(b.dataset.n?" ("+b.dataset.n+")":"")+" : "+b.dataset.u),"_blank");
+ if(a==="addl"){$("#lg").insertAdjacentHTML("beforeend",ligneHtml());return}
+ if(a==="dell"){const L=document.querySelectorAll("#lg .lg");if(L.length>1)b.closest(".lg").remove();else b.closest(".lg").querySelectorAll("input").forEach(i=>i.value=i.classList.contains("lq")?"1":"");totaux();return}
+ if(a==="gps"){if(!navigator.geolocation)return toast("Position indisponible sur cet appareil","err");$("#gpsl").textContent="Recherche de la position…";navigator.geolocation.getCurrentPosition(p=>{GPS={lat:p.coords.latitude,lng:p.coords.longitude};$("#gpsl").textContent="📍 Position enregistrée (précision "+Math.round(p.coords.accuracy)+" m)"},()=>{GPS=null;$("#gpsl").textContent="Position refusée ou indisponible : décrivez le repère"},{enableHighAccuracy:true,timeout:15000});return}
+ if(a==="menu"){MENU=!MENU;vue()}
+ else if(a==="page"){PAGE=b.dataset.p;MENU=false;vue()}
+ else if(a==="mdp")vueChangement();
+ else if(a==="copier"){try{await navigator.clipboard.writeText(D.lien);toast("Lien copié","ok")}catch(x){toast("Copie impossible","err")}}
+ else if(a==="wa")window.open("https://wa.me/?text="+encodeURIComponent("Commandez chez moi : "+D.lien),"_blank");
+ else if(a==="quitter"){try{await sb.auth.signOut()}catch(x){}user=null;moi=null;D=null;MENU=false;PAGE="accueil";vueLogin()}});
+addEventListener("keydown",e=>{if(e.key==="Escape"&&MENU){MENU=false;vue()}});
+addEventListener("online",()=>{if(user)charger()});addEventListener("offline",()=>{if(user)vue()});
+/* ---------- Dépôt d'une commande (hors ligne d'abord : mise en file, envoi au retour du réseau, sans doublon grâce à la référence) ---------- */
+function totaux(){const t=[...document.querySelectorAll("#lg .lg")].reduce((s,l)=>s+(+l.querySelector(".lq").value||0)*(+l.querySelector(".lp").value||0),0),e=$("#tot");if(e)e.innerHTML="Total articles : <b>"+fcfa(t)+"</b>"}
+document.addEventListener("input",e=>{if(e.target.closest("#lg"))totaux()});
+document.addEventListener("change",e=>{if(e.target.name==="pay"){$("#lpv").classList.toggle("hide",e.target.value!=="partiel")}});
+document.addEventListener("submit",async e=>{if(e.target.id!=="fcmd")return;e.preventDefault();const f=e.target,m=$("#ce"),bt=f.querySelector("button[type=submit]");
+ const lignes=[...f.querySelectorAll("#lg .lg")].map(l=>({desig:l.querySelector(".ld").value.trim(),qte:Math.round(+l.querySelector(".lq").value),pu:Math.round(+l.querySelector(".lp").value||0)})).filter(l=>l.desig||l.pu);
+ const o={ref:refCmd(),nom:f.nom.value.trim(),tel:f.tel.value.trim(),zone:f.zone.value,quartier:f.quartier.value.trim(),repere:f.repere.value.trim(),ins:f.ins.value.trim(),lignes,pay:f.pay.value,paye_vendeur:Math.round(+f.pv.value||0),gps:GPS};
+ const total=lignes.reduce((t,l)=>t+l.qte*l.pu,0),bad=!o.zone?"Choisissez la zone de livraison":!lignes.length?"Ajoutez au moins un article":lignes.some(l=>!l.desig||!(l.qte>=1))?"Chaque article doit avoir un nom et une quantité":o.pay==="partiel"&&!(o.paye_vendeur>0&&o.paye_vendeur<=total)?"Indiquez le montant déjà payé (au plus le total des articles)":"";
+ if(bad){m.textContent=bad;m.classList.remove("hide");return}m.classList.add("hide");bt.disabled=true;
+ try{await api("vendeur-sync",Object.assign({action:"commander"},o));lsSet(LS.e,[{ref:o.ref,nom:o.nom,total},...envoyees()].slice(0,30));toast("Commande envoyée au bureau","ok")}
+ catch(x){if(x.reseau||!enLigne()){lsSet(LS.q,[...file(),Object.assign({},o,{total})]);toast("📡 Hors ligne : commande gardée sur le téléphone, elle partira au retour du réseau","ok")}else{m.textContent=x.message;m.classList.remove("hide");bt.disabled=false;return}}
+ GPS=null;PAGE="commandes";vue();charger()});
+async function viderFile(){if(!sb||!enLigne())return;const F=file();if(!F.length)return;const reste=[];for(const o of F){try{await api("vendeur-sync",Object.assign({action:"commander"},o));lsSet(LS.e,[{ref:o.ref,nom:o.nom,total:o.total},...envoyees()].slice(0,30))}catch(x){if(x.reseau||x.status===401)reste.push(o);else toast("Commande refusée par le serveur : "+x.message,"err")}}lsSet(LS.q,reste)}
+/* Les données viennent du serveur (fonction « vendeur-sync ») ; si elle est injoignable, l’espace s’ouvre avec une explication. */
+async function charger(){try{await viderFile();const j=await api("vendeur-sync",{action:"etat"});D=j;erreur="";if(j.nom&&moi)moi.nom=j.nom}catch(x){if(x.status===401)return vueLogin("Session expirée : reconnectez-vous");erreur=x.reseau?"":"Les données de votre espace ne sont pas encore disponibles ("+x.message+")"}if(user)vue()}
+async function demarrer(){const{data}=await sb.auth.getSession();user=data&&data.session&&data.session.user;if(!user)return vueLogin();
+ const md=user.user_metadata||{};if(md.role&&md.role!=="vendeur"){await sb.auth.signOut();user=null;return vueLogin("Cet espace est réservé aux vendeurs partenaires")}
+ moi={nom:md.nom||""};if(md.chg)return vueChangement();
+ await charger()}
+(async()=>{if(!CFG.url||!CFG.key){$("#app").innerHTML='<div class="wrap"><div class="al er">Configuration manquante (passerelle-config.js).</div></div>';return}
+ try{await loadSb();client();await demarrer()}catch(e){vueLogin(enLigne()?e.message:"Connexion Internet requise pour se connecter")}})();
+/* Installation sur l'écran d'accueil */
+let IPROMPT=null;
+const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const estIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+function majInstall(){let h="";
+ if(!standalone()&&/^https?:$/.test(location.protocol)){
+  if(IPROMPT)h='<button type="button" class="btn ghost" data-a="installer">📲 Installer l\'application Vendeur</button>';
+  else if(estIOS())h='<div class="al">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l\'écran d\'accueil</b>.</div>'}
+ document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;majInstall()});
+addEventListener("appinstalled",()=>{IPROMPT=null;majInstall()});
+document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="installer"]');if(!b||!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(x){}IPROMPT=null;majInstall()});
+new MutationObserver(()=>{if(document.querySelector(".inst:empty"))majInstall()}).observe(document.getElementById("app"),{childList:true});
+/* Version affichée + mise à jour automatique (comme l'application livreur) */
+if("serviceWorker"in navigator){
+ navigator.serviceWorker.register("sw.js").then(reg=>{const verif=()=>{try{reg.update()}catch(e){}};document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")verif()});setInterval(verif,30*60000)}).catch(()=>{});
+ const avait=!!navigator.serviceWorker.controller;let rech=false;
+ navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!avait||rech)return;rech=true;const occ=()=>{const a=document.activeElement;return !!MENU||!!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.value)},go=()=>{if(occ())return setTimeout(go,15000);location.reload()};go()})}
+const lireVersion=()=>{try{if(window.caches)caches.keys().then(k=>{const v=k.filter(x=>/^angels-v\d+$/.test(x)).sort((a,b)=>parseInt(a.slice(8))-parseInt(b.slice(8))).pop();if(v){APPV=v.replace("angels-v","");document.querySelectorAll(".appv").forEach(e=>{e.textContent=versionTxt()})}})}catch(e){}};
+lireVersion();try{if("serviceWorker"in navigator)navigator.serviceWorker.ready.then(()=>setTimeout(lireVersion,300))}catch(e){}
+</script>
+</body>
+</html>

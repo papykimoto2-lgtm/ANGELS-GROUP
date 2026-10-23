@@ -31,7 +31,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  /* livreurs de la base */
  const base3=[{ident:"adama.k",nom:"Adama Koné"},{ident:"koffi.yves",nom:"Koffi Yves"},{ident:"traore.ali",nom:"Traoré Ali"}];
  p=await nv([{i:"traore.ali",n:"Traoré Ali"}],base3);await p.click("#lvb");const l3=await items(p);
- t("LC-9","livreurs de la base : les 3 sont proposés, le livreur enregistré sur l'appareil en tête (« enregistré ici »)",l3.length===3&&/^Traoré Ali · enregistré ici/.test(l3[0])&&/Adama Koné/.test(l3.join("|"))?true:JSON.stringify(l3));
+ t("LC-9","livreurs de la base : les 3 sont proposés, le livreur enregistré sur l'appareil en tête (« déjà utilisé sur ce téléphone »)",l3.length===3&&/^Traoré Ali · déjà utilisé sur ce téléphone/.test(l3[0])&&/Adama Koné/.test(l3.join("|"))?true:JSON.stringify(l3));
  await p.click("#lvl li:nth-child(2)");
  t("LC-10","choix d'un livreur de la base : identifiant rempli, curseur sur le mot de passe",["adama.k","koffi.yves"].includes(await p.$eval("#li",e=>e.value))&&await p.evaluate(()=>document.activeElement.id)==="lp"?true:await p.$eval("#li",e=>e.value));
  p=await nv(null,base3);

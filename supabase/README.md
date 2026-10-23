@@ -140,3 +140,17 @@ Secrets : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (clés géné
 | `functions/livreurs-liste/` | **Public** (`--no-verify-jwt`, GET) : renvoie les livreurs actifs (identifiant de connexion + nom, 200 au plus) pour la liste déroulante de l'écran de connexion du livreur ; ni téléphone, ni missions |
 
 Mise en service : `supabase functions deploy livreurs-liste --no-verify-jwt`. **Non déployée automatiquement** ; tant qu'elle ne l'est pas, la liste ne propose que le livreur enregistré sur l'appareil. Désactivable : `supabase secrets set LISTE_LIVREURS_LOGIN=0` (la liste revient vide). Test : `node tests/livreurs-liste.js` (6 contrôles).
+
+## Application vendeur partenaire (`vendeur.html`)
+
+Application dédiée, de même charpente que l'application livreur : le vendeur n'ouvre jamais le logiciel du bureau. Le bureau reste la source de vérité ; le vendeur ne lit que sa projection et dépose ses commandes dans une file.
+
+| Élément | Rôle |
+|---|---|
+| `migrations/020_comptes_vendeurs.sql` | Table `pg_vendeurs` (un compte Supabase Auth par vendeur ; le vendeur ne lit que sa propre ligne) |
+| `migrations/021_vendeur_etat.sql` | Table `pg_vendeur_etat` : projection publiée par le bureau (commandes, règlements, solde, zones, lien client, liens de suivi) **sans téléphone de client** ; aucun accès direct |
+| `migrations/022_vendeur_commandes.sql` | Table `pg_vendeur_cmds` : file des commandes déposées (clé `vendeur_ref + ref` : envoi idempotent) ; aucun accès direct |
+| `functions/mission-sync/` | Bureau (`ADMIN_KEY`) : `vendeur-compte-creer` · `vendeur-compte-reset` · `vendeur-compte-actif` · `vendeur-publier` · `vendeur-commandes` · `vendeur-acquitter` |
+| `functions/vendeur-sync/` | **Avec** vérification JWT : le vendeur connecté lit son espace (`etat`) et dépose une commande (`commander` : contrôles serveur, 40 commandes en attente au plus, jamais livrée avant la confirmation du bureau) |
+
+Mise en service : appliquer les migrations 020 à 022 puis `supabase functions deploy mission-sync --no-verify-jwt` et `supabase functions deploy vendeur-sync`. Côté bureau (Distributions), activer la passerelle (Paramètres → Livreurs & GPS), créer le compte du vendeur depuis « Vendeurs partenaires » (identifiant et mot de passe temporaire à envoyer par WhatsApp) ; le lien d'installation et le QR code sont dans Paramètres → Livreurs & GPS → « Installer l'application des vendeurs ». Adresse courte : `/espace-vendeur` (l'ancien espace `/vendeur`, mode local, reste disponible).
