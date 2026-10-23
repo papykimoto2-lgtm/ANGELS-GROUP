@@ -74,6 +74,7 @@ export function nettoyerEtatVendeur(e) {
       lignes: L(d && d.lignes, 30).map((l) => ({ desig: txt(l && l.desig, 120), qte: Math.max(1, Math.min(9999, Math.round(Number(l && l.qte)) || 1)), pu: l && l.pu != null && l.pu !== "" && Number.isFinite(+l.pu) ? Math.max(0, Math.round(+l.pu)) : null })).filter((l) => l.desig) })).filter((d) => d.ref),
     types: L(e.types, 20).map((t) => ({ id: txt(t && t.id, 20).toLowerCase().replace(/[^a-z0-9_]/g, ""), nom: txt(t && t.nom, 40), icone: txt(t && t.icone, 4), consigne: txt(t && t.consigne, 200) })).filter((t) => t.id && t.nom),
     zones: L(e.zones, 60).map((z) => ({ nom: txt(z && z.nom, 60), frais: montant(z && z.frais) })).filter((z) => z.nom),
+    dests: L(e.dests, 80).map((d) => ({ id: txt(d && d.id, 40), nom: txt(d && d.nom, 60), pays: txt(d && d.pays, 60), portee: ["national", "sous_regional", "international"].includes(d && d.portee) ? d.portee : "", delai_j: Math.max(0, Math.min(90, Math.round(Number(d && d.delai_j)) || 0)), base: montant(d && d.base), par_kg: montant(d && d.par_kg) })).filter((d) => d.id && d.nom && d.portee),
     reglements: L(e.reglements, 100).map((r) => ({ date: txt(r && r.date, 10), montant: montant(r && r.montant), libelle: txt(r && r.libelle, 80) })),
   };
 }
@@ -99,8 +100,11 @@ export async function traiterVendeurEtat(db, req, userId) {
     if (tel && !/^[0-9 +().-]{6,20}$/.test(tel)) return err(400, "Téléphone invalide");
     if (await db.nbCmdsVendeurEnAttente(c.vendeur_ref) >= 40) return err(429, "Trop de commandes en attente de traitement par le bureau : patientez");
     const gps = req.gps && Number.isFinite(+req.gps.lat) && Number.isFinite(+req.gps.lng) && Math.abs(+req.gps.lat) <= 90 && Math.abs(+req.gps.lng) <= 180 ? { lat: +(+req.gps.lat).toFixed(6), lng: +(+req.gps.lng).toFixed(6) } : null;
+    const portee = ["national", "sous_regional", "international"].includes(req.portee) ? req.portee : "", poids = Math.round(Number(req.poids) * 10) / 10;
+    if (portee && (!txt(req.dest, 40) || !(poids >= 0.1 && poids <= 200))) return err(400, "Destination et poids (0,1 à 200 kg) obligatoires pour une expédition");
+    const exp = portee ? { portee, dest: txt(req.dest, 40), poids } : undefined;
     const demande = txt(req.demande, 12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(), type_colis = txt(req.type_colis, 20).toLowerCase().replace(/[^a-z0-9_]/g, ""), nb_colis = Math.max(1, Math.min(20, Math.round(Number(req.nb_colis)) || 1));
-    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, type_colis: type_colis || undefined, nb_colis, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
+    await db.ajouterCmdVendeur({ vendeur_ref: c.vendeur_ref, ref, donnees: { demande: demande || undefined, type_colis: type_colis || undefined, nb_colis, exp, nom: txt(req.nom, 80), tel, zone, quartier: txt(req.quartier, 80), repere: txt(req.repere, 120), ins: txt(req.ins, 200), obs: txt(req.obs, 300), lignes, pay, paye_vendeur: pv, gps } });
     return rep(200, { ok: true, ref });
   }
   return err(400, "Action inconnue");
