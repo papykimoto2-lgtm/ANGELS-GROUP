@@ -2602,6 +2602,10 @@ function gmAlertes(){if(!S.gmao)return[];const g=gm(),C=g.cfg,a=[],t=ymd(new Dat
  g.pp.filter(x=>x.statut==="ouvert"&&x.echeance&&x.echeance<t).forEach(x=>a.push({k:"warn",m:`Maintenance : action 5 pourquoi en retard (${(moto(x.moto_id)||{immat:"?"}).immat} — ${x.cause_racine.slice(0,40)})`}));
  const dern={};g.s5.forEach(x=>{if(!dern[x.zone]||new Date(x.ts)>=new Date(dern[x.zone].ts))dern[x.zone]=x});Object.values(dern).filter(x=>x.pct<C.s5_min).forEach(x=>a.push({k:"",m:`Maintenance : audit 5S « ${x.zone} » à ${x.pct} % (objectif ${C.s5_min} %)`}));
  return a}
+/** Ce que le livreur voit de SON engin (publié avec ses statistiques) : type, documents, intervention en cours ou prévue, prochain entretien préventif, contrôle du jour. Contenu stable (pas d'horodatage). */
+function gmEnginPass(m){const g=S.gmao,ot=g&&g.ots.filter(o=>o.moto_id===m.id&&["planifie","en_cours"].includes(o.statut)).sort((a,b)=>(a.statut==="en_cours"?0:1)-(b.statut==="en_cours"?0:1)||String(a.debut_prevu).localeCompare(b.debut_prevu))[0],
+ pv=g&&gmEcheances().filter(x=>x.m.id===m.id&&x.e.etat!=="ok").sort((a,b)=>(a.e.etat==="depasse"?0:1)-(b.e.etat==="depasse"?0:1))[0],t=enType(m);
+ return{type:t.nom,icone:t.icone,docs:enDocsEtat(m).filter(x=>x.etat!=="ok").map(x=>({t:x.t,etat:x.etat,j:x.j})),ot:ot?{num:ot.num,titre:ot.titre,statut:ot.statut,debut:ot.debut_prevu||"",fin:ot.fin_prevue||""}:null,prochain:pv?{nom:pv.p.nom,etat:pv.e.etat}:null,ctrl:!!(g&&gmChkJour(m).length),chk:!!(g&&g.cfg.chk_actif)}}
 /* ---- écrans de la maintenance ---- */
 const gmPct=v=>v==null?"—":Math.round(v*100)+" %",gmH=v=>v==null?"—":v>=48?(v/24).toFixed(1)+" j":v.toFixed(1)+" h";
 const gmBadgeOt=o=>badge(GM_ST[o.statut][0],GM_ST[o.statut][1]);
@@ -3414,7 +3418,7 @@ function passPayloadLivreur(lv,j0,t){const m1=new Date(new Date(j0).getFullYear(
    versements:(S.versements||[]).filter(x=>x.livreur_id===lv.id).sort((a,b)=>new Date(b.cree_le)-new Date(a.cree_le)).slice(0,4).map(x=>({ts:x.cree_le,montant:x.montant,mode:x.mode,ref:x.ref,statut:x.statut,motif:x.motif||"",traite_le:x.traite_le||null})),
    cloture:(()=>{const r=clotRecap(lv.id),dm=clotDemande(lv.id),la=clotDerniere(lv.id);return{nb:r.L.length,collecte:r.collecte,gardes:r.gardes,direct:r.direct,du:r.du,attente:r.attente,actives:r.actives,demande:dm?dm.demande_le:null,derniere:la?{le:la.cloture_le,remis:la.remis,ecart:la.ecart||0,motif:la.motif||""}:null}})()},
   avis:(()=>{const A=(S.avis||[]).filter(x=>x.livreur_id===lv.id),m=avisMoy(lv.id);return{n:m.n,m:Math.round(m.m*10)/10,derniers:A.slice(-5).reverse().map(x=>({note:x.note,commentaire:String(x.commentaire||"").slice(0,200),ts:x.ts}))}})(),
-  moto:mo?{immat:mo.immat,modele:mo.modele||"",km:mo.km,prochain_km:mo.prochain_km,statut:mo.statut,entretiens:S.entretiens.filter(x=>x.moto_id===mo.id).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,3).map(x=>({ts:x.ts,type:x.type,km:x.km}))}:null,
+  moto:mo?{immat:mo.immat,modele:mo.modele||"",km:mo.km,prochain_km:mo.prochain_km,statut:mo.statut,entretiens:S.entretiens.filter(x=>x.moto_id===mo.id).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,3).map(x=>({ts:x.ts,type:x.type,km:x.km})),engin:gmEnginPass(mo)}:null,
   planning:planPayload(lv),chat:chatPayload(lv),
   bonus:{boosts:boostsCfg().filter(b=>b.actif!==false).map(b=>({zone:b.zone,jours:b.jours,debut:b.debut,fin:b.fin,montant:b.montant})),zone:bonusZoneAcquis(lv.id),quetes_acquises:quetesAcquises(lv.id),paye:bonusPaye(lv.id),reste:bonusReste(lv.id),
    quetes:quetesCfg().filter(q=>q.actif!==false).map(q=>{const n=queteProgres(lv,q);return{nom:q.nom,periode:q.periode,cible:q.cible,zone:q.zone,montant:q.montant,progres:Math.min(n,q.cible),fait:n>=q.cible}})},
