@@ -35,7 +35,7 @@
       groupes: [
         { id: "activite", titre: "Activité", fixe: true, aide: "Commandes, livraisons, encaissements, caisse, stocks (mouvements), incidents, retours, paie, dépenses, tournées, ordres de maintenance, écritures comptables, journal d'audit, compteurs de numérotation.",
           cles: ["commandes", "livraisons", "fonds", "versements", "reglements", "paie", "depenses", "incidents", "retours", "stock_mvts", "tournees", "clotures", "expeditions", "collectes", "demandes", "notifs", "push_file", "reservations", "pauses", "chat", "quetes_gains", "hz_events", "attributions", "primes", "docs", "avis", "inventaires",
-            "caisse_sessions", "caisse_mvts", "entretiens", "pleins", "equip_mvts", "gps_hist", "pos", "test_ids", "test_corbeille", "audit", "fne_certs",
+            "caisse_sessions", "caisse_mvts", "caisse_file", "entretiens", "pleins", "equip_mvts", "gps_hist", "pos", "test_ids", "test_corbeille", "audit", "fne_certs",
             "equip_retenues", "engin_sinistres", "alertes_suivi", "corbeille", "caisse_remises", "caisse_reappros",
             "gmao.ots", "gmao.mvts", "gmao.chk", "gmao.pp", "gmao.s5", "rh.variables", "rh.avances", "rh.conges", "rh.paies", "rh.reversements", "rh.historique", "rh.pointages", "rh.formations", "rh.candidats", "rh.missions", "rh.mobilites", "rh.declarations", "rh.seq",
             { k: "compta", n: function (S) { var c = S.compta; return c ? taille(c.nums) + taille(c.manuelles) : 0; }, f: function (S) { var c = S.compta; if (!estObj(c)) return; razSous(c, ["manuelles", "tvaliq", "snaps", "nums", "cnt", "ventil", "lettrage", "let_cnt", "exercices", "reouv"]); c.clos = ""; } },
