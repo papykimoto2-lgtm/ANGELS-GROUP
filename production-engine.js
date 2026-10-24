@@ -203,10 +203,20 @@
   /** { table: n } → texte lisible */
   function resumeServeur(c) { var k = Object.keys(c || {}).filter(function (t) { return c[t] > 0; }); return k.length ? k.map(function (t) { return t + " : " + c[t]; }).join("\n") : "Le serveur ne contient aucune donnée d'activité."; }
 
+  /** Remise à zéro appliquée à un poste dont le serveur a été vidé : activité vidée, fichiers de base conservés, trace d'audit et marqueur de passage en production */
+  function reinitialiser(app, S, o) {
+    o = o || {}; var r = appliquer(app, S, choixDefaut(app, false)), now = new Date().toISOString(), par = o.par || "Synchronisation", ref = S.config && app === "distribution" ? S.config : S.settings;
+    if (ref) { ref.production = { le: now, par: par, n: r.total, serveur: true }; if (S.config && app === "distribution") S.config.mode_essai = false; }
+    var detail = "Serveur remis à zéro : " + r.total + " enregistrement(s) d'exercice vidés sur ce poste";
+    if (app === "distribution") { S.audit = S.audit || []; S.audit.push({ ts: now, user: par, role: "système", action: "Passage en production", detail: detail }); }
+    else { S.audit = S.audit || []; S.audit.unshift({ t: now, u: par, r: "", a: "Passage en production", d: detail }); }
+    return r;
+  }
+
   /** Sauvegarde intégrale (JSON) avant la remise à zéro : horodatée, restaurable par l'import de l'application */
   function sauvegarde(app, S) { return JSON.stringify(S); }
   function nomSauvegarde(app, d) { var t = (d || new Date()).toISOString().replace(/[:T]/g, "-").slice(0, 16); return "sauvegarde-avant-production-" + app + "-" + t + ".json"; }
 
-  G.ANGELS_PROD = { profils: PROFILS, profil: profil, inconnus: inconnus, choixDefaut: choixDefaut, plan: plan, appliquer: appliquer, sauvegarde: sauvegarde, nomSauvegarde: nomSauvegarde, vue: vue, serveurApercu: serveurApercu, serveurVider: serveurVider, resumeServeur: resumeServeur, SQL_SERVEUR: SQL_SERVEUR };
+  G.ANGELS_PROD = { profils: PROFILS, profil: profil, inconnus: inconnus, choixDefaut: choixDefaut, plan: plan, appliquer: appliquer, sauvegarde: sauvegarde, nomSauvegarde: nomSauvegarde, vue: vue, reinitialiser: reinitialiser, serveurApercu: serveurApercu, serveurVider: serveurVider, resumeServeur: resumeServeur, SQL_SERVEUR: SQL_SERVEUR };
   if (typeof module !== "undefined" && module.exports) module.exports = G.ANGELS_PROD;
 })(typeof window !== "undefined" ? window : globalThis);

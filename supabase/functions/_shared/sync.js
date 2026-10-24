@@ -26,19 +26,22 @@ const fusionMax = (a, b) => {                // compteurs : plus grande valeur n
   return b === undefined ? a : b;
 };
 
+/** Numéro de la dernière remise à zéro du serveur (passage en production) : les postes qui en connaissent un plus ancien proposent de se vider à leur tour. */
+const generation = async (db) => (db.generation ? Number(await db.generation()) || 0 : 0);
+
 export async function traiterSync(db, cfg, req, cle, now = Date.now()) {
   if (!cfg.syncKey || !egal(cle, cfg.syncKey)) return err(401, "Clé de synchronisation invalide");
   const a = String(req.action || ""), app = txt(req.app, 20);
   if (a === "etat") {
     const n = {}; for (const x of APPS) n[x] = await db.compter(x);
-    return rep(200, { ok: true, enregistrements: n, heure: new Date(now).toISOString() });
+    return rep(200, { ok: true, enregistrements: n, heure: new Date(now).toISOString(), generation: await generation(db) });
   }
   if (!APPS.includes(app)) return err(400, "Application inconnue");
 
   if (a === "tirer") {
     const depuis = Math.max(0, Math.floor(+req.depuis || 0)), lim = Math.min(500, Math.max(1, Math.floor(+req.limite || 300)));
     const lignes = await db.depuis(app, depuis, lim + 1), suite = lignes.length > lim, L = lignes.slice(0, lim);
-    return rep(200, { ok: true, lignes: L.map((r) => ({ coll: r.coll, id: r.id, data: r.supprime ? null : r.data, rev: r.rev, supprime: !!r.supprime, par: r.par, seq: r.seq })), curseur: L.length ? L[L.length - 1].seq : depuis, suite });
+    return rep(200, { ok: true, generation: await generation(db), lignes: L.map((r) => ({ coll: r.coll, id: r.id, data: r.supprime ? null : r.data, rev: r.rev, supprime: !!r.supprime, par: r.par, seq: r.seq })), curseur: L.length ? L[L.length - 1].seq : depuis, suite });
   }
 
   if (a === "pousser") {
