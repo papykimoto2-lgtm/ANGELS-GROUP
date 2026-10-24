@@ -28,7 +28,7 @@
 
 ## Limites actuelles
 - L'interface `transport.html` fonctionne encore sur le stockage local du navigateur (mêmes règles métier, mêmes tests). Son raccordement à ce backend (Supabase Auth + appels `rpc`) est l'étape suivante.
-- Le plan comptable est indicatif : à faire valider par le comptable (SYSCOHADA révisé, fiscalité ivoirienne). Facturation normalisée / FNE, déclarations fiscales, immobilisations et amortissements : hors périmètre tant qu'ils ne sont pas spécifiés.
+- Le plan comptable est indicatif : à faire valider par le comptable (SYSCOHADA révisé, fiscalité ivoirienne). Déclarations fiscales, immobilisations et amortissements : hors périmètre tant qu'ils ne sont pas spécifiés.
 
 ## Pont téléphonique (appel du client sans révéler son numéro)
 
@@ -178,3 +178,7 @@ Aucune migration : ces actions réutilisent le type d'événement `incident` (co
 | `CLOTURE` | `stats:<livreur>` | le bureau enregistre la demande (refusée tant qu'une course est en cours) |
 
 Un refus côté bureau (doublon, montant trop élevé, course en cours) est signalé au livreur par un message du centre. Le bureau publie en plus, dans les statistiques du livreur : historique des versements, opérateurs Mobile Money, récapitulatif de clôture et avis des clients. Mise en service : `supabase functions deploy mission-action` (avec vérification JWT).
+
+## Facturation normalisée (FNE)
+
+Fonction `fne` (migration `025_fne.sql`) : certification des factures auprès de la DGI. Secrets : `FNE_TEST_KEY`, `FNE_PROD_KEY`, `FNE_PROD_URL` (ou par division `FNE_<DISTRIBUTION|TRANSPORT|AGRO>_<TEST|PROD>_KEY/URL`), `FNE_TEST_URL` (défaut plateforme de test). Voir le README principal.

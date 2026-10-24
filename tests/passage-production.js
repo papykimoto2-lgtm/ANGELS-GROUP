@@ -109,5 +109,7 @@ const PROD=require(path.join(root,"production-engine.js"));
   const sensibles=["pg_livreurs","pg_vendeurs","pd_vendeurs","portail_catalogue","pg_push"];
   chk("PP-6.5","script SQL : dans une transaction, sans truncate ni drop, comptes livreurs/vendeurs/catalogue/notifications jamais touchés, activité passerelle et portail vidée",/^begin;/m.test(sql)&&/^commit;/m.test(sql)&&!/truncate|drop /i.test(sql)&&sensibles.every(t=>!new RegExp("(delete from|update) public\\."+t+"\\b","i").test(sql))&&/delete from public\.pg_missions/.test(sql)&&/delete from public\.pd_demandes/.test(sql));}
 
+ for(const app of ["distribution","transport","agro"]){const S={v:1,config:{fne:{ncc:"X"}},settings:{fne:{ncc:"X"}},users:[{id:"u"}],fne_certs:[{id:"c1"}]};PROD.appliquer(app,S,PROD.choixDefaut(app,false));
+  chk("PP-6.6."+app,"certifications FNE (essais, simulations) vidées au passage en production ; réglages FNE conservés ("+app+")",S.fne_certs.length===0&&(S.config.fne.ncc==="X"||S.settings.fne.ncc==="X"))}
  for(const k of Object.keys(apps)){const e=apps[k].errs.filter(m=>!/ResizeObserver/.test(m));chk("PP-7."+k,"aucune erreur de script pendant le test ("+k+")",e.length===0,e.slice(0,2).join(" | "))}
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0)})();
