@@ -869,7 +869,7 @@ function loginHTMLLocal(){
  <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
-function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{essaiBandeau()}catch(e){}try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
+function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{essaiBandeau()}catch(e){}try{pgVoyant()}catch(e){}try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
 function render0(){
  if(!S&&!CL.on)return;
  if(!ME){$("#app").innerHTML=loginHTML();return}
@@ -3626,6 +3626,24 @@ function passPanneEntrant(ev){const r=passEnginDe(ev,"Votre signalement");if(r.e
 function passStatsMissions(){const d0=new Date();d0.setHours(0,0,0,0);const j0=d0.getTime(),t=Date.now(),m1=new Date(d0.getFullYear(),d0.getMonth(),1).getTime();
  return S.livreurs.filter(lv=>lv.ident_serveur).map(lv=>({livraison_ref:"stats:"+lv.id,livreur_ref:lv.id,commande_ref:"STATS",statut:"stats",payload:Object.assign(passPayloadLivreur(lv,j0,t),{p:{j:statLivP(lv,j0,t),s7:statLivP(lv,j0-6*864e5,t),m30:statLivP(lv,j0-29*864e5,t),mois:statLivP(lv,m1,t)},jours7:[...Array(7)].map((_,i)=>{const a=j0-(6-i)*864e5;return{l:new Date(a).toLocaleDateString("fr-FR",{weekday:"short"}),n:S.livraisons.filter(l=>l.livreur_id===lv.id&&l.statut==="livree"&&l.fin_at&&new Date(l.fin_at).getTime()>=a&&new Date(l.fin_at).getTime()<a+864e5).length}})})}))}
 let _passBusy=false,_passLast=0,_passSig="";
+/* ---- Voyant « Passerelle » : les applications livreur et vendeur sont-elles reliées au bureau ? ---- */
+let _passOkAt=0;
+function pgEtat(){const P=PASS(),cfg=S.config||{},nl=S.livreurs.filter(l=>l.ident_serveur&&!l.archive).length,nv=S.vendeurs.filter(v=>v.ident_serveur).length,poste=localStorage.getItem("angels_pg_poste")==="1",sync=ANGELS_SYNC.actif();
+ const base={nl,nv,poste,sync,ok:_passOkAt,err:S.pass_err||""};
+ if(!P)return Object.assign(base,cfg.passerelle_actif===true?{k:"er",t:"Passerelle incomplète",d:"La passerelle est activée mais l'adresse du serveur ou la clé d'administration manque sur ce poste (Paramètres → Livreurs & GPS → Passerelle livreur)."}:{k:"mu",t:"Passerelle inactive",d:"Les applications livreur et vendeur ne reçoivent rien de ce poste. Activez la passerelle dans Paramètres → Livreurs & GPS."});
+ if(sync&&!poste)return Object.assign(base,{k:"wa",t:"Passerelle gérée par un autre poste",d:"Ce poste n'échange pas avec les livreurs et les vendeurs : c'est le « poste passerelle » qui le fait. Vérifiez l'état sur ce poste."});
+ if(base.err)return Object.assign(base,{k:"er",t:"Passerelle en erreur",d:base.err});
+ if(!_passOkAt)return Object.assign(base,{k:"mu",t:"Passerelle : en attente",d:"Aucun échange encore effectué depuis l'ouverture de l'application (un échange a lieu toutes les 15 secondes)."});
+ const age=Date.now()-_passOkAt;return Object.assign(base,age<90000?{k:"ok",t:"Passerelle connectée",d:"Dernier échange avec le serveur il y a "+Math.max(1,Math.round(age/1000))+" s."}:{k:"wa",t:"Passerelle sans échange récent",d:"Dernier échange réussi il y a "+Math.round(age/60000)+" min : connexion Internet du poste ou serveur à vérifier."})}
+function pgVoyant(){let b=document.getElementById("pg-v");const e=ME&&!CL.on&&S&&S.config&&can("admin","commercial","superviseur")?pgEtat():null;
+ if(!e||(e.k==="mu"&&!e.nl&&!e.nv&&!(S.config&&S.config.passerelle_actif))){if(b)b.remove();return}
+ if(!b){b=document.createElement("button");b.id="pg-v";b.type="button";b.dataset.act="pgInfo";b.style.cssText="position:fixed;right:10px;bottom:10px;z-index:55;border:0;border-radius:999px;padding:6px 12px;font:600 12px system-ui,Arial,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);color:#fff";document.body.appendChild(b)}
+ b.style.background={ok:"#15803d",wa:"#b45309",er:"#b91c1c",mu:"#475569"}[e.k];b.textContent=({ok:"🟢 ",wa:"🟠 ",er:"🔴 ",mu:"⚪ "}[e.k])+e.t;b.title=e.d}
+function pgInfo(){const e=pgEtat();modal("Passerelle livreurs et vendeurs",`<div class="al ${e.k==="ok"?"ok":e.k==="er"?"er":"warn"}"><b>${esc(e.t)}</b><br>${esc(e.d)}</div>
+ <table class="tw"><tr><th>Comptes livreurs créés sur le serveur</th><td><b>${e.nl}</b></td></tr><tr><th>Comptes vendeurs créés sur le serveur</th><td><b>${e.nv}</b></td></tr><tr><th>Ce poste est le poste passerelle</th><td>${e.sync?(e.poste?"oui":"non"):"oui (synchronisation entre postes inactive)"}</td></tr><tr><th>Dernier échange réussi</th><td>${e.ok?fdt(new Date(e.ok).toISOString()):"aucun depuis l'ouverture"}</td></tr></table>
+ <p class="sm mu">Le bureau reprend les actions des livreurs (départ, livraison, incident, encaissement) et les commandes des vendeurs, et publie les missions, toutes les 15 secondes. Pour vérifier de bout en bout : créez une commande de test, affectez-la à un livreur, puis vérifiez qu'il la voit sur son téléphone.</p>
+ <div class="flex"><button type="button" class="btn" data-act="pgMaintenant">🔄 Échanger maintenant</button></div>`,{notice:false,focus:false})}
+
 function passSosEntrant(ev){const lv=liv(ev.livreur_ref),d=ev.donnees||{};if(!lv)return"livreur introuvable";
  const a=String(d.description||"").split("|"),type=SOS_LIB[a[1]]?a[1]:"autre",auto=a[2]==="auto",ll=(a[3]||"").split(",").map(parseFloat),note=(a.slice(4).join("|")||"").trim().slice(0,300);
  if(!sosDuLivreur(lv)){S.sos=S.sos||[];S.sos.push({id:uid("sos"),livreur_id:lv.id,type,note:(auto?"[Automatique] ":"")+note,lat:isFinite(ll[0])?ll[0]:null,lng:isFinite(ll[1])?ll[1]:null,statut:"ouverte",cree_le:now()});audit("ALERTE SOS",lv.nom+" — "+type+(auto?" (automatique)":""))}
@@ -3686,8 +3704,8 @@ async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localSt
   S.pass=S.pass||{refs:[]};const refs=M.map(m=>m.livraison_ref),retirer=S.pass.refs.filter(x=>!refs.includes(x));
   if(sig!==_passSig||retirer.length){const r=await passPost(P,"mission-sync",{action:"publier",missions:M,retirer});if(!r.ignorees)_passSig=sig;if(retirer.length){S.pass.refs=refs;chg=true}else S.pass.refs=refs}
   {const V=[];for(const v of S.vendeurs.filter(v=>v.ident_serveur))V.push({vendeur_ref:v.id,etat:await vendEtatPub(v)});const sv=JSON.stringify(V);if(V.length&&sv!==_vendSig){const r=await passPost(P,"mission-sync",{action:"vendeur-publier",vendeurs:V});if(!r.ignores)_vendSig=sv}}
-  await pushFlush();S.pass_err=""
- }catch(e){S.pass_err=String(e&&e.message||e).slice(0,160)}finally{_passBusy=false}
+  await pushFlush();S.pass_err="";_passOkAt=Date.now()
+ }catch(e){S.pass_err=String(e&&e.message||e).slice(0,160)}finally{_passBusy=false;try{pgVoyant()}catch(e){}}
  if(chg){try{save()}catch(e){}}}
 /* Message prêt à envoyer au livreur (WhatsApp) : application, identifiant et mot de passe temporaire à changer à la première connexion */
 const lvAccesMsg=(lv,ident,mdp)=>"Bonjour "+lv.nom+", voici votre accès à l'application Livreur "+ORG()+" :\n1) Ouvrez ce lien sur votre téléphone (Chrome ou Safari) : "+(()=>{const u=new URL("livreur.html",location.href);if(ident)u.searchParams.set("id",ident);return u.href})()+"\n2) Touchez « Installer l'application » (Android) ou Partager > Sur l'écran d'accueil (iPhone).\n3) Connectez-vous :\nIdentifiant : "+ident+"\nMot de passe temporaire : "+mdp+"\nVous choisirez votre propre mot de passe à la première connexion. Ne le partagez avec personne.";
@@ -3939,6 +3957,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  pinUser:id=>{const u=usr(id);const lvP=u.role==="livreur"&&PASS()&&S.livreurs.find(l=>l.user_id===u.id);const vdP=u.role==="vendeur"&&PASS()&&S.vendeurs.find(x=>x.user_id===u.id);if(vdP)return modal("Accès de l'application vendeur — "+u.nom,`<p>Le vendeur se connecte uniquement dans l'application vendeur, avec le mot de passe de son <b>compte serveur</b>. Un mot de passe temporaire sera généré et montré une seule fois (avec envoi par WhatsApp) ; <b>${esc(u.nom)}</b> devra le changer à sa prochaine connexion.</p>`,{label:"Réinitialiser",cls:"er",onSubmit:()=>{vendCompte(vdP,!!vdP.ident_serveur)}});if(lvP)return modal("Accès de l'application livreur — "+u.nom,`<p>Le livreur se connecte uniquement dans l'application livreur, avec le mot de passe de son <b>compte serveur</b>. Un nouveau mot de passe temporaire sera généré et montré une seule fois (avec envoi par WhatsApp) ; <b>${esc(u.nom)}</b> devra le changer à sa prochaine connexion.</p>`,{label:"Réinitialiser",cls:"er",onSubmit:()=>{passCompte(lvP,!!lvP.ident_serveur).then(()=>passSync(true))}});modal("Réinitialiser le mot de passe — "+u.nom,`<p>Un mot de passe temporaire sera généré et montré une seule fois ; <b>${esc(u.nom)}</b> devra le changer à sa prochaine connexion.</p>`,{label:"Réinitialiser",cls:"er",onSubmit:()=>{if(CL.on){const mdp=ANGELS_AUTH.generer();return CL.go(()=>CL.fn("creer-utilisateur",{action:"reset",user_id:u.id,mot_de_passe:mdp}),"Mot de passe réinitialisé").then(r=>{mdpCloud(u.nom,mdp,"Mot de passe réinitialisé");return r})}u.pwd=null;u.chg=true;delete u.pin_h;audit("Mot de passe réinitialisé",u.nom);save();render();mdpTemp(u.id,"Mot de passe réinitialisé")}})},
  mdpMe:()=>{changerMdp()},
  newZone:()=>zoneForm(),editZone:id=>zoneForm(S.config.zones.find(z=>z.id===id)),
+ pgInfo:()=>pgInfo(),pgMaintenant:async()=>{try{await passSync(true)}catch(e){}closeModal();pgInfo()},
  pgTest:async()=>{const R=$("#pg_res"),say=(t,ok)=>{R.innerHTML=`<b style="color:var(--${ok?"ok":"er"})">${ok?"✔":"✖"}</b> ${esc(t)}`};const P={url:$("#p_apurl").value.trim(),cle_admin:$("#p_apkey").value.trim()};
  if(!/^https:\/\//.test(P.url))return say("Adresse des fonctions invalide : elle doit commencer par https:// (ex. https://xxxx.supabase.co/functions/v1).");if(!P.cle_admin)return say("Clé d'administration vide : saisissez-la (secret ADMIN_KEY de Supabase).");
  say("Test en cours…",true);let r;try{r=await fetch(pontUrl(P,"mission-sync"),{method:"POST",headers:{"content-type":"application/json","x-admin-key":P.cle_admin},body:JSON.stringify({action:"evenements"})})}catch(e){return say("Serveur injoignable (réseau, adresse ou blocage navigateur). Vérifiez l'adresse : "+pontUrl(P,"mission-sync"))}
@@ -4047,7 +4066,7 @@ document.addEventListener("change",e=>{const t=e.target;
  if(CL.on){CL.rpc("saisir_comptage",{p_inventaire:i.id,p_produit:pid,p_compte:v,p_note:note||null}).then(save1).catch(x=>toast(fixErr(x),"err"))}else save1()});
 window.addEventListener("storage",e=>{if(/^#(boutique|portail|suivi|commande)=/.test(location.hash)||e.key!==KEY||!e.newValue||$("#modal").innerHTML)return;   /* pages publiques (boutique, portail, suivi, commande) : jamais redessinées par l'ERP ouvert dans un autre onglet */try{S=JSON.parse(e.newValue)}catch(x){return}
  if(ME){const u=usr(ME.id);if(!u||!u.actif){ME=null;sessionStorage.removeItem("angels_me");toast("Votre compte a été désactivé","err")}else ME=u}render()});
-setInterval(()=>{if(ME&&!CL.on&&ME.role!=="livreur")try{passSync()}catch(e){}},15000);
+setInterval(()=>{if(ME&&!CL.on&&ME.role!=="livreur")try{passSync()}catch(e){}},15000);setInterval(()=>{try{pgVoyant()}catch(e){}},15000);
 setInterval(()=>{try{ijSurveille()}catch(e){}},8000);
 let _tk=0;setInterval(()=>{if(!CL.on&&(_tk++)%2)return;if(ME&&!document.body.classList.contains("menu-open")&&!(ME.role==="livreur"&&Object.values(ui.mapOpen||{}).some(Boolean))&&!$("#modal").innerHTML&&!document.activeElement.matches("input,select,textarea")){if(CL.on)refresh().then(render).catch(()=>{});else render()}},30000);
 
