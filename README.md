@@ -999,3 +999,17 @@ Une commande à portée nationale / sous-régionale / internationale crée son d
 ## Application livreur : version affichée et mise à jour automatique
 
 La version de l'application (cache actif du service worker) est affichée sous l'écran de connexion et dans ☰ → « GPS, mot de passe et alertes » : elle permet de vérifier ce que le téléphone a réellement chargé. Au retour au premier plan (et toutes les 30 minutes) l'application cherche une nouvelle version ; dès qu'elle prend la main la page se recharge toute seule, sauf pendant une saisie ou une fenêtre ouverte. Test : `tests/livreur-version.js`.
+
+## Passage en production : vider les données d'exercice après la formation (production-engine.js, tests/passage-production.js)
+
+Après la formation, les applications contiennent des données d'exercice. **Distributions** (Administration → « 🚀 Passage en production »), **Transport** (Audit et paramètres → onglet « Passage en production ») et **Agro** (Paramétrage → onglet « Passage en production ») proposent la même procédure, réservée à l'administrateur :
+
+1. **Sauvegarde obligatoire** : le bouton de remise à zéro reste grisé tant que la sauvegarde complète (JSON, restaurable par « Importer » / « Restaurer ») n'a pas été téléchargée.
+2. **Choix de ce qui est vidé** : deux préréglages (« Garder mes fichiers de base » / « Tout vider sauf paramétrage et comptes ») et une case par groupe (clients, catalogue, flotte et équipe terrain, vendeurs, personnel RH, tiers…). L'**activité** est toujours vidée : commandes, livraisons, encaissements, caisse, mouvements de stock, maintenance, paie et RH (bulletins, congés, avances), écritures comptables, règlements des assurances et taxes, journal d'audit, données de test, **compteurs de numérotation** (la première pièce réelle reçoit le n° 1). Les quantités en stock repartent de zéro.
+3. **Toujours conservés** : le paramétrage (organisation, zones, modes de paiement, plan comptable, rôles et droits, barèmes, protocoles) et **tous les comptes utilisateurs** (mots de passe compris). Les comptes livreur/vendeur/chauffeur dont la fiche est vidée sont retirés avec elle.
+4. **Aperçu chiffré** de ce qui sera supprimé, puis confirmation par la saisie de **PRODUCTION**. Une ligne « Passage en production » est inscrite au journal d'audit (qui repart d'une seule ligne).
+5. Toute donnée non classée est **conservée** et signalée ; un test impose que chaque clé de chaque application soit classée.
+
+**Serveur (Supabase)** : les données des postes se vident par la synchronisation (confirmer la « suppression massive »). L'activité de la passerelle livreur et du portail se vide avec `supabase/production-reset.sql` (aussi copiable depuis l'écran) : une transaction qui supprime missions, événements, preuves, demandes du portail, suivis en direct, tickets d'appel et rapports, **sans toucher** aux comptes livreurs/vendeurs, au catalogue du portail, aux abonnements de notification ni à l'authentification. À exécuter **une fois**, après la remise à zéro de toutes les applications.
+
+**Après** : chaque utilisateur change son mot de passe à la première connexion ; saisir le stock d'ouverture, le fond de caisse et les soldes de banque ; faire un premier essai réel. Les comptes de démonstration ne sont pas supprimés par cet outil : le Hub propose « Effacer les données de démonstration ».

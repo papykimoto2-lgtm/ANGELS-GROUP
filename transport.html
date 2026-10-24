@@ -95,7 +95,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <div id="app"></div>
 <script src="qrcode.js"></script>
 <script src="passerelle-config.js"></script>
-<script src="marque.js"></script><script src="auth-engine.js"></script><script src="habillage.js"></script>
+<script src="marque.js"></script><script src="auth-engine.js"></script><script src="production-engine.js"></script><script src="habillage.js"></script>
 <script src="sync-engine.js"></script>
 <script src="roles-engine.js"></script>
 <script src="pager-engine.js"></script>
@@ -2993,13 +2993,27 @@ const PARAM_TXT=k=>k.startsWith("org_")||k==="tel_indicatif",PARAM_MIN={cx_delai
 const NUMS=[["rc","Reçus"],["ct","Contrats"],["dp","Dépenses"],["je","Écritures"],["mo","Maintenance"],["in","Sinistres"]];
 V.audit=()=>{
  const t=tabOf("aud","journal"),q=(UI.f.aud&&UI.f.aud.q||"").toLowerCase();
- let h=head("Audit et paramètres")+tabs("aud",[["journal","Journal d'audit"],["params","Paramètres"],["periodes","Périodes comptables"],["backup","Sauvegarde"]]);
+ let h=head("Audit et paramètres")+tabs("aud",[["journal","Journal d'audit"],["params","Paramètres"],["periodes","Périodes comptables"],["backup","Sauvegarde"]].concat(prodAdmin()?[["prod","Passage en production"]]:[]));
  if(t==="journal")h+=`<div class="card"><input data-f="aud:q" placeholder="Filtrer (utilisateur, action, détail)…" value="${esc(UI.f.aud&&UI.f.aud.q||"")}"></div>`+tbl(["Date","Utilisateur","Rôle","Action","Détail"],S.audit.filter(a=>!q||(a.u+a.a+a.d).toLowerCase().includes(q)).map(a=>tr([fdt(a.t),esc(a.u),esc(a.r),esc(a.a),esc(a.d)])));
  if(t==="params")h+=(can("audit","e")?`<p><button class="btn" data-a="par.edit">Modifier les paramètres</button> ${ANGELS_AUTH.demoOn()?`<button class="btn ghost" data-a="demo.tg">Accès démo par profil : ${demoOK()?"activé":"désactivé"}</button>`:""}</p>`:"")+tbl(["Paramètre","Valeur"],[...PARAMS.map(([k,l])=>tr([l,esc(S.settings[k])])),...NUMS.map(([k,l])=>tr(["Numérotation "+l,esc((S.fmt[k]||"défaut")+" · dernier n° "+(S.seq[k]||0))]))]);
  if(t==="periodes"){const c=today().slice(0,7);if(!by(S.periods,c))S.periods.push({id:c,statut:"ouverte"});h+=tbl(["Période","État",""],S.periods.slice().sort((a,b)=>b.id.localeCompare(a.id)).map(p=>tr([p.id,badge(p.statut==="ouverte"?"Ouverte":"Clôturée",p.statut==="ouverte"?"ok":"mu"),p.statut==="ouverte"?(can("compta","a")?btn("per.cl",p.id,"Clôturer","er"):""):(can("compta","x")?btn("per.op",p.id,"Rouvrir","ghost"):"")])))}
  if(t==="backup"){const kb=Math.round(JSON.stringify(S).length/1024);h+=`<div class="card"><p>Taille des données locales : <b>${kb} Ko</b> (limite navigateur ≈ 5 000 Ko : un backend Supabase est requis pour la production).</p><div class="flex"><button class="btn" data-a="bk.exp">Exporter une sauvegarde (JSON)</button>${can("audit","e")?`<input type="file" id="bkf" accept="application/json" style="width:auto"><button class="btn ghost" data-a="bk.imp">Restaurer</button>`:""}<button class="btn ghost" data-a="bk.chk">Contrôle d'intégrité</button></div></div>`}
+ if(t==="prod")h+=prodVue();
  return h;
 };
+/* ---------- Passage en production : vider les données d'exercice après la formation (moteur commun : production-engine.js) ---------- */
+const prodChoix=()=>UI.prodc||(UI.prodc=ANGELS_PROD.choixDefaut("transport",false)),prodAdmin=()=>!!ME&&ME.role==="admin";
+const prodVue=()=>prodAdmin()?ANGELS_PROD.vue("transport",S,prodChoix(),{attr:"data-a",sauve:!!UI.prodSauve,fait:S.settings.production,demo:ANGELS_AUTH.demoOn()||ANGELS_AUTH.demoUsers(S.users),fdt}):'<div class="note">Réservé à l\'administrateur.</div>';
+A["prod.save"]=()=>{if(!prodAdmin())return alert("Réservé à l'administrateur.");const b=new Blob([sauvegardeTexte()],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=ANGELS_PROD.nomSauvegarde("transport");a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);UI.prodSauve=Date.now();render()};
+A["prod.tog"]=id=>{const g=ANGELS_PROD.profil("transport").groupes.find(x=>x.id===id);if(!g||g.fixe)return;prodChoix()[id]=!prodChoix()[id];render()};
+A["prod.preset"]=id=>{UI.prodc=ANGELS_PROD.choixDefaut("transport",id==="1");render()};
+A["prod.sql"]=()=>{const t=ANGELS_PROD.SQL_SERVEUR;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>alert("Script SQL copié."),()=>prompt("Copiez le script :",t))};
+A["prod.sqldl"]=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([ANGELS_PROD.SQL_SERVEUR],{type:"text/plain"}));a.download="production-reset.sql";a.click()};
+A["prod.go"]=()=>{if(!prodAdmin())return alert("Réservé à l'administrateur.");if(!UI.prodSauve)return alert("Téléchargez d'abord la sauvegarde (étape 1).");const pl=ANGELS_PROD.plan("transport",S,prodChoix());
+ form("Passer en production",[{k:"conf",l:"Tapez PRODUCTION pour confirmer ("+pl.total+" enregistrement(s) seront supprimés, action définitive)",req:1,full:1}],{},o=>{
+  if(!prodAdmin())throw new Error("Réservé à l'administrateur.");if(!UI.prodSauve)throw new Error("Téléchargez d'abord la sauvegarde.");if(String(o.conf).trim()!=="PRODUCTION")throw new Error("Saisissez PRODUCTION pour confirmer.");
+  const ch=prodChoix(),r=ANGELS_PROD.appliquer("transport",S,ch);S.settings.production={le:now(),par:ME.nom,n:r.total};
+  audit("Passage en production","Données d'exercice vidées : "+r.total+" enregistrement(s)");fichiersNettoyer();UI.prodSauve=0;UI.prodc=null},"Vider et passer en production")};
 A["par.edit"]=()=>form("Paramètres",[...PARAMS.map(([k,l])=>({k,l,t:PARAM_TXT(k)?"text":"number"})),...NUMS.map(([k,l])=>({k:"fmt_"+k,l:"Préfixe "+l}))],{...S.settings,...Object.fromEntries(NUMS.map(([k])=>["fmt_"+k,S.fmt[k]||""]))},o=>{need("audit","e");PARAMS.forEach(([k,l])=>{if(PARAM_TXT(k)){if(k==="tel_indicatif"&&!/^\d{1,4}$/.test(String(o[k])))throw new Error("Indicatif invalide.");if(k==="org_nom"&&!String(o[k]).trim())throw new Error("Nom de l'entreprise requis.");S.settings[k]=String(o[k]).trim();return}const v=+o[k];if(!(v>=(PARAM_MIN[k]===undefined?0:PARAM_MIN[k])))throw new Error(l+" : valeur invalide (minimum "+(PARAM_MIN[k]||0)+").");if(k==="mdp_min"&&v>64)throw new Error("Mot de passe : 64 caractères maximum.");S.settings[k]=v});NUMS.forEach(([k])=>{const v=String(o["fmt_"+k]||"").trim().toUpperCase();if(v&&!/^[A-Z]{1,6}$/.test(v))throw new Error("Préfixe invalide (lettres).");if(v)S.fmt[k]=v;else delete S.fmt[k]});audit("Paramètres modifiés")});
 A["per.cl"]=id=>{if(atomic(()=>periodeAction(id,"close")))render()};
 A["per.op"]=id=>{if(atomic(()=>periodeAction(id,"open")))render()};
