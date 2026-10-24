@@ -6,6 +6,7 @@ export const cfgSync = () => ({ syncKey: Deno.env.get("SYNC_KEY") });
 export function dbSync(sb = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false, autoRefreshToken: false } })) {
   const ok = (r) => { if (r.error) throw new Error(r.error.message); return r.data; };
   return {
+    generation: async () => { const r = await sb.from("reset_journal").select("id").order("id", { ascending: false }).limit(1); return r.error || !r.data || !r.data.length ? 0 : r.data[0].id; },
     compter: async (app) => { const r = await sb.from("sync_enreg").select("id", { count: "exact", head: true }).eq("app", app).eq("supprime", false); if (r.error) throw new Error(r.error.message); return r.count || 0; },
     depuis: async (app, depuis, n) => ok(await sb.from("sync_enreg").select("coll,id,data,rev,supprime,par,seq").eq("app", app).gt("seq", depuis).order("seq").limit(n)) || [],
     lire: async (app, cles) => {

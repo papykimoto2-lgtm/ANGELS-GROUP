@@ -102,7 +102,8 @@
   /* Premier lancement d'un poste : on récupère d'abord l'état du serveur. */
   async function amorcer(c) {
     var S = P.get(), lignes = [], curseur = 0, suite = true;
-    while (suite) { var r = await appel(c, { action: "tirer", depuis: curseur, limite: 300 }); lignes = lignes.concat(r.lignes); curseur = r.curseur; suite = r.suite; }
+    var gen = 0;
+    while (suite) { var r = await appel(c, { action: "tirer", depuis: curseur, limite: 300 }); lignes = lignes.concat(r.lignes); curseur = r.curseur; suite = r.suite; gen = r.generation || 0; }
     var relogin = false;
     if (lignes.length) {
       var locNonVide = P.nonVide ? P.nonVide(S) : Object.keys(S).some(function (k) { return estRecord(S[k]) && k !== "users"; });
@@ -116,10 +117,32 @@
       lignes.forEach(function (l) { appliquer(S, l); });
       persister();
     }
-    B.cursor = curseur; B.boot = true; sauverBase();
+    B.cursor = curseur; B.boot = true; B.gen = gen; sauverBase();
     if (relogin) { try { sessionStorage.clear(); } catch (e) { } if (P.relogin) P.relogin(); else location.reload(); return false; }
     if (lignes.length) rafraichir();
     return true;
+  }
+
+  /* Le serveur a été remis à zéro (passage en production) pendant que ce poste était hors ligne : on propose de vider aussi l'activité de ce poste.
+     Avant tout vidage, une copie de sécurité est conservée sur l'appareil (angels_avant_reset_<application>). Refuser = ce poste renvoie ses données au serveur. */
+  async function remiseAZero(c, gen) {
+    var prod = G.ANGELS_PROD; if (!P.badge || !prod || !prod.profils || !prod.profils[P.app]) { B.gen = gen; sauverBase(); return; }
+    var go = false;
+    try { go = confirm("SERVEUR REMIS À ZÉRO — " + P.nom + "\n\nL'administrateur a remis le serveur à zéro pour le passage en production.\n\nOK = vider aussi les données d'exercice de ce poste (paramétrage, comptes et fichiers de base conservés ; une copie de sécurité reste sur cet appareil)\nAnnuler = garder ce poste tel quel et renvoyer ses données au serveur"); } catch (e) { }
+    if (go) {
+      var S = P.get();
+      try { localStorage.setItem("angels_avant_reset_" + P.app, JSON.stringify({ le: new Date().toISOString(), generation: gen, donnees: S })); } catch (e) { try { alert("Copie de sécurité impossible (stockage plein) : exportez une sauvegarde avant de continuer."); } catch (e2) { } }
+      prod.reinitialiser(P.app, S, { par: "Synchronisation" });
+      (P.derives || []).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { } });
+      persister();
+    }
+    B = { cursor: 0, map: {}, boot: true, gen: gen }; sauverBase(); rafraichir();
+  }
+  /* L'appareil qui a lui-même vidé le serveur adopte la nouvelle génération (sans se reproposer de se vider) */
+  async function adopterReset() {
+    var c = conf(); if (!c) return 0; var gen = 0, cur = 0, suite = true;
+    while (suite) { var r = await appel(c, { action: "tirer", depuis: cur, limite: 500 }); gen = r.generation || 0; cur = r.curseur; suite = r.suite; }
+    B = { cursor: 0, map: {}, boot: true, gen: gen }; sauverBase(); return gen;
   }
 
   async function tirer(c, tout) {
@@ -127,6 +150,7 @@
     if (tout) B.cursor = 0;
     while (suite) {
       var r = await appel(c, { action: "tirer", depuis: B.cursor, limite: 300 }), S = P.get();
+      if (!tout && B.boot && (r.generation || 0) > (B.gen || 0)) { await remiseAZero(c, r.generation); return recus; }
       r.lignes.forEach(function (l) { var b = B.map[l.coll + "|" + l.id]; if (!tout && b && b[0] === l.rev) return; recus++; if (appliquer(S, l)) chg = true; });
       B.cursor = r.curseur; suite = r.suite; if (recus) B.reception = Date.now(); sauverBase();
     }
@@ -292,6 +316,7 @@
       case "resynchro": return resynchro();
       case "reessayer": return reessayer();
       case "purgerCache": return purgerCache();
+      case "adopterReset": return adopterReset();
     }
     return Promise.reject(new Error("Action inconnue"));
   }
@@ -320,7 +345,7 @@
   G.ANGELS_SYNC = {
     PROFILS: PROFILS, commande: commande,
     init: function (o) { M = Moteur(Object.assign({}, PROFILS[o.app] || {}, o, { badge: true })); M.demarrer(); },
-    signal: function () { if (M) M.signal(); }, cycle: function () { return M ? M.cycle() : Promise.resolve(); },
+    signal: function () { if (M) M.signal(); }, adopterReset: function () { return M ? M.lancer("adopterReset") : Promise.resolve(0); }, cycle: function () { return M ? M.cycle() : Promise.resolve(); },
     etat: function () { return M ? M.etat() : { etat: "inactif", actif: false, base: { cursor: 0, map: {}, boot: false } }; },
     actif: function () { var u = null, s = null; try { u = JSON.parse(localStorage.getItem("angels_supabase") || "null"); s = JSON.parse(localStorage.getItem("angels_sync") || "null"); } catch (e) { } var def = G.ANGELS_PASSERELLE || {}, url = (u && u.off) ? "" : (u && u.url) || def.url || ""; return !!(s && s.actif && s.cle && /^https:\/\//.test(url)); }
   };
