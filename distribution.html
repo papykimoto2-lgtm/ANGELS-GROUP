@@ -374,13 +374,15 @@ const lb=l=>badge(LST[l.statut],LSTC[l.statut]);
 function setStatut(c,to,note,force){   /* force : statut piloté par le dossier d'expédition (pas de livreur), hors circuit de livraison */
  if(!force&&!TRANS[c.statut].includes(to)){toast(`Transition interdite : ${ST[c.statut]} → ${ST[to]}`,"err");return false}
  c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;if(!force)try{notifier(c,to,note)}catch(e){}try{const vv=c.vendeur_id&&S.vendeurs.find(x=>x.id===c.vendeur_id);if(vv&&["confirmee","en_cours","livree","echouee","annulee"].includes(to))pushVendeur(vv,"commande_vendeur",({confirmee:"✅ Commande confirmée",en_cours:"🏍️ Commande en route",livree:"📦 Commande livrée",echouee:"⚠️ Livraison échouée",annulee:"✖ Commande annulée"})[to],c.numero+" · "+ST[to],"cmd-"+c.id+"-"+to,"vendeur.html")}catch(e){}return true}
+/* Acompte en espèces : l'argent entre en caisse (en attente si la caisse est fermée) comme tout encaissement en espèces ; Mobile Money et vendeurs partenaires ne passent pas par la caisse */
+function acompteCaisse(fx,c){if(CL.on||!fx||!/^esp/i.test(fx.mode||"")||!(fx.montant>0)||!(S.caisses||[]).some(x=>x.actif)||!can("admin","commercial","superviseur","caissier"))return;const cl=cli(c.client_id);caisseAuto("entree",fx.montant,"Acompte "+c.numero,cl?cl.nom:"Client","Avance client","acompte",fx.id)}
 function numCmd(){S.seq.cmd++;return"CMD-"+new Date().getFullYear()+"-"+String(S.seq.cmd).padStart(4,"0")}
 function creerCmd(d){
  if(!garde(["admin","commercial","superviseur","vendeur"],null,d))throw new Error("Droits insuffisants pour créer une commande");
  const c={id:uid("c"),numero:numCmd(),date:dateCmd(d.date),saisie_le:now(),vendeur_id:d.vendeur_id||null,vendeur_encaisse:!!d.vendeur_encaisse,paye_vendeur:+d.paye_vendeur||0,client_id:d.client_id,adr:d.adr,lignes:d.lignes,frais:+d.frais||0,remise:+d.remise||0,paiement:d.paiement,mode:d.mode,type_colis:tcId(d.type_colis),priorite:tcDe(d.type_colis).urgent?"urgente":(d.priorite||"normale"),canal:d.canal||"Téléphone",obs:d.obs||"",statut:"brouillon",hist:[{ts:now(),de:null,a:"brouillon",par:who(),note:"Création"}],cree_par:who(),stock_sorti:false};
  aboAppliquer(c);calcCmd(c);S.commandes.unshift(c);
  let ac=d.paiement==="avance"?c.total:d.paiement==="partiel"?Math.min(+d.acompte||0,c.total):0;
- if(ac>0)S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,montant:ac,mode:d.mode,ts:now(),par:who()});
+ if(ac>0){const fa={id:uid("f"),type:"acompte",commande_id:c.id,montant:ac,mode:d.mode,ts:now(),par:who()};S.fonds.push(fa);acompteCaisse(fa,c)}
  audit("Création commande",c.numero+" — "+fcfa(c.total));
  if(d.confirmer)setStatut(c,"confirmee","Confirmation à la création");
  return c}
@@ -4201,7 +4203,7 @@ function expEncPlan(e,r){   /* contrôles avant tout changement d'état */
  return{m,L,mode,ref}}
 function expEncaisser(e,p){
  if(!p)return;let reste=p.m;
- p.L.forEach((c,i)=>{const a=Math.min(reste,soldeCmd(c));if(a<=0)return;reste-=a;S.fonds.push({id:uid("f"),type:"acompte",commande_id:c.id,expedition_id:e.id,montant:a,mode:p.mode,ref:i===0&&p.ref?p.ref:null,ts:now(),par:who()})});
+ p.L.forEach((c,i)=>{const a=Math.min(reste,soldeCmd(c));if(a<=0)return;reste-=a;const fa={id:uid("f"),type:"acompte",commande_id:c.id,expedition_id:e.id,montant:a,mode:p.mode,ref:i===0&&p.ref?p.ref:null,ts:now(),par:who()};S.fonds.push(fa);acompteCaisse(fa,c)});
  e.reception.encaisse=p.m;audit("Encaissement à la réception",e.numero+" — "+fcfa(p.m)+" ("+p.mode+")")}
 /* Commande annulée : ses dossiers d'expédition encore ouverts sont annulés s'ils n'ont pas quitté l'entrepôt, sinon signalés */
 function expCmdAnnulee(c,motif){
