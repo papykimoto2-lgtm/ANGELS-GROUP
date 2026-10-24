@@ -283,6 +283,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"equipements",l:"Équipements & engins",i:"📱",g:"Livraison",r:["admin","superviseur"]},
  {v:"maintenance",l:"Maintenance (GMAO)",i:"🛠️",g:"Livraison",r:["admin","superviseur"]},
  {v:"incidents",l:"Incidents & retours",i:"⚠️",g:"Livraison",r:["admin","superviseur","preparateur"]},
+ {v:"tresorerie",l:"Trésorerie",i:"💼",g:"Argent",r:["admin","direction","caissier"]},
  {v:"finance",l:"Finance",i:"💰",g:"Argent",r:["admin","direction","caissier"]},
  {v:"caisse",l:"Caisse",i:"💵",g:"Argent",r:["admin","direction","caissier"]},
  {v:"versements",l:"Versements vendeurs",i:"🏪",g:"Argent",r:["admin","direction","caissier"]},
@@ -1335,7 +1336,7 @@ function versPending(){
  const L=(S.versements||[]).filter(v=>v.statut==="declare").sort((a,b)=>new Date(a.cree_le)-new Date(b.cree_le));if(!L.length)return"";
  return`<div class="card" style="margin:0 0 12px;border-left:4px solid var(--b)"><b>📲 Versements Mobile Money déclarés à valider (${L.length})</b><div class="sm mu">Vérifiez dans votre application Mobile Money que la somme est bien arrivée avec cette référence.</div>
  ${tbl(["Date","Livreur","Montant","Opérateur","Référence","Note",""],L.map(v=>`<tr><td>${fdt(v.cree_le)}</td><td><b>${esc((liv(v.livreur_id)||{}).nom||"?")}</b></td><td><b>${fcfa(v.montant)}</b></td><td>${esc(v.mode)}</td><td><code>${esc(v.ref)}</code></td><td class="sm">${esc(v.note||"")}</td><td>${can("admin","caissier")?`<button class="btn sm ok" data-act="versOk" data-id="${v.id}">✔ Encaissé — valider</button> <button class="btn sm er" data-act="versNo" data-id="${v.id}">Rejeter</button>`:""}</td></tr>`))}</div>`}
-const navN=v=>{if(v==="finance"&&can("admin","caissier","direction"))return versAttenteN()+clotAttenteN();if(v==="caisse"&&can("admin","direction"))return(S.caisse_mvts||[]).filter(m=>m.statut==="en_attente").length+(dgPeut()?dgAFaire():0);return 0};
+const navN=v=>{if(v==="tresorerie"&&can("admin","caissier","direction"))return tresoNb(tresoDonnees());if(v==="finance"&&can("admin","caissier","direction"))return versAttenteN()+clotAttenteN();if(v==="caisse"&&can("admin","direction"))return(S.caisse_mvts||[]).filter(m=>m.statut==="en_attente").length+(dgPeut()?dgAFaire():0);return 0};
 const navBadge=v=>{const n=navN(v);return n?`<span class="nb" title="À traiter">${n}</span>`:""};
 const versAttenteN=()=>(S.versements||[]).filter(v=>v.statut==="declare").length;
 const versBadge=v=>v.statut==="valide"?badge("✅ Encaissé","ok"):v.statut==="rejete"?badge("✖ Rejeté","er"):badge("⏳ En validation","wa");
@@ -5618,6 +5619,41 @@ function cxBrouillard(){
   const rows=mv.map(m=>{if(!m.hors_tiroir)run+=m.type==="entree"?m.montant:-m.montant;return`<tr><td>${cxQuand(m)}</td><td class="sm">${esc(m.numero)}</td><td>${esc(m.motif)}${m.hors_tiroir?' <span class="sm mu">· hors tiroir</span>':""}</td><td style="text-align:right;color:var(--ok)">${m.type==="entree"?fcfa(m.montant):""}</td><td style="text-align:right;color:var(--er)">${m.type==="sortie"?fcfa(m.montant):""}</td><td style="text-align:right"><b>${fcfa(run)}</b></td></tr>`});
   body=tbl(["Date","N° bon","Motif","Entrée","Sortie","Solde"],rows,"Aucun bon validé sur la période")}
  return`<h2>📋 Brouillard de caisse</h2><div class="flex" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">${sel}${mode}${tools}</div>${body}`}
+/* ---------- Trésorerie : tout l'argent à traiter sur une seule page (versements et clôtures des livreurs, règlement des fournisseurs, bons et écarts de caisse) ----------
+   Aucune nouvelle règle : chaque bouton appelle l'action existante (versOk, clotForm, reverser, vReg, cxVal…). Les écrans détaillés (Finance, Caisse, Versements vendeurs) restent disponibles. */
+function tresoDonnees(){
+ const livs=S.livreurs.map(l=>({l,s:soldeLiv(l.id),att:versEnAttente(l.id),v:ventLiv(l.id),dem:clotDemande(l.id),r:clotRecap(l.id)})).filter(x=>x.s>0||x.att>0||x.dem),
+  fl=versTous().filter(e=>e.reste>0||e.attente),cs=(S.caisses||[]).filter(c=>c.actif);
+ return{livs,fl,cs,
+  mm:(S.versements||[]).filter(v=>v.statut==="declare").sort((a,b)=>new Date(a.cree_le)-new Date(b.cree_le)),
+  cl:clotList().filter(c=>c.statut==="demandee"),
+  ec:S.livraisons.filter(l=>l.ecart_statut==="a_valider"),
+  bons:cxVal()?cxAttente():[],dgs:dgActif()&&cxVal()?dgDemAtt():[],ecc:cxVal()?cxEcarts():[]}}
+const tresoNb=D=>D.mm.length+D.cl.length+D.ec.length+D.bons.length+D.dgs.length+D.ecc.length;
+VIEWS.tresorerie=()=>{
+ const D=tresoDonnees(),act=cxCan(),n=tresoNb(D),sel=new Set((ui.versSel||[]).filter(id=>D.fl.some(e=>e.v.id===id&&e.reste>0)));
+ const dLiv=D.livs.reduce((a,x)=>a+Math.max(0,x.s),0),dFour=D.fl.reduce((a,e)=>a+e.reste,0),sol=D.cs.reduce((a,c)=>a+cxSolde(c),0),cp=cxCaissePrinc();
+ const ligne=(ic,qui,detail,montant,btns)=>`<tr><td style="width:28px">${ic}</td><td><b>${esc(qui)}</b><div class="sm mu">${detail}</div></td><td style="text-align:right;white-space:nowrap"><b>${montant}</b></td><td style="text-align:right;white-space:nowrap">${btns}</td></tr>`;
+ const R=[];
+ D.mm.forEach(v=>R.push(ligne("📲",(liv(v.livreur_id)||{}).nom||"?","Versement "+esc(v.mode)+" · réf. <code>"+esc(v.ref)+"</code> · "+fdt(v.cree_le)+" — vérifiez dans votre application Mobile Money",fcfa(v.montant),act?`<button class="btn sm ok" data-act="versOk" data-id="${v.id}">✔ Encaissé</button> <button class="btn sm er" data-act="versNo" data-id="${v.id}">✖ Rejeter</button>`:"")));
+ D.cl.forEach(c=>{const l=liv(c.livreur_id)||{nom:"?"},r=clotRecap(c.livreur_id);R.push(ligne("🏁",l.nom,"Tournée terminée le "+fdt(c.demande_le)+" · "+r.L.length+" course(s) · marchandise "+fcfa(r.produits)+" + frais "+fcfa(r.frais),fcfa(Math.max(0,r.du-r.attente)),act?`<button class="btn sm ok" data-act="clotForm" data-id="${c.livreur_id}">🏁 Clôturer</button>`:""))});
+ D.ec.forEach(l=>{const c=cmd(l.commande_id)||{};R.push(ligne("⚖️",(liv(l.livreur_id)||{}).nom||"?","Écart sur la commande "+esc(c.numero||"")+" : attendu "+fcfa(l.montant_attendu)+", déclaré "+fcfa(l.montant_encaisse)+(l.ecart_note?" — "+esc(l.ecart_note):""),(l.ecart>0?"+":"")+fcfa(l.ecart),can("admin","superviseur","direction")?`<button class="btn sm ok" data-act="ecartOk" data-id="${l.id}">Accepter</button> <button class="btn sm er" data-act="ecartKo" data-id="${l.id}">Rejeter</button>`:""))});
+ D.bons.forEach(m=>{const c=cxCaisse(m.caisse_id)||{};R.push(ligne(m.type==="entree"?"📥":"📤",m.tiers||"—","Bon "+esc(m.numero||"")+" · "+esc(c.nom||"")+" · "+esc(m.motif||""),fcfa(m.montant),`<button class="btn sm ok" data-act="cxVal" data-id="${m.id}">✅ Valider</button> <button class="btn sm er" data-act="cxRej" data-id="${m.id}">✖ Rejeter</button>`))});
+ D.dgs.forEach(d=>R.push(ligne("👔",String(d.libelle||"").replace("Règlement fournisseur ",""),"Règlement fournisseur en attente du DG · "+fdt(d.cree_le),fcfa(d.montant),dgPeut()?`<button class="btn sm ok" data-act="dgOk" data-id="${d.id}">✅ Valider</button> <button class="btn sm er" data-act="dgNo" data-id="${d.id}">✖ Rejeter</button>`:'<span class="sm mu">En attente du DG</span>')));
+ D.ecc.forEach(x=>{const c=cxCaisse(x.caisse_id)||{};R.push(ligne("🧮",c.nom||"Caisse","Écart à régulariser, clôture du "+fdt(x.cloturee_le),fcfa(cxEcartEff(x)),'<button class="btn sm ghost" data-act="nav" data-id="caisse">Régulariser dans la Caisse →</button>'))});
+ const inbox=R.length?`<div class="card" style="padding:0"><table>${R.join("")}</table></div>`:`<div class="card" style="color:var(--ok)">✅ Rien à traiter : aucun versement, clôture, bon ni écart en attente.</div>`;
+ const rowL=D.livs.sort((a,b)=>b.s-a.s).map(x=>`<tr><td><b>${esc(x.l.nom)}</b>${x.dem?`<br>${badge("🏁 Tournée terminée","wa")}`:""}${x.r.actives?`<div class="sm mu">${x.r.actives} course(s) en cours</div>`:""}</td><td>${fcfa(x.v.produits)}</td><td>${fcfa(x.v.frais)}</td><td>${x.v.gardes?fcfa(x.v.gardes):"—"}</td><td>${x.v.rev?fcfa(x.v.rev):"—"}</td><td>${x.att?fcfa(x.att):"—"}</td><td><b style="color:${x.s>0?"var(--er)":"var(--ok)"}">${fcfa(x.s)}</b></td><td style="white-space:nowrap">${act?`${x.s-x.att>0?`<button class="btn sm ok" data-act="reverser" data-id="${x.l.id}">💵 Encaisser</button> `:""}<button class="btn sm" data-act="clotForm" data-id="${x.l.id}">🏁 Clôturer</button> `:""}<button class="btn sm ghost" data-act="ventDetail" data-id="${x.l.id}">Détail</button></td></tr>`);
+ const rowF=D.fl.sort((a,b)=>b.reste-a.reste).map(e=>`<tr><td>${e.reste>0&&act?`<input type="checkbox" style="width:auto" data-act="versSel" data-id="${e.v.id}" ${sel.has(e.v.id)?"checked":""} aria-label="Sélectionner ${esc(e.v.nom)}">`:""}</td><td><b>${esc(e.v.nom)}</b><div class="sm mu">${esc(e.v.tel||"")} · commission ${e.v.commission_pct||0} %${e.plusAncien>30?` · <span style="color:var(--er)">la plus ancienne : ${e.plusAncien} j</span>`:""}</div></td><td>${e.du.length}</td><td><b style="color:${e.reste?"var(--er)":"var(--ok)"}">${fcfa(e.reste)}</b></td><td>${e.attente?fcfa(e.attente):"—"}</td><td style="white-space:nowrap">${e.reste>0&&act?`<button class="btn sm ok" data-act="vReg" data-id="${e.v.id}">💵 Régler</button> `:""}<button class="btn sm ghost" data-act="vDet" data-id="${e.v.id}">Détail</button></td></tr>`);
+ return`<div class="between"><h1>💼 Trésorerie</h1><div class="flex noprint"><button class="btn sm ghost" data-act="nav" data-id="caisse">💵 Caisse détaillée</button><button class="btn sm ghost" data-act="nav" data-id="finance">📊 Finance détaillée</button><button class="btn sm ghost" data-act="nav" data-id="versements">🏪 Versements vendeurs</button></div></div>
+ <p class="mu">Tout l'argent à traiter, sur une seule page : traitez chaque ligne sans changer d'écran.</p>
+ <div class="grid">${kpi("⚡ À traiter",n,n?"w":"o")}${kpi("🛵 À récupérer auprès des livreurs",fcfa(dLiv),dLiv?"w":"o")}${kpi("🏪 À payer aux fournisseurs",fcfa(dFour),dFour?"w":"o")}${kpi("💵 Solde des caisses",D.cs.length?fcfa(sol):"—",sol<0?"e":"o")}</div>
+ <h2>⚡ À traiter maintenant (${n})</h2>${inbox}
+ <h2>🛵 Livreurs — argent détenu à récupérer</h2>${tbl(["Livreur","Marchandise","Frais de livraison","Frais gardés","Déjà reversé","En validation","Restant à reverser",""],rowL,"Aucun livreur ne détient d'argent")}
+ <p class="mu sm">« 💵 Encaisser » enregistre un reversement (espèces ou Mobile Money). « 🏁 Clôturer » arrête la tournée : montant compté, écart éventuel et fiche signée.</p>
+ <h2>🏪 Fournisseurs (vendeurs partenaires) — à régler</h2>
+ <div class="sm mu" style="margin-bottom:6px">${D.cs.length?(cp?`Paiements en espèces : sortie de la caisse « ${esc(cp.nom)} » (solde ${fcfa(cxSolde(cp))}).`:'<span style="color:var(--er)">⚠ Aucune caisse ouverte : ouvrez la caisse avant de payer en espèces.</span>'):""}${act?` <button class="btn sm ok" data-act="versGroupe" ${sel.size?"":"disabled"}>💵 Régler la sélection (${sel.size})</button>`:""}</div>
+ ${tbl(["","Fournisseur","Commandes dues","Reste à régler","En cours","",],rowF,"Aucun fournisseur à régler")}
+ ${D.cs.length?`<h2>💵 Caisses</h2><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${D.cs.map(cxCarte).join("")}</div>`:""}`};
 VIEWS.caisse=()=>{
  const fl=S.vendeurs.map(v=>({v,d:vendDue(v)})).filter(x=>x.d.restant>0).sort((p,q)=>q.d.restant-p.d.restant),totF=fl.reduce((t,x)=>t+x.d.restant,0);
  const x=cxUI(),[a,b,lab]=cxRange(),cs=(S.caisses||[]).filter(c=>c.actif),all=S.caisse_mvts||[],mv=all.filter(m=>m.statut==="valide"&&cxIn(m,a,b)),
@@ -6000,14 +6036,14 @@ const MODULES=[
  {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["vente_ligne","Vente en ligne"],["notifs","Messages clients"]]},
  {id:"liv",l:"Livraison",i:"🏍️",vues:[["livraisons","Centre de livraison"],["expeditions","Expéditions"],["livreurs","Livreurs & motos"],["equipements","Équipements & engins"],["maintenance","Maintenance (GMAO)"],["incidents","Incidents & retours"]]},
  {id:"stk",l:"Stock",i:"📦",vues:[["produits","Produits & stock"],["journal","Mouvements"],["inventaire","Inventaire"]]},
- {id:"arg",l:"Argent",i:"💰",vues:[["finance","Finance"],["caisse","Caisse"],["versements","Versements vendeurs"],["compta","Comptabilité"]]},
+ {id:"arg",l:"Argent",i:"💰",vues:[["tresorerie","Trésorerie"],["finance","Finance"],["caisse","Caisse"],["versements","Versements vendeurs"],["compta","Comptabilité"]]},
  {id:"tie",l:"Clients & offres",i:"👥",vues:[["clients","Clients"],["vendeurs","Vendeurs partenaires"],["abonnements","Abonnements"],["prestations","Prestations"]]},
  {id:"doc",l:"Documents & contrôle",i:"📄",vues:[["etats","États périodiques"],["documents","Documents"],["audit","Journal d'audit"]]},
  {id:"adm",l:"Administration",i:"⚙️",vues:[["rh","RH et paie"],["utilisateurs","Utilisateurs"],["donnees_test","Données de test"],["production","Passage en production"],["params","Paramètres"]]}];
 const MOD_DERN={};
 const modOf=v=>MODULES.find(m=>m.vues.some(x=>x[0]===v))||null;
 const vuesVisibles=(m,nav)=>m.vues.filter(([v])=>nav.some(n=>n.v===v));
-function modNavHtml(nav){return MODULES.map(m=>{const L=vuesVisibles(m,nav);if(!L.length)return"";const cur=modOf(view)===m,cible=(L.find(x=>x[0]===MOD_DERN[m.id])||L[0])[0],n=L.reduce((t,x)=>t+navN(x[0]),0);
+function modNavHtml(nav){return MODULES.map(m=>{const L=vuesVisibles(m,nav);if(!L.length)return"";const cur=modOf(view)===m,cible=(L.find(x=>x[0]===MOD_DERN[m.id])||L[0])[0],n=L.some(x=>x[0]==="tresorerie")?navN("tresorerie"):L.reduce((t,x)=>t+navN(x[0]),0);   // Argent : la Trésorerie regroupe déjà les compteurs de Finance et de Caisse
  return`<a class="${cur?"on":""}" data-act="nav" data-id="${cible}" data-mod="${m.id}" title="${esc(L.map(x=>x[1]).join(" · "))}">${m.i} ${m.l}${n?`<span class="nb" title="À traiter">${n}</span>`:""}</a>`}).join("")}
 function modTabsHtml(nav){const m=modOf(view);if(!m)return"";const L=vuesVisibles(m,nav);MOD_DERN[m.id]=view;if(L.length<2)return"";
  return`<div class="mtabs noprint" role="tablist" aria-label="${esc(m.l)}">${L.map(([v,l])=>`<a role="tab" aria-selected="${v===view}" class="${v===view?"on":""}" data-act="nav" data-id="${v}">${esc(l)}${navBadge(v)}</a>`).join("")}</div>`}
