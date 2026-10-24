@@ -183,14 +183,30 @@
       "<h2>3. Aperçu</h2><div class=\"card\">" + (pl.groupes.filter(function (g) { return g.vide; }).map(function (g) { return "<p style=\"margin:0 0 8px\"><b>" + E(g.titre) + " : " + g.n + "</b><br><span class=\"sm mu\">" + (g.lignes.map(function (l) { return E(l.cle) + " " + l.n; }).join(" · ") || "rien") + "</span></p>"; }).join("") || "Rien à vider") + "</div>" +
       '<div class="flex" style="margin:12px 0;align-items:center;gap:10px;flex-wrap:wrap">' + B("prod.go", null, "🚀 Vider et passer en production…", "er", o.sauve ? "" : " disabled") + '<span class="sm mu">' + (o.sauve ? "<b>" + pl.total + "</b> enregistrement(s) seront supprimés. Action définitive." : "Téléchargez d'abord la sauvegarde (étape 1).") + "</span></div>" +
       (pl.inconnus.length ? '<div class="note">Données non classées, conservées par prudence : ' + pl.inconnus.map(E).join(", ") + ".</div>" : "") +
-      "<h2>4. Serveur (Supabase)</h2><div class=\"card\"><p class=\"sm\" style=\"margin-top:0\">Les données des postes se vident sur le serveur par la synchronisation (confirmez la « suppression massive » quand elle s'affiche). L'activité de la passerelle livreur et du portail se vide avec le script SQL ci-dessous, à exécuter <b>une fois</b> dans l'éditeur SQL de Supabase, <b>après</b> la remise à zéro de toutes les applications. Les comptes livreurs et vendeurs sont conservés.</p><div class=\"flex\" style=\"gap:8px;flex-wrap:wrap\">" + B("prod.sql", null, "📋 Copier le script SQL", "ghost") + B("prod.sqldl", null, "⬇ Télécharger le script", "ghost") + "</div></div>" +
+      "<h2>4. Serveur (Supabase)</h2><div class=\"card\"><p class=\"sm\" style=\"margin-top:0\">Vide l'activité enregistrée sur le serveur : synchronisation des postes, missions des livreurs, demandes du portail, appels, rapports, certifications FNE. Les comptes livreurs et vendeurs, le catalogue du portail et les notifications sont <b>conservés</b>. Réservé à l'administrateur : il faut le <b>code de sécurité du serveur</b> (secret RESET_CODE), la sauvegarde téléchargée et la phrase de confirmation. <b>Videz d'abord les appareils</b> : un appareil encore chargé renverrait ses données à la prochaine synchronisation.</p><div class=\"flex\" style=\"gap:8px;flex-wrap:wrap\">" + B("prod.srvapercu", null, "🔎 Voir ce que contient le serveur", "ghost") + B("prod.srvvider", null, "🗑 Vider le serveur…", "er", o.sauve ? "" : " disabled") + B("prod.sql", null, "📋 Script SQL (secours)", "ghost") + B("prod.sqldl", null, "⬇ Télécharger le script", "ghost") + "</div></div>" +
       "<h2>5. Après le passage</h2><div class=\"card\"><ol class=\"sm\" style=\"margin:0;padding-left:20px;line-height:1.7\"><li>Chaque utilisateur change son mot de passe à la première connexion (comptes de formation : réinitialisez-les ou désactivez-les).</li><li>Saisissez les soldes d'ouverture : caisse, banque, stocks.</li><li>Vérifiez le paramétrage et le plan comptable.</li><li>Faites un premier essai réel, puis relevez les écarts.</li></ol></div>";
   }
+
+
+  /* ---------- Serveur (fonction « reset » de Supabase) ---------- */
+  function lireLS(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+  async function appelServeur(corps) {
+    var u = lireLS("angels_supabase"), sy = lireLS("angels_sync"), def = G.ANGELS_PASSERELLE || {}, url = (u && u.off) ? "" : (u && u.url) || def.url || "";
+    if (!sy || !sy.cle || !/^https:\/\//.test(url)) throw new Error("Serveur non configuré : renseignez l'adresse Supabase et la clé de synchronisation (Hub → Paramètres → Cloud).");
+    var r, j; try { r = await fetch(String(url).replace(/\/+$/, "") + "/functions/v1/reset", { method: "POST", headers: { "Content-Type": "application/json", "x-sync-key": sy.cle }, body: JSON.stringify(corps) }); } catch (e) { throw new Error("Réseau indisponible : " + (e && e.message)); }
+    try { j = await r.json(); } catch (e) { j = {}; }
+    if (!r.ok || j.ok === false) throw new Error(j.erreur || "Erreur serveur " + r.status);
+    return j;
+  }
+  var serveurApercu = function () { return appelServeur({ action: "apercu" }); };
+  var serveurVider = function (o) { return appelServeur({ action: "vider", code: o.code, phrase: o.phrase, par: o.par || "", sauvegarde: true }); };
+  /** { table: n } → texte lisible */
+  function resumeServeur(c) { var k = Object.keys(c || {}).filter(function (t) { return c[t] > 0; }); return k.length ? k.map(function (t) { return t + " : " + c[t]; }).join("\n") : "Le serveur ne contient aucune donnée d'activité."; }
 
   /** Sauvegarde intégrale (JSON) avant la remise à zéro : horodatée, restaurable par l'import de l'application */
   function sauvegarde(app, S) { return JSON.stringify(S); }
   function nomSauvegarde(app, d) { var t = (d || new Date()).toISOString().replace(/[:T]/g, "-").slice(0, 16); return "sauvegarde-avant-production-" + app + "-" + t + ".json"; }
 
-  G.ANGELS_PROD = { profils: PROFILS, profil: profil, inconnus: inconnus, choixDefaut: choixDefaut, plan: plan, appliquer: appliquer, sauvegarde: sauvegarde, nomSauvegarde: nomSauvegarde, vue: vue, SQL_SERVEUR: SQL_SERVEUR };
+  G.ANGELS_PROD = { profils: PROFILS, profil: profil, inconnus: inconnus, choixDefaut: choixDefaut, plan: plan, appliquer: appliquer, sauvegarde: sauvegarde, nomSauvegarde: nomSauvegarde, vue: vue, serveurApercu: serveurApercu, serveurVider: serveurVider, resumeServeur: resumeServeur, SQL_SERVEUR: SQL_SERVEUR };
   if (typeof module !== "undefined" && module.exports) module.exports = G.ANGELS_PROD;
 })(typeof window !== "undefined" ? window : globalThis);
