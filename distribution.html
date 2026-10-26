@@ -309,6 +309,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"echecs",l:"Échecs & retours",i:"↩️",g:"Centre de livraison",r:["admin","superviseur","preparateur"]},
  {v:"perf",l:"Performance",i:"📈",g:"Centre de livraison",r:["admin","superviseur","direction"]},
  {v:"cloture",l:"Clôture du jour",i:"🔒",g:"Centre de livraison",r:["admin","superviseur"]},
+ {v:"direct",l:"Circuit direct",i:"📝",g:"Centre de livraison",r:["admin","superviseur"]},
  {v:"vHome",l:"Accueil",i:"🏠",g:"Mon espace",r:["vendeur"]},
  {v:"mesCmd",l:"Mes colis",i:"📦",g:"Mon espace",r:["vendeur"]},
  {v:"vExp",l:"Mes expéditions",i:"🚚",g:"Mon espace",r:["vendeur"]},
@@ -341,8 +342,8 @@ function garde(roles,l,d){
  return true}
 const can=(...roles)=>{if(!ME)return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);if(!ov)return roles.includes(ME.role);const a=ANGELS_ROLES.atomeDe("distribution",roles);return!!a&&ov.has(a)};   /* rôles personnalisés / modifiés : droits du gestionnaire de rôles */
 const canA=a=>!!ME&&ANGELS_ROLES.a("distribution",S,ME.role,a);
-const APPC_ONLY=["centre","collectes","tour","echecs","perf","cloture"];
-const APPC_V=["centre","livraisons","collectes","tour","echecs","perf","cloture","carte","incidents","commandes","expeditions","livreurs","equipements","notifs","params"];   // écrans de l'espace Centre de livraison (le reste du logiciel reste dans l'application complète)
+const APPC_ONLY=["centre","collectes","tour","echecs","perf","cloture","direct"];
+const APPC_V=["centre","livraisons","collectes","tour","echecs","perf","cloture","direct","carte","incidents","commandes","expeditions","livreurs","equipements","notifs","params"];   // écrans de l'espace Centre de livraison (le reste du logiciel reste dans l'application complète)
 const voirNav=n=>{if(APPC_ONLY.includes(n.v)){if(!APPC)return false}else if(APPC&&!APPC_V.includes(n.v))return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
 /* Jauge de la mémoire locale (≈ 5 millions de caractères par application) : avertit une fois par session à 70 % */
 function stockJauge(n){const pct=Math.round(n/50000);window.__stock={chars:n,pct};if(pct>=70&&!window.__stockWarn){window.__stockWarn=1;setTimeout(()=>toast("Mémoire locale à "+pct+" % : faites une sauvegarde (Paramètres), allégez les photos ou passez en mode serveur","err"),0)}}
@@ -388,7 +389,7 @@ const lb=l=>badge(LST[l.statut],LSTC[l.statut]);
 /* ---------- Métier : commandes ---------- */
 function setStatut(c,to,note,force){   /* force : statut piloté par le dossier d'expédition (pas de livreur), hors circuit de livraison */
  if(!force&&!TRANS[c.statut].includes(to)){toast(`Transition interdite : ${ST[c.statut]} → ${ST[to]}`,"err");return false}
- c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;if(!force)try{notifier(c,to,note)}catch(e){}try{const vv=c.vendeur_id&&S.vendeurs.find(x=>x.id===c.vendeur_id);if(vv&&["confirmee","en_cours","livree","echouee","annulee"].includes(to))pushVendeur(vv,"commande_vendeur",({confirmee:"✅ Commande confirmée",en_cours:"🏍️ Commande en route",livree:"📦 Commande livrée",echouee:"⚠️ Livraison échouée",annulee:"✖ Commande annulée"})[to],c.numero+" · "+ST[to],"cmd-"+c.id+"-"+to,"vendeur.html")}catch(e){}return true}
+ c.hist.push({ts:now(),de:c.statut,a:to,par:who(),note:note||""});c.statut=to;if(!force&&!(CEN_DIRECT&&to!=="livree"&&to!=="echouee"))try{notifier(c,to,note)}catch(e){}try{const vv=c.vendeur_id&&S.vendeurs.find(x=>x.id===c.vendeur_id);if(vv&&["confirmee","en_cours","livree","echouee","annulee"].includes(to))pushVendeur(vv,"commande_vendeur",({confirmee:"✅ Commande confirmée",en_cours:"🏍️ Commande en route",livree:"📦 Commande livrée",echouee:"⚠️ Livraison échouée",annulee:"✖ Commande annulée"})[to],c.numero+" · "+ST[to],"cmd-"+c.id+"-"+to,"vendeur.html")}catch(e){}return true}
 /* Acompte en espèces : l'argent entre en caisse (en attente si la caisse est fermée) comme tout encaissement en espèces ; Mobile Money et vendeurs partenaires ne passent pas par la caisse */
 function acompteCaisse(fx,c){if(CL.on||!fx||!/^esp/i.test(fx.mode||"")||!(fx.montant>0)||!(S.caisses||[]).some(x=>x.actif)||!can("admin","commercial","superviseur","caissier"))return;const cl=cli(c.client_id);caisseAuto("entree",fx.montant,"Acompte "+c.numero,cl?cl.nom:"Client","Avance client","acompte",fx.id)}
 function numCmd(){S.seq.cmd++;return"CMD-"+new Date().getFullYear()+"-"+String(S.seq.cmd).padStart(4,"0")}
@@ -597,16 +598,16 @@ function affecter(c,lid,motif){
  {const eo=expOuverte(c);if(eo){toast("La commande "+c.numero+" a un dossier d'expédition ouvert ("+eo.numero+") : elle ne peut pas être affectée à un livreur","err");return false}}
  const lv=liv(lid),old=activeLiv(c.id);
  if(!lv){toast("Livreur introuvable","err");return false}
- if(!CL.on&&enCfg().bloque_docs){const mo=lv.moto_id&&moto(lv.moto_id),ex=mo?enDocsExpires(mo):[];if(ex.length){toast("Engin "+mo.immat+" : "+ex.map(x=>x.t.toLowerCase()).join(", ")+" expirée : affectation impossible","err");return false}}
- {const mo0=lv.moto_id&&moto(lv.moto_id),ot0=mo0&&!CL.on&&gmOtEnCours(mo0);if(ot0){toast("Engin "+mo0.immat+" en intervention ("+ot0.num+") : affectation impossible","err");return false}}
- if(!CL.on&&eqCfg().exige_kit){const k=eqKit(lv);if(!k.complet){toast(lv.nom+" n'a pas son kit complet ("+k.manque.map(t=>eqType(t).nom.toLowerCase()).join(", ")+") : affectation impossible","err");return false}}
- if(S.config.dossier_obligatoire&&!dossierEtat(lv).ok){toast("Dossier de "+lv.nom+" incomplet ou expiré : affectation impossible","err");return false}
- {const rq=risqueDetenu(lv);if(rq.bloque){toast(lv.nom+" doit d'abord reverser : "+rq.raisons.join(" ; ")+" — affectation impossible","err");return false}}
+ if(!CEN_DIRECT&&!CL.on&&enCfg().bloque_docs){const mo=lv.moto_id&&moto(lv.moto_id),ex=mo?enDocsExpires(mo):[];if(ex.length){toast("Engin "+mo.immat+" : "+ex.map(x=>x.t.toLowerCase()).join(", ")+" expirée : affectation impossible","err");return false}}
+ {const mo0=lv.moto_id&&moto(lv.moto_id),ot0=!CEN_DIRECT&&mo0&&!CL.on&&gmOtEnCours(mo0);if(ot0){toast("Engin "+mo0.immat+" en intervention ("+ot0.num+") : affectation impossible","err");return false}}
+ if(!CEN_DIRECT&&!CL.on&&eqCfg().exige_kit){const k=eqKit(lv);if(!k.complet){toast(lv.nom+" n'a pas son kit complet ("+k.manque.map(t=>eqType(t).nom.toLowerCase()).join(", ")+") : affectation impossible","err");return false}}
+ if(!CEN_DIRECT&&S.config.dossier_obligatoire&&!dossierEtat(lv).ok){toast("Dossier de "+lv.nom+" incomplet ou expiré : affectation impossible","err");return false}
+ {const rq=CEN_DIRECT?{bloque:false}:risqueDetenu(lv);if(rq.bloque){toast(lv.nom+" doit d'abord reverser : "+rq.raisons.join(" ; ")+" — affectation impossible","err");return false}}
  if(c.statut!=="prete"&&!(old&&["affectee","en_cours"].includes(c.statut))){toast("Cette commande ne peut pas être affectée dans son état actuel","err");return false}
- if(lvPause(lv)){toast(lv.nom+" est en pause jusqu'à "+fdt(lv.pause.fin).slice(-5)+" : affectation impossible","err");return false}
- if(plCfg().exiger&&plTravail(lv)===false){toast(lv.nom+" n'a pas de créneau réservé en ce moment : affectation impossible","err");return false}
+ if(!CEN_DIRECT&&lvPause(lv)){toast(lv.nom+" est en pause jusqu'à "+fdt(lv.pause.fin).slice(-5)+" : affectation impossible","err");return false}
+ if(!CEN_DIRECT&&plCfg().exiger&&plTravail(lv)===false){toast(lv.nom+" n'a pas de créneau réservé en ce moment : affectation impossible","err");return false}
  const mo=lv.moto_id&&moto(lv.moto_id);
- if(mo&&mo.statut!=="disponible"&&mo.statut!=="affectee"){toast(`Moto ${mo.immat} ${mo.statut} : affectation impossible sans validation`,"err");return false}
+ if(!CEN_DIRECT&&mo&&mo.statut!=="disponible"&&mo.statut!=="affectee"){toast(`Moto ${mo.immat} ${mo.statut} : affectation impossible sans validation`,"err");return false}
  if(old){old.statut="reaffectee";old.fin_at=now();old.motif=motif;audit("Réaffectation livraison",`${c.numero} : ${liv(old.livreur_id).nom} → ${lv.nom} — ${motif}`)}
  else if(!setStatut(c,"affectee","Affectée à "+lv.nom))return false;
  else audit("Affectation livraison",`${c.numero} → ${lv.nom}`);
@@ -624,7 +625,7 @@ function confirmer(l,d){if(!garde(LIVR,l))return false;
  if(l.statut!=="en_cours"){toast("Cette livraison n'est plus en cours (déjà validée ?)","err");return false}
  const c=cmd(l.commande_id);
  if(verifOuverte(c)&&!d.pg){toast("Vérification du paiement chez le vendeur en cours : ne remettez pas le colis avant la réponse du centre","err");return false}
- const saisiC=String(d.code==null?"":d.code).trim(),cetat=d.pg?(d.code_etat||"ok"):saisiC===l.code?"ok":saisiC?"non_conforme":"absent";   /* le code du client est un contrôle, pas un verrou : la livraison passe, le centre voit l'écart */
+ const saisiC=String(d.code==null?"":d.code).trim(),cetat=d.centre?"direct":d.pg?(d.code_etat||"ok"):saisiC===l.code?"ok":saisiC?"non_conforme":"absent";   /* le code du client est un contrôle, pas un verrou : la livraison passe, le centre voit l'écart */
  const m=Math.round(+d.montant||0),att=l.montant_attendu;
  if(att>0&&d.montant==="")return toast("Saisissez le montant encaissé (0 si rien reçu)","err"),false;
  if(m<0)return toast("Montant invalide","err"),false;
@@ -633,12 +634,12 @@ function confirmer(l,d){if(!garde(LIVR,l))return false;
  const mob=m>0&&estMobile(d.mode),ref=mob?String(d.ref||"").trim().toUpperCase():"";
  if(mob&&ref.length<4)return toast("Référence de la transaction Mobile Money obligatoire (identifiant reçu par SMS)","err"),false;
  if(ref&&refUtilisee(ref))return toast("Cette référence de transaction est déjà enregistrée","err"),false;
- const scetat=d.pg?(d.scan_etat||"ok"):(colisReq(c)&&!d.colis_ok?"absent":"ok");   /* le scan des colis est un contrôle, pas un verrou : la remise passe, le centre voit l'écart */
- if(sigReq(c)&&!d.signature&&!d.pg)return toast("Signature du destinataire obligatoire (commande ≥ "+fcfa(S.config.signature_seuil)+")","err"),false;
+ const scetat=d.pg||d.centre?(d.scan_etat||"ok"):(colisReq(c)&&!d.colis_ok?"absent":"ok");   /* le scan des colis est un contrôle, pas un verrou : la remise passe, le centre voit l'écart */
+ if(sigReq(c)&&!d.signature&&!d.pg&&!d.centre)return toast("Signature du destinataire obligatoire (commande ≥ "+fcfa(S.config.signature_seuil)+")","err"),false;
  if(!setStatut(c,"livree","Livrée — reçu par "+d.recu_par))return false;
  if(d.colis_ok){try{l.colis_liv=JSON.parse(d.colis_ok)}catch(e){}}
  if(d.signature&&/^data:image\/png;base64,/.test(d.signature)&&d.signature.length<80000)l.signature=d.signature;
- l.statut="livree";if(scetat!=="ok"){l.scan_etat=scetat;audit("Livraison confirmée sans scan complet des colis",c.numero+" — "+(scetat==="absent"?"aucun colis scanné":"scan partiel"))}if(cetat!=="ok"){l.code_etat=cetat;audit("Livraison confirmée sans code client valide",c.numero+" — "+(cetat==="absent"?"code non saisi":"code non conforme"))}l.fin_at=now();l.recu_par=d.recu_par;l.obs=d.obs||"";l.montant_encaisse=m;l.mode=d.mode;l.ecart=ecart;
+ l.statut="livree";if(scetat!=="ok"){l.scan_etat=scetat;audit("Livraison confirmée sans scan complet des colis",c.numero+" — "+(scetat==="absent"?"aucun colis scanné":"scan partiel"))}if(cetat!=="ok"){l.code_etat=cetat;audit("Livraison confirmée sans code client valide",c.numero+" — "+(cetat==="absent"?"code non saisi":cetat==="direct"?"validée par le centre (circuit direct)":"code non conforme"))}l.fin_at=now();l.recu_par=d.recu_par;l.obs=d.obs||"";l.montant_encaisse=m;l.mode=d.mode;l.ecart=ecart;
  {const lvx=liv(l.livreur_id);if(estExterne(lvx)){const ca=Math.round((c.frais||0)*(+lvx.commission_pct||0)/100);l.commission_angels=ca;l.part_livreur=Math.max((c.frais||0)-ca,0)}}
  l.gps_confirm=S.pos[l.livreur_id]?{lat:S.pos[l.livreur_id].lat,lng:S.pos[l.livreur_id].lng,ts:S.pos[l.livreur_id].ts}:null;
  if(ecart!==0){l.ecart_statut="a_valider";l.ecart_note=d.ecart_note}
@@ -2219,7 +2220,7 @@ VIEWS.livraisons=()=>{
  const TABS=[["rep","🧭 Répartition ("+(prete.length+act.length+echoues.length+ecarts.length)+")"],["col","🧺 Collectes vendeurs ("+nColl+")"],["exp","🌍 Expéditions ("+S.commandes.filter(c=>c.exp&&!["livree","annulee","retour_recu"].includes(c.statut)).length+")"],["tou","🔁 Tournées ("+tourN+")"],["liv","👥 Livreurs ("+S.livreurs.length+")"],["pla","📅 Planning"],["msg","💬 Messages"+(chatNonLusCentre()?" ("+chatNonLusCentre()+")":"")],["sta","📊 Statistiques"]],COLS=["aff","act","trt"],cdt=TABS.some(x=>x[0]===ui.cdt)||COLS.includes(ui.cdt)?ui.cdt:"rep",vue=COLS.includes(cdt)?"rep":cdt,foc=COLS.includes(cdt)?cdt:"";
  if(ui.cdt!==cdt)ui.cdt=cdt;
  const nTrt=echoues.length+ecarts.length,kpb=(t,ic,l,n,c)=>`<button type="button" class="${c||""}" data-act="tab" data-id="cdt|${t}"><span class="ic">${ic}</span><b>${n}</b><span class="l">${l}</span></button>`;
- return`<div class="cdl"><div class="ban"><h1>Centre de livraison</h1><p>Affectez, suivez et clôturez les courses du jour</p></div>
+ return`<div class="cdl"><div class="ban"><h1>Centre de livraison</h1><p>Affectez, suivez et clôturez les courses du jour</p>${can("admin","superviseur")?'<button type="button" class="btn sm noprint" data-act="cenDirect" style="width:auto;margin-top:6px">📝 Circuit direct : valider des livraisons faites hors application</button>':""}</div>
  <div class="kp">${kpb("aff","📦","À affecter",prete.length,prete.length?"w":"")}${kpb("act","🏍","Courses actives",act.length)}${kpb("col","🧺","Collectes vendeurs",nColl)}${kpb("tou","🔁","Tournées",tourN)}${kpb("liv","👥","Livreurs",S.livreurs.length)}${kpb("trt","⚠","À traiter",nTrt,nTrt?"e":"")}</div>
  ${vue==="rep"?`<div class="card noprint" style="padding:10px"><div class="flex" style="flex-wrap:wrap;gap:8px;align-items:center"><b>🔎 Filtrer</b>${perSel3("lv","all")}${lieuInput("flieu")}<select data-f="fl" style="width:auto"><option value="">Tous livreurs</option>${opts(S.livreurs.map(l=>({v:l.id,t:l.nom})),fl)}</select><button type="button" class="btn sm ${fu?"":"ghost"}" data-act="livUrg" aria-pressed="${fu}">⚡ Urgents seulement</button>${bn.k!=="all"||fq||fl||fu?`<button type="button" class="btn sm ghost" data-act="livFiltresRaz">✖ Effacer les filtres</button>`:""}</div><div class="sm mu" style="margin-top:4px">Zone : barre ci-dessous. Date : commande (à affecter) ou affectation (en course, échecs). Lieu : zone, quartier ou repère.</div></div>`:""}
  ${tabs("cdt",TABS.map(x=>x[0]==="rep"&&foc?[x[0],x[1]]:x))}
@@ -3610,7 +3611,7 @@ function chatOuvrir(lid){const l=liv(lid);if(!l)return;(S.chat||[]).forEach(m=>{
 /* ---------- Notifications push vers le téléphone du livreur (Web Push, envoyées par le serveur via la passerelle) ----------
    File d'attente locale : vidée à chaque synchronisation ; une notification périmée (> 15 min) ou ratée 3 fois est abandonnée. */
 const pushCfg=()=>Object.assign({actif:true,types:{}},S.config.push||{}),pushType=t=>pushCfg().actif&&(pushCfg().types||{})[t]!==false;
-function pushLivreur(lv,type,titre,corps,tag,url){if(!lv||!lv.ident_serveur||!pushType(type))return false;S.push_file=S.push_file||[];tag=tag||type;
+function pushLivreur(lv,type,titre,corps,tag,url){if(!lv||!lv.ident_serveur||!pushType(type)||CEN_DIRECT)return false;S.push_file=S.push_file||[];tag=tag||type;
  if(S.push_file.some(x=>x.livreur_ref===lv.id&&x.tag===tag&&x.corps===corps))return false;
  S.push_file.push({id:uid("pu"),livreur_ref:lv.id,titre:String(titre).slice(0,80),corps:String(corps||"").slice(0,160),tag,url:url||"livreur.html",ts:now(),essais:0});if(S.push_file.length>60)S.push_file.splice(0,S.push_file.length-60);return true}
 /* Notification push à un vendeur partenaire (application vendeur) : même file d'attente que les livreurs */
@@ -3624,11 +3625,11 @@ async function pushFlush(){const P=PASS();if(!P||_pushBusy||!(S.push_file||[]).l
   if(!CL.on)save()}finally{_pushBusy=false}}
 function statLiv(lv,t0,t1){
  const L=S.livraisons.filter(l=>l.livreur_id===lv.id&&["livree","echouee"].includes(l.statut)&&l.fin_at&&new Date(l.fin_at).getTime()>=t0&&new Date(l.fin_at).getTime()<=t1);
- const ok=L.filter(l=>l.statut==="livree"),ko=L.filter(l=>l.statut==="echouee"),dur=ok.map(l=>(new Date(l.fin_at)-new Date(l.depart_at||l.affectee_at))/60000).filter(x=>isFinite(x)&&x>=0);
- const dans=ok.filter(l=>{const c=cmd(l.commande_id),z=c&&c.adr?zone(c.adr.zone):null;return(new Date(l.fin_at)-new Date(l.affectee_at))/60000<=(z?z.delai_min:60)}).length;
+ const ok=L.filter(l=>l.statut==="livree"),ko=L.filter(l=>l.statut==="echouee"),dur=ok.filter(l=>l.circuit!=="direct").map(l=>(new Date(l.fin_at)-new Date(l.depart_at||l.affectee_at))/60000).filter(x=>isFinite(x)&&x>=0);
+ const dans=ok.filter(l=>l.circuit!=="direct").filter(l=>{const c=cmd(l.commande_id),z=c&&c.adr?zone(c.adr.zone):null;return(new Date(l.fin_at)-new Date(l.affectee_at))/60000<=(z?z.delai_min:60)}).length;
  const jours={},motifs={},zones={};ok.forEach(l=>{const j=cxJour(new Date(l.fin_at));jours[j]=(jours[j]||0)+1;const c=cmd(l.commande_id),z=(c&&c.adr&&c.adr.zone)||"—";zones[z]=(zones[z]||0)+1});ko.forEach(l=>{const m=l.motif_echec||"Autre";motifs[m]=(motifs[m]||0)+1});
  const notes=(S.avis||[]).filter(a=>a.livreur_id===lv.id&&ok.some(l=>l.id===a.livraison_id)).map(a=>+a.note).filter(n=>n>0),jn=Object.keys(jours).length,top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,3);
- return{livrees:ok.length,echecs:ko.length,taux:L.length?ok.length/L.length*100:0,duree:dur.length?dur.reduce((a,b)=>a+b,0)/dur.length:0,delais:ok.length?dans/ok.length*100:0,encaisse:ok.reduce((a,l)=>a+(l.montant_encaisse||0),0),gains:ok.reduce((a,l)=>a+coutLiv(l),0),jours:jn,moy:jn?ok.length/jn:0,note:notes.length?notes.reduce((a,b)=>a+b,0)/notes.length:0,nnotes:notes.length,motifs:top(motifs),zones:top(zones),best:top(jours)[0]||null,km:kmLiv(lv.id,t0,t1),vit:vitLiv(lv.id,t0,t1)}}
+ return{livrees:ok.length,echecs:ko.length,taux:L.length?ok.length/L.length*100:0,duree:dur.length?dur.reduce((a,b)=>a+b,0)/dur.length:0,delais:ok.filter(l=>l.circuit!=="direct").length?dans/ok.filter(l=>l.circuit!=="direct").length*100:0,encaisse:ok.reduce((a,l)=>a+(l.montant_encaisse||0),0),gains:ok.reduce((a,l)=>a+coutLiv(l),0),jours:jn,moy:jn?ok.length/jn:0,note:notes.length?notes.reduce((a,b)=>a+b,0)/notes.length:0,nnotes:notes.length,motifs:top(motifs),zones:top(zones),best:top(jours)[0]||null,km:kmLiv(lv.id,t0,t1),vit:vitLiv(lv.id,t0,t1)}}
 /* Chiffres publiés au livreur avec ses statistiques : argent à reverser, prime du mois, moto, règles de sécurité (valeurs arrondies : contenu stable) */
 const statLivP=(lv,a,b)=>{const x=statLiv(lv,a,b);return Object.assign({},x,{km:Math.round(x.km*100)/100,vit:{max:Math.round(x.vit.max),n:x.vit.n}})};
 function passPayloadLivreur(lv,j0,t){const m1=new Date(new Date(j0).getFullYear(),new Date(j0).getMonth(),1).getTime(),fin=j0+864e5-1,pc=primeCfg(),e=evalLiv(lv,m1,fin),v=ventLiv(lv.id),r2=x=>Math.round(x*100)/100,mo=lv.moto_id&&moto(lv.moto_id);
@@ -3767,7 +3768,7 @@ async function passSync(force){const P=PASS();const solo=!!P&&ANGELS_SYNC.actif(
  /* 1b. commandes déposées par les vendeurs depuis leur application */
   {const CV=(await passPost(P,"mission-sync",{action:"vendeur-commandes"})).commandes||[];if(CV.length){const ids=[];let n=0;for(const e of CV){const r=vendCmdImporter(e);if(r){audit("Commande vendeur non importée",String(e.ref)+" — "+r);toast("Commande d'un vendeur non importée : "+r,"err")}else n++;ids.push(e.id)}chg=true;save();await passPost(P,"mission-sync",{action:"vendeur-acquitter",ids});if(n){toast(n+" nouvelle(s) commande(s) de vendeur à confirmer","ok");if(ME&&["commandes","dashboard","vendeurs"].includes(view))render()}}}
  /* 2. publication de la projection sans numéros */
-  const lim=Date.now()-2*864e5,L=S.livraisons.filter(l=>liv(l.livreur_id)&&cmd(l.commande_id)&&(isActive(l)||(l.fin_at&&new Date(l.fin_at).getTime()>lim))).slice(-300),M=L.map(passProjection).concat(passStatsMissions(),passCollectesMissions()),sig=JSON.stringify(M.map(m=>[m.livraison_ref,m.statut,m.payload,m.code,m.colis]));
+  const lim=Date.now()-2*864e5,L=S.livraisons.filter(l=>l.circuit!=="direct"&&liv(l.livreur_id)&&cmd(l.commande_id)&&(isActive(l)||(l.fin_at&&new Date(l.fin_at).getTime()>lim))).slice(-300),M=L.map(passProjection).concat(passStatsMissions(),passCollectesMissions()),sig=JSON.stringify(M.map(m=>[m.livraison_ref,m.statut,m.payload,m.code,m.colis]));
   S.pass=S.pass||{refs:[]};const refs=M.map(m=>m.livraison_ref),retirer=S.pass.refs.filter(x=>!refs.includes(x));
   if(sig!==_passSig||retirer.length){const r=await passPost(P,"mission-sync",{action:"publier",missions:M,retirer});if(!r.ignorees)_passSig=sig;if(retirer.length){S.pass.refs=refs;chg=true}else S.pass.refs=refs}
   {const V=[];for(const v of S.vendeurs.filter(v=>v.ident_serveur))V.push({vendeur_ref:v.id,etat:await vendEtatPub(v)});const sv=JSON.stringify(V);if(V.length&&sv!==_vendSig){const r=await passPost(P,"mission-sync",{action:"vendeur-publier",vendeurs:V});if(!r.ignores)_vendSig=sv}}
@@ -6152,7 +6153,7 @@ function prefsForm(){modal("⚙️ Préférences d'affichage",`<label style="dis
 /* ---------- Navigation en modules : 8 entrées au lieu de 30 ; chaque écran garde son identifiant (droits, tests, liens) et s'ouvre dans les onglets de son module ---------- */
 const MODULES_C=[
  {id:"cen",l:"Accueil",i:"🏠",vues:[["centre","Accueil"],["tour","Tour de contrôle"],["carte","Carte en direct"]]},
- {id:"liv",l:"Affecter & suivre",i:"🏍️",vues:[["livraisons","Répartition et suivi"],["echecs","Échecs & retours"],["incidents","Incidents & retours"]]},
+ {id:"liv",l:"Affecter & suivre",i:"🏍️",vues:[["livraisons","Répartition et suivi"],["direct","Circuit direct"],["echecs","Échecs & retours"],["incidents","Incidents & retours"]]},
  {id:"col",l:"Collectes",i:"🧺",vues:[["collectes","Collectes"]]},
  {id:"pil",l:"Pilotage",i:"📈",vues:[["perf","Performance"],["cloture","Clôture du jour"]]},
  {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["expeditions","Expéditions"],["notifs","Messages clients"]]},
