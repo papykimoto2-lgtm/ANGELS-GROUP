@@ -244,14 +244,9 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
   }
   else if (type === "confirmer") {
     if (st !== "en_cours") return refuse(409, "Cette livraison n'est plus en cours");
-    const k = await db.code(ref); if (!k) return refuse(409, "Code de confirmation indisponible : contactez le bureau");
-    if (k.verrou_jusqua && Date.parse(k.verrou_jusqua) > now) return refuse(429, "Trop d'essais : code verrouillé, patientez ou contactez le bureau");
-    const ok = egal(await empreinteCode(ref, d.code == null ? "" : d.code), k.code_hash);
-    if (!ok) {
-      const essais = (k.essais || 0) + 1, max = cfg.essaisCodeMax || 5;
-      await db.majCode(ref, essais >= max ? { essais: 0, verrou_jusqua: new Date(now + 15 * 60000).toISOString() } : { essais });
-      return refuse(403, essais >= max ? "Code incorrect : verrouillé 15 minutes" : "Code de confirmation incorrect");
-    }
+    /* Le code du client est un contrôle, pas un verrou : sans code ou avec un code non conforme, la livraison est acceptée mais marquée « code_etat » pour que le centre le voie. */
+    const k = await db.code(ref), saisi = d.code == null ? "" : String(d.code).trim();
+    ev.code_etat = !saisi ? "absent" : (k && egal(await empreinteCode(ref, saisi), k.code_hash)) ? "ok" : "non_conforme";
     const montant = Math.round(nombre(d.montant)), att = Math.round(nombre(p.montant_attendu) || 0), recu = txt(d.recu_par, 80);
     if (!(montant >= 0) || montant > 1e9) return refuse(400, "Montant encaissé invalide");
     if (!recu) return refuse(400, "Nom de la personne ayant reçu obligatoire");
@@ -268,7 +263,7 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     const patch = {}; if (sigL) patch.signature = sigL; if (photo) patch.photo = photo; if (gps) patch.gps = gps;
     if (Object.keys(patch).length) await db.ecrirePreuve(ref, patch);
     ev.preuve = !!(sigL || photo || pr.signature_client); ev.signature_source = pr.signature_client ? "client" : sigL ? "livreur" : ""; ev.photo = !!photo; if (gps) ev.gps = gps;
-    await db.majCode(ref, { essais: 0, verrou_jusqua: null });
+    if (k) await db.majCode(ref, { essais: 0, verrou_jusqua: null });
     maj.statut = "livree"; Object.assign(ev, { montant, mode: txt(d.mode, 40), ref_paiement: txt(d.ref, 60), direct: !!d.direct, recu_par: recu, obs: txt(d.obs, 300), ecart_note: txt(d.ecart_note, 300) });
   }
   else if (type === "position") {
