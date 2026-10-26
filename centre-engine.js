@@ -218,23 +218,33 @@ function cenDirectExec(c,o){
  if(CL.on)return"Le circuit direct n'est pas disponible en mode serveur";
  const lv=liv(o.lid);if(!lv)return"Choisissez le livreur qui a livré";if(!CEN_ST_DIRECT.includes(c.statut))return"La commande doit être prête, affectée ou en cours";
  const t0=Date.now(),quand=o.quand||now();let l,msg="";
+ const qd=new Date(quand);if(isNaN(qd))return"Date de livraison invalide";if(qd.getTime()>t0+60000)return"La date de livraison ne peut pas être dans le futur";
+ if(c.date&&qd<new Date(String(c.date).slice(0,10)+"T00:00:00"))return"La livraison ne peut pas précéder la date de la commande ("+String(c.date).slice(0,10)+")";
+ if((S.clotures_j||[]).some(x=>x.jour===ymd(qd)))return"La journée du "+ymd(qd)+" est déjà clôturée : saisissez la livraison à une date ouverte";
+ /* photo de l'état avant : si une étape échoue, tout est remis comme avant (aucune réaffectation à moitié faite) */
+ const snap={c:JSON.parse(JSON.stringify(c)),livs:S.livraisons.filter(x=>x.commande_id===c.id).map(x=>JSON.parse(JSON.stringify(x))),len:{}};
+ Object.keys(S).forEach(k=>{if(Array.isArray(S[k]))snap.len[k]=S[k].length});
+ const annuler=()=>{Object.keys(snap.len).forEach(k=>{if(Array.isArray(S[k])&&S[k].length>snap.len[k])S[k].length=snap.len[k]});
+  Object.keys(c).forEach(k=>{if(!(k in snap.c))delete c[k]});Object.assign(c,snap.c);
+  snap.livs.forEach(o=>{const x=S.livraisons.find(y=>y.id===o.id);if(x){Object.keys(x).forEach(k=>{if(!(k in o))delete x[k]});Object.assign(x,o)}})};
+ let echecEtape="";
  const garde_toast=toast;toast=m=>{msg=m};   /* les contrôles métier parlent par toast : on récupère leur message */
- CEN_DIRECT=true;
+ CEN_DIRECT=true;const fin=m=>{annuler();return m};
  try{
   l=activeLiv(c.id);
-  if(l&&l.livreur_id!==lv.id){l=affecter(c,lv.id,"Circuit direct : livreur ayant réellement livré");if(!l)return msg||"Réaffectation impossible"}
-  else if(!l){l=affecter(c,lv.id,"");if(!l)return msg||"Affectation impossible"}
-  if(l.statut==="affectee"&&!accepter(l))return msg||"Acceptation impossible";
-  if(l.statut==="acceptee"&&!l.collecte_at&&!priseEnCharge(l,(c.colis&&c.colis.length)||1))return msg||"Prise en charge impossible";
-  if(l.statut==="acceptee"&&!demarrer(l))return msg||"Départ impossible";
-  if(l.statut!=="en_cours")return"La livraison n'est pas en cours";
-  if(o.resultat==="echec"){if(!echec(l,o.motif||"Client absent",o.obs||"",{pg:true}))return msg||"Échec non enregistré"}
+  if(l&&l.livreur_id!==lv.id){l=affecter(c,lv.id,"Circuit direct : livreur ayant réellement livré");if(!l)return fin(msg||"Réaffectation impossible")}
+  else if(!l){l=affecter(c,lv.id,"");if(!l)return fin(msg||"Affectation impossible")}
+  if(l.statut==="affectee"&&!accepter(l))return fin(msg||"Acceptation impossible");
+  if(l.statut==="acceptee"&&!l.collecte_at&&!priseEnCharge(l,(c.colis&&c.colis.length)||1))return fin(msg||"Prise en charge impossible");
+  if(l.statut==="acceptee"&&!demarrer(l))return fin(msg||"Départ impossible");
+  if(l.statut!=="en_cours")return fin("La livraison n'est pas en cours");
+  if(o.resultat==="echec"){if(!echec(l,o.motif||"Client absent",o.obs||"",{pg:true}))return fin(msg||"Échec non enregistré")}
   else{const att=l.montant_attendu||0,mt=o.montant===""||o.montant==null?att:Math.round(+o.montant);
-   if(!confirmer(l,{centre:true,code:"",montant:String(mt),mode:o.mode||"Espèces",ref:o.ref||"",recu_par:o.recu_par,obs:o.obs||"",ecart_note:o.ecart_note||"",colis_ok:"",signature:""}))return msg||"Confirmation refusée"}
- }finally{CEN_DIRECT=false;toast=garde_toast}
+   if(!confirmer(l,{centre:true,code:"",montant:String(mt),mode:o.mode||"Espèces",ref:o.ref||"",recu_par:o.recu_par,obs:o.obs||"",ecart_note:o.ecart_note||"",colis_ok:"",signature:"",at:quand}))return fin(msg||"Confirmation refusée")}
+ }catch(e){annuler();return e&&e.message||"Erreur inattendue"}finally{CEN_DIRECT=false;toast=garde_toast}
  /* dates réelles de la livraison (saisie après coup) ; l'heure de saisie reste dans le journal d'audit */
  const recale=a=>{(a||[]).forEach(h=>{if(h.ts&&new Date(h.ts).getTime()>=t0-1000)h.ts=quand})};
- recale(c.hist);recale(l.hist);["affectee_at","accept_at","collecte_at","depart_at","fin_at"].forEach(k=>{if(l[k])l[k]=quand});
+ recale(c.hist);recale(l.hist);["affectee_at","accept_at","collecte_at","depart_at","fin_at"].forEach(k=>{if(l[k]&&new Date(l[k]).getTime()>=t0-1000)l[k]=quand});   /* seules les étapes saisies maintenant sont datées à la livraison réelle ; les horaires déjà réels sont conservés */
  S.fonds.forEach(f=>{if(f.livraison_id===l.id&&new Date(f.ts).getTime()>=t0-1000)f.ts=quand});
  l.circuit="direct";l.saisie_par=who();l.saisie_le=now();if(o.bon)l.bon_papier=String(o.bon).slice(0,40);
  if(Array.isArray(o.articles)&&o.articles.length){l.articles_remis=o.articles;const manque=o.articles.filter(a=>a.remis<a.cmd);if(manque.length){c.obs=(c.obs?c.obs+" · ":"")+"Remis en partie : "+manque.map(a=>a.desig+" "+a.remis+"/"+a.cmd).join(", ")}}
@@ -292,6 +302,8 @@ function cenWatch(){
  const libre=!document.querySelector("#modal .ov");if(libre&&(neufs.length||ch)&&["centre","tour","echecs","cloture"].includes(view))render()}
 
 function centreInit(){
+ /* commandes déposées par un vendeur : l'origine est enregistrée une fois pour toutes (plus de déduction par le nom de l'auteur) */
+ try{S.commandes.forEach(c=>{if(c.depose_par_vendeur===undefined&&c.hist&&c.hist[0]&&S.users.some(u=>u.role==="vendeur"&&u.nom===c.hist[0].par))c.depose_par_vendeur=true})}catch(e){}
  Object.assign(VIEWS,{direct:cenV_direct,tour:cenV_tour,echecs:cenV_echecs,perf:cenV_perf,cloture:cenV_cloture});
  Object.assign(ACT,{cenDirect:cenDirectModal,cenAffAuto,cenFiche,cenCreneauForm,cenCreneauOff,cenConfEnvoyer,cenConfOui:id=>cenConfRep(id,"oui"),cenConfNon:id=>cenConfRep(id,"report"),cenTour:cenTourModal,cenPreuve,cenPreuvePrint,
   cenControle,cenColisNb:v=>{const[cid,lid]=String(v).split("|"),c=cmd(cid);if(!c)return;colisGenerer(c,+(prompt("Nombre de colis pour "+c.numero,"1")||1));save();cenControle(lid)},cenCarteLiv:id=>{ui.mapLiv=id;ui.cdt="rep";view="livraisons";render()},

@@ -10,11 +10,11 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",i
  const br=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await br.newContext({viewport:{width:420,height:900}}),errs=[];
  const J=(rt,b,st)=>rt.fulfill({status:st||200,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify(b)});
  const MISSION={livraison_ref:"l1",livreur_ref:"lv1",commande_ref:"CMD-0001",statut:"en_cours",maj_le:new Date().toISOString(),position:null,payload:{numero:"CMD-0001",client_nom:"Mme Konan",adr:{zone:"Cocody",quartier:"Angré",repere:"",instructions:"",gps:null},lignes:[{desig:"Robe",qte:1,pu:8500}],obs:"",montant_attendu:8500,collecte_at:new Date().toISOString(),nb_colis:1}};
- const q=await ctx.newPage();q.on("pageerror",e=>errs.push(e.message));const sent=[];let refus=false;
+ const q=await ctx.newPage();q.on("pageerror",e=>errs.push(e.message));const sent=[];let refus=false,refus403=false;
  await q.addInitScript(()=>{window.__missions=null;const sess=()=>({access_token:"JWT-TEST",user:{id:"u1",user_metadata:{chg:false}}});
   const sb={auth:{getSession:async()=>({data:{session:sess()}}),signOut:async()=>{}},from:()=>({select:()=>({order:async()=>({data:window.__missions,error:null}),maybeSingle:async()=>({data:{livreur_ref:"lv1",nom:"Koffi Yao"},error:null})})})};
   window.supabase={createClient:()=>sb}});
- await q.route("**/functions/v1/mission-action",async rt=>{const b=JSON.parse(rt.request().postData()||"{}");sent.push(b);if(refus)return J(rt,{ok:false,erreur:"Cette livraison n'est plus en cours"},409);return J(rt,{ok:true,statut:"x"})});
+ await q.route("**/functions/v1/mission-action",async rt=>{const b=JSON.parse(rt.request().postData()||"{}");sent.push(b);if(refus403)return J(rt,{ok:false,erreur:"Cette mission n'est pas la vôtre"},403);if(refus)return J(rt,{ok:false,erreur:"Cette livraison n'est plus en cours"},409);return J(rt,{ok:true,statut:"x"})});
  await q.goto(base+"/livreur.html");await q.waitForTimeout(500);
  await q.evaluate(m=>{window.__missions=[m]},MISSION);await q.evaluate(async()=>{await charger()});await q.waitForTimeout(200);
  await q.click('[data-a="confirmer"]');await q.waitForTimeout(250);
@@ -36,6 +36,10 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",i
  refus=false;await q.evaluate(m=>{window.__missions=[m]},MISSION);await q.evaluate(async()=>{await charger()});await q.waitForTimeout(250);await q.click('[data-a="confirmer"]');await q.waitForTimeout(250);
  await q.evaluate(()=>{window.__missions=[]});await q.evaluate(async()=>{await charger()});await q.waitForTimeout(250);
  chk("LC-6","livraison retirée de la liste par le centre : le formulaire se ferme aussi",await q.locator(".ov").count()===0&&/retirée/.test(await q.innerText("#toast")));
+ // mission retirée du serveur : le serveur répond 403 « pas la vôtre » ; même traitement que le 409
+ await q.evaluate(m=>{window.__missions=[m]},MISSION);await q.evaluate(async()=>{await charger()});await q.waitForTimeout(250);await q.click('[data-a="confirmer"]');await q.waitForTimeout(250);
+ refus403=true;await q.fill('input[name="recu_par"]',"Mme Konan");await q.click('.ov button[type=submit]');await q.waitForTimeout(400);refus403=false;
+ chk("LC-8","mission retirée (403 « pas la vôtre ») : le formulaire se ferme et la liste est actualisée, comme pour un refus 409",await q.locator(".ov").count()===0&&/liste actualisée/.test(await q.innerText("#toast")),await q.innerText("#toast"));
  chk("LC-7","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await br.close();srv.close();process.exit(ko?1:0);
 })();

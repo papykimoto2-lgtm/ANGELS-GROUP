@@ -30,21 +30,23 @@ export function genererCode(n = 6) {
     const c = out.join(""); if (!/^(\d)\1+$/.test(c) && !"01234567890123456789".includes(c) && !"98765432109876543210".includes(c)) return c;
   }
 }
-const MDP_REFUSE = /password|mot de passe|weak|short|caract|too/i;
+const MDP_REFUSE = /(password|mot de passe|weak|short|caract)/i, MDP_AUTRE = /rate|limit|too many|already|exist|déjà|network|timeout|fetch/i;   // seul un refus lié au mot de passe déclenche l'essai suivant ; tout autre message est remonté tel quel
 /* Crée le compte avec le code simple ; si le serveur d'authentification le trouve trop court ou trop faible : 8 chiffres, puis mot de passe long. */
 async function creerAvecCode(db, email, meta) {
+  let dernier = new Error("mot de passe refusé");
   for (const gen of [() => genererCode(6), () => genererCode(8), genererMdp]) {
     const mdp = gen();
-    try { return { uid: await db.creerUtilisateur(email, mdp, meta), mdp }; } catch (e) { if (!MDP_REFUSE.test(String(e && e.message || ""))) throw e; }
+    try { return { uid: await db.creerUtilisateur(email, mdp, meta), mdp }; } catch (e) { dernier = e; if (!MDP_REFUSE.test(String(e && e.message || "")) || MDP_AUTRE.test(String(e && e.message || ""))) throw e; }
   }
-  throw new Error("mot de passe refusé");
+  throw dernier;
 }
 async function changerAvecCode(db, uid, meta) {
+  let dernier = new Error("mot de passe refusé");
   for (const gen of [() => genererCode(6), () => genererCode(8), genererMdp]) {
     const mdp = gen();
-    try { await db.changerMdp(uid, mdp, meta); return mdp; } catch (e) { if (!MDP_REFUSE.test(String(e && e.message || ""))) throw e; }
+    try { await db.changerMdp(uid, mdp, meta); return mdp; } catch (e) { dernier = e; if (!MDP_REFUSE.test(String(e && e.message || "")) || MDP_AUTRE.test(String(e && e.message || ""))) throw e; }
   }
-  throw new Error("mot de passe refusé");
+  throw dernier;
 }
 
 /* Colis : l'étiquette de chaque colis porte un jeton de 5 caractères (dans le QR et imprimé dessous). Le serveur n'en garde que l'empreinte : le livreur ne peut valider un colis que s'il l'a vraiment sous les yeux. */
