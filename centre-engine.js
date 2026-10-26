@@ -2,6 +2,7 @@
    Tour de contrôle, affectation guidée, groupage en tournées, alertes, créneaux promis, confirmation client, échecs, dossier de preuve,
    contrôle des colis au départ, planning des collectes, performance, clôture de journée, sons et écran allumé.
    Chargé avant le script principal de distribution.html, qui appelle centreInit() quand S, VIEWS et ACT existent. S'appuie sur ses fonctions (cmd, liv, affecter, creerTournee, colPlanLocal…). */
+let CEN_DIRECT=false;   /* vrai pendant la saisie d'une livraison par le centre (circuit direct) : pas de contrôle d'aptitude du livreur, pas de notification de mission ni de message client intermédiaire */
 const CEN_DEF={max_tournee:8,cout_unit:1800,cout_groupe:1000,immobile_min:15,offre_min:3,pret_min:20,collecte_retard_min:15,rayon_km:3,auto_col:true,veille:true};
 const CEN_SLOTS=[["08:00","10:00"],["10:00","12:00"],["12:00","14:00"],["14:00","16:00"],["16:00","18:00"]];
 const CEN_JOURS=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
@@ -127,7 +128,7 @@ const cenV_echecs=()=>{
 function cenPreuveHtml(c){const L=livsOf(c.id).filter(l=>l.statut!=="reaffectee"||true),cl=cenCli(c),fin=L.slice().reverse().find(l=>l.statut==="livree");
  const ph=(c.colis||[]).filter(k=>k.photo);
  return`<h2 style="margin:0">Dossier de preuve — ${esc(c.numero)}</h2><div>${esc(S.config.org||"")}</div><p><b>Client :</b> ${esc(cl.nom||"")} · ${esc(c.adr.zone||"")} ${esc(c.adr.quartier||"")} ${esc(c.adr.repere||"")}<br><b>Statut :</b> ${esc(ST[c.statut]||c.statut)}${c.creneau?" · <b>Créneau annoncé :</b> "+esc(cenCreTxt(c)):""}</p>
- ${fin?`<p><b>Remise :</b> ${fdt(fin.fin_at)} par ${esc((liv(fin.livreur_id)||{}).nom||"")} · reçu par <b>${esc(fin.recu_par||"")}</b> · encaissé ${fcfa(fin.montant_encaisse||0)} (${esc(fin.mode||"")})${fin.gps_confirm?` · position : <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${fin.gps_confirm.lat},${fin.gps_confirm.lng}">📍 ${(+fin.gps_confirm.lat).toFixed(5)}, ${(+fin.gps_confirm.lng).toFixed(5)}</a>`:""}<br><b>Code client :</b> ${fin.code_etat==="absent"?"⚠ non saisi":fin.code_etat==="non_conforme"?"⚠ non conforme":"saisi et validé"} ${fin.scan_etat?" · ⚠ colis "+(fin.scan_etat==="absent"?"non scannés":"scannés en partie")+" à la remise":(fin.colis_liv?" · colis scannés à la remise":"")}${fin.scan_prise?" · ⚠ prise en charge "+(fin.scan_prise==="absent"?"sans scan":"scannée en partie"):""}</p>${fin.signature?`<p><b>Signature :</b><br><img alt="Signature" src="${fin.signature}" style="max-width:260px;border:1px solid #ccc"></p>`:""}`:`<p><i>Pas encore livrée.</i></p>`}
+ ${fin?`<p><b>Remise :</b> ${fdt(fin.fin_at)} par ${esc((liv(fin.livreur_id)||{}).nom||"")} · reçu par <b>${esc(fin.recu_par||"")}</b> · encaissé ${fcfa(fin.montant_encaisse||0)} (${esc(fin.mode||"")})${fin.gps_confirm?` · position : <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${fin.gps_confirm.lat},${fin.gps_confirm.lng}">📍 ${(+fin.gps_confirm.lat).toFixed(5)}, ${(+fin.gps_confirm.lng).toFixed(5)}</a>`:""}<br><b>Code client :</b> ${fin.circuit==="direct"?"circuit direct : validée par le centre"+(fin.saisie_par?" ("+esc(fin.saisie_par)+")":"")+(fin.bon_papier?" · bon papier n° "+esc(fin.bon_papier):""):fin.code_etat==="absent"?"⚠ non saisi":fin.code_etat==="non_conforme"?"⚠ non conforme":"saisi et validé"} ${fin.scan_etat?" · ⚠ colis "+(fin.scan_etat==="absent"?"non scannés":"scannés en partie")+" à la remise":(fin.colis_liv?" · colis scannés à la remise":"")}${fin.scan_prise?" · ⚠ prise en charge "+(fin.scan_prise==="absent"?"sans scan":"scannée en partie"):""}</p>${fin.signature?`<p><b>Signature :</b><br><img alt="Signature" src="${fin.signature}" style="max-width:260px;border:1px solid #ccc"></p>`:""}`:`<p><i>Pas encore livrée.</i></p>`}
  ${ph.length?`<p><b>Photos des colis au départ :</b><br>${ph.map(k=>`<img alt="Colis ${k.n}" src="${k.photo}" style="height:90px;margin:2px;border:1px solid #ccc">`).join("")}</p>`:""}
  <h3>Historique</h3><table style="width:100%;border-collapse:collapse;font-size:13px">${c.hist.map(h=>`<tr><td style="border-bottom:1px solid #eee;padding:2px 6px;white-space:nowrap">${fdt(h.ts)}</td><td style="border-bottom:1px solid #eee;padding:2px 6px">${esc(ST[h.a]||h.a)}</td><td style="border-bottom:1px solid #eee;padding:2px 6px">${esc(h.par||"")}</td><td style="border-bottom:1px solid #eee;padding:2px 6px">${esc(h.note||"")}</td></tr>`).join("")}</table>
  ${L.length?`<h3>Courses</h3>${L.map(l=>`<div class="sm">${esc((liv(l.livreur_id)||{}).nom||"")} — ${esc(LST[l.statut]||l.statut)} — affectée ${fdt(l.affectee_at)}${l.fin_at?" — fin "+fdt(l.fin_at):""}${l.motif_echec?" — "+esc(l.motif_echec):""}</div>`).join("")}`:""}`}
@@ -200,7 +201,7 @@ const cenV_cloture=()=>{const D=cenCloture(),ligne=(ic,t,n,det,btn)=>`<div class
  ${ligne("📥","Colis en retour à réceptionner",D.ret.length,D.ret.map(c=>esc(c.numero)).join(", "),`<button class="btn sm" data-act="centreGo" data-id="echecs|">Réceptionner</button>`)}
  ${ligne("🧺","Collectes ouvertes",D.col.length,D.col.map(c=>esc(c.numero)+" "+esc(colVend(c))).join(", "),`<button class="btn sm" data-act="centreGo" data-id="collectes|">Collectes</button>`)}
  ${ligne("📦","Colis sortis non revenus",D.nonRev.length,esc(D.nonRev.join(", ")),`<button class="btn sm" data-act="centreGo" data-id="tour|">Contrôler</button>`)}
- ${D.sansCode.length?`<div class="between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><span>ℹ️ 🔑 <b>Livrées sans code client ou sans scan complet des colis</b> <span class="mu">(${D.sansCode.length})</span><div class="sm mu">${D.sansCode.map(l=>esc((cmd(l.commande_id)||{}).numero)+" ("+[l.code_etat&&l.code_etat!=="ok"?"code "+(l.code_etat==="absent"?"non saisi":"non conforme"):"",l.scan_etat||l.scan_prise?"colis non scannés":""].filter(Boolean).join(", ")+")").join(", ")} — à contrôler auprès du livreur, sans bloquer la clôture</div></span></div>`:""}
+ ${D.sansCode.length?`<div class="between" style="padding:8px 0;border-bottom:1px solid var(--bd)"><span>ℹ️ 🔑 <b>Livrées sans code client ou sans scan complet des colis</b> <span class="mu">(${D.sansCode.length})</span><div class="sm mu">${D.sansCode.map(l=>esc((cmd(l.commande_id)||{}).numero)+" ("+[l.code_etat&&l.code_etat!=="ok"?(l.code_etat==="direct"?"circuit direct":"code "+(l.code_etat==="absent"?"non saisi":"non conforme")):"",l.scan_etat||l.scan_prise?"colis non scannés":""].filter(Boolean).join(", ")+")").join(", ")} — à contrôler auprès du livreur, sans bloquer la clôture</div></span></div>`:""}
  ${ligne("⚖️","Écarts de caisse à valider",D.ecarts.length,"",`<button class="btn sm" data-act="centreGo" data-id="livraisons|trt">Valider</button>`)}</section>
  <section class="card"><h2 style="margin-top:0">💵 Argent détenu par les livreurs</h2>${D.dets.length?tbl(["Livreur","À reverser à la caisse"],D.dets.map(x=>`<tr><td><b>${esc(x.l.nom)}</b></td><td>${fcfa(x.s)}</td></tr>`))+'<div class="sm mu">À reverser au caissier avant la fermeture de la caisse (Trésorerie, dans l\'application complète).</div>':'<div class="mu sm">Tous les livreurs ont reversé. ✅</div>'}</section>
  <div class="flex noprint" style="gap:8px;margin-top:10px"><button class="btn ${D.ouverts?"wa":"ok"}" data-act="cenClore">🔒 Clôturer la journée</button><button class="btn ghost" data-act="cenCloturePrint">🖨 Imprimer le résumé</button></div>
@@ -208,6 +209,66 @@ const cenV_cloture=()=>{const D=cenCloture(),ligne=(ic,t,n,det,btn)=>`<div class
 function cenClore(){const D=cenCloture();const go=()=>{S.clotures_j=S.clotures_j||[];S.clotures_j=S.clotures_j.filter(x=>x.jour!==D.j);S.clotures_j.push({id:uid("cj"),jour:D.j,par:ME.nom,ts:now(),livrees:D.P.ok,echecs:D.P.ko,ouverts:D.ouverts});audit("Clôture de la journée du centre",D.j+" — "+D.P.ok+" livrées, "+D.P.ko+" échecs, "+D.ouverts+" point(s) ouvert(s)");save();toast("Journée clôturée","ok");render()};
  if(D.ouverts&&!confirm(D.ouverts+" point(s) restent ouverts. Clôturer quand même ?"))return;go()}
 function cenCloturePrint(){const D=cenCloture(),w=window.open("","_blank");if(!w)return;w.document.write(`<!doctype html><meta charset="utf-8"><title>Clôture ${D.j}</title><body style="font:14px system-ui;margin:24px"><h2>${esc(S.config.org||"")} — Clôture du ${D.j}</h2><p>Livrées : <b>${D.P.ok}</b> · Échecs : <b>${D.P.ko}</b> · Points ouverts : <b>${D.ouverts}</b></p><ul><li>Courses actives : ${D.act.length}</li><li>Échecs à traiter : ${D.ech.length}</li><li>Retours à réceptionner : ${D.ret.length}</li><li>Collectes ouvertes : ${D.col.length}</li><li>Colis non revenus : ${D.nonRev.length}</li><li>Écarts à valider : ${D.ecarts.length}</li></ul><h3>Argent détenu</h3>${D.dets.map(x=>esc(x.l.nom)+" : "+fcfa(x.s)).join("<br>")||"Aucun"}<script>setTimeout(function(){print()},300)<\/script></body>`);w.document.close()}
+
+
+/* ---------- Circuit direct : le centre valide lui-même des livraisons faites hors application (ancien système manuel) ---------- */
+const CEN_ST_DIRECT=["prete","affectee","en_cours"];
+const cenDirectListe=()=>S.commandes.filter(c=>CEN_ST_DIRECT.includes(c.statut)&&!expOuverte(c)).sort((a,b)=>new Date(a.date)-new Date(b.date));
+function cenDirectExec(c,o){
+ if(CL.on)return"Le circuit direct n'est pas disponible en mode serveur";
+ const lv=liv(o.lid);if(!lv)return"Choisissez le livreur qui a livré";if(!CEN_ST_DIRECT.includes(c.statut))return"La commande doit être prête, affectée ou en cours";
+ const t0=Date.now(),quand=o.quand||now();let l,msg="";
+ const garde_toast=toast;toast=m=>{msg=m};   /* les contrôles métier parlent par toast : on récupère leur message */
+ CEN_DIRECT=true;
+ try{
+  l=activeLiv(c.id);
+  if(l&&l.livreur_id!==lv.id){l=affecter(c,lv.id,"Circuit direct : livreur ayant réellement livré");if(!l)return msg||"Réaffectation impossible"}
+  else if(!l){l=affecter(c,lv.id,"");if(!l)return msg||"Affectation impossible"}
+  if(l.statut==="affectee"&&!accepter(l))return msg||"Acceptation impossible";
+  if(l.statut==="acceptee"&&!l.collecte_at&&!priseEnCharge(l,(c.colis&&c.colis.length)||1))return msg||"Prise en charge impossible";
+  if(l.statut==="acceptee"&&!demarrer(l))return msg||"Départ impossible";
+  if(l.statut!=="en_cours")return"La livraison n'est pas en cours";
+  if(o.resultat==="echec"){if(!echec(l,o.motif||"Client absent",o.obs||"",{pg:true}))return msg||"Échec non enregistré"}
+  else{const att=l.montant_attendu||0,mt=o.montant===""||o.montant==null?att:Math.round(+o.montant);
+   if(!confirmer(l,{centre:true,code:"",montant:String(mt),mode:o.mode||"Espèces",ref:o.ref||"",recu_par:o.recu_par,obs:o.obs||"",ecart_note:o.ecart_note||"",colis_ok:"",signature:""}))return msg||"Confirmation refusée"}
+ }finally{CEN_DIRECT=false;toast=garde_toast}
+ /* dates réelles de la livraison (saisie après coup) ; l'heure de saisie reste dans le journal d'audit */
+ const recale=a=>{(a||[]).forEach(h=>{if(h.ts&&new Date(h.ts).getTime()>=t0-1000)h.ts=quand})};
+ recale(c.hist);recale(l.hist);["affectee_at","accept_at","collecte_at","depart_at","fin_at"].forEach(k=>{if(l[k])l[k]=quand});
+ S.fonds.forEach(f=>{if(f.livraison_id===l.id&&new Date(f.ts).getTime()>=t0-1000)f.ts=quand});
+ l.circuit="direct";l.saisie_par=who();l.saisie_le=now();if(o.bon)l.bon_papier=String(o.bon).slice(0,40);
+ if(Array.isArray(o.articles)&&o.articles.length){l.articles_remis=o.articles;const manque=o.articles.filter(a=>a.remis<a.cmd);if(manque.length){c.obs=(c.obs?c.obs+" · ":"")+"Remis en partie : "+manque.map(a=>a.desig+" "+a.remis+"/"+a.cmd).join(", ")}}
+ audit("Livraison directe (circuit direct)",c.numero+" — "+lv.nom+" — "+(o.resultat==="echec"?"échec : "+(o.motif||""):"livrée, encaissé "+fcfa(l.montant_encaisse||0))+(o.bon?" — bon papier "+o.bon:""));
+ return""}
+function cenDirectModal(cid){
+ if(!can("admin","superviseur"))return toast("Réservé à l'administrateur et au superviseur","err");
+ if(CL.on)return toast("Le circuit direct n'est pas disponible en mode serveur","err");
+ const L=cenDirectListe();if(!L.length)return modal("📝 Circuit direct",'<div class="pill">Aucune commande prête, affectée ou en cours à valider.</div>',{focus:false});
+ const lvs=lvActifs(),dtl=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16),mots=(S.config.motifs||["Client absent"]),modes=S.config.modes||["Espèces"];
+ const row=c=>{const cl=cenCli(c),act=activeLiv(c.id),att=soldeCmd(c);return`<div class="card" style="margin:8px 0"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" name="ck_${c.id}" style="width:auto;margin-top:4px" ${c.id===cid?"checked":""}><span style="flex:1"><b>${esc(c.numero)}</b> · ${esc(cl.nom||"")} <span class="mu sm">${esc(zoneDe(c))} ${esc(c.adr.quartier||"")}</span> ${badge(ST[c.statut],"")}${act?` <span class="mu sm">(${esc((liv(act.livreur_id)||{}).nom||"")})</span>`:""}<br><span class="sm">À encaisser : <b>${fcfa(att)}</b></span></span></label>
+  <div class="g3"><label>Résultat<select name="rs_${c.id}"><option value="livree">✅ Livrée</option><option value="echec">❌ Non livrée</option></select></label><label>Montant encaissé (F)<input type="number" name="mt_${c.id}" min="0" value="${att}"></label><label>Mode<select name="md_${c.id}">${opts(modes,modes[0])}</select></label></div>
+  <div class="g3"><label>Reçu par<input name="rp_${c.id}" placeholder="Nom du client"></label><label>Réf. Mobile Money<input name="rf_${c.id}" placeholder="si Mobile Money"></label><label>Explication si écart / motif d'échec<input name="ex_${c.id}" list="cen_mots"></label></div>
+  <details><summary class="sm mu" style="cursor:pointer">👕 Articles remis (${c.lignes.length})</summary>${c.lignes.map((x,i)=>`<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="flex:1">${esc(lname(x))}</span><span class="mu sm">commandé ${x.qte} · remis</span><input type="number" name="q_${c.id}_${i}" min="0" max="${x.qte}" value="${x.qte}" style="width:70px"></label>`).join("")}</details></div>`};
+ modal("📝 Circuit direct — livraison validée par le centre",`<div class="pill">Pour les livraisons faites hors application (livreur sans réseau ou téléphone en panne) : le centre valide à la place du livreur, enregistre l'encaissement et les articles remis. Le livreur garde le circuit habituel s'il peut l'utiliser.</div>
+ <div class="g3"><label>Livreur qui a livré<select name="lid" required>${opts([{v:"",t:"— choisir —"}].concat(lvs.map(l=>({v:l.id,t:l.nom}))),"")}</select></label><label>Date et heure de la livraison<input type="datetime-local" name="quand" value="${dtl}" max="${dtl}" required></label><label>Bon papier n° (facultatif)<input name="bon" maxlength="40"></label></div>
+ <datalist id="cen_mots">${mots.map(m=>`<option value="${esc(m)}">`).join("")}</datalist>${L.map(row).join("")}`,
+ {wide:true,label:"Valider les livraisons cochées",cls:"ok",onSubmit:d=>{
+  if(!d.lid)return toast("Choisissez le livreur qui a livré","err"),false;
+  const quand=new Date(d.quand).toISOString(),ids=L.filter(c=>d["ck_"+c.id]),R={ok:[],ko:[]};
+  if(!ids.length)return toast("Cochez au moins une commande","err"),false;
+  for(const c of ids){const att=soldeCmd(c),mt=+d["mt_"+c.id],res=d["rs_"+c.id],ex=String(d["ex_"+c.id]||"").trim();
+   const art=c.lignes.map((x,i)=>({desig:lname(x),cmd:x.qte,remis:Math.max(0,Math.min(x.qte,+d["q_"+c.id+"_"+i]||0))}));
+   if(res==="livree"){if(!String(d["rp_"+c.id]||"").trim()){R.ko.push(c.numero+" : indiquez qui a reçu");continue}if(mt!==att&&ex.length<3){R.ko.push(c.numero+" : écart de "+fcfa(mt-att)+", explication obligatoire");continue}}
+   else if(ex.length<3){R.ko.push(c.numero+" : motif d'échec obligatoire");continue}
+   const e=cenDirectExec(c,{lid:d.lid,quand,resultat:res,montant:mt,mode:d["md_"+c.id],ref:String(d["rf_"+c.id]||"").trim().toUpperCase(),recu_par:String(d["rp_"+c.id]||"").trim(),ecart_note:ex,motif:ex,obs:ex,bon:d.bon,articles:art});
+   e?R.ko.push(c.numero+" : "+e):R.ok.push(c.numero)}
+  save();if(R.ko.length){toast(R.ok.length+" enregistrée(s) ; à revoir : "+R.ko.join(" | "),"err");render();return R.ok.length>0}
+  toast(R.ok.length+" livraison(s) enregistrée(s) en circuit direct","ok");render()}})}
+const cenV_direct=()=>{
+ const j=ymd(new Date()),H=S.livraisons.filter(l=>l.circuit==="direct"&&ymd(l.saisie_le||l.fin_at)===j).sort((a,b)=>new Date(b.saisie_le)-new Date(a.saisie_le)),n=cenDirectListe().length;
+ return`<div class="cdl"><div class="ban"><h1>Circuit direct</h1><p>Le centre valide lui-même les livraisons faites hors application</p></div>
+ <div class="card"><div class="between"><span><b>${n}</b> commande(s) prête(s), affectée(s) ou en cours peuvent être validées ici.<div class="sm mu">Le livreur n'a rien à faire sur son téléphone ; l'argent encaissé est compté à sa charge comme d'habitude (Trésorerie).</div></span><button class="btn" data-act="cenDirect">📝 Saisir des livraisons</button></div></div>
+ <h2>Saisies aujourd'hui (${H.length})</h2>${tbl(["Commande","Livreur","Résultat","Encaissé","Reçu par","Saisi par",""],H.map(l=>{const c=cmd(l.commande_id)||{};return`<tr><td><b>${esc(c.numero||"")}</b></td><td>${esc((liv(l.livreur_id)||{}).nom||"")}</td><td>${l.statut==="livree"?badge("Livrée","ok"):badge("Non livrée","er")}</td><td>${l.statut==="livree"?fcfa(l.montant_encaisse||0):"—"}</td><td class="sm">${esc(l.recu_par||"")}</td><td class="sm">${esc(l.saisie_par||"")}</td><td><button class="btn sm ghost" data-act="cenPreuve" data-id="${c.id}">🧾</button></td></tr>`}),"Aucune saisie aujourd'hui")}</div>`};
 
 /* ---------- Réglages, sons, écran allumé, veille ---------- */
 function cenReglages(){const C=cenCfg(),D=cenDev(),adm=can("admin","superviseur");
@@ -231,8 +292,8 @@ function cenWatch(){
  const libre=!document.querySelector("#modal .ov");if(libre&&(neufs.length||ch)&&["centre","tour","echecs","cloture"].includes(view))render()}
 
 function centreInit(){
- Object.assign(VIEWS,{tour:cenV_tour,echecs:cenV_echecs,perf:cenV_perf,cloture:cenV_cloture});
- Object.assign(ACT,{cenAffAuto,cenFiche,cenCreneauForm,cenCreneauOff,cenConfEnvoyer,cenConfOui:id=>cenConfRep(id,"oui"),cenConfNon:id=>cenConfRep(id,"report"),cenTour:cenTourModal,cenPreuve,cenPreuvePrint,
+ Object.assign(VIEWS,{direct:cenV_direct,tour:cenV_tour,echecs:cenV_echecs,perf:cenV_perf,cloture:cenV_cloture});
+ Object.assign(ACT,{cenDirect:cenDirectModal,cenAffAuto,cenFiche,cenCreneauForm,cenCreneauOff,cenConfEnvoyer,cenConfOui:id=>cenConfRep(id,"oui"),cenConfNon:id=>cenConfRep(id,"report"),cenTour:cenTourModal,cenPreuve,cenPreuvePrint,
   cenControle,cenColisNb:v=>{const[cid,lid]=String(v).split("|"),c=cmd(cid);if(!c)return;colisGenerer(c,+(prompt("Nombre de colis pour "+c.numero,"1")||1));save();cenControle(lid)},cenCarteLiv:id=>{ui.mapLiv=id;ui.cdt="rep";view="livraisons";render()},
   cenRecForm,cenRecDel:id=>{S.col_rec=(S.col_rec||[]).filter(r=>r.id!==id);save();render()},cenColGen:()=>cenColGen(false),cenPerfCsv,cenClore,cenCloturePrint,cenReglages});
  document.addEventListener("keydown",e=>{if(e.target&&e.target.id==="cen_scan"&&e.key==="Enter"){e.preventDefault();cenScanOk(e.target.value);e.target.value=""}});
@@ -243,4 +304,4 @@ function centreInit(){
 /* Bloc d'accueil du centre : hors ligne, alertes, raccourcis */
 function cenHome(){const A=cenAlertes(),nEch=S.commandes.filter(c=>c.statut==="echouee"||c.statut==="retour_cours").length,P=S.commandes.filter(c=>c.statut==="prete"&&!expOuverte(c)).length;
  return`${typeof passBandeau==="function"?passBandeau():""}${navigator.onLine===false?'<div class="al warn sm">📶 Hors ligne : ce que vous faites est gardé sur cet appareil et envoyé dès le retour du réseau.</div>':""}
- <div class="rac noprint"><button class="btn" data-act="centreGo" data-id="tour|" style="width:auto">🧭 Tour de contrôle</button>${P>1?`<button class="btn ghost" data-act="cenTour" style="width:auto">🔁 Proposer des tournées</button>`:""}<button class="btn ghost" data-act="centreGo" data-id="echecs|" style="width:auto">↩️ Échecs & retours${nEch?" ("+nEch+")":""}</button><button class="btn ghost" data-act="centreGo" data-id="cloture|" style="width:auto">🔒 Clôture du jour</button><button class="btn ghost" data-act="cenReglages" style="width:auto">⚙ Réglages</button></div>${cenAlHtml(5)}`}
+ <div class="rac noprint"><button class="btn" data-act="centreGo" data-id="tour|" style="width:auto">🧭 Tour de contrôle</button>${P>1?`<button class="btn ghost" data-act="cenTour" style="width:auto">🔁 Proposer des tournées</button>`:""}<button class="btn ghost" data-act="centreGo" data-id="echecs|" style="width:auto">↩️ Échecs & retours${nEch?" ("+nEch+")":""}</button><button class="btn ghost" data-act="cenDirect" style="width:auto">📝 Circuit direct</button><button class="btn ghost" data-act="centreGo" data-id="cloture|" style="width:auto">🔒 Clôture du jour</button><button class="btn ghost" data-act="cenReglages" style="width:auto">⚙ Réglages</button></div>${cenAlHtml(5)}`}
