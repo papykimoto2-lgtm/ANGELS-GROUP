@@ -26,8 +26,9 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",i
  await q.evaluate(m=>{window.__missions=[m]},MISSION);await q.evaluate(async()=>{await charger()});await q.waitForTimeout(200);
  await q.click('[data-a="prise"]');await q.waitForTimeout(200);
  chk("PU-1","prise en charge d'une commande à colis scannés : liste des 2 colis, caméra et saisie du code ; nombre de colis non modifiable",await q.locator("#cp_l .pill").count()===2&&await q.locator("#cp_cam").count()===1&&await q.locator('.ov input[name="nb"][type=hidden]').count()===1);
- await q.click('.ov button[type=submit]');await q.waitForTimeout(200);
- chk("PU-2","valider sans scanner : refusé avec le nombre de colis restants, rien n'est envoyé",/Scannez les 2 colis \(0 validés\)/.test(await q.innerText("#toast"))&&!sent.some(x=>x.type==="prise_en_charge"));
+ await q.click('.ov button[type=submit]');await q.waitForTimeout(80);const tPU2=await q.innerText("#toast");await q.waitForTimeout(150);
+ chk("PU-2","valider sans scanner : NON bloquant — la prise en charge est envoyée (sans scan) ; le serveur la marque « absent »",sent.some(x=>x.type==="prise_en_charge"&&(!x.donnees.scans||x.donnees.scans.length===0)),JSON.stringify([tPU2,sent.map(x=>x.type)]));
+ sent.length=0;await q.evaluate(()=>{window.__missions=[Object.assign({},window.__missions[0],{statut:"acceptee"})]});await q.evaluate(async()=>{await charger()});await q.waitForTimeout(200);await q.click('[data-a="prise"]');await q.waitForTimeout(200);
  await q.fill("#cp_man","AGE1|AUTRE");await q.fill("#cp_man","");await q.fill("#cp_man","ab2cd");await q.click("#cp_ok");
  await q.evaluate(()=>{});await q.fill("#cp_man","xy7zk");await q.click("#cp_ok");await q.waitForTimeout(150);
  const l1=await q.innerText("#cp_l");chk("PU-3","deux codes saisis à la main : les deux colis sont cochés (mode « saisi »), message « tous validés »",(l1.match(/✅/g)||[]).length===2&&/saisi/.test(l1)&&/Tous les colis sont validés/.test(await q.innerText("#cp_box")),l1);
@@ -40,7 +41,7 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",i
  const sec=await q.evaluate(()=>({colis:!!document.getElementById("cp_l"),sg:!!document.getElementById("sg"),qr:!!document.getElementById("sg_qr"),ph:!!document.getElementById("ph_in")}));
  chk("PU-5","confirmation : colis à scanner, zone de signature, bouton « faire signer sur le téléphone du client » et photo du colis remis",sec.colis&&sec.sg&&sec.qr&&sec.ph,JSON.stringify(sec));
  await q.fill('input[name="code"]',"4821");await q.fill('input[name="recu_par"]',"Mme Konan");await q.click('.ov button[type=submit]');await q.waitForTimeout(250);
- chk("PU-6","confirmer sans scanner les colis remis : refusé",/Scannez les 2 colis remis \(0 validés\)/.test(await q.innerText("#toast"))&&!sent.some(x=>x.type==="confirmer"));
+ chk("PU-6","confirmer sans scanner les colis remis : le scan ne bloque plus (seule la signature, exigée ici, est réclamée)",!/Scannez/.test(await q.innerText("#toast"))&&!sent.some(x=>x.type==="confirmer"));
  await q.fill("#cp_man","ab2cd");await q.click("#cp_ok");await q.fill("#cp_man","xy7zk");await q.click("#cp_ok");
  await q.click('.ov button[type=submit]');await q.waitForTimeout(250);
  chk("PU-7","signature obligatoire : ni signature à l'écran ni signature du client → refusé",/Signature du destinataire obligatoire/.test(await q.innerText("#toast"))&&!sent.some(x=>x.type==="confirmer"));
