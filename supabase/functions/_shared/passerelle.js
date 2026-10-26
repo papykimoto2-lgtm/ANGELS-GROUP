@@ -22,6 +22,31 @@ export function genererMdp() {
   return out.join("");
 }
 
+/* Code d'accès simple des vendeurs partenaires (premier accès) : 6 chiffres, sans suite ni répétition évidentes. Le vendeur choisit son propre mot de passe à la première connexion. */
+export function genererCode(n = 6) {
+  const b = new Uint8Array(1);
+  for (;;) {
+    const out = []; while (out.length < n) { crypto.getRandomValues(b); if (b[0] < 250) out.push(b[0] % 10); }
+    const c = out.join(""); if (!/^(\d)\1+$/.test(c) && !"01234567890123456789".includes(c) && !"98765432109876543210".includes(c)) return c;
+  }
+}
+const MDP_REFUSE = /password|mot de passe|weak|short|caract|too/i;
+/* Crée le compte avec le code simple ; si le serveur d'authentification le trouve trop court ou trop faible : 8 chiffres, puis mot de passe long. */
+async function creerAvecCode(db, email, meta) {
+  for (const gen of [() => genererCode(6), () => genererCode(8), genererMdp]) {
+    const mdp = gen();
+    try { return { uid: await db.creerUtilisateur(email, mdp, meta), mdp }; } catch (e) { if (!MDP_REFUSE.test(String(e && e.message || ""))) throw e; }
+  }
+  throw new Error("mot de passe refusé");
+}
+async function changerAvecCode(db, uid, meta) {
+  for (const gen of [() => genererCode(6), () => genererCode(8), genererMdp]) {
+    const mdp = gen();
+    try { await db.changerMdp(uid, mdp, meta); return mdp; } catch (e) { if (!MDP_REFUSE.test(String(e && e.message || ""))) throw e; }
+  }
+  throw new Error("mot de passe refusé");
+}
+
 /* Colis : l'étiquette de chaque colis porte un jeton de 5 caractères (dans le QR et imprimé dessous). Le serveur n'en garde que l'empreinte : le livreur ne peut valider un colis que s'il l'a vraiment sous les yeux. */
 export const empreinteColis = (livraison_ref, n, tok) => sha256hex("colis|" + livraison_ref + "|" + n + "|" + String(tok).trim().toUpperCase());
 export const empreinteJeton = (jeton) => sha256hex("sign|" + String(jeton).trim().toUpperCase());
@@ -182,15 +207,15 @@ export async function traiterSync(db, cfg, req, adminKey, now = Date.now()) {
     if (!ref || !nom || !ident) return err(400, "Vendeur, nom et identifiant obligatoires");
     if (ident.includes("@") ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ident) : !/^[A-Za-z0-9._-]{3,}$/.test(ident)) return err(400, "Identifiant : 3 caractères minimum (lettres, chiffres, point, tiret)");
     if (await db.vendeurDe(ref)) return err(409, "Ce vendeur a déjà un compte : réinitialisez son mot de passe");
-    const mdp = genererMdp(); let uid;
-    try { uid = await db.creerUtilisateur(emailDe(ident), mdp, { chg: true, role: "vendeur", nom }); } catch (e) { return err(409, "Cet identifiant existe déjà ou est refusé : " + txt(e && e.message, 120)); }
+    let uid, mdp;
+    try { ({ uid, mdp } = await creerAvecCode(db, emailDe(ident), { chg: true, role: "vendeur", nom })); } catch (e) { return err(409, "Cet identifiant existe déjà ou est refusé : " + txt(e && e.message, 120)); }
     await db.ecrireVendeur({ vendeur_ref: ref, user_id: uid, nom, ident: ident.toLowerCase(), actif: true });
     if (db.retirerCleVendeur) await db.retirerCleVendeur(ref);   // ses demandes ne sont plus réservées à une clé de relève : elles arrivent dans son application
     return rep(200, { ok: true, ident: ident.toLowerCase(), mdp });
   }
   if (a === "vendeur-compte-reset") {
     const c = await db.vendeurDe(txt(req.vendeur_ref, 60)); if (!c) return err(404, "Compte vendeur introuvable");
-    const mdp = genererMdp(); await db.changerMdp(c.user_id, mdp, { chg: true, role: "vendeur", nom: c.nom }); return rep(200, { ok: true, mdp });
+    const mdp = await changerAvecCode(db, c.user_id, { chg: true, role: "vendeur", nom: c.nom }); return rep(200, { ok: true, mdp });
   }
   if (a === "vendeur-compte-actif") {
     const c = await db.vendeurDe(txt(req.vendeur_ref, 60)); if (!c) return err(404, "Compte vendeur introuvable");
