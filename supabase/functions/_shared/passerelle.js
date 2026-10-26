@@ -232,8 +232,10 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     if (st !== "acceptee" || p.collecte_at) return refuse(409, "Prise en charge impossible dans l'état actuel"); const nb = Math.round(nombre(d.nb_colis));
     if (!(nb >= 1 && nb <= 99)) return refuse(400, "Nombre de colis : entre 1 et 99");
     if (p.exige_colis && p.colis_total > 0) {   /* chaque colis doit être scanné à la prise en charge : le nombre est celui de la commande */
+      /* Le scan est un contrôle, pas un verrou : sans scan complet la prise en charge passe, marquée « scan_etat » (absent, partiel ou ok) pour que le centre le voie. */
       const v = await verifierScans(db, { livraison_ref: ref, commande_ref: m.commande_ref }, d.scans);
-      if (!v.ok) return refuse(403, v.msg); p.colis_collecte = v.scans; ev.scans = v.scans; ev.nb_colis = p.colis_total;
+      ev.scan_etat = v.ok ? "ok" : (Array.isArray(d.scans) && d.scans.length ? "partiel" : "absent"); if (v.ok) { p.colis_collecte = v.scans; ev.scans = v.scans; } else ev.scan_msg = txt(v.msg, 160);
+      ev.nb_colis = p.colis_total;
     }
     p.collecte_at = new Date(now).toISOString(); p.nb_colis = ev.nb_colis || nb; ev.nb_colis = p.nb_colis; ev.etat = txt(d.etat, 60);
   }
@@ -252,7 +254,7 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     if (!recu) return refuse(400, "Nom de la personne ayant reçu obligatoire");
     if (montant !== att && txt(d.ecart_note, 300).length < 3) return refuse(400, "Écart de " + (montant - att) + " F : explication obligatoire");
     /* preuves : colis remis (scan), signature (client sur son téléphone, sinon livreur), photo, position */
-    if (p.exige_colis && p.colis_total > 0) { const v = await verifierScans(db, { livraison_ref: ref, commande_ref: m.commande_ref }, d.scans); if (!v.ok) return refuse(403, v.msg); ev.scans = v.scans; }
+    if (p.exige_colis && p.colis_total > 0) { const v = await verifierScans(db, { livraison_ref: ref, commande_ref: m.commande_ref }, d.scans); ev.scan_etat = v.ok ? "ok" : (Array.isArray(d.scans) && d.scans.length ? "partiel" : "absent"); if (v.ok) ev.scans = v.scans; else ev.scan_msg = txt(v.msg, 160); }   /* scan facultatif : tracé, jamais bloquant */
     const pr = await db.preuve(ref) || {}, sigL = typeof d.signature === "string" && d.signature ? d.signature : "";
     if (sigL && (!PNG.test(sigL) || sigL.length > SIG_MAX)) return refuse(400, "Signature illisible : recommencez");
     const photo = typeof d.photo === "string" && d.photo ? d.photo : "";

@@ -633,12 +633,12 @@ function confirmer(l,d){if(!garde(LIVR,l))return false;
  const mob=m>0&&estMobile(d.mode),ref=mob?String(d.ref||"").trim().toUpperCase():"";
  if(mob&&ref.length<4)return toast("Référence de la transaction Mobile Money obligatoire (identifiant reçu par SMS)","err"),false;
  if(ref&&refUtilisee(ref))return toast("Cette référence de transaction est déjà enregistrée","err"),false;
- if(colisReq(c)&&!d.colis_ok&&!d.pg)return toast("Scannez les colis remis au client (ou saisissez leur code)","err"),false;
+ const scetat=d.pg?(d.scan_etat||"ok"):(colisReq(c)&&!d.colis_ok?"absent":"ok");   /* le scan des colis est un contrôle, pas un verrou : la remise passe, le centre voit l'écart */
  if(sigReq(c)&&!d.signature&&!d.pg)return toast("Signature du destinataire obligatoire (commande ≥ "+fcfa(S.config.signature_seuil)+")","err"),false;
  if(!setStatut(c,"livree","Livrée — reçu par "+d.recu_par))return false;
  if(d.colis_ok){try{l.colis_liv=JSON.parse(d.colis_ok)}catch(e){}}
  if(d.signature&&/^data:image\/png;base64,/.test(d.signature)&&d.signature.length<80000)l.signature=d.signature;
- l.statut="livree";if(cetat!=="ok"){l.code_etat=cetat;audit("Livraison confirmée sans code client valide",c.numero+" — "+(cetat==="absent"?"code non saisi":"code non conforme"))}l.fin_at=now();l.recu_par=d.recu_par;l.obs=d.obs||"";l.montant_encaisse=m;l.mode=d.mode;l.ecart=ecart;
+ l.statut="livree";if(scetat!=="ok"){l.scan_etat=scetat;audit("Livraison confirmée sans scan complet des colis",c.numero+" — "+(scetat==="absent"?"aucun colis scanné":"scan partiel"))}if(cetat!=="ok"){l.code_etat=cetat;audit("Livraison confirmée sans code client valide",c.numero+" — "+(cetat==="absent"?"code non saisi":"code non conforme"))}l.fin_at=now();l.recu_par=d.recu_par;l.obs=d.obs||"";l.montant_encaisse=m;l.mode=d.mode;l.ecart=ecart;
  {const lvx=liv(l.livreur_id);if(estExterne(lvx)){const ca=Math.round((c.frais||0)*(+lvx.commission_pct||0)/100);l.commission_angels=ca;l.part_livreur=Math.max((c.frais||0)-ca,0)}}
  l.gps_confirm=S.pos[l.livreur_id]?{lat:S.pos[l.livreur_id].lat,lng:S.pos[l.livreur_id].lng,ts:S.pos[l.livreur_id].ts}:null;
  if(ecart!==0){l.ecart_statut="a_valider";l.ecart_note=d.ecart_note}
@@ -3716,13 +3716,13 @@ function passAppliquer(ev){if(ev.type==="incident"&&String((ev.donnees||{}).natu
  try{
   if(t==="accepter")ok=accepter(l);
   else if(t==="refuser")ok=refuser(l,d.motif||"");
-  else if(t==="prise_en_charge"){ok=priseEnCharge(l,+d.nb_colis||1);if(ok&&Array.isArray(d.scans))l.colis_collecte=d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))}
+  else if(t==="prise_en_charge"){ok=priseEnCharge(l,+d.nb_colis||1);if(ok&&d.scan_etat&&d.scan_etat!=="ok"){l.scan_prise=d.scan_etat;audit("Prise en charge sans scan complet des colis",String((cmd(l.commande_id)||{}).numero||"")+" — "+(d.scan_etat==="absent"?"aucun colis scanné":"scan partiel"))}if(ok&&Array.isArray(d.scans))l.colis_collecte=d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))}
   else if(t==="demarrer")ok=demarrer(l);
   else if(t==="echec")ok=echec(l,d.motif||"",d.obs||"",{pg:true});
   else if(t==="arrive")ok=!!ijArrive(l);
   else if(t==="rappel_client")ok=!!ijDemande(l,String(d.motif||"").slice(0,120));
   else if(t==="confirmer"){const pr=ev.preuve||{},sg=pr.signature_client||pr.signature||"";
-   ok=confirmer(l,{code:l.code,code_etat:d.code_etat,ev_id:ev.id,montant:String(d.montant),mode:d.mode,ref:d.ref_paiement,direct:!!d.direct,recu_par:d.recu_par,obs:d.obs,ecart_note:d.ecart_note,pg:true,signature:sg,colis_ok:Array.isArray(d.scans)&&d.scans.length?JSON.stringify(d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))):""});
+   ok=confirmer(l,{code:l.code,code_etat:d.code_etat,scan_etat:d.scan_etat,ev_id:ev.id,montant:String(d.montant),mode:d.mode,ref:d.ref_paiement,direct:!!d.direct,recu_par:d.recu_par,obs:d.obs,ecart_note:d.ecart_note,pg:true,signature:sg,colis_ok:Array.isArray(d.scans)&&d.scans.length?JSON.stringify(d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))):""});
    if(ok){const c=cmd(l.commande_id);
     if(pr.photo&&/^data:image\/jpeg;base64,/.test(pr.photo)&&pr.photo.length<=80000)l.photo_livraison=pr.photo;
     if(pr.signature_client){l.signature_source="client";l.signataire=String(pr.client_nom||"").slice(0,80);l.signe_le=pr.client_signe_le||null;l.gps_client=pr.client_gps||null}else if(sg)l.signature_source="livreur";
@@ -4058,8 +4058,8 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  lRef:id=>ask("Mission impossible","Motif (obligatoire)",m=>{if(CL.on)return CL.liv(id,"refuser",{motif:m},"Le superviseur a été informé");if(refuser(byId(S.livraisons,id),m))done("Le superviseur a été informé")},{cls:"er"}),
  lPrise:id=>{const l=byId(S.livraisons,id),c=cmd(l.commande_id);
   if(colisReq(c)){
-   modal("Prise en charge — "+c.numero,`<div class="pill">Scannez l'étiquette de chacun des <b>${c.colis.length}</b> colis avant de partir.</div>${scanPanel(c)}<label>État apparent<select name="e">${opts(["Bon état","Emballage abîmé"])}</select></label>`,
-   {label:"Confirmer la prise en charge",onSubmit:d=>{if(!d.colis_ok)return toast("Il reste des colis à scanner","err"),false;if(CL.on)return CL.liv(l.id,"prise_en_charge",{etat:d.e,scans:JSON.parse(d.colis_ok).map(x=>x.txt)},"Prise en charge enregistrée");if(priseEnCharge(l,c.colis.length)){l.etat_colis=d.e;try{l.colis_scans=JSON.parse(d.colis_ok)}catch(e){}done("Prise en charge enregistrée")}}});bindScan(c);return}
+   modal("Prise en charge — "+c.numero,`<div class="pill">Scannez l'étiquette de chacun des <b>${c.colis.length}</b> colis avant de partir <span class="mu">(facultatif : le centre est prévenu s'il en manque)</span>.</div>${scanPanel(c)}<label>État apparent<select name="e">${opts(["Bon état","Emballage abîmé"])}</select></label>`,
+   {label:"Confirmer la prise en charge",onSubmit:d=>{const SC=d.colis_ok?(()=>{try{return JSON.parse(d.colis_ok)}catch(e){return[]}})():[];if(CL.on)return CL.liv(l.id,"prise_en_charge",{etat:d.e,scans:SC.map(x=>x.txt)},"Prise en charge enregistrée");if(priseEnCharge(l,c.colis.length)){l.etat_colis=d.e;l.colis_scans=SC;if(SC.length<c.colis.length){l.scan_prise=SC.length?"partiel":"absent";audit("Prise en charge sans scan complet des colis",c.numero+" — "+SC.length+"/"+c.colis.length+" colis scannés")}done("Prise en charge enregistrée")}}});bindScan(c);return}
   modal("Prise en charge",`<div class="pill">Commande ${c.numero}</div><label>Nombre de colis reçus<input type="number" name="n" min="1" value="1" required></label><label>État apparent<select name="e">${opts(["Bon état","Emballage abîmé"])}</select></label>`,{label:"Confirmer",onSubmit:d=>{if(CL.on)return CL.liv(l.id,"prise_en_charge",{nb_colis:+d.n,etat:d.e},"Prise en charge enregistrée");if(priseEnCharge(l,+d.n)){l.etat_colis=d.e;done("Prise en charge enregistrée")}}})},
  lGo:id=>{const l=byId(S.livraisons,id);gpsConsent(()=>{if(CL.on)return CL.liv(l.id,"demarrer",{},"Course démarrée — conduisez prudemment").then(ok=>{if(ok){syncGPS();navigator.geolocation&&navigator.geolocation.getCurrentPosition(p=>{pushPos(p,true)},()=>{},{timeout:10000})}});if(demarrer(l)){done("Course démarrée — conduisez prudemment");syncGPS();navigator.geolocation&&navigator.geolocation.getCurrentPosition(p=>{pushPos(p,true);render()},()=>{},{timeout:10000})}})},
  lConf:id=>{const l=byId(S.livraisons,id),c=cmd(l.commande_id),req=sigReq(c);if(verifOuverte(c))return toast("Vérification du paiement chez le vendeur en cours : ne remettez pas le colis avant la réponse du centre","err");
@@ -5172,7 +5172,7 @@ Object.assign(CL,{
  liv(lid,action,p,msg){return CL.go(async()=>{const r=await CL.rpc("livraison_action",{p_lid:lid,p_action:action,p:p||{}});if(r&&r.ok===false)throw new Error(r.erreur||"Refusé")},msg)},
  async confirmer(l,c,d){
   try{const p={code:d.code,montant:d.montant===""||d.montant==null?null:+d.montant,mode:d.mode,ref:d.ref||null,direct:!!d.direct,recu_par:d.recu_par,ecart_note:d.ecart_note||"",obs:d.obs||"",signature:d.signature||null};
-   if(colisReq(c)){if(!d.colis_ok)throw new Error("Scannez les colis remis au client (ou saisissez leur code)");p.scans=JSON.parse(d.colis_ok).map(x=>x.txt)}
+   if(colisReq(c)&&d.colis_ok){p.scans=JSON.parse(d.colis_ok).map(x=>x.txt)}
    const r=await CL.rpc("livraison_action",{p_lid:l.id,p_action:"confirmer",p});
    await refresh();
    if(r&&r.ok===false){render();toast(r.erreur+(r.essais_restants!=null?" ("+r.essais_restants+" essai(s) restant(s))":""),"err");return false}

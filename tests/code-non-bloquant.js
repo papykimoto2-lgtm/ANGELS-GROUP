@@ -14,6 +14,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await p.evaluate(()=>{window.__T=[];toast=m=>{__T.push(m)};ME=S.users.find(u=>u.role==="admin"&&u.actif);
   window.__prep=()=>{const l=S.livraisons.find(x=>x.statut==="en_cours"&&cmd(x.commande_id));const c=cmd(l.commande_id);c.colis=null;l.statut="en_cours";return l};
   window.__autre=()=>{const l=S.livraisons.find(x=>isActive(x)&&cmd(x.commande_id));const c=cmd(l.commande_id);c.colis=null;c.statut="en_cours";l.statut="en_cours";return l};
+  window.__neuf=()=>{const l0=S.livraisons.find(x=>cmd(x.commande_id));const c0=cmd(l0.commande_id),c=JSON.parse(JSON.stringify(c0));c.id=uid("c");c.numero="CMD-N-"+Math.floor(Math.random()*9e4);c.statut="en_cours";c.colis=null;S.commandes.push(c);const l=JSON.parse(JSON.stringify(l0));l.id=uid("l");l.commande_id=c.id;l.statut="en_cours";l.fin_at=null;l.code="1234";delete l.code_etat;delete l.scan_etat;delete l.scan_prise;S.livraisons.push(l);return l};
   window.__conf=(l,code)=>confirmer(l,{code,montant:String(l.montant_attendu||0),mode:"Espèces",recu_par:"M. Test",obs:"",ecart_note:"",colis_ok:"",signature:""})});
  let r=await p.evaluate(()=>{const l=__prep();const ok=__conf(l,"");return{ok,st:l.statut,etat:l.code_etat,a:S.audit.slice(-3).some(x=>/sans code client valide/.test(x.action)&&/non saisi/.test(x.detail||"")),t:__T.join("|")}});
  chk("CNB-1","bureau : confirmation SANS code → livraison validée, marquée « code absent », tracée dans le journal d'audit",r.ok===true&&r.st==="livree"&&r.etat==="absent"&&r.a&&!/incorrect/.test(r.t),JSON.stringify(r));
@@ -29,6 +30,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("CNB-5","clôture du jour du centre : liste « Livrées sans code client valide » (sans bloquer la clôture)",r.n>=3,JSON.stringify(r));
  const src=fs.readFileSync(path.join(root,"distribution.html"),"utf8"),liv=fs.readFileSync(path.join(root,"livreur.html"),"utf8");
  chk("CNB-6","formulaires de confirmation (bureau et application livreur) : le champ code est « facultatif » et n'est plus obligatoire",/Code de confirmation \(donné par le client — facultatif\)<input name="code"[^>]*(?<!required)>/.test(src)&&!/name="code"[^>]*required/.test(src.split("Confirmer la livraison — ")[1].slice(0,900))&&/Code donné par le client <span class="mu">\(facultatif\)<\/span><input name="code" inputmode="numeric" autocomplete="off" value/.test(liv));
+ r=await p.evaluate(()=>{S.config.etiq_scan=true;const l=__neuf();const c=cmd(l.commande_id);colisGenerer(c,2);const ok=confirmer(l,{code:l.code,montant:String(l.montant_attendu||0),mode:"Espèces",recu_par:"M. Test",obs:"",ecart_note:"",colis_ok:"",signature:""});return{ok,st:l.statut,sc:l.scan_etat,req:colisReq(c),a:S.audit.slice(-4).some(x=>/sans scan complet/.test(x.action))}});
+ chk("CNB-8","bureau : remise SANS scanner les colis → validée, marquée « colis non scannés » et tracée (le scan est facultatif)",r.req===true&&r.ok===true&&r.st==="livree"&&r.sc==="absent"&&r.a,JSON.stringify(r));
+ r=await p.evaluate(()=>{const l=__neuf();l.statut="acceptee";cmd(l.commande_id).statut="affectee";l.collecte_at=null;const ev={id:950,type:"prise_en_charge",livraison_ref:l.id,livreur_ref:l.livreur_id,donnees:{nb_colis:2,scan_etat:"partiel",scans:[{n:1,mode:"scan"}]}};const e=passAppliquer(ev);return{e,sp:l.scan_prise,a:S.audit.slice(-4).some(x=>/Prise en charge sans scan complet/.test(x.action))}});
+ chk("CNB-9","prise en charge reçue du serveur avec un scan partiel : acceptée, marquée « partiel » et tracée",r.sp==="partiel"&&r.a,JSON.stringify(r));
+ r=await p.evaluate(()=>{const l=S.livraisons.find(x=>x.scan_etat==="absent"&&x.statut==="livree");const c=cmd(l.commande_id);return{h:/non scannés/.test(cenPreuveHtml(c)),n:cenCloture().sansCode.length}});
+ chk("CNB-10","dossier de preuve et clôture du jour signalent les colis non scannés",r.h===true&&r.n>=1,JSON.stringify(r));
  chk("CNB-7","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

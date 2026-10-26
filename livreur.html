@@ -542,7 +542,7 @@ async function camStart(el,onCode){camStop();
     if(!txt&&window.jsQR){const k=Math.min(1,640/v.videoWidth);cv.width=Math.round(v.videoWidth*k);cv.height=Math.round(v.videoHeight*k);cx.drawImage(v,0,0,cv.width,cv.height);const im=cx.getImageData(0,0,cv.width,cv.height),r=jsQR(im.data,im.width,im.height,{inversionAttempts:"dontInvert"});if(r)txt=r.data}}catch(e){}
    busy=false;if(txt&&(txt!==last||Date.now()-lt>2500)){last=txt;lt=Date.now();onCode(txt)}}
   CAM.raf=requestAnimationFrame(tick)};tick()}
-const colisHtml=(ph,tot)=>`<div class="sec" style="margin-top:10px"><b>📦 ${ph==="collecte"?"Scannez chaque colis à la prise en charge":"Scannez les colis remis au client"}</b></div><div id="cp_l"></div><div id="cp_box"></div>
+const colisHtml=(ph,tot)=>`<div class="sec" style="margin-top:10px"><b>📦 ${ph==="collecte"?"Scannez chaque colis à la prise en charge":"Scannez les colis remis au client"} <span class="mu" style="font-weight:400">(facultatif)</span></b></div><div id="cp_l"></div><div id="cp_box"></div>
  <button type="button" class="btn ghost" id="cp_cam">📷 Scanner avec la caméra</button><div style="display:flex;gap:6px;margin-top:6px"><input id="cp_man" placeholder="Code sous le QR (5 caractères)" maxlength="5" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase"><button type="button" class="btn ghost" id="cp_ok" style="width:auto">Valider</button></div>`;
 function colisBind(o,r,ph,tot,num){const L=pvDe(r)[ph],lst=o.querySelector("#cp_l");L.length=0;
  const dessine=()=>{lst.innerHTML=Array.from({length:tot},(_,i)=>{const k=L.find(x=>x.n===i+1);return`<div class="pill sm" style="${k?"background:#e8f7ee":""}">${k?"✅":"☐"} Colis ${i+1}/${tot}${k?` <span class="mu">(${k.mode==="scan"?"scanné":"saisi"})</span>`:""}</div>`}).join("")};
@@ -583,7 +583,7 @@ function preuveBind(o,r,p,num){const pv=pvDe(r),tot=p.exige_colis&&p.colis_total
       const rp=o.querySelector("[name=recu_par]");if(rp&&!rp.value)rp.value=e.nom;try{navigator.vibrate&&navigator.vibrate([80,40,80])}catch(e){}}}catch(e){}},3000)}
   catch(e){toast(e.message,"err")}}}
 async function preuveCollecter(r,p,o){const pv=pvDe(r),cv=o.querySelector("#sg"),tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;
- if(tot&&pv.remise.length<tot)return{err:"Scannez les "+tot+" colis remis ("+pv.remise.length+" validés)"};
+ /* scan des colis facultatif : le centre voit s'il manque, la remise n'est pas bloquée */
  const sig=!pv.cli&&cv&&cv._any?cv.toDataURL("image/png"):"";if(p.exige_signature&&!pv.cli&&!sig)return{err:"Signature du destinataire obligatoire : signez à l'écran ou faites signer sur le téléphone du client"};
  if(p.exige_photo&&!pv.photo)return{err:"Photo de la remise obligatoire pour ce type de colis (colis "+((p.type_colis||{}).nom||"")+")"};const g=await posActuelle();return{d:{scans:tot?scansDe(r,"remise"):undefined,signature:sig||undefined,photo:pv.photo||undefined,gps:g?{lat:g.lat,lng:g.lng}:undefined}}}
 const ACT={
@@ -610,7 +610,7 @@ const ACT={
  fermer:()=>ferme(),cphzoom:ref=>{const[r,n]=String(ref).split("|"),c=CPH[r],x=c&&c.L.find(y=>String(y.n)===n);if(!x)return;modal(`<div class="cphz"><div class="between"><b>Colis ${esc(n)}</b><button type="button" class="btn ghost" data-a="fermer" style="width:auto">Fermer</button></div><img alt="Colis ${esc(n)}" src="${x.photo}"><div class="sm mu" style="margin-top:6px">Comparez avec le colis devant vous avant de le remettre.</div></div>`)},
  prise:r=>{const m=mission(r),p=m.payload||{},tot=p.exige_colis&&p.colis_total>0?p.colis_total:0;
   const o=formModal("Colis pris en charge",(tot?colisHtml("collecte",tot)+`<input type="hidden" name="nb" value="${tot}">`:`<label>Nombre de colis<input type="number" name="nb" min="1" max="99" value="${p.nb_colis||1}" required></label>`)+`<label>État des colis<select name="etat"><option>Conforme</option><option>Endommagé</option><option>Incomplet</option></select></label>`,"Valider",d=>{
-   if(tot&&pvDe(r).collecte.length<tot)return toast("Scannez les "+tot+" colis ("+pvDe(r).collecte.length+" validés)","err");
+   if(tot&&pvDe(r).collecte.length<tot)toast("⚠ "+pvDe(r).collecte.length+"/"+tot+" colis scannés : le centre sera prévenu","wa");   /* scan facultatif */
    return envoyer(r,"prise_en_charge",{nb_colis:+d.nb,etat:d.etat,scans:tot?scansDe(r,"collecte"):undefined},"Colis pris en charge")});if(tot)colisBind(o,r,"collecte",tot,m.commande_ref)},
  echec:r=>formModal("Livraison impossible",`<label>Motif<select name="motif">${motifsOpt(mission(r))}</select></label><label>Observation<textarea name="obs" rows="2"></textarea></label>`,"Déclarer l'échec",d=>{if(/injoignable|absent|ne répond/i.test(d.motif||"")){const man=ctManque((mission(r)||{}).payload||{});if(man.length){toast("Échec refusé : "+man.join(" ; "),"err");return}}return envoyer(r,"echec",{motif:d.motif,obs:d.obs},"Échec enregistré")}),
  arrive:r=>envoyer(r,"arrive",{},"Arrivée enregistrée"),
