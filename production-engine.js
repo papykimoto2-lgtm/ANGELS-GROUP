@@ -102,6 +102,7 @@
     "delete from public.pg_vendeur_cmds;",
     "delete from public.pg_vendeur_etat;",
     "delete from public.pg_suivi;                -- liens de suivi en direct (les clés publiques de signature sont conservées)",
+    "delete from public.pg_colis_photos;         -- photos des colis à livrer",
     "",
     "-- Portail clients : demandes, suivis en direct, photos, scans",
     "delete from public.pd_demandes;",
