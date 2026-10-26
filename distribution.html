@@ -3940,7 +3940,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
 
  installApp:async()=>{if(!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(e){}IPROMPT=null;refreshInstall()},
  tiersRel:id=>tiersRelDepuis(id),carteFit:()=>carteFit(),carteFocus:id=>{const m=CARTE.mk[id];if(m&&CARTE.map){CARTE.map.setView(m.getLatLng(),16);m.openPopup()}else toast("Ce livreur n'a pas de position récente à afficher","err")},
- suiviLien:async id=>{const c=cmd(id);let link;if(CL.on){const t=await CL.rpc("creer_lien_suivi",{p_commande:id});link=location.href.split("#")[0].split("?")[0]+"#suivi="+t}else link=await suiviLienPortail(c);suiviModal(c,link)},
+ suiviLien:async id=>{const c=cmd(id);let link;if(CL.on){const t=await CL.rpc("creer_lien_suivi",{p_commande:id});link=location.href.split("#")[0].split("?")[0]+"#suivi="+t}else link=await suiviLienPortail(c);suiviModal(c,link,!CL.on)},
  cliLien:id=>{const c=cli(id);if(c)cliLienModal(c)},
  cpTxt:t=>{(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Lien copié","ok"),()=>prompt("Copiez ce lien :",t))},
  demoIn:(id,t)=>demoFill(t),
@@ -5251,8 +5251,8 @@ VIEWS.params=()=>{let h=VIEWS.params0();if(CL.on){const i=h.indexOf("<h2>Donnée
  const tabsV=PTABS.filter(p=>by[p[0]]);let cur=ui.ptab&&by[ui.ptab]?ui.ptab:tabsV[0][0];
  return head+`<div class="tabs" id="ptabs">${tabsV.map(p=>`<button type="button" class="${p[0]===cur?"on":""}" data-act="pTab" data-id="${p[0]}">${p[1]}</button>`).join("")}</div><div class="flex" style="justify-content:flex-end;margin:-4px 0 8px;gap:10px;align-items:center"><span class="sm mu">« Enregistrer » conserve les réglages de tous les onglets.</span><button type="button" class="btn" id="psave" data-act="saveParams">💾 Enregistrer les paramètres</button></div>`+tabsV.map(p=>`<div data-pt="${p[0]}" class="${p[0]===cur?"":"hide"}">${by[p[0]].join("")}</div>`).join("")};
 function geoLinkModal(cid,aid,ref){
- if(!CL.on)return geoLinkModal0(cid,aid,ref);
- return CL.rpc("creer_lien_portail",{p_adresse:aid,p_ref:ref||null}).then(t=>{ui.cloudLink=location.href.split("#")[0].split("?")[0]+"#portail="+t;try{geoLinkModal0(cid,aid,ref)}finally{ui.cloudLink=null}}).catch(e=>toast(fixErr(e),"err"))}
+ if(!CL.on){const c=cli(cid),a=c&&c.adresses.find(x=>x.id===aid);if(!a)return geoLinkModal0(cid,aid,ref);return lienCourt(portalLink(c,a,ref)).then(l=>{ui.cloudLink=l;try{geoLinkModal0(cid,aid,ref)}finally{ui.cloudLink=null}})}
+ return CL.rpc("creer_lien_portail",{p_adresse:aid,p_ref:ref||null}).then(t=>lienCourt(location.href.split("#")[0].split("?")[0]+"#portail="+t)).then(l=>{ui.cloudLink=l;try{geoLinkModal0(cid,aid,ref)}finally{ui.cloudLink=null}}).catch(e=>toast(fixErr(e),"err"))}
 async function bootCloud(){
  S=emptyS();
  try{await CL.init();const{data}=await CL.sb.auth.getSession();if(data.session){CL.uid=data.session.user.id;try{await refresh()}catch(e){toast(fixErr(e),"err");await CL.sb.auth.signOut();ME=null}}}
@@ -5319,6 +5319,20 @@ function bootSuiviLocal(id){
 /* ---------- Liens publics vers le portail unique : suivi signé, commande vendeur, commande client ---------- */
 const portailBase=()=>{let site="";try{site=ANGELS_PRINT.cfg().site||""}catch(e){}if(site)return site.replace(/\/+$/,"")+"/portail";if(/^https?:$/.test(location.protocol))return location.origin+"/portail";return new URL("portail.html",location.href).href};
 const portailLien=h=>portailBase()+h;
+/* Lien court et rassurant (https://…/l/AB3K9ZQ) à la place des adresses de plusieurs centaines de caractères envoyées aux clients et aux vendeurs.
+   Le serveur garde la partie longue ; sans passerelle, hors ligne ou en cas d'erreur, on garde le lien long (rien ne se perd). */
+const _lcMemo={};
+async function lienCourt(long){
+ try{
+  if(!long||long.length<120)return long;   /* déjà court */
+  if(_lcMemo[long])return _lcMemo[long];
+  const P=PASS();if(!P||!/^https?:\/\//.test(long)||(typeof navigator!=="undefined"&&navigator.onLine===false))return long;
+  const u=new URL(long),cible=u.pathname.replace(/^\/+/,"")+u.search+u.hash;
+  if(!/^(portail|distribution|vendeur|livreur|centre|suivi|boutique)(\.html)?([#?\/]|$)/.test(cible)||cible.length>12000)return long;
+  const r=await passPost(P,"lien-court",{action:"creer",cible});
+  if(!r||!/^[A-Z0-9]{5,12}$/.test(r.code||""))return long;
+  return _lcMemo[long]=u.origin+"/l/"+r.code;
+ }catch(e){return long}}
 /* Lien de commande court et lisible (au lieu d'un bloc codé de plusieurs centaines de caractères, qui inquiète les clients) : …/commander?boutique=Yoyoo+Boutique&tel=0585656086.
    Hors serveur web (fichier local) : ancien lien codé. */
 /* Lien / QR signé par le serveur (anti-fraude) : la signature couvre vendeur + nom de la boutique + téléphone ; elle est demandée à la fiche du lien et gardée tant que ces données ne changent pas */
@@ -5345,16 +5359,16 @@ async function suiviPublier(force){const P=PASS();if(!P||S.config.suivi_direct==
  const lot=items.slice(0,200);await passPost(P,"suivi-publier",{suivis:lot.map(x=>({cle:x.cle,commande_ref:x.commande_ref,livraison_ref:x.livraison_ref,etat:x.etat,termine:x.termine})),cles});
  lot.forEach(x=>{_suiviSig[x.cle]=x.sig});_clesSig=cs}
 async function suiviPublierSur(){try{await suiviPublier();_suiviErr=""}catch(e){_suiviErr=String(e&&e.message||e).slice(0,120)}}
-async function suiviLienPortail(c){const lien=portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)));if(suiviDirectOk())setTimeout(suiviPublierSur,200);return lien}
+async function suiviLienPortail(c){const lien=portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)));if(suiviDirectOk())setTimeout(suiviPublierSur,200);return lienCourt(lien)}
 const SUIVI_PH=/\n?Suivi de votre commande : \{\{SUIVI\}\}/;
 async function notifMsg(n){if(!/\{\{SUIVI\}\}/.test(n.message))return n.message;const c=cmd(n.commande_id);if(!c)return n.message.replace(SUIVI_PH,"");try{const lien=await suiviLienPortail(c);return n.message.replace(SUIVI_PH,m=>m.replace("{{SUIVI}}",()=>lien))}catch(e){return n.message.replace(SUIVI_PH,"")}}
 function cliLienModal(c){const a=c.adresses.find(x=>x.defaut)||c.adresses[0]||{},link=lienCourtCommande({client:c.nom,tel:String(c.tel||"").replace(/\D/g,""),zone:a.zone,quartier:a.quartier})||portailLien("#/commander/"+b64({o:S.config.org||"",w:S.config.whatsapp||"",c:{n:c.nom,t:c.tel,z:a.zone||"",q:a.quartier||"",r:a.repere||""}})),w=String(c.tel||"").replace(/\D/g,""),msg=`Bonjour ${c.nom}, commandez en ligne chez ${S.config.org||"nous"} : vos coordonnées sont déjà remplies.\n${link}`+msgRassure();
  modal("Lien de commande — "+c.nom,`<div class="sm mu">Le client ouvre le portail avec son nom, son téléphone et son adresse déjà remplis, choisit ses produits et envoie la commande par WhatsApp. Elle s'importe ici dans Vente en ligne.</div>
  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:10px"><div style="width:140px;height:140px;background:#fff;padding:6px;border-radius:8px">${qrSvg(link)}</div><div style="flex:1;min-width:200px"><label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label></div></div>
  <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button>${w?`<a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/${telWA(w)}?text=${encodeURIComponent(msg)}">💬 Envoyer par WhatsApp</a>`:""}<a class="btn ghost" target="_blank" rel="noopener" style="text-decoration:none" href="${esc(link)}">👁 Voir la page</a></div>`,{label:"Fermer",onSubmit:()=>true,focus:false})}
-function suiviModal(c,link){
+function suiviModal(c,link,signe){
  const cl=cli(c.client_id),w=cl&&String(cl.tel||"").replace(/\D/g,""),msg=`Bonjour${cl?" "+cl.nom:""}, suivez votre commande ${c.numero} en direct : ${link}`;
- modal("Lien de suivi — "+c.numero,`<div class="sm mu">${link.includes("/suivi/")?"Le client ouvre le <b>portail</b> : il voit l'avancement de sa commande, le prénom du livreur et l'heure d'arrivée estimée. Le lien est <b>signé</b> (le portail certifie qu'il vient de vous) et montre l'état <b>à l'instant de sa création</b> : les notifications WhatsApp en créent un nouveau à chaque étape. Le code de confirmation n'y figure jamais.":"Le client voit l'avancement, le prénom du livreur, l'heure d'arrivée estimée et la carte pendant la course, puis peut noter la livraison. Le code de confirmation n'y figure jamais."}</div>
+ modal("Lien de suivi — "+c.numero,`<div class="sm mu">${signe||link.includes("/suivi/")?"Le client ouvre le <b>portail</b> : il voit l'avancement de sa commande, le prénom du livreur et l'heure d'arrivée estimée. Le lien est <b>signé</b> (le portail certifie qu'il vient de vous) et montre l'état <b>à l'instant de sa création</b> : les notifications WhatsApp en créent un nouveau à chaque étape. Le code de confirmation n'y figure jamais.":"Le client voit l'avancement, le prénom du livreur, l'heure d'arrivée estimée et la carte pendant la course, puis peut noter la livraison. Le code de confirmation n'y figure jamais."}</div>
  <label>Lien<input readonly value="${esc(link)}" onfocus="this.select()"></label>
  <div class="flex" style="margin-top:10px"><button type="button" class="btn" data-act="cpTxt" data-id="${esc(link)}">📋 Copier le lien</button>${w?`<a class="btn ok" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/${telWA(w)}?text=${encodeURIComponent(msg)}">💬 Envoyer par WhatsApp</a>`:""}<a class="btn ghost" target="_blank" rel="noopener" style="text-decoration:none" href="${esc(link)}">👁 Voir la page</a></div>`,{label:"Fermer",onSubmit:()=>true})}
 
@@ -7915,9 +7929,9 @@ VIEWS.vente_ligne=()=>{
  <h2>Commandes en ligne</h2>${tbl(["Commande","Client","Total","Paiement","Statut",""],rows,"Aucune commande en ligne pour le moment.")}`};
 Object.assign(ACT,{
  portSync:()=>{if(!can("admin","commercial"))return toast("Droits insuffisants","err");try{majPortail(true)}catch(e){return toast("Synchronisation impossible : "+e.message,"err")}toast(boutNb()?"Catalogue synchronisé avec le portail ("+boutNb()+" article(s))":"Synchronisé : aucun article publié pour l'instant","ok");render()},
- boutCopy:()=>ACT.cpTxt(boutLink()),
+ boutCopy:async()=>ACT.cpTxt(await lienCourt(boutLink())),
  progAffiche:()=>{const l=portailLien("#/livraison");ANGELS_PRINT.ouvrir({division:"distribution",titre:"Programmez votre livraison",ref:"AFF-LIVRAISON",date:new Date().toISOString().slice(0,10),emetteur:ME&&ME.nom,fallback:{nom:S.config.org,siege:(S.config.ste||{}).adresse,tel:(S.config.ste||{}).tel},corps:`<div style="text-align:center;margin-top:30px"><p style="font-size:26pt;font-weight:700;margin:0">Programmez votre livraison</p><p style="font-size:15pt">Scannez le QR code avec votre téléphone</p><div style="width:360px;height:360px;margin:20px auto">${qrSvg(l)}</div><p style="font-size:11pt">${esc(l)}</p><p style="font-size:12pt">Indiquez où récupérer le colis, où le livrer, la date et le créneau : nous vous confirmons le prix sur WhatsApp.</p></div>`}).catch(e=>toast("Impression impossible : "+e.message,"err"))},
- boutWa:()=>window.open("https://wa.me/?text="+encodeURIComponent("🛒 Commandez en ligne chez "+ORGRAW()+" : "+boutLink()),"_blank","noopener"),
+ boutWa:()=>{const w=window.open("","_blank");lienCourt(boutLink()).then(l=>{const u="https://wa.me/?text="+encodeURIComponent("🛒 Commandez en ligne chez "+ORGRAW()+" : "+l);if(w)w.location.href=u;else window.open(u,"_blank")})},
  boutOpen:()=>window.open(boutLink(),"_blank","noopener"),
  webImport:()=>{if(!can("admin","commercial","superviseur"))return toast("Droits insuffisants pour importer une commande","err");
   let r;try{r=webImporter($("#wb_txt").value)}catch(e){return toast(e.message,"err")}

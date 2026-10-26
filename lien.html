@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ANGEL'S GROUP — Ouverture de votre lien</title>
+<meta name="description" content="Ouverture sécurisée de votre lien ANGEL'S GROUP.">
+<meta name="robots" content="noindex">
+<style>body{margin:0;font:16px system-ui,sans-serif;background:#f3f7f9;color:#0b3b4c;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}.c{max-width:340px;padding:24px}.s{width:36px;height:36px;border:4px solid #cfe3ea;border-top-color:#0e7490;border-radius:50%;margin:0 auto 14px;animation:r 1s linear infinite}@keyframes r{to{transform:rotate(360deg)}}h1{font-size:18px;margin:6px 0}.m{color:#5b7683;font-size:14px}</style></head>
+<body><div class="c"><div class="s" id="s"></div><h1 id="t">Ouverture de votre lien…</h1><div class="m" id="m">Un instant, vous allez être redirigé.</div></div>
+<script src="/passerelle-config.js"></script>
+<script>
+(function(){
+ var t=document.getElementById("t"),m=document.getElementById("m"),s=document.getElementById("s");
+ function fin(a,b){s.style.display="none";t.textContent=a;m.textContent=b}
+ var code=((location.pathname.match(/\/l\/([A-Za-z0-9]+)/)||[])[1]||new URLSearchParams(location.search).get("c")||"").toUpperCase();
+ var c=window.ANGELS_PASSERELLE;
+ if(!code||!c||!/^https:\/\//.test(c.url||""))return fin("Lien incomplet","Demandez à votre interlocuteur de vous renvoyer le lien.");
+ fetch(c.url.replace(/\/+$/,"")+"/functions/v1/lien-court?c="+encodeURIComponent(code),{cache:"no-store"}).then(function(r){return r.json().then(function(j){return{r:r,j:j}})}).then(function(x){
+  if(x.r.status===410)return fin("Ce lien a expiré","Demandez à votre interlocuteur de vous envoyer un nouveau lien.");
+  if(!x.r.ok||!x.j.ok||typeof x.j.cible!=="string"||/^[a-z]+:|^\/\//i.test(x.j.cible))return fin("Lien introuvable","Vérifiez le lien ou demandez-en un nouveau.");
+  location.replace("/"+x.j.cible.replace(/^\/+/,""));
+ }).catch(function(){fin("Connexion impossible","Vérifiez votre connexion Internet puis rouvrez le lien.")});
+})();
+</script></body></html>
