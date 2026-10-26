@@ -1,14 +1,14 @@
 /* Service worker ANGEL'S GROUP — installation (PWA) et usage hors ligne pour Livraison, Transport, Agro et le hub.
    Les pages sont servies réseau d'abord (mises à jour immédiates), cache en secours ; icônes et manifestes : cache d'abord.
    Aucune donnée métier n'est mise en cache ici : elles vivent dans le stockage local de chaque application. */
-const V = "angels-v145";
-const COQUE = ["./", "index.html", "parametres.html", "compta-groupe.html", "portail.html", "distribution.html", "transport.html", "agro.html", "hub.html", "verifier.html", "livreur.html", "vendeur.html", "passerelle-config.js", "print-engine.js", "pager-engine.js", "cascade-engine.js", "production-engine.js", "fne-engine.js", "mad-engine.js", "crm.html", "crm-engine.js", "marque.js", "ui-mobile.js", "demo.html", "demo-engine.js", "placement.html", "placement-engine.js", "assurance.html", "assurance-engine.js", "shell-engine.js", "habillage.js", "champs.css", "modules.css", "auth-engine.js", "sync-engine.js", "roles-engine.js", "qrcode.js", "jsqr.js", "signer.html", "rh-engine.js", "regul-engine.js", "prevision-engine.js", "inter-engine.js", "signal-engine.js", "rapport-engine.js", "etiquette-engine.js",
+const V = "angels-v149";
+const COQUE = ["./", "index.html", "parametres.html", "compta-groupe.html", "portail.html", "distribution.html", "transport.html", "agro.html", "hub.html", "verifier.html", "livreur.html", "vendeur.html", "manifest-centre.webmanifest", "passerelle-config.js", "print-engine.js", "pager-engine.js", "cascade-engine.js", "production-engine.js", "fne-engine.js", "mad-engine.js", "crm.html", "crm-engine.js", "marque.js", "ui-mobile.js", "demo.html", "demo-engine.js", "placement.html", "placement-engine.js", "assurance.html", "assurance-engine.js", "shell-engine.js", "habillage.js", "champs.css", "modules.css", "auth-engine.js", "sync-engine.js", "roles-engine.js", "qrcode.js", "jsqr.js", "signer.html", "rh-engine.js", "regul-engine.js", "prevision-engine.js", "inter-engine.js", "signal-engine.js", "rapport-engine.js", "etiquette-engine.js",
   "manifest.webmanifest", "manifest-hub.webmanifest", "manifest-transport.webmanifest", "manifest-agro.webmanifest", "manifest-vendeur.webmanifest", "manifest-portail.webmanifest", "manifest-livreur.webmanifest", "manifest-vendeur-app.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "icons/hub-192.png", "icons/hub-512.png", "icons/hub-maskable-512.png", "icons/hub-apple-180.png",
   "icons/transport-192.png", "icons/transport-512.png", "icons/transport-maskable-512.png", "icons/transport-apple-180.png",
  
-  "icons/livreur-192.png", "icons/livreur-512.png", "icons/livreur-maskable-512.png", "icons/livreur-apple-180.png", "icons/vendeur-192.png", "icons/vendeur-512.png", "icons/vendeur-maskable-512.png", "icons/vendeur-apple-180.png",
+  "icons/livreur-192.png", "icons/livreur-512.png", "icons/livreur-maskable-512.png", "icons/livreur-apple-180.png", "icons/vendeur-192.png", "icons/vendeur-512.png", "icons/vendeur-maskable-512.png", "icons/vendeur-apple-180.png", "icons/centre-192.png", "icons/centre-512.png", "icons/centre-maskable-512.png", "icons/centre-apple-180.png",
   "icons/agro-192.png", "icons/agro-512.png", "icons/agro-maskable-512.png", "icons/agro-apple-180.png"];
 self.addEventListener("install", e => {
   // un fichier absent ne doit pas empêcher l'installation : on précharge chaque élément séparément

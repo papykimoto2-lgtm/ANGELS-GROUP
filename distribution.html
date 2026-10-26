@@ -12,7 +12,9 @@
 try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <title>ANGEL'S GROUP ERP — Livraisons</title>
 <script src="passerelle-config.js"></script>
-<script>if(APPV)document.title="Espace vendeur — ANGEL'S GROUP"</script>
+<script>if(APPV)document.title="Espace vendeur — ANGEL'S GROUP"
+/* Centre de livraison installable : ?app=centre ou /centre → manifeste, icône, titre et thème vert dédiés */
+var APPC=/[?&]app=centre/.test(location.search)||/\/centre\/?$/.test(location.pathname);if(APPC){var _q=function(s){return document.querySelector(s)};if(_q('link[rel=manifest]'))_q('link[rel=manifest]').setAttribute("href","manifest-centre.webmanifest");if(_q('link[rel=apple-touch-icon]'))_q('link[rel=apple-touch-icon]').setAttribute("href","icons/centre-apple-180.png");if(_q('link[rel=icon]'))_q('link[rel=icon]').setAttribute("href","icons/centre-192.png");if(_q('meta[name=apple-mobile-web-app-title]'))_q('meta[name=apple-mobile-web-app-title]').setAttribute("content","Centre livraison");if(_q('meta[name=theme-color]'))_q('meta[name=theme-color]').setAttribute("content","#059669");document.title="Centre de livraison — ANGEL'S GROUP";try{if(!localStorage.getItem("angels_theme"))document.documentElement.dataset.theme="emeraude"}catch(e){}}</script>
 <style>
 :root{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3f8}
 *{box-sizing:border-box}
@@ -127,6 +129,7 @@ details.notice{margin:0 0 10px;border:1px solid var(--bd);border-radius:10px;pad
 .tour .st{all:unset;box-sizing:border-box;cursor:pointer;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:13px}
 .tour .st:hover{border-color:var(--b)}.tour .st b{display:block;color:var(--b2)}.tour .st small{color:var(--mu)}
 .av{width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;background:var(--bd)}
+.cphg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:8px}.cph{border:1px solid var(--bd);border-radius:10px;padding:8px;text-align:center;background:#fff}.cph img{width:100%;height:120px;object-fit:cover;border-radius:6px;display:block;margin:6px 0}.cph .ph{height:120px;display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:6px;color:var(--mu);font-size:13px;margin:6px 0}.cph label.btn{margin:0;cursor:pointer}
 .slot{border:1px dashed var(--bd);border-radius:10px;padding:8px;text-align:center;background:#fff}.slot img{max-width:100%;max-height:130px;border-radius:6px;display:block;margin:6px auto}
 .slot .ph{height:70px;display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:12px}.slot b{font-size:12px}
 
@@ -205,6 +208,8 @@ details.plus>summary{cursor:pointer;color:var(--mu);font-weight:600;font-size:13
 .vsteps{display:flex;gap:6px;margin-bottom:10px}.vsteps i{flex:1;height:6px;border-radius:3px;background:#dde}.vsteps i.on{background:var(--b2)}
 .vnav{display:flex;gap:8px;margin-top:10px}.vnav .btn{flex:1;min-height:48px;font-size:16px}
 .vapp .btn{min-height:44px}.vapp input,.vapp select{min-height:44px;font-size:16px}
+body.appc{padding-bottom:0}.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}.cgrid .card{margin:0}.btab{display:none}
+@media(max-width:1024px){body.appc main{padding-bottom:84px}.btab{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:8500;background:var(--card);border-top:1px solid var(--bd);box-shadow:0 -4px 14px rgba(0,0,0,.12);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}.btab button{flex:1;position:relative;background:none;border:0;color:var(--mu);font:600 11px system-ui;padding:6px 2px;min-height:52px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}.btab button span:first-child{font-size:22px;line-height:1}.btab button.on{color:var(--b);background:var(--bbg);border-radius:10px}.btab .nb{position:absolute;top:2px;right:calc(50% - 26px);background:var(--er);color:#fff;border-radius:9px;font-size:10px;padding:0 5px;min-width:16px;text-align:center}}
 @media print{aside,.noprint{display:none}}
 </style>
 </head>
@@ -262,6 +267,7 @@ const STC={livree:"ok",retour_recu:"ok",echouee:"er",annulee:"mu",brouillon:"mu"
 const LST={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En course",livree:"Livrée",echouee:"Échouée",refusee:"Refusée",reaffectee:"Réaffectée",annulee:"Annulée"};
 const LSTC={livree:"ok",echouee:"er",refusee:"er",reaffectee:"mu",annulee:"mu",en_cours:"wa",affectee:"wa"};
 const HORS_BUREAU=u=>u.role==="vendeur"||(u.role==="livreur"&&(S.livreurs||[]).some(l=>l.user_id===u.id&&l.type==="externe"));
+const HORS_CENTRE=u=>u.role==="vendeur"||u.role==="livreur";   // l'espace du centre est réservé au personnel du bureau
 const ROLES={admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"};
 const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande → stock/préparation → livraison → argent → contrôle → administration
  {v:"aujourdhui",l:"Aujourd'hui",i:"🏠",g:"Pilotage",r:["admin","direction","superviseur","commercial","preparateur","caissier"]},
@@ -296,6 +302,8 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"donnees_test",l:"Données de test",i:"🧪",g:"Administration",r:["admin"]},
  {v:"production",l:"Passage en production",i:"🚀",g:"Administration",r:["admin"]},
  {v:"params",l:"Paramètres",i:"⚙️",g:"Administration",r:["admin"]},
+ {v:"centre",l:"Accueil",i:"🏠",g:"Centre de livraison",r:["admin","superviseur","preparateur"]},
+ {v:"collectes",l:"Collectes",i:"🧺",g:"Centre de livraison",r:["admin","superviseur","preparateur"]},
  {v:"vHome",l:"Accueil",i:"🏠",g:"Mon espace",r:["vendeur"]},
  {v:"mesCmd",l:"Mes colis",i:"📦",g:"Mon espace",r:["vendeur"]},
  {v:"vExp",l:"Mes expéditions",i:"🚚",g:"Mon espace",r:["vendeur"]},
@@ -328,7 +336,8 @@ function garde(roles,l,d){
  return true}
 const can=(...roles)=>{if(!ME)return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);if(!ov)return roles.includes(ME.role);const a=ANGELS_ROLES.atomeDe("distribution",roles);return!!a&&ov.has(a)};   /* rôles personnalisés / modifiés : droits du gestionnaire de rôles */
 const canA=a=>!!ME&&ANGELS_ROLES.a("distribution",S,ME.role,a);
-const voirNav=n=>{const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
+const APPC_V=["centre","livraisons","collectes","carte","incidents","commandes","expeditions","livreurs","equipements","notifs","params"];   // écrans de l'espace Centre de livraison (le reste du logiciel reste dans l'application complète)
+const voirNav=n=>{if(n.v==="centre"||n.v==="collectes"){if(!APPC)return false}else if(APPC&&!APPC_V.includes(n.v))return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
 /* Jauge de la mémoire locale (≈ 5 millions de caractères par application) : avertit une fois par session à 70 % */
 function stockJauge(n){const pct=Math.round(n/50000);window.__stock={chars:n,pct};if(pct>=70&&!window.__stockWarn){window.__stockWarn=1;setTimeout(()=>toast("Mémoire locale à "+pct+" % : faites une sauvegarde (Paramètres), allégez les photos ou passez en mode serveur","err"),0)}}
 function save(){if(CL.on)return;setTimeout(()=>{try{pontSync()}catch(e){}try{passSync()}catch(e){}},0);try{ANGELS_SYNC.signal()}catch(e){}try{const js=JSON.stringify(S);localStorage.setItem(KEY,js);stockJauge(js.length)}catch(e){toast("Stockage local plein ou indisponible : exportez une sauvegarde puis archivez ou passez en mode serveur","err")}try{localStorage.setItem("ang_lv_idents",JSON.stringify((S.livreurs||[]).filter(l=>l.ident_serveur&&!l.archive).map(l=>({i:l.ident_serveur,n:l.nom}))))}catch(e){}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}try{if(typeof majPortail==="function"&&S&&S.produits&&S.config)majPortail()}catch(e){}}
@@ -852,7 +861,12 @@ const HERO_V=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;
  <li><span class="i">📦</span><div><b>Collecte de vos colis</b>Votre code à 4 chiffres, remis au livreur contre les colis.</div></li>
  <li><span class="i">🏍️</span><div><b>Suivi des livraisons</b>Chaque commande, de la confirmation à la remise au client.</div></li>
  <li><span class="i">💰</span><div><b>Vos règlements</b>Ce qui vous est dû, clairement.</div></li></ul><div class="sanix" style="margin-top:18px;font-size:12px;opacity:.85">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</div></div>`;
-const HERO=APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
+const HERO_C=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Centre de livraison</h1><p>Affectez les commandes, suivez les livreurs, organisez les collectes chez les vendeurs.</p>
+ <ul><li><span class="i">📦</span><div><b>Affecter en un geste</b>Les commandes prêtes, par zone, au bon livreur.</div></li>
+ <li><span class="i">🏍️</span><div><b>Suivi des courses</b>Qui livre quoi, où il se trouve, ce qui est en retard.</div></li>
+ <li><span class="i">🧺</span><div><b>Collectes chez les vendeurs</b>Planifiées, suivies, réceptionnées au dépôt.</div></li>
+ <li><span class="i">⚠️</span><div><b>Incidents et retours</b>Rien ne se perd : chaque écart est à traiter.</div></li></ul><div class="sanix" style="margin-top:18px;font-size:12px;opacity:.85">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</div></div>`;
+const HERO=APPC?HERO_C:APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
  <ul><li><span class="i">📍</span><div><b>Adresse sur carte pour le livreur</b>Le client place lui-même son repère depuis son téléphone.</div></li>
  <li><span class="i">🏷️</span><div><b>Étiquette QR sur chaque colis</b>Scan au départ et à la remise : aucun colis perdu ou échangé.</div></li>
  <li><span class="i">🔐</span><div><b>Code de livraison + signature</b>La livraison n'est validée que par le client.</div></li>
@@ -861,15 +875,15 @@ const HERO=APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-sp
 function demoFill(b){const f=document.getElementById("lf");if(!f)return;const d=f.closest("details");if(d)d.open=true;f.u.value=b.dataset.id;(f.p||f.pin).value=ANGELS_AUTH.DEMO_MDP;document.querySelectorAll(".pcard").forEach(c=>c.classList.toggle("on",c===b));const s=f.querySelector("button:not(.aa-e)");if(s)s.focus()}
 const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["superviseur","🏍️","Superviseur","Affecter, suivre les courses"],["commercial","📞","Commercial","Prendre les commandes"],["preparateur","📦","Préparateur","Préparer, étiqueter"],["caissier","💰","Caissier","Reversements, écarts"],["direction","📊","Direction","Tableau de bord, marges"],["livreur","🛵","Livreur","Mission, scan, carte, code"],["vendeur","🏪","Vendeur partenaire","Déposer ses commandes"]];
 function loginHTMLLocal(){
- const act=S.users.filter(u=>u.actif&&(!APPV||u.role==="vendeur"));
- const demo=ANGELS_AUTH.demoOn(),cards=!demo?"":DEMO_P.filter(x=>!APPV||x[0]==="vendeur").map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
- return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">${APPV?"Connexion vendeur":demo?"Essayez sans rien installer":"Connexion"}</div><div class="mu sm">${APPV?"Choisissez votre profil, puis « Se connecter ».":demo?"Choisissez un profil : utilisateur et mot de passe se remplissent, puis « Se connecter ».":"Identifiez-vous avec votre utilisateur et votre mot de passe."}</div>
+ const act=S.users.filter(u=>u.actif&&(APPC?!HORS_CENTRE(u):(!APPV||u.role==="vendeur")));
+ const demo=ANGELS_AUTH.demoOn(),cards=!demo?"":DEMO_P.filter(x=>APPC?["superviseur","preparateur"].includes(x[0]):(!APPV||x[0]==="vendeur")).map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
+ return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">${APPC?"Connexion du centre":APPV?"Connexion vendeur":demo?"Essayez sans rien installer":"Connexion"}</div><div class="mu sm">${APPC||APPV?"Choisissez votre profil, puis « Se connecter ».":demo?"Choisissez un profil : utilisateur et mot de passe se remplissent, puis « Se connecter ».":"Identifiez-vous avec votre utilisateur et votre mot de passe."}</div>
  ${demo?`<div class="pcards">${cards}</div>`:""}
  <details ${demo?"":"open"}><summary class="mu sm" style="cursor:pointer">Connexion avec un mot de passe</summary><form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${ROLES[u.role]}</option>`).join("")}</select></label>
  <label style="margin-top:10px">Mot de passe<input name="pin" type="password" autocomplete="current-password" required></label>
  <button class="btn" style="width:100%;margin-top:12px">Se connecter</button></form>
  ${demo?`<div class="al warn sm" style="margin-top:10px">Mot de passe de démonstration (tous les profils) : <b>Demo@Angels2026</b>.</div>`:`<div class="mu sm" style="margin-top:10px">Mot de passe oublié ? Demandez sa réinitialisation à l'administrateur.</div>`}</details>
- <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
+ <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||APPC||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
 function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{essaiBandeau()}catch(e){}try{pgVoyant()}catch(e){}try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
@@ -878,8 +892,8 @@ function render0(){
  if(!ME){$("#app").innerHTML=loginHTML();return}
  if(ME.role==="vendeur"&&!ANGELS_ROLES.surcharge("distribution",S,ME.role)){if(!["vHome","mesCmd","mesReg","vExp"].includes(view))view="vHome";$("#app").innerHTML=vendeurHTML();return}
  if(ME.role==="livreur"){$("#app").innerHTML=livreurHTML()+sosBtnHTML;syncGPS();initMaps();setTimeout(offreCheck,0);return}
- const nav=NAV.filter(voirNav).filter(n=>!(CL.on&&n.v==="aujourdhui"));if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(!nav.find(n=>n.v===view))view=nav[0].v;
- $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const m=modOf(view),n=nav.find(x=>x.v===view);return m?m.i+" "+m.l+(n&&n.l!==m.l?" · "+n.l:""):n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}<a class="srch" data-act="recherche" role="button">🔍 Rechercher <small>/</small></a>${modNavHtml(nav)}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${modTabsHtml(nav)}${VIEWS[view]()}</main></div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
+ const nav=NAV.filter(voirNav).filter(n=>!(CL.on&&n.v==="aujourdhui"));if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(APPC&&!ui.__c0){ui.__c0=1;view="centre";const g=(location.search.match(/[?&]go=(\w+)/)||[])[1];if(g==="affecter"){view="livraisons";ui.cdt="rep"}else if(g==="collectes")view="collectes"}if(!nav.find(n=>n.v===view))view=(APPC&&nav.find(n=>n.v==="centre")?"centre":nav[0].v);
+ $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const m=modOf(view),n=nav.find(x=>x.v===view);return m?m.i+" "+m.l+(n&&n.l!==m.l?" · "+n.l:""):n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}<a class="srch" data-act="recherche" role="button">🔍 Rechercher <small>/</small></a>${modNavHtml(nav)}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV||APPC?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${modTabsHtml(nav)}${VIEWS[view]()}</main>${APPC?centreBarre(nav):""}</div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
 
 /* ============================================================
    VUES
@@ -950,7 +964,7 @@ const instBox=()=>`<div class="inst"></div>`;
 function refreshInstall(){
  let h="";
  if(!isStandalone()&&/^https?:$/.test(location.protocol)){
-  if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer ${APPV?"l'espace vendeur":"l'application"}</button>`;
+  if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer ${APPC?"le centre de livraison":APPV?"l'espace vendeur":"l'application"}</button>`;
   else if(isIOS())h=`<div class="sm mu">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l'écran d'accueil</b>.</div>`}
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;refreshInstall()});
@@ -1353,7 +1367,7 @@ function versPending(){
  const L=(S.versements||[]).filter(v=>v.statut==="declare").sort((a,b)=>new Date(a.cree_le)-new Date(b.cree_le));if(!L.length)return"";
  return`<div class="card" style="margin:0 0 12px;border-left:4px solid var(--b)"><b>📲 Versements Mobile Money déclarés à valider (${L.length})</b><div class="sm mu">Vérifiez dans votre application Mobile Money que la somme est bien arrivée avec cette référence.</div>
  ${tbl(["Date","Livreur","Montant","Opérateur","Référence","Note",""],L.map(v=>`<tr><td>${fdt(v.cree_le)}</td><td><b>${esc((liv(v.livreur_id)||{}).nom||"?")}</b></td><td><b>${fcfa(v.montant)}</b></td><td>${esc(v.mode)}</td><td><code>${esc(v.ref)}</code></td><td class="sm">${esc(v.note||"")}</td><td>${can("admin","caissier")?`<button class="btn sm ok" data-act="versOk" data-id="${v.id}">✔ Encaissé — valider</button> <button class="btn sm er" data-act="versNo" data-id="${v.id}">Rejeter</button>`:""}</td></tr>`))}</div>`}
-const navN=v=>{if(v==="tresorerie"&&can("admin","caissier","direction"))return tresoNb(tresoDonnees());if(v==="finance"&&can("admin","caissier","direction"))return versAttenteN()+clotAttenteN();if(v==="caisse"&&can("admin","direction"))return(S.caisse_mvts||[]).filter(m=>m.statut==="en_attente").length+(dgPeut()?dgAFaire():0);return 0};
+const navN=v=>{if(APPC&&(v==="centre"||v==="livraisons"||v==="collectes")){const D=centreDonnees();return v==="livraisons"?D.prete.length+D.trt:v==="collectes"?D.aColl+D.aRecep.length:0}if(v==="tresorerie"&&can("admin","caissier","direction"))return tresoNb(tresoDonnees());if(v==="finance"&&can("admin","caissier","direction"))return versAttenteN()+clotAttenteN();if(v==="caisse"&&can("admin","direction"))return(S.caisse_mvts||[]).filter(m=>m.statut==="en_attente").length+(dgPeut()?dgAFaire():0);return 0};
 const navBadge=v=>{const n=navN(v);return n?`<span class="nb" title="À traiter">${n}</span>`:""};
 const versAttenteN=()=>(S.versements||[]).filter(v=>v.statut==="declare").length;
 const versBadge=v=>v.statut==="valide"?badge("✅ Encaissé","ok"):v.statut==="rejete"?badge("✖ Rejeté","er"):badge("⏳ En validation","wa");
@@ -2140,7 +2154,7 @@ function cmdDetail(id){
   if(c.statut==="retour_cours")b.push(`<button class="btn" data-act="recepRetour" data-id="${c.id}">Réceptionner le retour</button>`)}
  if((can("admin","superviseur","commercial")&&!["livree","annulee","retour_recu","retour_cours","en_cours"].includes(c.statut))||(can("vendeur")&&["attente","confirmee"].includes(c.statut)))b.push(`<button class="btn er" data-act="cmdAnnul" data-id="${c.id}">Annuler</button>`);
  if((can("admin","superviseur","commercial")||(can("vendeur")&&c.vendeur_id))&&!["brouillon","annulee"].includes(c.statut))b.push(`<button class="btn ghost" data-act="suiviLien" data-id="${c.id}">📡 Lien de suivi client</button>`);
- if(can("admin","preparateur","superviseur","commercial")&&["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut))b.push(`<button class="btn ghost" data-act="etiq" data-id="${c.id}">🏷 Étiquettes colis${c.colis?" ("+c.colis.length+")":""}</button>`);
+ if(can("admin","preparateur","superviseur","commercial")&&["confirmee","preparation","prete","affectee","en_cours"].includes(c.statut))b.push(`<button class="btn ghost" data-act="etiq" data-id="${c.id}">🏷 Étiquettes colis${c.colis?" ("+c.colis.length+")":""}</button>`,`<button class="btn ghost" data-act="photosColis" data-id="${c.id}">📷 Photos des colis${c.colis&&c.colis.length?" ("+c.colis.filter(k=>k.photo).length+"/"+c.colis.length+")":""}</button>`);
  {const fac=docsOf(c.id,"facture").find(d=>avoirsDe(d.id)<d.total);
   if(can("admin","commercial","caissier","superviseur")&&!["brouillon","attente","annulee"].includes(c.statut))b.push(`<button class="btn ghost" data-act="docFac" data-id="${c.id}">🧾 ${fac?"Facture "+fac.numero:"Établir la facture"}</button>`);
   if(can("admin","commercial","caissier","superviseur")&&paye(c)>0)b.push(`<button class="btn ghost" data-act="docRecu" data-id="${c.id}">🧾 Reçu de paiement</button>`);
@@ -3417,7 +3431,7 @@ const passPost=(P,fn,body)=>fetch(pontUrl(P,fn),{method:"POST",headers:{"content
 function passProjection(l){const c=cmd(l.commande_id),cl=cli(c.client_id),a=c.adr||{},lv=liv(l.livreur_id);
  return{livraison_ref:l.id,livreur_ref:l.livreur_id,commande_ref:c.numero,statut:l.statut,code:isActive(l)?l.code:null,colis:isActive(l)&&colisReq(c)?c.colis.map(k=>({n:k.n,tok:k.tok})):undefined,
   payload:{numero:c.numero,priorite:c.priorite,client_nom:cl?cl.nom:"",adr:{libelle:a.libelle||"",zone:a.zone||"",quartier:a.quartier||"",repere:maskTel(a.repere||""),instructions:maskTel(a.instructions||""),gps:a.gps||null},
-   lignes:c.lignes.map(x=>({desig:x.desig,qte:x.qte,pu:x.pu})),obs:maskTel(c.obs||""),montant_attendu:l.montant_attendu||0,code_libere:l.code_libere?l.code:null,paye_vendeur:c.paye_vendeur||0,inj:(()=>{const g=ijCfg();return{exiger:g.exiger,attente_min:g.attente_min,tentatives_min:g.tentatives_min}})(),contact:(()=>{const k=l.contact;if(!k)return null;return{arrive_at:k.arrive_at||null,statut:k.statut||"aucun",n:(k.tentatives||[]).length,dernier:k.dernier?{resultat:k.dernier.resultat,libelle:IJ_RES[k.dernier.resultat]||"",delai:k.dernier.delai||0,note:k.dernier.note||"",ts:k.dernier.ts}:null,autorise_echec:!!k.autorise_echec,autorise_note:k.autorise_note||""}})(),partenaire:!!c.vendeur_id,verif_paiement:(()=>{const v=verifDernier(c);return v?{statut:v.statut,montant:v.montant||0}:null})(),nb_colis:l.nb_colis||0,collecte_at:l.collecte_at||null,
+   lignes:c.lignes.map(x=>({desig:x.desig,qte:x.qte,pu:x.pu})),photos_colis:(c.colis||[]).filter(k=>k.photo).length,obs:maskTel(c.obs||""),montant_attendu:l.montant_attendu||0,code_libere:l.code_libere?l.code:null,paye_vendeur:c.paye_vendeur||0,inj:(()=>{const g=ijCfg();return{exiger:g.exiger,attente_min:g.attente_min,tentatives_min:g.tentatives_min}})(),contact:(()=>{const k=l.contact;if(!k)return null;return{arrive_at:k.arrive_at||null,statut:k.statut||"aucun",n:(k.tentatives||[]).length,dernier:k.dernier?{resultat:k.dernier.resultat,libelle:IJ_RES[k.dernier.resultat]||"",delai:k.dernier.delai||0,note:k.dernier.note||"",ts:k.dernier.ts}:null,autorise_echec:!!k.autorise_echec,autorise_note:k.autorise_note||""}})(),partenaire:!!c.vendeur_id,verif_paiement:(()=>{const v=verifDernier(c);return v?{statut:v.statut,montant:v.montant||0}:null})(),nb_colis:l.nb_colis||0,collecte_at:l.collecte_at||null,
    msgs:(S.notifs||[]).filter(n=>n.livraison_id===l.id&&n.event==="livreur_msg").slice(-4).map(n=>({tpl:n.tpl,ts:n.ts,statut:n.statut})),cle_appel:cleAppel(lv),appel_possible:!!(PONT()&&cl&&cl.tel),msg_possible:!!(cl&&cl.tel),exige_colis:colisReq(c),exige_signature:sigReq(c),exige_photo:photoReq(c),type_colis:tcPub(c,l),motifs:S.config.motifs||[],modes:S.config.modes||[],org:S.config.org||"ANGEL'S",recu:l.statut==="livree"?(l.montant_encaisse||0):null,motif_echec:l.motif_echec||null}}}
 /* Statistiques d'un livreur sur [t0,t1] (date de fin des courses) : utilisées par le Centre de livraison et publiées à son application (période : aujourd'hui, 7 jours, 30 jours, mois) */
 /* Distance parcourue : somme des segments GPS consécutifs (bruit < 20 m, trous > 30 min et vitesses > 120 km/h écartés) */
@@ -3670,9 +3684,22 @@ function pgVoyant(){let b=document.getElementById("pg-v");const e=ME&&!CL.on&&S&
  if(!b){b=document.createElement("button");b.id="pg-v";b.type="button";b.dataset.act="pgInfo";b.style.cssText="position:fixed;right:10px;bottom:10px;z-index:55;border:0;border-radius:999px;padding:6px 12px;font:600 12px system-ui,Arial,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);color:#fff";document.body.appendChild(b)}
  b.style.background={ok:"#15803d",wa:"#b45309",er:"#b91c1c",mu:"#475569"}[e.k];b.textContent=({ok:"🟢 ",wa:"🟠 ",er:"🔴 ",mu:"⚪ "}[e.k])+e.t;b.title=e.d}
 function pgInfo(){const e=pgEtat();modal("Passerelle livreurs et vendeurs",`<div class="al ${e.k==="ok"?"ok":e.k==="er"?"er":"warn"}"><b>${esc(e.t)}</b><br>${esc(e.d)}</div>
- <table class="tw"><tr><th>Comptes livreurs créés sur le serveur</th><td><b>${e.nl}</b></td></tr><tr><th>Comptes vendeurs créés sur le serveur</th><td><b>${e.nv}</b></td></tr><tr><th>Ce poste est le poste passerelle</th><td>${e.sync?(e.poste?"oui":"non"):"oui (synchronisation entre postes inactive)"}</td></tr><tr><th>Dernier échange réussi</th><td>${e.ok?fdt(new Date(e.ok).toISOString()):"aucun depuis l'ouverture"}</td></tr></table>
+ <table class="tw"><tr><th>Comptes livreurs créés sur le serveur</th><td><b>${e.nl}</b></td></tr><tr><th>Comptes vendeurs créés sur le serveur</th><td><b>${e.nv}</b></td></tr><tr><th>Ce poste est le poste passerelle</th><td>${e.sync?(e.poste?"oui":"non"):"oui (synchronisation entre postes inactive)"}</td></tr><tr><th>Dernier échange réussi</th><td>${e.ok?fdt(new Date(e.ok).toISOString()):"aucun depuis l'ouverture"}</td></tr><tr><th>Suivi en direct pour les clients</th><td>${S.config.suivi_direct===false?"désactivé":_suiviErr?`<b style="color:var(--er)">erreur : ${esc(_suiviErr)}</b>`:"actif"}</td></tr><tr><th>Photos des colis publiées aux livreurs</th><td>${_cphErr?`<b style="color:var(--er)">erreur : ${esc(_cphErr)}</b>`:"actif"}</td></tr></table>
  <p class="sm mu">Le bureau reprend les actions des livreurs (départ, livraison, incident, encaissement) et les commandes des vendeurs, et publie les missions, toutes les 15 secondes. Pour vérifier de bout en bout : créez une commande de test, affectez-la à un livreur, puis vérifiez qu'il la voit sur son téléphone.</p>
- <div class="flex"><button type="button" class="btn" data-act="pgMaintenant">🔄 Échanger maintenant</button></div>`,{notice:false,focus:false})}
+ <div class="flex"><button type="button" class="btn" data-act="pgMaintenant">🔄 Échanger maintenant</button><button type="button" class="btn ghost" data-act="suiviTest">🧪 Tester le suivi en direct</button></div><div id="sv_test" class="sm" style="margin-top:8px"></div>`,{notice:false,focus:false})}
+/* Test de bout en bout du suivi en direct depuis le poste : publication d'un lien d'essai (fonction suivi-publier, clé d'administration) puis lecture comme le ferait un client (fonction suivi-live, sans clé) */
+async function suiviTest(){const P=PASS(),o=$("#sv_test");if(!o)return;if(!P)return void(o.innerHTML='<span style="color:var(--er)">❌ Passerelle non configurée (Paramètres › Livreurs &amp; GPS).</span>');
+ const etapes=[],ok=(t)=>etapes.push("✅ "+t),ko=(t)=>{etapes.push('<b style="color:var(--er)">❌ '+t+"</b>");o.innerHTML=etapes.join("<br>")};o.innerHTML="Test en cours…";
+ const a=new Uint8Array(18);crypto.getRandomValues(a);const cle="Test"+btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+ try{try{await passPost(P,"suivi-publier",{suivis:[{cle,commande_ref:"test-suivi",livraison_ref:null,etat:{o:S.config.org||"",n:"TEST",s:"livree",l:"Test",h:[]},termine:true}],cles:[]});ok("Publication acceptée par le serveur (clé d'administration valide, fonction et table en place)")}
+  catch(e){return ko("Publication refusée : "+esc(e.message)+(/401|invalide/i.test(e.message)?" — vérifiez la clé d'administration de la passerelle.":/404|introuvable|Not Found/i.test(e.message)?" — la fonction « suivi-publier » n'est pas déployée.":""))}
+  let r;try{r=await fetch(pontUrl(P,"suivi-live"),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({cle})})}catch(e){return ko("Lecture impossible depuis ce poste : "+esc(e.message))}
+  const j=await r.json().catch(()=>({}));if(r.status===404&&j.erreur==="Lien de suivi inconnu")return ko("Lien publié mais introuvable à la lecture : table ou fonction « suivi-live » incohérente.");
+  if(!r.ok||!j.ok||!j.etat||j.etat.n!=="TEST")return ko("Lecture anormale (HTTP "+r.status+") : "+esc(j.erreur||"réponse inattendue"));ok("Lecture publique réussie, sans aucun identifiant : c'est ce que verra votre client");
+  let c;try{c=await fetch(pontUrl(P,"suivi-live"),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"cles"})}).then(x=>x.json())}catch(e){c=null}
+  const mes=(()=>{try{return ANGELS_PRINT.pubs()||[]}catch(e){return[]}})();ok(c&&c.ok?"Clés publiques de signature publiées : "+c.cles.length+(mes.length&&!c.cles.some(k=>mes.some(m=>m.kid===k.kid))?' <b>(la clé de ce poste n\'est pas encore publiée : elle le sera au prochain lien de suivi créé)</b>':""):"Clés publiques : lecture non disponible");
+  etapes.push("<b>Le suivi en direct fonctionne de bout en bout.</b>");o.innerHTML=etapes.join("<br>")}
+ catch(e){ko("Erreur : "+esc(e.message))}}
 
 function passSosEntrant(ev){const lv=liv(ev.livreur_ref),d=ev.donnees||{};if(!lv)return"livreur introuvable";
  const a=String(d.description||"").split("|"),type=SOS_LIB[a[1]]?a[1]:"autre",auto=a[2]==="auto",ll=(a[3]||"").split(",").map(parseFloat),note=(a.slice(4).join("|")||"").trim().slice(0,300);
@@ -3734,6 +3761,7 @@ async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localSt
   S.pass=S.pass||{refs:[]};const refs=M.map(m=>m.livraison_ref),retirer=S.pass.refs.filter(x=>!refs.includes(x));
   if(sig!==_passSig||retirer.length){const r=await passPost(P,"mission-sync",{action:"publier",missions:M,retirer});if(!r.ignorees)_passSig=sig;if(retirer.length){S.pass.refs=refs;chg=true}else S.pass.refs=refs}
   {const V=[];for(const v of S.vendeurs.filter(v=>v.ident_serveur))V.push({vendeur_ref:v.id,etat:await vendEtatPub(v)});const sv=JSON.stringify(V);if(V.length&&sv!==_vendSig){const r=await passPost(P,"mission-sync",{action:"vendeur-publier",vendeurs:V});if(!r.ignores)_vendSig=sv}}
+  await suiviPublierSur();await colisPhotosPublierSur();
   await pushFlush();S.pass_err="";_passOkAt=Date.now()
  }catch(e){S.pass_err=String(e&&e.message||e).slice(0,160)}finally{_passBusy=false;try{pgVoyant()}catch(e){}}
  if(chg){try{save()}catch(e){}}}
@@ -3988,7 +4016,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  pinUser:id=>{const u=usr(id);const lvP=u.role==="livreur"&&PASS()&&S.livreurs.find(l=>l.user_id===u.id);const vdP=u.role==="vendeur"&&PASS()&&S.vendeurs.find(x=>x.user_id===u.id);if(vdP)return modal("Accès de l'application vendeur — "+u.nom,`<p>Le vendeur se connecte uniquement dans l'application vendeur, avec le mot de passe de son <b>compte serveur</b>. Un mot de passe temporaire sera généré et montré une seule fois (avec envoi par WhatsApp) ; <b>${esc(u.nom)}</b> devra le changer à sa prochaine connexion.</p>`,{label:"Réinitialiser",cls:"er",onSubmit:()=>{vendCompte(vdP,!!vdP.ident_serveur)}});if(lvP)return modal("Accès de l'application livreur — "+u.nom,`<p>Le livreur se connecte uniquement dans l'application livreur, avec le mot de passe de son <b>compte serveur</b>. Un nouveau mot de passe temporaire sera généré et montré une seule fois (avec envoi par WhatsApp) ; <b>${esc(u.nom)}</b> devra le changer à sa prochaine connexion.</p>`,{label:"Réinitialiser",cls:"er",onSubmit:()=>{passCompte(lvP,!!lvP.ident_serveur).then(()=>passSync(true))}});modal("Réinitialiser le mot de passe — "+u.nom,`<p>Un mot de passe temporaire sera généré et montré une seule fois ; <b>${esc(u.nom)}</b> devra le changer à sa prochaine connexion.</p>`,{label:"Réinitialiser",cls:"er",onSubmit:()=>{if(CL.on){const mdp=ANGELS_AUTH.generer();return CL.go(()=>CL.fn("creer-utilisateur",{action:"reset",user_id:u.id,mot_de_passe:mdp}),"Mot de passe réinitialisé").then(r=>{mdpCloud(u.nom,mdp,"Mot de passe réinitialisé");return r})}u.pwd=null;u.chg=true;delete u.pin_h;audit("Mot de passe réinitialisé",u.nom);save();render();mdpTemp(u.id,"Mot de passe réinitialisé")}})},
  mdpMe:()=>{changerMdp()},
  newZone:()=>zoneForm(),editZone:id=>zoneForm(S.config.zones.find(z=>z.id===id)),
- cmdRattacher:id=>rattacherForm({cid:id}),vendRattacher:id=>rattacherForm({vid:id}),vendAcces:id=>{const v=vendOf(id);if(!v)return;ui.vendNouveau=null;if(PASS()&&!v.ident_serveur)vendCompte(v,false);else mdpTemp(v.user_id,"Compte vendeur créé")},pgInfo:()=>pgInfo(),pgMaintenant:async()=>{try{await passSync(true)}catch(e){}closeModal();pgInfo()},
+ cmdRattacher:id=>rattacherForm({cid:id}),vendRattacher:id=>rattacherForm({vid:id}),vendAcces:id=>{const v=vendOf(id);if(!v)return;ui.vendNouveau=null;if(PASS()&&!v.ident_serveur)vendCompte(v,false);else mdpTemp(v.user_id,"Compte vendeur créé")},pgInfo:()=>pgInfo(),suiviTest:()=>suiviTest(),pgMaintenant:async()=>{try{await passSync(true)}catch(e){}closeModal();pgInfo()},
  pgTest:async()=>{const R=$("#pg_res"),say=(t,ok)=>{R.innerHTML=`<b style="color:var(--${ok?"ok":"er"})">${ok?"✔":"✖"}</b> ${esc(t)}`};const P={url:$("#p_apurl").value.trim(),cle_admin:$("#p_apkey").value.trim()};
  if(!/^https:\/\//.test(P.url))return say("Adresse des fonctions invalide : elle doit commencer par https:// (ex. https://xxxx.supabase.co/functions/v1).");if(!P.cle_admin)return say("Clé d'administration vide : saisissez-la (secret ADMIN_KEY de Supabase).");
  say("Test en cours…",true);let r;try{r=await fetch(pontUrl(P,"mission-sync"),{method:"POST",headers:{"content-type":"application/json","x-admin-key":P.cle_admin},body:JSON.stringify({action:"evenements"})})}catch(e){return say("Serveur injoignable (réseau, adresse ou blocage navigateur). Vérifiez l'adresse : "+pontUrl(P,"mission-sync"))}
@@ -4026,7 +4054,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  lFail:id=>{const l=byId(S.livraisons,id);modal("Livraison impossible",`<label>Motif<select name="m">${opts(S.config.motifs)}</select></label><label>Observation<textarea name="o" rows="2"></textarea></label>`,{label:"Enregistrer l'échec",cls:"er",onSubmit:d=>{if(CL.on)return CL.liv(l.id,"echec",{motif:d.m,obs:d.o},"Échec enregistré — le superviseur est informé");if(echec(l,d.m,d.o)){done("Échec enregistré — le superviseur est informé")}else return false}})},
  myInc:()=>{const lv=livreurOf(ME),a=S.livraisons.find(l=>l.livreur_id===lv.id&&isActive(l));incForm(lv.id,a?a.commande_id:null)},
  sendPos:sendPosNow,
- etiq:id=>etiqModal(cmd(id)),scanCmd:scanCmdModal,
+ etiq:id=>etiqModal(cmd(id)),photosColis:id=>photosColisModal(cmd(id)),cphCreer:id=>{const c=cmd(id);if(!c||!can(...CPH_ROLES))return;colisGenerer(c,+($("#cph_nb")||{}).value||1);cphRefresh(c)},cphDel:id=>{const[cid,n]=id.split("|"),c=cmd(cid),k=c&&(c.colis||[]).find(x=>x.n===+n);if(!k||!can(...CPH_ROLES))return;delete k.photo;delete k.photo_ts;delete k.photo_par;audit("Photo de colis retirée",c.numero+" — colis "+n);cphRefresh(c)},scanCmd:scanCmdModal,
  tmAll:()=>{document.querySelectorAll("#mf .tmrow").forEach(r=>{const on=r.style.display!=="none";const k=r.querySelector("input");if(k)k.checked=on})},fzSet:id=>{ui.fz=id||"";render()},newTour:()=>tourneeModal(ui.fz||""),tourDetail:id=>tourneeDetail(id),
  tourMove:id=>{if(CL.on){const[tid,lid,dir]=id.split("|");return CL.go(()=>CL.rpc("deplacer_arret",{p_livraison:lid,p_dir:+dir}),null,()=>tourneeDetail(tid))}const[tid,lid,dir]=id.split("|"),t=byId(S.tournees,tid),st=stopsOf(t),i=st.findIndex(l=>l.id===lid),j=i+(+dir);if(i<0||j<0||j>=st.length)return;
   if(!["affectee","acceptee"].includes(st[i].statut)||!["affectee","acceptee"].includes(st[j].statut))return toast("Arrêt déjà démarré : ordre figé","err");
@@ -4060,7 +4088,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
  copyLink:()=>{const v=$("#gl").value;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>toast("Lien copié","ok"),()=>{$("#gl").select();toast("Sélectionné : copiez-le (Ctrl+C)")})},
  myStatus:()=>{const lv=livreurOf(ME);if(CL.on)return CL.go(()=>CL.rpc("livreur_set_statut",{p_statut:lv.statut==="disponible"?"indisponible":"disponible"}));lv.statut=lv.statut==="disponible"?"indisponible":"disponible";audit("Disponibilité livreur",lv.nom+" → "+lv.statut);done()}
 };
-const ACT_DROITS={cmdRattacher:["admin"],vendRattacher:["admin"],fneCert:["admin","commercial","caissier","superviseur"],fneEmettre:["admin","commercial","caissier","superviseur"],fneSave:["admin","direction"],payer:["admin","caissier"],reverser:["admin","caissier"],reverserPartiel:["admin","caissier"],cxRanger:["admin","caissier"],versOk:["admin","caissier"],versNo:["admin","caissier"],ecartOk:["admin","superviseur","direction"],ecartKo:["admin","superviseur","direction"]};
+const ACT_DROITS={suiviTest:["admin"],cmdRattacher:["admin"],vendRattacher:["admin"],fneCert:["admin","commercial","caissier","superviseur"],fneEmettre:["admin","commercial","caissier","superviseur"],fneSave:["admin","direction"],payer:["admin","caissier"],reverser:["admin","caissier"],reverserPartiel:["admin","caissier"],cxRanger:["admin","caissier"],versOk:["admin","caissier"],versNo:["admin","caissier"],ecartOk:["admin","superviseur","direction"],ecartKo:["admin","superviseur","direction"]};
 document.addEventListener("click",e=>{const t=e.target.closest("[data-act]");if(!t)return;e.preventDefault();const f=ACT[t.dataset.act];if(f){const dr=ACT_DROITS[t.dataset.act];if(dr&&!can(...dr)){toast("Accès refusé pour votre profil","err");return}const r=f(t.dataset.id,t);if(r&&r.catch)r.catch(err=>toast(fixErr(err),"err"))}});
 document.addEventListener("submit",e=>{
  if(e.target.id==="mf"){e.preventDefault();if(ui.onSubmit){const d=Object.fromEntries(new FormData(e.target));const mid=ui.mid,r=ui.onSubmit(d,e.target);
@@ -4069,6 +4097,7 @@ document.addEventListener("submit",e=>{
    else if(r!==false&&ui.mid===mid)closeModal()}}
  if(e.target.id==="lf"){e.preventDefault();if(CL.on)return CL.login(e.target);const d=Object.fromEntries(new FormData(e.target)),u=usr(d.u),bt=e.target.querySelector("button");
   const tr0=u&&((S.tries=S.tries||{})[u.id]||(S.tries[u.id]={n:0,until:0}));if(tr0&&Date.now()<tr0.until){ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:"bloque",motif:"Compte bloqué après trop de tentatives"});try{save()}catch(e){}return toast("Compte bloqué "+cfv("blocage_min")+" minute(s) (trop de tentatives)","err")}
+  if(u&&APPC&&HORS_CENTRE(u))return toast("Cet espace est réservé au personnel du centre de livraison","err");
   if(u&&APPV&&u.role!=="vendeur")return toast("Cet espace est réservé aux vendeurs partenaires","err");
   if(u&&!APPV&&u.role==="vendeur")return toast("Les vendeurs partenaires utilisent leur propre application (lien « Espace vendeur »)","err");
   if(u&&!APPV&&u.role==="livreur"&&PASS())return toast("Les livreurs utilisent leur propre application (livreur.html)","err");
@@ -4505,6 +4534,24 @@ function checkColis(txt,c){
  if(/^[A-Za-z0-9]{5}$/.test(txt)){const k=(c.colis||[]).find(x=>x.tok===txt.toUpperCase());return k?{ok:true,n:k.n,mode:"saisie"}:{ok:false,msg:"Code inconnu pour cette commande"}}
  return{ok:false,msg:"QR non reconnu (étiquette "+S.config.org+" attendue)"}}
 /* Colis d'une commande déposée par un vendeur : les jetons sont créés dès l'enregistrement pour que le vendeur imprime lui-même ses étiquettes (mêmes QR que ceux du bureau) */
+/* Photos des colis : prises par le centre à la préparation (une par colis, JPEG réduit ≤ 60 000 caractères), publiées au livreur de la mission pour qu'il reconnaisse le bon colis ; supprimées 24 h après la fin de la commande */
+const CPH_MAX=60000,CPH_ROLES=["admin","preparateur","superviseur","commercial"];
+function photosColisHtml(c){const L=c.colis||[];
+ if(!L.length)return`<div class="pill">Aucun colis défini pour ${esc(c.numero)}.</div><label>Nombre de colis<input type="number" id="cph_nb" min="1" max="20" value="1"></label><button type="button" class="btn" data-act="cphCreer" data-id="${c.id}">Créer les emplacements</button>`;
+ return`<div class="sm mu">Une photo par colis : le livreur la voit dans sa mission pour reconnaître le bon colis. Photographiez le colis fermé, étiquette visible, sans numéro de téléphone lisible.</div><div class="cphg">${L.map(k=>`<div class="cph"><b>Colis ${k.n}</b>${k.photo?`<img alt="Photo du colis ${k.n}" src="${k.photo}">`:'<div class="ph">Pas de photo</div>'}<div class="flex" style="justify-content:center;gap:6px"><label class="btn sm ${k.photo?"ghost":""}">📷 ${k.photo?"Reprendre":"Photographier"}<input type="file" accept="image/*" capture="environment" data-cph="${c.id}|${k.n}" style="display:none"></label>${k.photo?`<button type="button" class="btn sm ghost" data-act="cphDel" data-id="${c.id}|${k.n}">Retirer</button>`:""}</div></div>`).join("")}</div><div class="sm mu" style="margin-top:8px">${L.filter(k=>k.photo).length}/${L.length} colis photographiés${PASS()?" · publiés au livreur dès l'affectation":""}.</div>`}
+function photosColisModal(c){if(!c)return;if(!can(...CPH_ROLES))return toast("Accès refusé pour votre profil","err");modal("📷 Photos des colis — "+c.numero,`<div id="cph_box">${photosColisHtml(c)}</div>`,{label:"Fermer",onSubmit:()=>true,focus:false})}
+function cphRefresh(c){const b=$("#cph_box");if(b)b.innerHTML=photosColisHtml(c);try{save()}catch(e){}if(PASS())setTimeout(()=>{try{passSync(true)}catch(e){}},300)}
+document.addEventListener("change",async e=>{const i=e.target.closest&&e.target.closest("input[data-cph]");if(!i)return;const[cid,n]=i.dataset.cph.split("|"),c=cmd(cid),f=i.files&&i.files[0];i.value="";if(!c||!f)return;if(!can(...CPH_ROLES))return toast("Accès refusé pour votre profil","err");
+ try{const out=await imgResize(f,480,.72,CPH_MAX),k=(c.colis||[]).find(x=>x.n===+n);if(!k)return;k.photo=out;k.photo_ts=now();k.photo_par=who();audit("Photo de colis",c.numero+" — colis "+n);cphRefresh(c)}catch(x){toast(x.message||"Photo refusée","err")}});
+function colisPhotosEtat(){const out=[];S.livraisons.filter(l=>isActive(l)).forEach(l=>{const c=cmd(l.commande_id),ph=((c&&c.colis)||[]).filter(k=>k.photo).map(k=>({n:k.n,photo:k.photo}));if(ph.length)out.push({livraison_ref:l.id,photos:ph})});return out}
+let _cphSig={},_cphErr="";
+async function colisPhotosPublier(){const P=PASS();if(!P)return;const E=colisPhotosEtat(),sig={};E.forEach(x=>{sig[x.livraison_ref]=x.photos.map(p=>p.n+":"+p.photo.length+":"+p.photo.slice(-24)).join("|")});
+ const chg=E.filter(x=>_cphSig[x.livraison_ref]!==sig[x.livraison_ref]),retirer=Object.keys(_cphSig).filter(r=>!(r in sig));if(!chg.length&&!retirer.length)return;
+ for(let i=0;i<chg.length;i+=5){const lot=chg.slice(i,i+5);await passPost(P,"colis-photos",{livraisons:lot});lot.forEach(x=>{_cphSig[x.livraison_ref]=sig[x.livraison_ref]})}
+ if(retirer.length){await passPost(P,"colis-photos",{livraisons:[],retirer});retirer.forEach(r=>delete _cphSig[r])}}
+async function colisPhotosPublierSur(){try{await colisPhotosPublier();_cphErr=""}catch(e){_cphErr=String(e&&e.message||e).slice(0,120)}}
+function colisPhotosPurger(){let n=0;const lim=Date.now()-864e5;(S.commandes||[]).forEach(c=>{if(!c.colis||!SUIVI_FINAUX.includes(c.statut))return;const t=new Date(((c.hist||[]).slice(-1)[0]||{}).ts||0).getTime();if(t&&t>lim)return;c.colis.forEach(k=>{if(k.photo){delete k.photo;delete k.photo_ts;delete k.photo_par;n++}})});if(n){audit("Photos de colis supprimées (commandes terminées)",n+" photo(s)");try{save()}catch(e){}}return n}
+setInterval(()=>{try{if(S&&ME)colisPhotosPurger()}catch(e){}},36e5);setTimeout(()=>{try{if(S&&ME)colisPhotosPurger()}catch(e){}},8000);
 function colisGenerer(c,nb){nb=Math.max(1,Math.min(20,Math.round(+nb||1)));if(c.colis&&c.colis.length)return c.colis;c.colis=Array.from({length:nb},(_,i)=>({n:i+1,tok:newTok()}));audit("Colis générés pour étiquettes (commande du vendeur)",c.numero+" — "+nb+" colis");return c.colis}
 function etiqueter(c,nb){
  nb=Math.max(1,Math.min(20,Math.round(+nb||1)));
@@ -5083,7 +5130,7 @@ Object.assign(CL,{
  async fn(name,body){const{data,error}=await CL.sb.functions.invoke(name,{body});if(error){let m=error.message;try{const j=await error.context.json();m=j.erreur||m}catch(e){}throw new Error(m)}if(data&&data.erreur)throw new Error(data.erreur);return data},
  async go(fn,msg,after){try{await fn();await refresh();const m=typeof msg==="function"?msg():msg;if(m)toast(m,"ok");render();if(after)after();return true}catch(e){toast(fixErr(e),"err");return false}},
  async login(form){const d=Object.fromEntries(new FormData(form));
-  try{const{data,error}=await CL.sb.auth.signInWithPassword({email:toEmail(d.ident),password:d.pwd});if(error)throw new Error("Identifiant ou mot de passe incorrect");CL.uid=data.user.id;await refresh();if(APPV&&(!ME||ME.role!=="vendeur"))throw new Error("Cet espace est réservé aux vendeurs partenaires");if(!APPV&&ME&&ME.role==="vendeur")throw new Error("Les vendeurs partenaires utilisent leur propre application");if(!APPV&&ME&&ME.role==="livreur"&&PASS())throw new Error("Les livreurs utilisent leur propre application (livreur.html)");view="dashboard";render()}
+  try{const{data,error}=await CL.sb.auth.signInWithPassword({email:toEmail(d.ident),password:d.pwd});if(error)throw new Error("Identifiant ou mot de passe incorrect");CL.uid=data.user.id;await refresh();if(APPC&&ME&&HORS_CENTRE(ME))throw new Error("Cet espace est réservé au personnel du centre de livraison");if(APPV&&(!ME||ME.role!=="vendeur"))throw new Error("Cet espace est réservé aux vendeurs partenaires");if(!APPV&&ME&&ME.role==="vendeur")throw new Error("Les vendeurs partenaires utilisent leur propre application");if(!APPV&&ME&&ME.role==="livreur"&&PASS())throw new Error("Les livreurs utilisent leur propre application (livreur.html)");view="dashboard";render()}
   catch(e){try{await CL.sb.auth.signOut()}catch(x){}ME=null;CL.uid=null;toast(fixErr(e),"err")}},
  async logout(){try{await CL.sb.auth.signOut()}catch(e){}ME=null;CL.uid=null;CL.pos={};S=emptyS();render()},
  /* ---- commandes ---- */
@@ -5240,8 +5287,23 @@ async function vendeurSigner(v,renouveler){const u=PGV(),cle=S.config.portail_ve
 function lienCourtCommande(p){const base=portailBase();if(!/\/portail$/.test(base))return null;const q=new URLSearchParams();Object.entries(p).forEach(([k,v])=>{if(v)q.set(k,String(v))});
  {const vv=p.ref&&S.vendeurs.find(x=>x.id===p.ref);if(vv&&sigCle(p.boutique,p.tel)===sigCle(vv.nom,vv.tel)&&lienSigne(vv))q.set("s",vv.lien_sig.s)}return base.replace(/\/portail$/,"/commander")+"?"+q.toString()}
 const msgRassure=()=>"\n🔒 Lien officiel "+(S.config.org||"ANGEL'S GROUP")+" : aucun paiement, mot de passe ou code ne vous est demandé sur cette page."
-function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,...(v.exp?{xp:[v.exp.numero,v.exp.statut,v.exp.transporteur,v.exp.bordereau,v.exp.eta]}:{}),h:(v.hist||[]).map(x=>[x.a,x.ts]),...(S.config.suivi_carte!==false&&c.statut==="en_cours"?{x:v.dest?[v.dest.lat,v.dest.lng]:undefined,y:v.pos?[v.pos.lat,v.pos.lng,v.pos.ts]:undefined}:{})}}
-async function suiviLienPortail(c){return portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)))}
+function suiviSnap(c){const v=suiviLocal(c);return{o:S.config.org||"",w:S.config.whatsapp||"",n:c.numero,s:c.statut,l:v.lieu||"",v:v.livreur||"",e:v.eta||"",g:new Date().toISOString(),ap:v.a_payer||0,...(suiviDirectOk()?{k:suiviCle(c)}:{}),...(v.exp?{xp:[v.exp.numero,v.exp.statut,v.exp.transporteur,v.exp.bordereau,v.exp.eta]}:{}),h:(v.hist||[]).map(x=>[x.a,x.ts]),...(S.config.suivi_carte!==false&&c.statut==="en_cours"?{x:v.dest?[v.dest.lat,v.dest.lng]:undefined,y:v.pos?[v.pos.lat,v.pos.lng,v.pos.ts]:undefined}:{})}}
+/* Suivi en direct : clé aléatoire du lien (jamais déduite du numéro de commande), état publié sur le serveur (sans téléphone ni code), clés PUBLIQUES de signature.
+   La page du client interroge le serveur toutes les 15 s ; la position du livreur vient de l'application livreur. Désactivable : S.config.suivi_direct = false. */
+const suiviDirectOk=()=>S.config.suivi_direct!==false&&!!PASS();
+function suiviCle(c){if(!c.suivi_cle){const a=new Uint8Array(18);crypto.getRandomValues(a);c.suivi_cle=btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");try{save()}catch(e){}}return c.suivi_cle}
+const SUIVI_FINAUX=["livree","annulee","echouee","retour_cours","retour_recu"];
+let _suiviSig={},_clesSig="",_suiviErr="";
+function suiviEtatPub(c){const e=suiviSnap(c);delete e.k;delete e.g;delete e.y;return e}
+async function suiviPublier(force){const P=PASS();if(!P||S.config.suivi_direct===false)return;
+ const lim=Date.now()-3*864e5,L=S.commandes.filter(c=>c.suivi_cle&&(!SUIVI_FINAUX.includes(c.statut)||new Date(((c.hist||[]).slice(-1)[0]||{}).ts||0).getTime()>lim)),items=[];
+ for(const c of L){const e=suiviEtatPub(c),lid=suiviLocal(c)._lid||null,sig=JSON.stringify([e,lid]);if(force||_suiviSig[c.suivi_cle]!==sig)items.push({cle:c.suivi_cle,commande_ref:c.id,livraison_ref:lid,etat:e,termine:SUIVI_FINAUX.includes(c.statut),sig})}
+ let cles=[];try{cles=ANGELS_PRINT.pubs()||[]}catch(e){}const cs=JSON.stringify(cles);
+ if(!items.length&&(!cles.length||cs===_clesSig))return;
+ const lot=items.slice(0,200);await passPost(P,"suivi-publier",{suivis:lot.map(x=>({cle:x.cle,commande_ref:x.commande_ref,livraison_ref:x.livraison_ref,etat:x.etat,termine:x.termine})),cles});
+ lot.forEach(x=>{_suiviSig[x.cle]=x.sig});_clesSig=cs}
+async function suiviPublierSur(){try{await suiviPublier();_suiviErr=""}catch(e){_suiviErr=String(e&&e.message||e).slice(0,120)}}
+async function suiviLienPortail(c){const lien=portailLien("#/suivi/"+await ANGELS_PRINT.jeton(suiviSnap(c)));if(suiviDirectOk())setTimeout(suiviPublierSur,200);return lien}
 const SUIVI_PH=/\n?Suivi de votre commande : \{\{SUIVI\}\}/;
 async function notifMsg(n){if(!/\{\{SUIVI\}\}/.test(n.message))return n.message;const c=cmd(n.commande_id);if(!c)return n.message.replace(SUIVI_PH,"");try{const lien=await suiviLienPortail(c);return n.message.replace(SUIVI_PH,m=>m.replace("{{SUIVI}}",()=>lien))}catch(e){return n.message.replace(SUIVI_PH,"")}}
 function cliLienModal(c){const a=c.adresses.find(x=>x.defaut)||c.adresses[0]||{},link=lienCourtCommande({client:c.nom,tel:String(c.tel||"").replace(/\D/g,""),zone:a.zone,quartier:a.quartier})||portailLien("#/commander/"+b64({o:S.config.org||"",w:S.config.whatsapp||"",c:{n:c.nom,t:c.tel,z:a.zone||"",q:a.quartier||"",r:a.repere||""}})),w=String(c.tel||"").replace(/\D/g,""),msg=`Bonjour ${c.nom}, commandez en ligne chez ${S.config.org||"nous"} : vos coordonnées sont déjà remplies.\n${link}`+msgRassure();
@@ -6061,13 +6123,20 @@ function hzSection(){const c=hzCfg(),ev=(S.hz_events||[]).slice().sort((a,b)=>ne
 /* Préférences d'affichage de l'appareil */
 let PREF={};try{PREF=JSON.parse(localStorage.getItem("angels_pref")||"{}")||{}}catch(e){PREF={}}
 const ECO=()=>!!PREF.eco;
-function applyPref(){document.body.classList.toggle("gros",!!PREF.gros);document.body.classList.toggle("eco",!!PREF.eco)}applyPref();
+function applyPref(){document.body.classList.toggle("appc",!!APPC);document.body.classList.toggle("gros",!!PREF.gros);document.body.classList.toggle("eco",!!PREF.eco)}applyPref();
 function prefsForm(){modal("⚙️ Préférences d'affichage",`<label style="display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--tx);font-weight:600"><input type="checkbox" id="pf_g" style="width:auto;margin-top:4px" ${PREF.gros?"checked":""}> <span>🔠 Gros caractères et gros boutons<br><span class="sm mu" style="font-weight:400">Plus facile à lire et à toucher, en moto ou en plein soleil.</span></span></label>
  <label style="display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--tx);font-weight:600;margin-top:12px"><input type="checkbox" id="pf_e" style="width:auto;margin-top:4px" ${PREF.eco?"checked":""}> <span>📶 Économie de données<br><span class="sm mu" style="font-weight:400">Pas de vignettes, photos envoyées plus légères, vérification des nouvelles courses moins fréquente, cartes seulement à la demande.</span></span></label>
  <div class="sm mu" style="margin-top:10px">Ces réglages sont mémorisés sur ce téléphone.</div>`,{label:"Enregistrer",onSubmit:()=>{PREF={gros:$("#pf_g").checked,eco:$("#pf_e").checked};try{localStorage.setItem("angels_pref",JSON.stringify(PREF))}catch(e){}applyPref();closeModal();render();return true}})}
 
 /* ---------- Navigation en modules : 8 entrées au lieu de 30 ; chaque écran garde son identifiant (droits, tests, liens) et s'ouvre dans les onglets de son module ---------- */
-const MODULES=[
+const MODULES_C=[
+ {id:"cen",l:"Accueil",i:"🏠",vues:[["centre","Accueil"],["carte","Carte en direct"]]},
+ {id:"liv",l:"Affecter & suivre",i:"🏍️",vues:[["livraisons","Répartition et suivi"],["incidents","Incidents & retours"]]},
+ {id:"col",l:"Collectes",i:"🧺",vues:[["collectes","Collectes"]]},
+ {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["expeditions","Expéditions"],["notifs","Messages clients"]]},
+ {id:"eqp",l:"Livreurs",i:"🛵",vues:[["livreurs","Livreurs & motos"],["equipements","Équipements & engins"]]},
+ {id:"adm",l:"Réglages",i:"⚙️",vues:[["params","Paramètres"]]}];
+const MODULES_B=[
  {id:"auj",l:"Aujourd'hui",i:"🏠",vues:[["aujourdhui","Aujourd'hui"],["dashboard","Tableau de bord"],["carte","Carte en direct"]]},
  {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["vente_ligne","Vente en ligne"],["notifs","Messages clients"]]},
  {id:"liv",l:"Livraison",i:"🏍️",vues:[["livraisons","Centre de livraison"],["expeditions","Expéditions"],["livreurs","Livreurs & motos"],["equipements","Équipements & engins"],["maintenance","Maintenance (GMAO)"],["incidents","Incidents & retours"]]},
@@ -6076,6 +6145,7 @@ const MODULES=[
  {id:"tie",l:"Clients & offres",i:"👥",vues:[["clients","Clients"],["vendeurs","Vendeurs partenaires"],["abonnements","Abonnements"],["prestations","Prestations"]]},
  {id:"doc",l:"Documents & contrôle",i:"📄",vues:[["etats","États périodiques"],["documents","Documents"],["audit","Journal d'audit"]]},
  {id:"adm",l:"Administration",i:"⚙️",vues:[["rh","RH et paie"],["utilisateurs","Utilisateurs"],["donnees_test","Données de test"],["production","Passage en production"],["params","Paramètres"]]}];
+const MODULES=APPC?MODULES_C:MODULES_B;
 const MOD_DERN={};
 const modOf=v=>MODULES.find(m=>m.vues.some(x=>x[0]===v))||null;
 const vuesVisibles=(m,nav)=>m.vues.filter(([v])=>nav.some(n=>n.v===v));
@@ -6083,6 +6153,34 @@ function modNavHtml(nav){return MODULES.map(m=>{const L=vuesVisibles(m,nav);if(!
  return`<a class="${cur?"on":""}" data-act="nav" data-id="${cible}" data-mod="${m.id}" title="${esc(L.map(x=>x[1]).join(" · "))}">${m.i} ${m.l}${n?`<span class="nb" title="À traiter">${n}</span>`:""}</a>`}).join("")}
 function modTabsHtml(nav){const m=modOf(view);if(!m)return"";const L=vuesVisibles(m,nav);MOD_DERN[m.id]=view;if(L.length<2)return"";
  return`<div class="mtabs noprint" role="tablist" aria-label="${esc(m.l)}">${L.map(([v,l])=>`<a role="tab" aria-selected="${v===view}" class="${v===view?"on":""}" data-act="nav" data-id="${v}">${esc(l)}${navBadge(v)}</a>`).join("")}</div>`}
+/* ---------- Espace « Centre de livraison » (installable, ?app=centre) : accueil par tâches, collectes, barre d'onglets mobile ---------- */
+function centreDonnees(){
+ const prete=S.commandes.filter(c=>c.statut==="prete"&&!expOuverte(c)).sort((a,b)=>(b.priorite==="urgente")-(a.priorite==="urgente")||zoneDe(a).localeCompare(zoneDe(b))||new Date(a.date)-new Date(b.date)),
+  act=S.livraisons.filter(isActive),
+  aColl=S.vendeurs.reduce((t,v)=>t+aCollecter(v.id).length,0),
+  collOuv=(S.collectes||[]).filter(colOpen),
+  aRecep=(S.collectes||[]).filter(c=>c.statut==="collectee"),
+  echoues=S.commandes.filter(c=>c.statut==="echouee").length,ecarts=S.livraisons.filter(l=>l.ecart_statut==="a_valider").length;
+ return{prete,act,aColl,collOuv,aRecep,echoues,ecarts,trt:echoues+ecarts}}
+const centreLieu=c=>[c.adr&&c.adr.zone,c.adr&&c.adr.quartier].filter(Boolean).join(" · ");
+VIEWS.centre=()=>{
+ const D=centreDonnees(),h=new Date().getHours(),pend=S.vendeurs.map(v=>({v,L:aCollecter(v.id)})).filter(x=>x.L.length);
+ const kp=(v,cdt,ic,n,l,c)=>`<button type="button" class="carte ${c||""}" data-act="centreGo" data-id="${v}|${cdt}"><span class="ic">${ic}</span><b>${n}</b><span>${l}</span></button>`;
+ const peutAff=can("admin","superviseur"),peutRecep=can("admin","preparateur");
+ const bloc=(t,n,corps,vide)=>`<section class="card"><div class="between"><h2 style="margin:0">${t}${n!=null?` <span class="mu">(${n})</span>`:""}</h2></div>${corps||`<div class="mu sm" style="margin-top:8px">${vide}</div>`}</section>`;
+ const aff=D.prete.slice(0,6).map(c=>{const cl=cli(c.client_id)||{};return`<div class="rpk"><div class="between"><span><b>${esc(c.numero)}</b> ${c.priorite==="urgente"?badge("URGENT","er"):""}</span>${peutAff?`<button class="btn sm" data-act="assign" data-id="${c.id}">🏍 Affecter</button>`:""}</div><div class="sm">${esc(cl.nom||"")} · ${esc(centreLieu(c)||"—")}</div></div>`}).join("")+(D.prete.length>6?`<a href="#" data-act="centreGo" data-id="livraisons|rep">Voir les ${D.prete.length} commandes →</a>`:"");
+ const cours=D.act.slice(0,8).map(l=>{const c=cmd(l.commande_id)||{},lv=liv(l.livreur_id)||{},p=S.pos[l.livreur_id];return`<div class="rpk"><div class="between"><span><b>${esc(c.numero||"")}</b> · ${esc(lv.nom||"—")}</span>${lb(l)}</div><div class="sm mu">${esc(centreLieu(c)||"—")}${p?" · "+esc(fraicheur(p).t):""}</div></div>`}).join("");
+ const colP=pend.slice(0,5).map(x=>`<div class="rpk"><div class="between"><span><b>${esc(x.v.nom)}</b> <span class="mu sm">${x.L.length} commande(s)</span></span>${peutAff?`<button class="btn sm" data-act="colPlan" data-id="${x.v.id}">🚚 Planifier</button>`:""}</div><div class="sm mu">${esc(colAdrTxt(x.v.adresse_collecte))}</div></div>`).join("");
+ const colO=D.collOuv.map(c=>`<div class="rpk"><div class="between"><span><b>${esc(c.numero)}</b> · ${esc(colVend(c))}</span>${colBadge(c)}</div><div class="sm mu">par ${esc(colLiv(c))}${c.creneau?" · "+fdt(c.creneau):""}</div>${c.statut==="collectee"&&peutRecep?`<button class="btn sm ok" data-act="colRecv" data-id="${c.id}">📥 Réceptionner</button>`:""}</div>`).join("");
+ return`<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${D.prete.length+D.aColl+D.aRecep.length+D.trt?"Voici ce que le centre doit traiter maintenant.":"Tout est à jour au centre."}</div>
+ <div class="cartes">${kp("livraisons","rep","📦",D.prete.length,"à affecter",D.prete.length?"wa":"")}${kp("livraisons","rep","🏍",D.act.length,"courses en cours")}${kp("collectes","",'🧺',D.aColl,"collectes à planifier",D.aColl?"wa":"")}${kp("collectes","",'📥',D.aRecep.length,"à réceptionner",D.aRecep.length?"wa":"")}${kp("incidents","","⚠",D.trt,"à traiter",D.trt?"er":"")}</div>
+ <div class="rac noprint"><button class="btn" data-act="centreGo" data-id="livraisons|rep" style="width:auto">📦 Affecter les commandes</button><button class="btn ghost" data-act="centreGo" data-id="collectes|" style="width:auto">🧺 Collectes vendeurs</button><button class="btn ghost" data-act="centreGo" data-id="carte|" style="width:auto">🗺 Carte en direct</button></div>
+ <div class="cgrid">${bloc("📦 À affecter",D.prete.length,aff,"🎉 Aucune commande en attente d'un livreur.")}${bloc("🏍 Courses en cours",D.act.length,cours,"Aucune course en cours.")}${bloc("🧺 Collectes à planifier",pend.length,colP,"Aucune commande confirmée à récupérer chez un vendeur.")}${bloc("🚚 Collectes en cours",D.collOuv.length,colO,"Aucune collecte en cours.")}</div></div>`};
+VIEWS.collectes=()=>`<div class="cdl"><div class="ban"><h1>Collectes vendeurs</h1><p>Planifiez le passage d'un livreur chez chaque vendeur, suivez-le, puis réceptionnez les colis au dépôt</p></div>${peutRecepHtml()}${collectesSection()}</div>`;
+const peutRecepHtml=()=>can("admin","preparateur")?colRecvSection():"";
+function centreBarre(nav){
+ const T=[["centre","🏠","Accueil"],["livraisons","📦","Affecter"],["collectes","🧺","Collectes"],["carte","🗺","Carte"]].filter(t=>nav.some(n=>n.v===t[0]));
+ return`<nav class="btab noprint" aria-label="Navigation du centre">${T.map(([v,i,l])=>`<button type="button" class="${view===v?"on":""}" data-act="nav" data-id="${v}"><span>${i}</span>${l}${navBadge(v)}</button>`).join("")}<button type="button" data-act="menu"><span>☰</span>Menu</button></nav>`}
 /* ---------- « Aujourd'hui » : ce qu'il y a à faire maintenant, selon le profil ; chaque carte ouvre directement le travail à faire ---------- */
 function aujCartes(){
  const R=[],ok=v=>NAV.some(n=>n.v===v&&voirNav(n)),st=k=>S.commandes.filter(c=>c.statut===k).length;
@@ -6173,6 +6271,7 @@ Object.assign(ACT,{enEnt:id=>{const m=moto(id);if(m)entretienModal(m)},enPlein:i
 document.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.act==="eqKitSel"&&ME&&!CL.on){const l=liv(t.dataset.id);if(l&&can("admin","superviseur")){l.kit=t.value;audit("Métier du livreur (kit)",l.nom+" → "+t.value);save();render()}}});
 
 Object.assign(ACT,{
+ centreGo:id=>{const[v,c]=String(id).split("|");if(c)ui.cdt=c;document.body.classList.remove("menu-open");view=v;window.scrollTo(0,0);render()},
  auj:id=>{const c=aujCartes().find(x=>x.k===id);if(!c)return;if(c.fs!=null)ui.fs=c.fs;if(c.cdt)ui.cdt=c.cdt;document.body.classList.remove("menu-open");view=c.v;window.scrollTo(0,0);render()},
  recherche:()=>{if(!ME||CL.on||!S)return;modal("🔍 Rechercher",`<input id="rq" type="search" placeholder="Commande, client, livreur, vendeur, produit…" autocomplete="off" aria-label="Rechercher"><div class="rqr" id="rqr">${rechercheHtml("")}</div>`,{focus:false});setTimeout(()=>{const i=document.getElementById("rq");if(i)i.focus()},30)},
  rechGo:id=>{const[a,i]=String(id).split("|");closeModal();if(a==="nav")return ACT.nav(i);if(a==="engin"){ui.eqtab="eng";ui.enq=(moto(i)||{}).immat||"";view="equipements";document.body.classList.remove("menu-open");window.scrollTo(0,0);return render()}if(a==="cmdDetail"){view="commandes";render();return setTimeout(()=>ACT.cmdDetail(i),0)}if(a==="expOuvrir"){view="expeditions";render();return setTimeout(()=>ACT.expOuvrir(i),0)}}});
