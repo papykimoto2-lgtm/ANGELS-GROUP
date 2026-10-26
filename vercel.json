@@ -109,6 +109,10 @@
       "destination": "/vendeur.html"
     },
     {
+      "source": "/centre",
+      "destination": "/distribution.html"
+    },
+    {
       "source": "/distribution",
       "destination": "/distribution.html"
     },

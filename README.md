@@ -391,6 +391,13 @@ Chaque module lit désormais ses réglages dans son écran Paramètres (aucune v
 - **Vendeur** (*Mon argent*) : prochain versement en grand, commande par commande (✅ versée, 🔸 en partie, ⏳ à verser, 🕓 paiement client en attente, 🚚 en cours), versements reçus avec **reçu imprimable** et relevé.
 - Test : `node tests/versements-vendeurs.js` (12 contrôles).
 
+## Espace « Centre de livraison » installable (Livraison)
+- Lien dédié : `/centre` (ou `distribution.html?app=centre`), à ouvrir sur le téléphone ou la tablette du centre puis « 📲 Installer le centre de livraison » (Android) ou Partager → « Sur l'écran d'accueil » (iPhone). Même logiciel, mêmes données et mêmes droits que le bureau : rien à synchroniser en plus.
+- Réservé au personnel du bureau (administrateur, superviseur, préparateur…) : les profils livreur et vendeur sont refusés. Thème vert, icône et nom dédiés ; raccourcis d'icône « Affecter les commandes » et « Collectes vendeurs » (`?go=affecter`, `?go=collectes`).
+- **Accueil** par tâches : à affecter, courses en cours, collectes à planifier, à réceptionner, à traiter ; chaque carte ouvre le travail, chaque commande prête a son bouton « Affecter », chaque vendeur à collecter son bouton « Planifier ».
+- Menu réduit au métier : Accueil (+ carte en direct), Affecter & suivre (répartition, tournées, incidents), Collectes, Commandes (+ expéditions, messages), Livreurs (+ équipements), Réglages. Sur téléphone : barre d'onglets en bas (Accueil, Affecter, Collectes, Carte, Menu) avec pastilles de ce qui attend. Argent, stock, RH et comptabilité restent dans l'application complète.
+- Test : `tests/centre-app.js`.
+
 ## Espace vendeur installable (Livraison)
 - Lien dédié : `/vendeur` (ou `distribution.html?app=vendeur`). Le vendeur l'ouvre sur son téléphone, puis « Installer l'espace vendeur » (Android) ou Partager → « Sur l'écran d'accueil » (iPhone).
 - **Interface simplifiée** : le vendeur arrive sur un accueil à grosses tuiles (Nouvelle commande, Mes colis, Mon argent, Aide WhatsApp, Lien client), avec barre du bas (Accueil, Commander, Colis, Argent) et sans menu latéral. La commande se dépose en **3 étapes** (client, articles et photos, paiement). Test : `tests/vendeur-simple.js`.

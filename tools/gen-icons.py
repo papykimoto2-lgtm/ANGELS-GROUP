@@ -6,7 +6,7 @@ CLIENT=sys.argv[1] if len(sys.argv)>1 else ""
 OUT=os.path.join(os.path.dirname(__file__),"..","clients",CLIENT,"icons") if CLIENT else os.path.join(os.path.dirname(__file__),"..","icons")
 os.makedirs(OUT,exist_ok=True)
 FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-APPS={"hub":("AG",(11,59,76),(14,116,144)),"transport":("T",(124,45,18),(194,65,12)),"agro":("A",(26,71,49),(45,106,79)),"livreur":("L",(8,58,70),(8,145,178))}
+APPS={"hub":("AG",(11,59,76),(14,116,144)),"transport":("T",(124,45,18),(194,65,12)),"agro":("A",(26,71,49),(45,106,79)),"livreur":("L",(8,58,70),(8,145,178)),"centre":("C",(6,78,59),(5,150,105))}
 def grad(size,c1,c2):
     im=Image.new("RGB",(size,size));px=im.load()
     for y in range(size):
@@ -29,7 +29,9 @@ def icon(app,size,maskable=False,apple=False):
 if CLIENT=="logistica":
     R1,R2=(122,29,23),(200,53,43)
     APPS={"hub":("LG",R1,R2),"livreur":("L",R1,R2),"vendeur":("V",R1,R2),"placement":("P",(124,70,0),(214,134,16)),"assurance":("A",(20,62,92),(30,110,160))}
+ONLY=os.environ.get("ONLY")   # ex. ONLY=centre : ne régénère que cette application
 for app in APPS:
+    if ONLY and app!=ONLY:continue
     icon(app,192).save(f"{OUT}/{app}-192.png",optimize=True)
     icon(app,512).save(f"{OUT}/{app}-512.png",optimize=True)
     icon(app,512,maskable=True).save(f"{OUT}/{app}-maskable-512.png",optimize=True)

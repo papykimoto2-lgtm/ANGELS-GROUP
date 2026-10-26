@@ -12,7 +12,9 @@
 try{var _t=localStorage.getItem("angels_theme");if(_t&&_t!=="turquoise")document.documentElement.dataset.theme=_t}catch(e){}</script>
 <title>ANGEL'S GROUP ERP — Livraisons</title>
 <script src="passerelle-config.js"></script>
-<script>if(APPV)document.title="Espace vendeur — ANGEL'S GROUP"</script>
+<script>if(APPV)document.title="Espace vendeur — ANGEL'S GROUP"
+/* Centre de livraison installable : ?app=centre ou /centre → manifeste, icône, titre et thème vert dédiés */
+var APPC=/[?&]app=centre/.test(location.search)||/\/centre\/?$/.test(location.pathname);if(APPC){var _q=function(s){return document.querySelector(s)};if(_q('link[rel=manifest]'))_q('link[rel=manifest]').setAttribute("href","manifest-centre.webmanifest");if(_q('link[rel=apple-touch-icon]'))_q('link[rel=apple-touch-icon]').setAttribute("href","icons/centre-apple-180.png");if(_q('link[rel=icon]'))_q('link[rel=icon]').setAttribute("href","icons/centre-192.png");if(_q('meta[name=apple-mobile-web-app-title]'))_q('meta[name=apple-mobile-web-app-title]').setAttribute("content","Centre livraison");if(_q('meta[name=theme-color]'))_q('meta[name=theme-color]').setAttribute("content","#059669");document.title="Centre de livraison — ANGEL'S GROUP";try{if(!localStorage.getItem("angels_theme"))document.documentElement.dataset.theme="emeraude"}catch(e){}}</script>
 <style>
 :root{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6;--bg:#f1f6f8;--card:#fff;--tx:#1b2240;--mu:#6b7390;--ok:#118a4b;--wa:#b86e00;--er:#c62828;--bd:#d6e4ea;--okbg:#e3f5ea;--wabg:#fff1d6;--erbg:#fde5e5;--bbg:#dff3f8}
 *{box-sizing:border-box}
@@ -206,6 +208,8 @@ details.plus>summary{cursor:pointer;color:var(--mu);font-weight:600;font-size:13
 .vsteps{display:flex;gap:6px;margin-bottom:10px}.vsteps i{flex:1;height:6px;border-radius:3px;background:#dde}.vsteps i.on{background:var(--b2)}
 .vnav{display:flex;gap:8px;margin-top:10px}.vnav .btn{flex:1;min-height:48px;font-size:16px}
 .vapp .btn{min-height:44px}.vapp input,.vapp select{min-height:44px;font-size:16px}
+body.appc{padding-bottom:0}.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}.cgrid .card{margin:0}.btab{display:none}
+@media(max-width:1024px){body.appc main{padding-bottom:84px}.btab{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:8500;background:var(--card);border-top:1px solid var(--bd);box-shadow:0 -4px 14px rgba(0,0,0,.12);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}.btab button{flex:1;position:relative;background:none;border:0;color:var(--mu);font:600 11px system-ui;padding:6px 2px;min-height:52px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}.btab button span:first-child{font-size:22px;line-height:1}.btab button.on{color:var(--b);background:var(--bbg);border-radius:10px}.btab .nb{position:absolute;top:2px;right:calc(50% - 26px);background:var(--er);color:#fff;border-radius:9px;font-size:10px;padding:0 5px;min-width:16px;text-align:center}}
 @media print{aside,.noprint{display:none}}
 </style>
 </head>
@@ -263,6 +267,7 @@ const STC={livree:"ok",retour_recu:"ok",echouee:"er",annulee:"mu",brouillon:"mu"
 const LST={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En course",livree:"Livrée",echouee:"Échouée",refusee:"Refusée",reaffectee:"Réaffectée",annulee:"Annulée"};
 const LSTC={livree:"ok",echouee:"er",refusee:"er",reaffectee:"mu",annulee:"mu",en_cours:"wa",affectee:"wa"};
 const HORS_BUREAU=u=>u.role==="vendeur"||(u.role==="livreur"&&(S.livreurs||[]).some(l=>l.user_id===u.id&&l.type==="externe"));
+const HORS_CENTRE=u=>u.role==="vendeur"||u.role==="livreur";   // l'espace du centre est réservé au personnel du bureau
 const ROLES={admin:"Administrateur",direction:"Direction générale",superviseur:"Superviseur des livraisons",commercial:"Responsable commercial",preparateur:"Préparateur",caissier:"Caissier",livreur:"Livreur",vendeur:"Vendeur partenaire"};
 const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande → stock/préparation → livraison → argent → contrôle → administration
  {v:"aujourdhui",l:"Aujourd'hui",i:"🏠",g:"Pilotage",r:["admin","direction","superviseur","commercial","preparateur","caissier"]},
@@ -297,6 +302,8 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"donnees_test",l:"Données de test",i:"🧪",g:"Administration",r:["admin"]},
  {v:"production",l:"Passage en production",i:"🚀",g:"Administration",r:["admin"]},
  {v:"params",l:"Paramètres",i:"⚙️",g:"Administration",r:["admin"]},
+ {v:"centre",l:"Accueil",i:"🏠",g:"Centre de livraison",r:["admin","superviseur","preparateur"]},
+ {v:"collectes",l:"Collectes",i:"🧺",g:"Centre de livraison",r:["admin","superviseur","preparateur"]},
  {v:"vHome",l:"Accueil",i:"🏠",g:"Mon espace",r:["vendeur"]},
  {v:"mesCmd",l:"Mes colis",i:"📦",g:"Mon espace",r:["vendeur"]},
  {v:"vExp",l:"Mes expéditions",i:"🚚",g:"Mon espace",r:["vendeur"]},
@@ -329,7 +336,8 @@ function garde(roles,l,d){
  return true}
 const can=(...roles)=>{if(!ME)return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);if(!ov)return roles.includes(ME.role);const a=ANGELS_ROLES.atomeDe("distribution",roles);return!!a&&ov.has(a)};   /* rôles personnalisés / modifiés : droits du gestionnaire de rôles */
 const canA=a=>!!ME&&ANGELS_ROLES.a("distribution",S,ME.role,a);
-const voirNav=n=>{const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
+const APPC_V=["centre","livraisons","collectes","carte","incidents","commandes","expeditions","livreurs","equipements","notifs","params"];   // écrans de l'espace Centre de livraison (le reste du logiciel reste dans l'application complète)
+const voirNav=n=>{if(n.v==="centre"||n.v==="collectes"){if(!APPC)return false}else if(APPC&&!APPC_V.includes(n.v))return false;const ov=ANGELS_ROLES.surcharge("distribution",S,ME.role);return ov?ov.has("v."+n.v):n.r.includes(ME.role)};
 /* Jauge de la mémoire locale (≈ 5 millions de caractères par application) : avertit une fois par session à 70 % */
 function stockJauge(n){const pct=Math.round(n/50000);window.__stock={chars:n,pct};if(pct>=70&&!window.__stockWarn){window.__stockWarn=1;setTimeout(()=>toast("Mémoire locale à "+pct+" % : faites une sauvegarde (Paramètres), allégez les photos ou passez en mode serveur","err"),0)}}
 function save(){if(CL.on)return;setTimeout(()=>{try{pontSync()}catch(e){}try{passSync()}catch(e){}},0);try{ANGELS_SYNC.signal()}catch(e){}try{const js=JSON.stringify(S);localStorage.setItem(KEY,js);stockJauge(js.length)}catch(e){toast("Stockage local plein ou indisponible : exportez une sauvegarde puis archivez ou passez en mode serveur","err")}try{localStorage.setItem("ang_lv_idents",JSON.stringify((S.livreurs||[]).filter(l=>l.ident_serveur&&!l.archive).map(l=>({i:l.ident_serveur,n:l.nom}))))}catch(e){}try{if(typeof etatCompta==="function"&&S.compta)localStorage.setItem("angels_compta_distribution",JSON.stringify(etatCompta()))}catch(e){}try{if(typeof majPortail==="function"&&S&&S.produits&&S.config)majPortail()}catch(e){}}
@@ -853,7 +861,12 @@ const HERO_V=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;
  <li><span class="i">📦</span><div><b>Collecte de vos colis</b>Votre code à 4 chiffres, remis au livreur contre les colis.</div></li>
  <li><span class="i">🏍️</span><div><b>Suivi des livraisons</b>Chaque commande, de la confirmation à la remise au client.</div></li>
  <li><span class="i">💰</span><div><b>Vos règlements</b>Ce qui vous est dû, clairement.</div></li></ul><div class="sanix" style="margin-top:18px;font-size:12px;opacity:.85">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</div></div>`;
-const HERO=APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
+const HERO_C=`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Centre de livraison</h1><p>Affectez les commandes, suivez les livreurs, organisez les collectes chez les vendeurs.</p>
+ <ul><li><span class="i">📦</span><div><b>Affecter en un geste</b>Les commandes prêtes, par zone, au bon livreur.</div></li>
+ <li><span class="i">🏍️</span><div><b>Suivi des courses</b>Qui livre quoi, où il se trouve, ce qui est en retard.</div></li>
+ <li><span class="i">🧺</span><div><b>Collectes chez les vendeurs</b>Planifiées, suivies, réceptionnées au dépôt.</div></li>
+ <li><span class="i">⚠️</span><div><b>Incidents et retours</b>Rien ne se perd : chaque écart est à traiter.</div></li></ul><div class="sanix" style="margin-top:18px;font-size:12px;opacity:.85">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</div></div>`;
+const HERO=APPC?HERO_C:APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-spacing:2px;opacity:.8">${ORG()}</div><h1>Chaque colis suivi, chaque franc encaissé, chaque client prévenu.</h1><p>Le logiciel de gestion de vos livraisons à moto — du bon de commande à la preuve de livraison.</p>
  <ul><li><span class="i">📍</span><div><b>Adresse sur carte pour le livreur</b>Le client place lui-même son repère depuis son téléphone.</div></li>
  <li><span class="i">🏷️</span><div><b>Étiquette QR sur chaque colis</b>Scan au départ et à la remise : aucun colis perdu ou échangé.</div></li>
  <li><span class="i">🔐</span><div><b>Code de livraison + signature</b>La livraison n'est validée que par le client.</div></li>
@@ -862,15 +875,15 @@ const HERO=APPV?HERO_V:`<div class="hero-l"><div style="font-size:13px;letter-sp
 function demoFill(b){const f=document.getElementById("lf");if(!f)return;const d=f.closest("details");if(d)d.open=true;f.u.value=b.dataset.id;(f.p||f.pin).value=ANGELS_AUTH.DEMO_MDP;document.querySelectorAll(".pcard").forEach(c=>c.classList.toggle("on",c===b));const s=f.querySelector("button:not(.aa-e)");if(s)s.focus()}
 const DEMO_P=[["admin","🛡️","Administrateur","Tout voir et tout régler"],["superviseur","🏍️","Superviseur","Affecter, suivre les courses"],["commercial","📞","Commercial","Prendre les commandes"],["preparateur","📦","Préparateur","Préparer, étiqueter"],["caissier","💰","Caissier","Reversements, écarts"],["direction","📊","Direction","Tableau de bord, marges"],["livreur","🛵","Livreur","Mission, scan, carte, code"],["vendeur","🏪","Vendeur partenaire","Déposer ses commandes"]];
 function loginHTMLLocal(){
- const act=S.users.filter(u=>u.actif&&(!APPV||u.role==="vendeur"));
- const demo=ANGELS_AUTH.demoOn(),cards=!demo?"":DEMO_P.filter(x=>!APPV||x[0]==="vendeur").map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
- return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">${APPV?"Connexion vendeur":demo?"Essayez sans rien installer":"Connexion"}</div><div class="mu sm">${APPV?"Choisissez votre profil, puis « Se connecter ».":demo?"Choisissez un profil : utilisateur et mot de passe se remplissent, puis « Se connecter ».":"Identifiez-vous avec votre utilisateur et votre mot de passe."}</div>
+ const act=S.users.filter(u=>u.actif&&(APPC?!HORS_CENTRE(u):(!APPV||u.role==="vendeur")));
+ const demo=ANGELS_AUTH.demoOn(),cards=!demo?"":DEMO_P.filter(x=>APPC?["superviseur","preparateur"].includes(x[0]):(!APPV||x[0]==="vendeur")).map(([r,ic,t,d])=>{const u=act.find(x=>x.role===r);return u?`<button type="button" class="pcard" data-act="demoIn" data-id="${u.id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${d}</small></span></button>`:""}).join("");
+ return`<div class="login hero">${HERO}<div class="hero-r"><div style="font-size:20px;font-weight:800;color:var(--b2)">${APPC?"Connexion du centre":APPV?"Connexion vendeur":demo?"Essayez sans rien installer":"Connexion"}</div><div class="mu sm">${APPC||APPV?"Choisissez votre profil, puis « Se connecter ».":demo?"Choisissez un profil : utilisateur et mot de passe se remplissent, puis « Se connecter ».":"Identifiez-vous avec votre utilisateur et votre mot de passe."}</div>
  ${demo?`<div class="pcards">${cards}</div>`:""}
  <details ${demo?"":"open"}><summary class="mu sm" style="cursor:pointer">Connexion avec un mot de passe</summary><form id="lf" style="margin-top:8px"><label>Utilisateur<select name="u">${act.map(u=>`<option value="${u.id}">${esc(u.nom)} — ${ROLES[u.role]}</option>`).join("")}</select></label>
  <label style="margin-top:10px">Mot de passe<input name="pin" type="password" autocomplete="current-password" required></label>
  <button class="btn" style="width:100%;margin-top:12px">Se connecter</button></form>
  ${demo?`<div class="al warn sm" style="margin-top:10px">Mot de passe de démonstration (tous les profils) : <b>Demo@Angels2026</b>.</div>`:`<div class="mu sm" style="margin-top:10px">Mot de passe oublié ? Demandez sa réinitialisation à l'administrateur.</div>`}</details>
- <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
+ <div style="margin-top:14px"><div class="mu sm" style="margin-bottom:6px">Couleur du logiciel</div>${themeDots()}</div><div style="margin-top:14px">${instBox()}</div>${APPV||APPC||!demo?"":'<div class="mu sm" style="margin-top:12px">💡 Ouvrez un second onglet pour jouer le livreur pendant que vous supervisez.</div>'}</div></div>`}
 
 /* ---------- Gabarit ---------- */
 function render(){try{ANGELS_ROLES.majRoles("distribution",S,ROLES)}catch(e){}render0();try{essaiBandeau()}catch(e){}try{pgVoyant()}catch(e){}try{ANGELS_HABILLAGE.appliquer()}catch(e){}try{sosBar()}catch(e){}try{fabCmd()}catch(e){}try{alSonner()}catch(e){}carteHook();refreshInstall();if(window.__shareReady)window.__shareReady.then(()=>{shareHook()});else shareHook()}
@@ -879,8 +892,8 @@ function render0(){
  if(!ME){$("#app").innerHTML=loginHTML();return}
  if(ME.role==="vendeur"&&!ANGELS_ROLES.surcharge("distribution",S,ME.role)){if(!["vHome","mesCmd","mesReg","vExp"].includes(view))view="vHome";$("#app").innerHTML=vendeurHTML();return}
  if(ME.role==="livreur"){$("#app").innerHTML=livreurHTML()+sosBtnHTML;syncGPS();initMaps();setTimeout(offreCheck,0);return}
- const nav=NAV.filter(voirNav).filter(n=>!(CL.on&&n.v==="aujourdhui"));if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(!nav.find(n=>n.v===view))view=nav[0].v;
- $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const m=modOf(view),n=nav.find(x=>x.v===view);return m?m.i+" "+m.l+(n&&n.l!==m.l?" · "+n.l:""):n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}<a class="srch" data-act="recherche" role="button">🔍 Rechercher <small>/</small></a>${modNavHtml(nav)}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${modTabsHtml(nav)}${VIEWS[view]()}</main></div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
+ const nav=NAV.filter(voirNav).filter(n=>!(CL.on&&n.v==="aujourdhui"));if(!nav.length){$("#app").innerHTML='<div class="login"><div class="card">Ce rôle n\'a accès à aucun écran. Contactez l\'administrateur. <a data-act="logout" href="#">Déconnexion</a></div></div>';return}if(APPC&&!ui.__c0){ui.__c0=1;view="centre";const g=(location.search.match(/[?&]go=(\w+)/)||[])[1];if(g==="affecter"){view="livraisons";ui.cdt="rep"}else if(g==="collectes")view="collectes"}if(!nav.find(n=>n.v===view))view=(APPC&&nav.find(n=>n.v==="centre")?"centre":nav[0].v);
+ $("#app").innerHTML=`<div class="shell"><div id="navbk" data-act="menuClose"></div><aside><div class="mbar"><button type="button" class="burger" data-act="menu" aria-label="Menu" aria-expanded="false" aria-controls="navp" data-n="${nav.reduce((t,n)=>t+navN(n.v),0)}">☰</button><span class="mtit">${(()=>{const m=modOf(view),n=nav.find(x=>x.v===view);return m?m.i+" "+m.l+(n&&n.l!==m.l?" · "+n.l:""):n?n.i+" "+n.l:""})()}</span><span class="clk mclk" data-k="t">${clkT().slice(0,5)}</span></div><div class="navp" id="navp"><div class="brand">${ORG()+"<small>"+esc(cfv("org_sous"))+"</small>"}</div>${clkBox()}<a class="srch" data-act="recherche" role="button">🔍 Rechercher <small>/</small></a>${modNavHtml(nav)}<div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">👤 ${esc(ME.nom)}<br><span style="opacity:.7">${ROLES[ME.role]}</span><div class="themes">${THEMES.map(([k,t,c])=>`<button type="button" class="${themeCur()===k?"on":""}" style="background:${c}" data-act="theme" data-id="${k}" title="${t}" aria-label="${t}"></button>`).join("")}</div><div style="margin:8px 0 2px">${instBox()}</div>${APPV||APPC?"":'<a href="index.html" style="padding:6px 0;display:block">🏠 Accueil groupe</a>'}<a data-act="sigDev" style="padding:6px 0;display:block">🔔 Sons de cette tablette</a><a data-act="mdpMe" style="padding:6px 0;display:block">🔑 Mon mot de passe</a><a data-act="logout" style="padding:6px 0">⏏ Déconnexion</a></div></div></aside><main>${modTabsHtml(nav)}${VIEWS[view]()}</main>${APPC?centreBarre(nav):""}</div>`;{const o=document.body.classList.contains("menu-open"),b=document.querySelector(".burger");if(b){b.setAttribute("aria-expanded",o?"true":"false");b.textContent=o?"✕":"☰"}}}
 
 /* ============================================================
    VUES
@@ -951,7 +964,7 @@ const instBox=()=>`<div class="inst"></div>`;
 function refreshInstall(){
  let h="";
  if(!isStandalone()&&/^https?:$/.test(location.protocol)){
-  if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer ${APPV?"l'espace vendeur":"l'application"}</button>`;
+  if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer ${APPC?"le centre de livraison":APPV?"l'espace vendeur":"l'application"}</button>`;
   else if(isIOS())h=`<div class="sm mu">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l'écran d'accueil</b>.</div>`}
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;refreshInstall()});
@@ -1354,7 +1367,7 @@ function versPending(){
  const L=(S.versements||[]).filter(v=>v.statut==="declare").sort((a,b)=>new Date(a.cree_le)-new Date(b.cree_le));if(!L.length)return"";
  return`<div class="card" style="margin:0 0 12px;border-left:4px solid var(--b)"><b>📲 Versements Mobile Money déclarés à valider (${L.length})</b><div class="sm mu">Vérifiez dans votre application Mobile Money que la somme est bien arrivée avec cette référence.</div>
  ${tbl(["Date","Livreur","Montant","Opérateur","Référence","Note",""],L.map(v=>`<tr><td>${fdt(v.cree_le)}</td><td><b>${esc((liv(v.livreur_id)||{}).nom||"?")}</b></td><td><b>${fcfa(v.montant)}</b></td><td>${esc(v.mode)}</td><td><code>${esc(v.ref)}</code></td><td class="sm">${esc(v.note||"")}</td><td>${can("admin","caissier")?`<button class="btn sm ok" data-act="versOk" data-id="${v.id}">✔ Encaissé — valider</button> <button class="btn sm er" data-act="versNo" data-id="${v.id}">Rejeter</button>`:""}</td></tr>`))}</div>`}
-const navN=v=>{if(v==="tresorerie"&&can("admin","caissier","direction"))return tresoNb(tresoDonnees());if(v==="finance"&&can("admin","caissier","direction"))return versAttenteN()+clotAttenteN();if(v==="caisse"&&can("admin","direction"))return(S.caisse_mvts||[]).filter(m=>m.statut==="en_attente").length+(dgPeut()?dgAFaire():0);return 0};
+const navN=v=>{if(APPC&&(v==="centre"||v==="livraisons"||v==="collectes")){const D=centreDonnees();return v==="livraisons"?D.prete.length+D.trt:v==="collectes"?D.aColl+D.aRecep.length:0}if(v==="tresorerie"&&can("admin","caissier","direction"))return tresoNb(tresoDonnees());if(v==="finance"&&can("admin","caissier","direction"))return versAttenteN()+clotAttenteN();if(v==="caisse"&&can("admin","direction"))return(S.caisse_mvts||[]).filter(m=>m.statut==="en_attente").length+(dgPeut()?dgAFaire():0);return 0};
 const navBadge=v=>{const n=navN(v);return n?`<span class="nb" title="À traiter">${n}</span>`:""};
 const versAttenteN=()=>(S.versements||[]).filter(v=>v.statut==="declare").length;
 const versBadge=v=>v.statut==="valide"?badge("✅ Encaissé","ok"):v.statut==="rejete"?badge("✖ Rejeté","er"):badge("⏳ En validation","wa");
@@ -4084,6 +4097,7 @@ document.addEventListener("submit",e=>{
    else if(r!==false&&ui.mid===mid)closeModal()}}
  if(e.target.id==="lf"){e.preventDefault();if(CL.on)return CL.login(e.target);const d=Object.fromEntries(new FormData(e.target)),u=usr(d.u),bt=e.target.querySelector("button");
   const tr0=u&&((S.tries=S.tries||{})[u.id]||(S.tries[u.id]={n:0,until:0}));if(tr0&&Date.now()<tr0.until){ANGELS_AUTH.trace(S,{app:"distribution",uid:u.id,nom:u.nom,role:u.role,ev:"bloque",motif:"Compte bloqué après trop de tentatives"});try{save()}catch(e){}return toast("Compte bloqué "+cfv("blocage_min")+" minute(s) (trop de tentatives)","err")}
+  if(u&&APPC&&HORS_CENTRE(u))return toast("Cet espace est réservé au personnel du centre de livraison","err");
   if(u&&APPV&&u.role!=="vendeur")return toast("Cet espace est réservé aux vendeurs partenaires","err");
   if(u&&!APPV&&u.role==="vendeur")return toast("Les vendeurs partenaires utilisent leur propre application (lien « Espace vendeur »)","err");
   if(u&&!APPV&&u.role==="livreur"&&PASS())return toast("Les livreurs utilisent leur propre application (livreur.html)","err");
@@ -5116,7 +5130,7 @@ Object.assign(CL,{
  async fn(name,body){const{data,error}=await CL.sb.functions.invoke(name,{body});if(error){let m=error.message;try{const j=await error.context.json();m=j.erreur||m}catch(e){}throw new Error(m)}if(data&&data.erreur)throw new Error(data.erreur);return data},
  async go(fn,msg,after){try{await fn();await refresh();const m=typeof msg==="function"?msg():msg;if(m)toast(m,"ok");render();if(after)after();return true}catch(e){toast(fixErr(e),"err");return false}},
  async login(form){const d=Object.fromEntries(new FormData(form));
-  try{const{data,error}=await CL.sb.auth.signInWithPassword({email:toEmail(d.ident),password:d.pwd});if(error)throw new Error("Identifiant ou mot de passe incorrect");CL.uid=data.user.id;await refresh();if(APPV&&(!ME||ME.role!=="vendeur"))throw new Error("Cet espace est réservé aux vendeurs partenaires");if(!APPV&&ME&&ME.role==="vendeur")throw new Error("Les vendeurs partenaires utilisent leur propre application");if(!APPV&&ME&&ME.role==="livreur"&&PASS())throw new Error("Les livreurs utilisent leur propre application (livreur.html)");view="dashboard";render()}
+  try{const{data,error}=await CL.sb.auth.signInWithPassword({email:toEmail(d.ident),password:d.pwd});if(error)throw new Error("Identifiant ou mot de passe incorrect");CL.uid=data.user.id;await refresh();if(APPC&&ME&&HORS_CENTRE(ME))throw new Error("Cet espace est réservé au personnel du centre de livraison");if(APPV&&(!ME||ME.role!=="vendeur"))throw new Error("Cet espace est réservé aux vendeurs partenaires");if(!APPV&&ME&&ME.role==="vendeur")throw new Error("Les vendeurs partenaires utilisent leur propre application");if(!APPV&&ME&&ME.role==="livreur"&&PASS())throw new Error("Les livreurs utilisent leur propre application (livreur.html)");view="dashboard";render()}
   catch(e){try{await CL.sb.auth.signOut()}catch(x){}ME=null;CL.uid=null;toast(fixErr(e),"err")}},
  async logout(){try{await CL.sb.auth.signOut()}catch(e){}ME=null;CL.uid=null;CL.pos={};S=emptyS();render()},
  /* ---- commandes ---- */
@@ -6109,13 +6123,20 @@ function hzSection(){const c=hzCfg(),ev=(S.hz_events||[]).slice().sort((a,b)=>ne
 /* Préférences d'affichage de l'appareil */
 let PREF={};try{PREF=JSON.parse(localStorage.getItem("angels_pref")||"{}")||{}}catch(e){PREF={}}
 const ECO=()=>!!PREF.eco;
-function applyPref(){document.body.classList.toggle("gros",!!PREF.gros);document.body.classList.toggle("eco",!!PREF.eco)}applyPref();
+function applyPref(){document.body.classList.toggle("appc",!!APPC);document.body.classList.toggle("gros",!!PREF.gros);document.body.classList.toggle("eco",!!PREF.eco)}applyPref();
 function prefsForm(){modal("⚙️ Préférences d'affichage",`<label style="display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--tx);font-weight:600"><input type="checkbox" id="pf_g" style="width:auto;margin-top:4px" ${PREF.gros?"checked":""}> <span>🔠 Gros caractères et gros boutons<br><span class="sm mu" style="font-weight:400">Plus facile à lire et à toucher, en moto ou en plein soleil.</span></span></label>
  <label style="display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--tx);font-weight:600;margin-top:12px"><input type="checkbox" id="pf_e" style="width:auto;margin-top:4px" ${PREF.eco?"checked":""}> <span>📶 Économie de données<br><span class="sm mu" style="font-weight:400">Pas de vignettes, photos envoyées plus légères, vérification des nouvelles courses moins fréquente, cartes seulement à la demande.</span></span></label>
  <div class="sm mu" style="margin-top:10px">Ces réglages sont mémorisés sur ce téléphone.</div>`,{label:"Enregistrer",onSubmit:()=>{PREF={gros:$("#pf_g").checked,eco:$("#pf_e").checked};try{localStorage.setItem("angels_pref",JSON.stringify(PREF))}catch(e){}applyPref();closeModal();render();return true}})}
 
 /* ---------- Navigation en modules : 8 entrées au lieu de 30 ; chaque écran garde son identifiant (droits, tests, liens) et s'ouvre dans les onglets de son module ---------- */
-const MODULES=[
+const MODULES_C=[
+ {id:"cen",l:"Accueil",i:"🏠",vues:[["centre","Accueil"],["carte","Carte en direct"]]},
+ {id:"liv",l:"Affecter & suivre",i:"🏍️",vues:[["livraisons","Répartition et suivi"],["incidents","Incidents & retours"]]},
+ {id:"col",l:"Collectes",i:"🧺",vues:[["collectes","Collectes"]]},
+ {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["expeditions","Expéditions"],["notifs","Messages clients"]]},
+ {id:"eqp",l:"Livreurs",i:"🛵",vues:[["livreurs","Livreurs & motos"],["equipements","Équipements & engins"]]},
+ {id:"adm",l:"Réglages",i:"⚙️",vues:[["params","Paramètres"]]}];
+const MODULES_B=[
  {id:"auj",l:"Aujourd'hui",i:"🏠",vues:[["aujourdhui","Aujourd'hui"],["dashboard","Tableau de bord"],["carte","Carte en direct"]]},
  {id:"cmd",l:"Commandes",i:"🧾",vues:[["commandes","Commandes"],["vente_ligne","Vente en ligne"],["notifs","Messages clients"]]},
  {id:"liv",l:"Livraison",i:"🏍️",vues:[["livraisons","Centre de livraison"],["expeditions","Expéditions"],["livreurs","Livreurs & motos"],["equipements","Équipements & engins"],["maintenance","Maintenance (GMAO)"],["incidents","Incidents & retours"]]},
@@ -6124,6 +6145,7 @@ const MODULES=[
  {id:"tie",l:"Clients & offres",i:"👥",vues:[["clients","Clients"],["vendeurs","Vendeurs partenaires"],["abonnements","Abonnements"],["prestations","Prestations"]]},
  {id:"doc",l:"Documents & contrôle",i:"📄",vues:[["etats","États périodiques"],["documents","Documents"],["audit","Journal d'audit"]]},
  {id:"adm",l:"Administration",i:"⚙️",vues:[["rh","RH et paie"],["utilisateurs","Utilisateurs"],["donnees_test","Données de test"],["production","Passage en production"],["params","Paramètres"]]}];
+const MODULES=APPC?MODULES_C:MODULES_B;
 const MOD_DERN={};
 const modOf=v=>MODULES.find(m=>m.vues.some(x=>x[0]===v))||null;
 const vuesVisibles=(m,nav)=>m.vues.filter(([v])=>nav.some(n=>n.v===v));
@@ -6131,6 +6153,34 @@ function modNavHtml(nav){return MODULES.map(m=>{const L=vuesVisibles(m,nav);if(!
  return`<a class="${cur?"on":""}" data-act="nav" data-id="${cible}" data-mod="${m.id}" title="${esc(L.map(x=>x[1]).join(" · "))}">${m.i} ${m.l}${n?`<span class="nb" title="À traiter">${n}</span>`:""}</a>`}).join("")}
 function modTabsHtml(nav){const m=modOf(view);if(!m)return"";const L=vuesVisibles(m,nav);MOD_DERN[m.id]=view;if(L.length<2)return"";
  return`<div class="mtabs noprint" role="tablist" aria-label="${esc(m.l)}">${L.map(([v,l])=>`<a role="tab" aria-selected="${v===view}" class="${v===view?"on":""}" data-act="nav" data-id="${v}">${esc(l)}${navBadge(v)}</a>`).join("")}</div>`}
+/* ---------- Espace « Centre de livraison » (installable, ?app=centre) : accueil par tâches, collectes, barre d'onglets mobile ---------- */
+function centreDonnees(){
+ const prete=S.commandes.filter(c=>c.statut==="prete"&&!expOuverte(c)).sort((a,b)=>(b.priorite==="urgente")-(a.priorite==="urgente")||zoneDe(a).localeCompare(zoneDe(b))||new Date(a.date)-new Date(b.date)),
+  act=S.livraisons.filter(isActive),
+  aColl=S.vendeurs.reduce((t,v)=>t+aCollecter(v.id).length,0),
+  collOuv=(S.collectes||[]).filter(colOpen),
+  aRecep=(S.collectes||[]).filter(c=>c.statut==="collectee"),
+  echoues=S.commandes.filter(c=>c.statut==="echouee").length,ecarts=S.livraisons.filter(l=>l.ecart_statut==="a_valider").length;
+ return{prete,act,aColl,collOuv,aRecep,echoues,ecarts,trt:echoues+ecarts}}
+const centreLieu=c=>[c.adr&&c.adr.zone,c.adr&&c.adr.quartier].filter(Boolean).join(" · ");
+VIEWS.centre=()=>{
+ const D=centreDonnees(),h=new Date().getHours(),pend=S.vendeurs.map(v=>({v,L:aCollecter(v.id)})).filter(x=>x.L.length);
+ const kp=(v,cdt,ic,n,l,c)=>`<button type="button" class="carte ${c||""}" data-act="centreGo" data-id="${v}|${cdt}"><span class="ic">${ic}</span><b>${n}</b><span>${l}</span></button>`;
+ const peutAff=can("admin","superviseur"),peutRecep=can("admin","preparateur");
+ const bloc=(t,n,corps,vide)=>`<section class="card"><div class="between"><h2 style="margin:0">${t}${n!=null?` <span class="mu">(${n})</span>`:""}</h2></div>${corps||`<div class="mu sm" style="margin-top:8px">${vide}</div>`}</section>`;
+ const aff=D.prete.slice(0,6).map(c=>{const cl=cli(c.client_id)||{};return`<div class="rpk"><div class="between"><span><b>${esc(c.numero)}</b> ${c.priorite==="urgente"?badge("URGENT","er"):""}</span>${peutAff?`<button class="btn sm" data-act="assign" data-id="${c.id}">🏍 Affecter</button>`:""}</div><div class="sm">${esc(cl.nom||"")} · ${esc(centreLieu(c)||"—")}</div></div>`}).join("")+(D.prete.length>6?`<a href="#" data-act="centreGo" data-id="livraisons|rep">Voir les ${D.prete.length} commandes →</a>`:"");
+ const cours=D.act.slice(0,8).map(l=>{const c=cmd(l.commande_id)||{},lv=liv(l.livreur_id)||{},p=S.pos[l.livreur_id];return`<div class="rpk"><div class="between"><span><b>${esc(c.numero||"")}</b> · ${esc(lv.nom||"—")}</span>${lb(l)}</div><div class="sm mu">${esc(centreLieu(c)||"—")}${p?" · "+esc(fraicheur(p).t):""}</div></div>`}).join("");
+ const colP=pend.slice(0,5).map(x=>`<div class="rpk"><div class="between"><span><b>${esc(x.v.nom)}</b> <span class="mu sm">${x.L.length} commande(s)</span></span>${peutAff?`<button class="btn sm" data-act="colPlan" data-id="${x.v.id}">🚚 Planifier</button>`:""}</div><div class="sm mu">${esc(colAdrTxt(x.v.adresse_collecte))}</div></div>`).join("");
+ const colO=D.collOuv.map(c=>`<div class="rpk"><div class="between"><span><b>${esc(c.numero)}</b> · ${esc(colVend(c))}</span>${colBadge(c)}</div><div class="sm mu">par ${esc(colLiv(c))}${c.creneau?" · "+fdt(c.creneau):""}</div>${c.statut==="collectee"&&peutRecep?`<button class="btn sm ok" data-act="colRecv" data-id="${c.id}">📥 Réceptionner</button>`:""}</div>`).join("");
+ return`<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${D.prete.length+D.aColl+D.aRecep.length+D.trt?"Voici ce que le centre doit traiter maintenant.":"Tout est à jour au centre."}</div>
+ <div class="cartes">${kp("livraisons","rep","📦",D.prete.length,"à affecter",D.prete.length?"wa":"")}${kp("livraisons","rep","🏍",D.act.length,"courses en cours")}${kp("collectes","",'🧺',D.aColl,"collectes à planifier",D.aColl?"wa":"")}${kp("collectes","",'📥',D.aRecep.length,"à réceptionner",D.aRecep.length?"wa":"")}${kp("incidents","","⚠",D.trt,"à traiter",D.trt?"er":"")}</div>
+ <div class="rac noprint"><button class="btn" data-act="centreGo" data-id="livraisons|rep" style="width:auto">📦 Affecter les commandes</button><button class="btn ghost" data-act="centreGo" data-id="collectes|" style="width:auto">🧺 Collectes vendeurs</button><button class="btn ghost" data-act="centreGo" data-id="carte|" style="width:auto">🗺 Carte en direct</button></div>
+ <div class="cgrid">${bloc("📦 À affecter",D.prete.length,aff,"🎉 Aucune commande en attente d'un livreur.")}${bloc("🏍 Courses en cours",D.act.length,cours,"Aucune course en cours.")}${bloc("🧺 Collectes à planifier",pend.length,colP,"Aucune commande confirmée à récupérer chez un vendeur.")}${bloc("🚚 Collectes en cours",D.collOuv.length,colO,"Aucune collecte en cours.")}</div></div>`};
+VIEWS.collectes=()=>`<div class="cdl"><div class="ban"><h1>Collectes vendeurs</h1><p>Planifiez le passage d'un livreur chez chaque vendeur, suivez-le, puis réceptionnez les colis au dépôt</p></div>${peutRecepHtml()}${collectesSection()}</div>`;
+const peutRecepHtml=()=>can("admin","preparateur")?colRecvSection():"";
+function centreBarre(nav){
+ const T=[["centre","🏠","Accueil"],["livraisons","📦","Affecter"],["collectes","🧺","Collectes"],["carte","🗺","Carte"]].filter(t=>nav.some(n=>n.v===t[0]));
+ return`<nav class="btab noprint" aria-label="Navigation du centre">${T.map(([v,i,l])=>`<button type="button" class="${view===v?"on":""}" data-act="nav" data-id="${v}"><span>${i}</span>${l}${navBadge(v)}</button>`).join("")}<button type="button" data-act="menu"><span>☰</span>Menu</button></nav>`}
 /* ---------- « Aujourd'hui » : ce qu'il y a à faire maintenant, selon le profil ; chaque carte ouvre directement le travail à faire ---------- */
 function aujCartes(){
  const R=[],ok=v=>NAV.some(n=>n.v===v&&voirNav(n)),st=k=>S.commandes.filter(c=>c.statut===k).length;
@@ -6221,6 +6271,7 @@ Object.assign(ACT,{enEnt:id=>{const m=moto(id);if(m)entretienModal(m)},enPlein:i
 document.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.act==="eqKitSel"&&ME&&!CL.on){const l=liv(t.dataset.id);if(l&&can("admin","superviseur")){l.kit=t.value;audit("Métier du livreur (kit)",l.nom+" → "+t.value);save();render()}}});
 
 Object.assign(ACT,{
+ centreGo:id=>{const[v,c]=String(id).split("|");if(c)ui.cdt=c;document.body.classList.remove("menu-open");view=v;window.scrollTo(0,0);render()},
  auj:id=>{const c=aujCartes().find(x=>x.k===id);if(!c)return;if(c.fs!=null)ui.fs=c.fs;if(c.cdt)ui.cdt=c.cdt;document.body.classList.remove("menu-open");view=c.v;window.scrollTo(0,0);render()},
  recherche:()=>{if(!ME||CL.on||!S)return;modal("🔍 Rechercher",`<input id="rq" type="search" placeholder="Commande, client, livreur, vendeur, produit…" autocomplete="off" aria-label="Rechercher"><div class="rqr" id="rqr">${rechercheHtml("")}</div>`,{focus:false});setTimeout(()=>{const i=document.getElementById("rq");if(i)i.focus()},30)},
  rechGo:id=>{const[a,i]=String(id).split("|");closeModal();if(a==="nav")return ACT.nav(i);if(a==="engin"){ui.eqtab="eng";ui.enq=(moto(i)||{}).immat||"";view="equipements";document.body.classList.remove("menu-open");window.scrollTo(0,0);return render()}if(a==="cmdDetail"){view="commandes";render();return setTimeout(()=>ACT.cmdDetail(i),0)}if(a==="expOuvrir"){view="expeditions";render();return setTimeout(()=>ACT.expOuvrir(i),0)}}});
