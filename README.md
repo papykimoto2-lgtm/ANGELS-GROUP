@@ -264,6 +264,9 @@ Fin de tournée : le livreur (écran **🏁 Ma tournée**) voit ses courses livr
 - Garde-fous : seules des pages de l'application sont acceptées (pas de redirection vers un site externe) ; création réservée au bureau (clé d'administration) ; hors ligne, sans passerelle ou en cas d'erreur, le lien long est conservé.
 - Déploiement : exécuter `030_liens_courts.sql`, déployer la fonction `lien-court` (verify_jwt désactivé).
 
+## Aperçu avant impression : fermeture (tests/apercu-fermeture.js)
+- Correctif : « Fermer », la touche Échap et le clic hors de la fenêtre ferment réellement l'aperçu (la règle d'affichage de la fenêtre l'emportait sur l'attribut « caché » : le document se vidait mais la fenêtre restait à l'écran). Valable dans toutes les applications qui utilisent le moteur d'impression.
+
 ## Collecte des colis chez le vendeur
 Une fois les commandes d'un vendeur confirmées, ANGEL'S GROUP passe récupérer les colis chez lui :
 1. **Superviseur / administrateur** : *Centre de livraison → Collectes chez les vendeurs* liste, par vendeur, les commandes confirmées à collecter. **🚚 Planifier la collecte** : choix des commandes, du livreur, du créneau de passage et de l'adresse de collecte (mémorisée sur la fiche du vendeur). Un tableau suit les collectes (réaffecter, annuler avec motif, imprimer le **bon de collecte**). Alertes sur le tableau de bord : commandes à collecter, collecte non réalisée, créneau dépassé.
