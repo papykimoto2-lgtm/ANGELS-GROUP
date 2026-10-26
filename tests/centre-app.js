@@ -61,6 +61,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await entrer(p,"préparateur".replace("é","e").replace("é","e"));
  r=await p.evaluate(()=>({view,aff:document.querySelectorAll('[data-act="assign"]').length,mods:[...document.querySelectorAll(".navp a[data-mod]")].map(a=>a.textContent.replace(/\d+$/,"").trim())}));
  chk("CE-14","préparateur : accueil du centre sans bouton « Affecter » ; menu limité à ses écrans",r.view==="centre"&&r.aff===0&&!r.mods.some(m=>/Argent|Réglages|Livreurs/.test(m)),JSON.stringify(r));
+ r=await p.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");S.config.demarrage_ok=false;view="commandes";render();return!/Bien démarrer/.test(document.querySelector("main").innerText)});
+ chk("CE-14b","espace du centre : le bandeau « Bien démarrer » de l'application complète n'apparaît pas sur l'écran Commandes",r===true,r);
  // 11. caissier : aucun accès au centre
  await entrer(p,"caissier");
  r=await p.evaluate(()=>document.querySelector("#app").innerText);
