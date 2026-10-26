@@ -75,7 +75,7 @@ const identDe=i=>String(i||"").trim().toLowerCase().normalize("NFD").replace(/[\
 const emailDe=i=>{i=String(i||"").trim();return i.includes("@")?i.toLowerCase():identDe(i)+"@users.angels-erp.app"};
 const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",livree:"Livrée",echouee:"Échec",refusee:"Refusée"};
 const ACTIFS=["affectee","acceptee","en_cours"];
-let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null;
+let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null,ouvertPour=null;   /* ouvertPour : la mission dont un formulaire est ouvert et les états où il reste valable */
 /* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
 const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan",m:"ang_lv_chat",v:"ang_lv_chatvu",n:"ang_lv_push",d:"ang_lv_pushinv",i:"ang_lv_ident",x:"ang_lv_idents"},DUREE_CACHE=48*36e5;
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -91,7 +91,7 @@ async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession(
  if(!t){const e=new Error("Session expirée : reconnectez-vous");e.status=401;e.reseau=!enLigne();throw e}
  let r;try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)})}catch(x){const e=new Error("Réseau indisponible");e.reseau=true;throw e}
  const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false){const e=new Error(j.erreur||("Erreur "+r.status));e.status=r.status;throw e}return j}
-const ferme=()=>{try{camStop();clearInterval(PVPOLL)}catch(e){}const o=$(".ov");if(o)o.remove()};
+const ferme=()=>{ouvertPour=null;try{camStop();clearInterval(PVPOLL)}catch(e){}const o=$(".ov");if(o)o.remove()};
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
 
 /* ---------- Connexion ---------- */
@@ -136,6 +136,7 @@ try{if(localStorage.getItem("angels_signal_dev")==null)ANGELS_SIGNAL.setDev({voi
 const voixIcone=()=>ANGELS_SIGNAL.dev().voice?"🗣":"🤐";
 const sonIcone=()=>{const d=ANGELS_SIGNAL.dev();return d.mute?"🔕":d.vol<=.5?"🔉":"🔊"};
 async function charger(){try{const{data,error}=await sb.from("pg_missions").select("livraison_ref,livreur_ref,commande_ref,statut,payload,position,maj_le").order("maj_le",{ascending:false});if(error)throw error;const tout=data||[];missions=recevoir(tout);erreur="";try{sigMissions()}catch(e){}try{sigChat()}catch(e){}lsSet(LS.c,{t:Date.now(),uid:user&&user.id,moi,missions:tout})}catch(x){erreur=enLigne()?x.message:""}
+ if(ouvert&&ouvertPour){const m=mission(ouvertPour.r);if(!m||!ouvertPour.ok.includes(m.statut)){const lib={livree:"déjà livrée",echouee:"déclarée échouée",refusee:"refusée",reaffectee:"réaffectée à un autre livreur",annulee:"annulée"}[m&&m.statut]||(m?"modifiée par le centre":"retirée de votre liste");ferme();ouvert=null;toast("⚠ Cette livraison est "+lib+" : le formulaire est fermé, rien n'a été envoyé","err")}}
  if(!ouvert&&!(PAGE==="chat"&&document.activeElement&&document.activeElement.id==="chin"))vueMissions()}
 const adrTxt=a=>[a.zone,a.quartier].filter(Boolean).map(esc).join(" · ");
 const minAtt=t=>t?Math.max(0,Math.floor((Date.now()-Date.parse(t))/60000)):0;
@@ -469,7 +470,7 @@ function mission(r){return missions.find(m=>m.livraison_ref===r)}
 async function envoyer(r,type,donnees,ok){
  try{if(!sb||!enLigne()){const e=new Error("hors ligne");e.reseau=true;throw e}
   const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{}});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}
- catch(x){if(x.reseau){mettreEnFile(r,type,donnees);ferme();ouvert=null;toast("📡 Hors ligne : action gardée sur le téléphone, elle partira au retour du réseau","ok");vueMissions();return null}toast(x.message,"err")}}
+ catch(x){if(x.reseau){mettreEnFile(r,type,donnees);ferme();ouvert=null;toast("📡 Hors ligne : action gardée sur le téléphone, elle partira au retour du réseau","ok");vueMissions();return null}if(x.status===409){ferme();ouvert=null;toast("⚠ "+x.message+" — liste actualisée","err");await charger();return null}toast(x.message,"err")}}
 let vidage=false;
 async function vider(){if(vidage||!sb||!enLigne()||!file().length)return;vidage=true;let n=0;
  try{for(;;){const f=file()[0];if(!f)break;
@@ -522,7 +523,8 @@ function avisCarte(){const V=PL().avis;if(!V)return"";if(!V.n)return`<div class=
  return`<div class="card"><b>⭐ Avis des clients</b><div class="between" style="margin-top:6px"><span style="font-size:26px;font-weight:800">${V.m.toFixed(1)}<small style="font-size:14px"> / 5</small></span><span style="color:#d79b00;font-size:20px">${ch(etoiles)}</span></div><div class="sm mu">${V.n} avis de clients</div>
  ${(V.derniers||[]).filter(x=>x.commentaire).map(x=>`<div class="pill sm"><span style="color:#d79b00">${ch(Math.round(x.note))}</span> ${esc(x.commentaire)}</div>`).join("")}</div>`}
 const motifsOpt=m=>(((m||{}).payload||{}).motifs||["Client injoignable","Adresse introuvable","Client absent"]).map(x=>`<option>${esc(x)}</option>`).join("");
-const formModal=(titre,champs,bouton,onok)=>{ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
+const FM_ETATS={prise:["acceptee"],echec:["affectee","acceptee","en_cours"],confirmer:["en_cours"]};let ouvertPourSuivant=null;
+const formModal=(titre,champs,bouton,onok)=>{const pour=ouvertPourSuivant;ouvertPourSuivant=null;ouvert=1;const o=modal(`<h3 style="margin-top:0">${esc(titre)}</h3><form>${champs}<button class="btn" type="submit">${esc(bouton)}</button><button class="btn ghost" type="button" data-x>Annuler</button></form>`);ouvertPour=pour;o.querySelector("[data-x]").onclick=()=>{ferme();ouvert=null};o.querySelector("form").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button[type=submit]");b.disabled=true;await onok(Object.fromEntries(new FormData(e.target)));b.disabled=false};return o};
 /* ---------- Preuves de livraison : scan des colis, signature (livreur ou client sur son téléphone), photo, position ---------- */
 const PV={};let PVPOLL=0;
 const pvDe=r=>PV[r]||(PV[r]={collecte:[],remise:[],photo:"",cli:null});
@@ -624,7 +626,7 @@ const ACT={
  rejOk:id=>{lsSet(LS.r,rejets().filter(x=>x.id!==id));vueMissions()},
  quitter:async()=>{if(file().length&&!confirm(file().length+" action(s) n'ont pas encore été envoyées au serveur. Se déconnecter les PERDRA. Continuer ?"))return;arreter();PAGE="cours";MENU=false;ITIN={sel:null,res:null,busy:false};try{if(sb)await sb.auth.signOut()}catch(e){}[LS.c,LS.f,LS.r].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});user=null;vueLogin()}
 };
-document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const f=ACT[b.dataset.a];if(f){if(b.tagName==="A")e.preventDefault();f(b.dataset.r)}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const f=ACT[b.dataset.a];if(f){if(b.tagName==="A")e.preventDefault();ouvertPourSuivant=FM_ETATS[b.dataset.a]&&b.dataset.r?{r:b.dataset.r,ok:FM_ETATS[b.dataset.a]}:null;f(b.dataset.r);ouvertPourSuivant=null}});
 
 /* ---------- Position (uniquement pendant une course en cours) ---------- */
 function suivi(){const enCours=missions.find(m=>m.statut==="en_cours");if(!enCours||!navigator.geolocation||!gpsOn()){if(watch!=null){navigator.geolocation.clearWatch(watch);watch=null}return}

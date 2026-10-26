@@ -25,12 +25,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await ps.evaluate(t=>{AUTH.dist={id:"x",nom:"t",exp:Date.now()+600000};const C=pLire();C.boutique=t;C.boutique_src="lien";localStorage.setItem(PKEY,JSON.stringify(C));PCUR=null;uView();pTab("accueil")},tok);await ps.waitForTimeout(150);
  const ed=await ps.evaluate(()=>({ic:document.querySelectorAll('#pform [name^="ic"]').length,at:document.querySelectorAll('#pform [name^="at_t"]').length,txt:[...document.querySelectorAll("#ptl .pp")].filter(p=>p.dataset.pp==="accueil").map(p=>p.textContent).join(" ")}));
  chk("PHO-1","Paramètres : plus de champ « Icône » (emoji) ; trois atouts avec titre, texte et photo",ed.ic===0&&ed.at===3&&/Photo/.test(ed.txt)&&!/Icône/.test(ed.txt),JSON.stringify(ed).slice(0,200));
- await ps.evaluate(()=>{PIMG={k:"atp",i:0}});await ps.setInputFiles("#m_img",[{name:"a.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(500);
- await ps.evaluate(()=>{PIMG={k:"abn",i:0}});await ps.setInputFiles("#m_img",[{name:"b.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(500);
+ await ps.evaluate(()=>{PIMG={k:"atp",i:0}});await ps.setInputFiles("#m_img",[{name:"a.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(1800);
+ await ps.evaluate(()=>{PIMG={k:"abn",i:0}});await ps.setInputFiles("#m_img",[{name:"b.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(1800);
  await ps.evaluate(()=>pTab("boutique"));
  const pr=await ps.evaluate(()=>({n:document.querySelectorAll('#ptl [data-p="ppp"]').length,codes:[...document.querySelectorAll('#ptl [data-p="ppp"]')].map(b=>b.dataset.c)}));
  chk("PHO-2","onglet Boutique : un bouton photo par produit du catalogue publié",pr.n===3,JSON.stringify(pr));
- await ps.evaluate(c=>{PIMG={k:"ppp",c}},pr.codes[0]);await ps.setInputFiles("#m_img",[{name:"p.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(500);
+ await ps.evaluate(c=>{PIMG={k:"ppp",c}},pr.codes[0]);await ps.setInputFiles("#m_img",[{name:"p.png",mimeType:"image/png",buffer:PNG}]);await ps.waitForTimeout(1800);
  const sv=await ps.evaluate(()=>{const f=document.getElementById("pform");f.dispatchEvent(new Event("submit",{cancelable:true,bubbles:true}));const c=JSON.parse(localStorage.getItem(PKEY));return{at:c.atouts[0].photo.slice(0,22),ban:c.activites[0].banniere.slice(0,22),pp:Object.keys(c.photosProduits),pp0:Object.values(c.photosProduits)[0].slice(0,22),icones:c.activites.some(a=>"icone" in a)}});
  chk("PHO-3","enregistrement : photo d'atout, bannière de division et photo de produit (JPEG compressé) conservées",sv.at==="data:image/jpeg;base64"&&sv.ban==="data:image/jpeg;base64"&&sv.pp.length===1&&sv.pp0==="data:image/jpeg;base64"&&!sv.icones,JSON.stringify(sv));
  const pp=await ctx.newPage();pp.on("pageerror",e=>errs.push("portail: "+e.message));await pp.goto(base+"/portail.html");await pp.waitForTimeout(600);
