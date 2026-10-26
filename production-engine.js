@@ -101,6 +101,7 @@
     "delete from public.pg_missions;            -- supprime aussi pg_codes (cascade)",
     "delete from public.pg_vendeur_cmds;",
     "delete from public.pg_vendeur_etat;",
+    "delete from public.pg_suivi;                -- liens de suivi en direct (les clés publiques de signature sont conservées)",
     "",
     "-- Portail clients : demandes, suivis en direct, photos, scans",
     "delete from public.pd_demandes;",
