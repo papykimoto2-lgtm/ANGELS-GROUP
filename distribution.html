@@ -642,7 +642,7 @@ function confirmer(l,d){if(!garde(LIVR,l))return false;
  {const lvx=liv(l.livreur_id);if(estExterne(lvx)){const ca=Math.round((c.frais||0)*(+lvx.commission_pct||0)/100);l.commission_angels=ca;l.part_livreur=Math.max((c.frais||0)-ca,0)}}
  l.gps_confirm=S.pos[l.livreur_id]?{lat:S.pos[l.livreur_id].lat,lng:S.pos[l.livreur_id].lng,ts:S.pos[l.livreur_id].ts}:null;
  if(ecart!==0){l.ecart_statut="a_valider";l.ecart_note=d.ecart_note}
- if(m>0)S.fonds.push({id:uid("f"),type:"encaissement",livreur_id:l.livreur_id,livraison_id:l.id,commande_id:c.id,montant:m,mode:d.mode,ref:ref||null,direct:mob&&!!d.direct,ts:now(),par:who()});
+ if(m>0&&!(d.ev_id&&S.fonds.some(f=>f.id==="f_ev"+d.ev_id)))S.fonds.push({id:d.ev_id?"f_ev"+d.ev_id:uid("f"),type:"encaissement",livreur_id:l.livreur_id,livraison_id:l.id,commande_id:c.id,montant:m,mode:d.mode,ref:ref||null,direct:mob&&!!d.direct,ts:now(),par:who()});
  l.bonus_zone=bonusMontant(c.adr&&c.adr.zone,new Date());lhist(l,"livree",{note:`encaissé ${fcfa(m)}`});try{queteTick()}catch(e){}audit("Confirmation livraison",`${c.numero} — encaissé ${fcfa(m)} / attendu ${fcfa(att)}`);return true}
 function echec(l,motif,obs,o){o=o||{};if(!garde(LIVR,l))return false;
  if(!["affectee","acceptee","en_cours"].includes(l.statut)){toast("Livraison déjà clôturée","err");return false}
@@ -3681,7 +3681,7 @@ let _passOkAt=0;
 function pgEtat(){const P=PASS(),cfg=S.config||{},nl=S.livreurs.filter(l=>l.ident_serveur&&!l.archive).length,nv=S.vendeurs.filter(v=>v.ident_serveur).length,poste=localStorage.getItem("angels_pg_poste")==="1",sync=ANGELS_SYNC.actif();
  const base={nl,nv,poste,sync,ok:_passOkAt,err:S.pass_err||""};
  if(!P)return Object.assign(base,cfg.passerelle_actif===true?{k:"er",t:"Passerelle incomplète",d:"La passerelle est activée mais l'adresse du serveur ou la clé d'administration manque sur ce poste (Paramètres → Livreurs & GPS → Passerelle livreur)."}:{k:"mu",t:"Passerelle inactive",d:"Les applications livreur et vendeur ne reçoivent rien de ce poste. Activez la passerelle dans Paramètres → Livreurs & GPS."});
- if(sync&&!poste)return Object.assign(base,{k:"wa",t:"Passerelle gérée par un autre poste",d:"Ce poste n'échange pas avec les livreurs et les vendeurs : c'est le « poste passerelle » qui le fait. Vérifiez l'état sur ce poste."});
+ if(sync&&!poste)return Object.assign(base,{k:"wa",t:"Passerelle gérée par un autre poste",d:"Ce poste relève aussi les actions des livreurs (encaissements compris) ; seul le « poste passerelle » publie les missions et les commandes vers les applications. Vérifiez l'état sur ce poste."});
  if(base.err)return Object.assign(base,{k:"er",t:"Passerelle en erreur",d:base.err});
  if(!_passOkAt)return Object.assign(base,{k:"mu",t:"Passerelle : en attente",d:"Aucun échange encore effectué depuis l'ouverture de l'application (un échange a lieu toutes les 15 secondes)."});
  const age=Date.now()-_passOkAt;return Object.assign(base,age<90000?{k:"ok",t:"Passerelle connectée",d:"Dernier échange avec le serveur il y a "+Math.max(1,Math.round(age/1000))+" s."}:{k:"wa",t:"Passerelle sans échange récent",d:"Dernier échange réussi il y a "+Math.round(age/60000)+" min : connexion Internet du poste ou serveur à vérifier."})}
@@ -3722,7 +3722,7 @@ function passAppliquer(ev){if(ev.type==="incident"&&String((ev.donnees||{}).natu
   else if(t==="arrive")ok=!!ijArrive(l);
   else if(t==="rappel_client")ok=!!ijDemande(l,String(d.motif||"").slice(0,120));
   else if(t==="confirmer"){const pr=ev.preuve||{},sg=pr.signature_client||pr.signature||"";
-   ok=confirmer(l,{code:l.code,code_etat:d.code_etat,montant:String(d.montant),mode:d.mode,ref:d.ref_paiement,direct:!!d.direct,recu_par:d.recu_par,obs:d.obs,ecart_note:d.ecart_note,pg:true,signature:sg,colis_ok:Array.isArray(d.scans)&&d.scans.length?JSON.stringify(d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))):""});
+   ok=confirmer(l,{code:l.code,code_etat:d.code_etat,ev_id:ev.id,montant:String(d.montant),mode:d.mode,ref:d.ref_paiement,direct:!!d.direct,recu_par:d.recu_par,obs:d.obs,ecart_note:d.ecart_note,pg:true,signature:sg,colis_ok:Array.isArray(d.scans)&&d.scans.length?JSON.stringify(d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))):""});
    if(ok){const c=cmd(l.commande_id);
     if(pr.photo&&/^data:image\/jpeg;base64,/.test(pr.photo)&&pr.photo.length<=80000)l.photo_livraison=pr.photo;
     if(pr.signature_client){l.signature_source="client";l.signataire=String(pr.client_nom||"").slice(0,80);l.signe_le=pr.client_signe_le||null;l.gps_client=pr.client_gps||null}else if(sg)l.signature_source="livreur";
@@ -3753,13 +3753,15 @@ function vendCmdImporter(e){const v=S.vendeurs.find(x=>x.id===e.vendeur_ref);if(
  if(S.commandes.some(c=>c.app_ref===e.ref))return null;
  const u0=ME;ME=usr(v.user_id)||ME;try{const c=creerCmdVendeur(v,{nom:d.nom,tel:d.tel,zone:d.zone,quartier:d.quartier,repere:d.repere,ins:d.ins,obs:d.obs,gps:d.gps||null,lignes:(d.lignes||[]).map(l=>({desig:l.desig,qte:l.qte,pu:l.pu})),pay:d.pay,paye_vendeur:d.paye_vendeur,type_colis:d.type_colis,exp:d.exp});c.app_ref=e.ref;colisGenerer(c,d.nb_colis);{const dm=d.demande&&(S.demandes||[]).find(x=>x.ref===d.demande&&x.vendeur_id===v.id);if(dm){dm.statut="traitee";dm.commande_id=c.id;if((dm.photos||[]).length)c.photos=dm.photos.slice();if(dm.acompte){c.acompte_mm=Object.assign({},dm.acompte,{statut:"a_verifier"})}}}audit("Commande déposée par le vendeur (application)",v.nom+" — "+c.numero+(d.demande?" (demande "+d.demande+")":""));return null}catch(x){return String(x&&x.message||x)}finally{ME=u0}}
 let _vendSig="";
-async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1")return;if(!P||_passBusy||(!force&&Date.now()-_passLast<10000)||!S.livraisons)return;_passBusy=true;_passLast=Date.now();let chg=false;
+async function passSync(force){const P=PASS();const solo=!!P&&ANGELS_SYNC.actif()&&localStorage.getItem("angels_pg_poste")!=="1";   /* un poste qui n'est pas « le poste passerelle » relève quand même les actions des livreurs (encaissements) : aucun encaissement ne dépend d'un seul appareil ; il ne publie rien */
+ if(!P||_passBusy||(!force&&Date.now()-_passLast<10000)||!S.livraisons)return;_passBusy=true;_passLast=Date.now();let chg=false;
  try{
   /* 1. actions des livreurs d'abord (le serveur a déjà validé droits, transitions et code) */
   const E=(await passPost(P,"mission-sync",{action:"evenements"})).evenements||[];
   if(E.length){const ids=[];for(const ev of E){if(ev.type==="confirmer"&&ev.donnees&&ev.donnees.preuve)ev.preuve=(await passPost(P,"mission-sync",{action:"preuve",livraison_ref:ev.livraison_ref})).preuve||null;const r=passAppliquer(ev);if(r){audit("Action livreur non appliquée",`${ev.type} — ${r}`);toast("Action d'un livreur non appliquée : "+r,"err")}ids.push(ev.id)}chg=true;save();await passPost(P,"mission-sync",{action:"acquitter",ids});if(ME){if(view==="carte"&&CARTE.map&&!$("#modal").innerHTML&&E.every(x=>x.type==="position"))carteTick();else render()}}
   (S.rappels||[]).forEach(r=>{if(r.statut==="ouvert"&&r.type==="code"){const l=byId(S.livraisons,r.livraison_id);if(!l||!isActive(l)){r.statut="traite";r.par="livraison terminée";r.fin=now();chg=true}}});
  (S.rappels||[]).forEach(r=>{if(r.statut==="ouvert"&&r.type==="position"){const c=cmd(r.commande_id);if(c&&c.adr&&c.adr.gps){r.statut="traite";r.par="position reçue";r.fin=now();chg=true}}});
+ if(solo){S.pass_err="";_passOkAt=Date.now();return}
  /* 1b. commandes déposées par les vendeurs depuis leur application */
   {const CV=(await passPost(P,"mission-sync",{action:"vendeur-commandes"})).commandes||[];if(CV.length){const ids=[];let n=0;for(const e of CV){const r=vendCmdImporter(e);if(r){audit("Commande vendeur non importée",String(e.ref)+" — "+r);toast("Commande d'un vendeur non importée : "+r,"err")}else n++;ids.push(e.id)}chg=true;save();await passPost(P,"mission-sync",{action:"vendeur-acquitter",ids});if(n){toast(n+" nouvelle(s) commande(s) de vendeur à confirmer","ok");if(ME&&["commandes","dashboard","vendeurs"].includes(view))render()}}}
  /* 2. publication de la projection sans numéros */
@@ -3771,6 +3773,17 @@ async function passSync(force){const P=PASS();if(P&&ANGELS_SYNC.actif()&&localSt
   await pushFlush();S.pass_err="";_passOkAt=Date.now()
  }catch(e){S.pass_err=String(e&&e.message||e).slice(0,160)}finally{_passBusy=false;try{pgVoyant()}catch(e){}}
  if(chg){try{save()}catch(e){}}}
+/* Actions de livreurs (encaissements compris) reçues par le serveur mais pas encore relevées par un poste du bureau : elles ne restent jamais invisibles */
+let _passAtt=null,_passAttBusy=false;
+async function passAttenteLire(){const P=PASS();if(!P||_passAttBusy||CL.on||!ME||ME.role==="livreur"||ME.role==="vendeur")return;_passAttBusy=true;const av=JSON.stringify(_passAtt&&[_passAtt.n,_passAtt.err,_passAtt.total]);
+ try{const E=((await passPost(P,"mission-sync",{action:"evenements"})).evenements||[]).filter(e=>e.type!=="position"),C=E.filter(e=>e.type==="confirmer"&&e.donnees&&!e.donnees.direct&&+e.donnees.montant>0);
+  _passAtt={n:E.length,ts:Date.now(),plus:E.reduce((m,e)=>Math.max(m,(Date.now()-new Date(e.cree_le).getTime())/60000),0),encs:C.map(e=>({lid:e.livreur_ref,m:+e.donnees.montant})),total:C.reduce((t,e)=>t+(+e.donnees.montant),0),err:""}}
+ catch(e){_passAtt={n:0,ts:Date.now(),plus:0,encs:[],total:0,err:String(e&&e.message||e).slice(0,120)}}finally{_passAttBusy=false}
+ if(av!==JSON.stringify([_passAtt.n,_passAtt.err,_passAtt.total])&&["tresorerie","centre","aujourdhui","tour"].includes(view)&&!$("#modal").innerHTML)try{render()}catch(e){}}
+function passBandeau(){const A=_passAtt;if(!A||!PASS())return"";
+ if(A.err)return`<div class="al warn sm noprint">⚠ Impossible de vérifier côté serveur les encaissements en attente : ${esc(A.err)}</div>`;
+ if(!A.n||A.plus<1)return"";const par={};A.encs.forEach(x=>{par[x.lid]=(par[x.lid]||0)+x.m});
+ return`<div class="al er noprint"><b>⏳ ${A.n} action(s) de livreur reçue(s) par le serveur, pas encore enregistrée(s) au bureau</b> (depuis ${Math.round(A.plus)} min)${A.total?` — dont <b>${fcfa(A.total)}</b> d'encaissements : ${Object.entries(par).map(([id,m])=>esc((liv(id)||{nom:id}).nom)+" "+fcfa(m)).join(", ")}`:""}.<div class="sm" style="margin-top:4px">Ils s'ajouteront à la Trésorerie dès la réception. <button type="button" class="btn sm" data-act="passRecevoir">⬇ Recevoir maintenant</button></div></div>`}
 /* Message prêt à envoyer au livreur (WhatsApp) : application, identifiant et mot de passe temporaire à changer à la première connexion */
 const lvAccesMsg=(lv,ident,mdp)=>"Bonjour "+lv.nom+", voici votre accès à l'application Livreur "+ORG()+" :\n1) Ouvrez ce lien sur votre téléphone (Chrome ou Safari) : "+(()=>{const u=new URL("livreur.html",location.href);if(ident)u.searchParams.set("id",ident);return u.href})()+"\n2) Touchez « Installer l'application » (Android) ou Partager > Sur l'écran d'accueil (iPhone).\n3) Connectez-vous :\nIdentifiant : "+ident+"\nMot de passe temporaire : "+mdp+"\nVous choisirez votre propre mot de passe à la première connexion. Ne le partagez avec personne.";
 async function passCompte(lv,reset){const P=PASS();if(!P)return false;
@@ -4132,7 +4145,7 @@ document.addEventListener("change",e=>{const t=e.target;
  if(CL.on){CL.rpc("saisir_comptage",{p_inventaire:i.id,p_produit:pid,p_compte:v,p_note:note||null}).then(save1).catch(x=>toast(fixErr(x),"err"))}else save1()});
 window.addEventListener("storage",e=>{if(/^#(boutique|portail|suivi|commande)=/.test(location.hash)||e.key!==KEY||!e.newValue||$("#modal").innerHTML)return;   /* pages publiques (boutique, portail, suivi, commande) : jamais redessinées par l'ERP ouvert dans un autre onglet */try{S=JSON.parse(e.newValue)}catch(x){return}
  if(ME){const u=usr(ME.id);if(!u||!u.actif){ME=null;sessionStorage.removeItem("angels_me");toast("Votre compte a été désactivé","err")}else ME=u}render()});
-setInterval(()=>{if(ME&&!CL.on&&ME.role!=="livreur")try{passSync()}catch(e){}},15000);setInterval(()=>{try{pgVoyant()}catch(e){}},15000);
+setInterval(()=>{if(ME&&!CL.on&&ME.role!=="livreur")try{passSync()}catch(e){}},15000);setInterval(()=>{try{pgVoyant()}catch(e){}},15000);setInterval(()=>{try{passAttenteLire()}catch(e){}},20000);setTimeout(()=>{try{passAttenteLire()}catch(e){}},3000);
 setInterval(()=>{try{ijSurveille()}catch(e){}},8000);
 let _tk=0;setInterval(()=>{if(!CL.on&&(_tk++)%2)return;if(ME&&!document.body.classList.contains("menu-open")&&!(ME.role==="livreur"&&Object.values(ui.mapOpen||{}).some(Boolean))&&!$("#modal").innerHTML&&!document.activeElement.matches("input,select,textarea")){if(CL.on)refresh().then(render).catch(()=>{});else render()}},30000);
 
@@ -5748,7 +5761,7 @@ VIEWS.tresorerie=()=>{
  const inbox=R.length?`<div class="card" style="padding:0"><table>${R.join("")}</table></div>`:`<div class="card" style="color:var(--ok)">✅ Rien à traiter : aucun versement, clôture, bon ni écart en attente.</div>`;
  const rowL=D.livs.sort((a,b)=>b.s-a.s).map(x=>`<tr><td><b>${esc(x.l.nom)}</b>${x.dem?`<br>${badge("🏁 Tournée terminée","wa")}`:""}${x.r.actives?`<div class="sm mu">${x.r.actives} course(s) en cours</div>`:""}</td><td>${fcfa(x.v.produits)}</td><td>${fcfa(x.v.frais)}</td><td>${x.v.gardes?fcfa(x.v.gardes):"—"}</td><td>${x.v.rev?fcfa(x.v.rev):"—"}</td><td>${x.att?fcfa(x.att):"—"}</td><td><b style="color:${x.s>0?"var(--er)":"var(--ok)"}">${fcfa(x.s)}</b></td><td style="white-space:nowrap">${act?`${x.s-x.att>0||x.dem?`<button class="btn sm ok" data-act="reverser" data-id="${x.l.id}">💵 Encaisser</button> `:""}`:""}<button class="btn sm ghost" data-act="ventDetail" data-id="${x.l.id}">Détail</button></td></tr>`);
  const rowF=D.fl.sort((a,b)=>b.reste-a.reste).map(e=>`<tr><td>${e.reste>0&&act?`<input type="checkbox" style="width:auto" data-act="versSel" data-id="${e.v.id}" ${sel.has(e.v.id)?"checked":""} aria-label="Sélectionner ${esc(e.v.nom)}">`:""}</td><td><b>${esc(e.v.nom)}</b><div class="sm mu">${esc(e.v.tel||"")} · commission ${e.v.commission_pct||0} %${e.plusAncien>30?` · <span style="color:var(--er)">la plus ancienne : ${e.plusAncien} j</span>`:""}</div></td><td>${e.du.length}</td><td><b style="color:${e.reste?"var(--er)":"var(--ok)"}">${fcfa(e.reste)}</b></td><td>${e.attente?fcfa(e.attente):"—"}</td><td style="white-space:nowrap">${e.reste>0&&act?`<button class="btn sm ok" data-act="vReg" data-id="${e.v.id}">💵 Régler</button> `:""}<button class="btn sm ghost" data-act="vDet" data-id="${e.v.id}">Détail</button></td></tr>`);
- return`<div class="between"><h1>💼 Trésorerie</h1><div class="flex noprint"><button class="btn sm ghost" data-act="nav" data-id="caisse">💵 Caisse détaillée</button><button class="btn sm ghost" data-act="nav" data-id="finance">📊 Finance détaillée</button><button class="btn sm ghost" data-act="nav" data-id="versements">🏪 Versements vendeurs</button></div></div>
+ return passBandeau()+`<div class="between"><h1>💼 Trésorerie</h1><div class="flex noprint"><button class="btn sm ghost" data-act="nav" data-id="caisse">💵 Caisse détaillée</button><button class="btn sm ghost" data-act="nav" data-id="finance">📊 Finance détaillée</button><button class="btn sm ghost" data-act="nav" data-id="versements">🏪 Versements vendeurs</button></div></div>
  <p class="mu">Tout l'argent à traiter, sur une seule page : traitez chaque ligne sans changer d'écran.</p>${cxFermeeAlerte()}${cxFileBanner()}
  <div class="grid">${kpi("⚡ À traiter",n,n?"w":"o")}${kpi("🛵 À récupérer auprès des livreurs",fcfa(dLiv),dLiv?"w":"o")}${kpi("🏪 À payer aux fournisseurs",fcfa(dFour),dFour?"w":"o")}${kpi("💵 Solde des caisses",D.cs.length?fcfa(sol):"—",sol<0?"e":"o")}</div>
  <h2>⚡ À traiter maintenant (${n})</h2>${inbox}
@@ -6207,7 +6220,7 @@ function aujCartes(){
 VIEWS.aujourdhui=()=>{
  if(CL.on||!S)return`<div class="card">Cette page n'est pas disponible en mode serveur.</div>`;
  const C=aujCartes(),h=new Date().getHours();
- return`<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${C.length||alertesPlus().aTraiter.length?"Voici ce qui demande votre attention maintenant.":"Tout est à jour."}</div>
+ return`${passBandeau()}<div class="auj"><h1>${h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir"} ${esc((ME.nom||"").split(" ")[0])}</h1><div class="mu">${C.length||alertesPlus().aTraiter.length?"Voici ce qui demande votre attention maintenant.":"Tout est à jour."}</div>
  <div class="rac noprint">${can("admin","commercial","superviseur")?'<button class="btn" data-act="newCmd" style="width:auto">➕ Nouvelle commande</button>':""}<button class="btn ghost" data-act="recherche" style="width:auto">🔍 Rechercher</button><button class="btn ghost" data-act="scanCmd" style="width:auto">📷 Scanner une étiquette</button></div>
  ${C.length?`<div class="cartes">${C.map(c=>`<button type="button" class="carte ${c.cls||""}" data-act="auj" data-id="${c.k}"><span class="ic">${c.i}</span><b>${c.n}</b><span>${esc(c.l)}</span></button>`).join("")}</div>`:`<div class="rien">🎉 Rien à traiter pour le moment.</div>`}
  ${alTop(3)}</div>`};
@@ -6278,6 +6291,7 @@ Object.assign(ACT,{enEnt:id=>{const m=moto(id);if(m)entretienModal(m)},enPlein:i
 document.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.act==="eqKitSel"&&ME&&!CL.on){const l=liv(t.dataset.id);if(l&&can("admin","superviseur")){l.kit=t.value;audit("Métier du livreur (kit)",l.nom+" → "+t.value);save();render()}}});
 
 Object.assign(ACT,{
+ passRecevoir:async()=>{try{await passSync(true);await passAttenteLire();toast(_passAtt&&_passAtt.n?"Réception en cours : "+_passAtt.n+" action(s) restante(s)":"Tout est reçu : la Trésorerie est à jour","ok");render()}catch(e){toast("Réception impossible : "+e.message,"err")}},
  centreGo:id=>{const[v,c]=String(id).split("|");if(c)ui.cdt=c;document.body.classList.remove("menu-open");view=v;window.scrollTo(0,0);render()},
  auj:id=>{const c=aujCartes().find(x=>x.k===id);if(!c)return;if(c.fs!=null)ui.fs=c.fs;if(c.cdt)ui.cdt=c.cdt;document.body.classList.remove("menu-open");view=c.v;window.scrollTo(0,0);render()},
  recherche:()=>{if(!ME||CL.on||!S)return;modal("🔍 Rechercher",`<input id="rq" type="search" placeholder="Commande, client, livreur, vendeur, produit…" autocomplete="off" aria-label="Rechercher"><div class="rqr" id="rqr">${rechercheHtml("")}</div>`,{focus:false});setTimeout(()=>{const i=document.getElementById("rq");if(i)i.focus()},30)},

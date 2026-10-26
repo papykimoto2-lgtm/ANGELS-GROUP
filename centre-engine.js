@@ -242,5 +242,5 @@ function centreInit(){
 }
 /* Bloc d'accueil du centre : hors ligne, alertes, raccourcis */
 function cenHome(){const A=cenAlertes(),nEch=S.commandes.filter(c=>c.statut==="echouee"||c.statut==="retour_cours").length,P=S.commandes.filter(c=>c.statut==="prete"&&!expOuverte(c)).length;
- return`${navigator.onLine===false?'<div class="al warn sm">📶 Hors ligne : ce que vous faites est gardé sur cet appareil et envoyé dès le retour du réseau.</div>':""}
+ return`${typeof passBandeau==="function"?passBandeau():""}${navigator.onLine===false?'<div class="al warn sm">📶 Hors ligne : ce que vous faites est gardé sur cet appareil et envoyé dès le retour du réseau.</div>':""}
  <div class="rac noprint"><button class="btn" data-act="centreGo" data-id="tour|" style="width:auto">🧭 Tour de contrôle</button>${P>1?`<button class="btn ghost" data-act="cenTour" style="width:auto">🔁 Proposer des tournées</button>`:""}<button class="btn ghost" data-act="centreGo" data-id="echecs|" style="width:auto">↩️ Échecs & retours${nEch?" ("+nEch+")":""}</button><button class="btn ghost" data-act="centreGo" data-id="cloture|" style="width:auto">🔒 Clôture du jour</button><button class="btn ghost" data-act="cenReglages" style="width:auto">⚙ Réglages</button></div>${cenAlHtml(5)}`}
