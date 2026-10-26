@@ -236,6 +236,8 @@ Fin de tournée : le livreur (écran **🏁 Ma tournée**) voit ses courses livr
 
 **Acomptes en espèces et caisse** : un acompte pris en espèces (à la création d'une commande, commande payée d'avance ou encaissement à la réception d'une expédition) entre désormais en caisse (entrée « Avance client », liée à l'acompte). Si la caisse est fermée, il est mis en attente et rangé à l'ouverture, comme tout encaissement en espèces. Mobile Money, commandes saisies par un vendeur partenaire et installations sans caisse configurée ne sont pas concernés. Tests : `tests/acompte-caisse.js`.
 
+**Installation depuis l'application (vendeur et livreur)** : un bouton **« 📲 Installer l'application »** est affiché en haut de l'écran (connexion et écrans connectés) et dans le menu ☰, tant que l'application n'est pas déjà installée. Si le navigateur propose son invite native, un clic la déclenche ; sinon un clic affiche la consigne adaptée au navigateur : Chrome (menu ⋮ → Installer l'application), Safari sur iPhone (Partager → Sur l'écran d'accueil), Samsung Internet, Firefox, ou navigateur intégré d'une autre application (WhatsApp, Facebook : ouvrir dans Chrome). Tests : `tests/installer-app.js`.
+
 
 ## Collecte des colis chez le vendeur
 Une fois les commandes d'un vendeur confirmées, ANGEL'S GROUP passe récupérer les colis chez lui :

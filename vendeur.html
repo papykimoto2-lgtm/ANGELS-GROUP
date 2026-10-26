@@ -110,7 +110,7 @@ function vueChangement(){ANGELS_UI.monter(false);$("#app").innerHTML=`<div class
 
 /* ---------- Pages ---------- */
 const PAGES=[["accueil","🏠 Accueil"],["demandes","📥 Demandes clients"],["nouvelle","➕ Nouvelle commande"],["commandes","📦 Mes commandes"],["reglages_v","💰 Mes règlements"],["lien","🔗 Mon lien client"],["live","🔴 Live"],["compte","⚙️ Mon compte"]];
-function drawerHtml(){return`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu">${PAGES.map(([k,t])=>`<button class="mi${PAGE===k?" on":""}" data-a="page" data-p="${k}">${t}${k==="demandes"&&demandes().length?` <span class="bd" style="background:var(--er);color:#fff">${demandes().length}</span>`:""}</button>`).join("")}<button class="mi er" data-a="quitter">⎋ Se déconnecter</button><div class="sm mu appv" style="text-align:center;margin-top:12px">${versionTxt()}</div></nav></div>`}
+function drawerHtml(){return`<div class="dr"><div class="bk" data-a="menu"></div><nav aria-label="Menu">${PAGES.map(([k,t])=>`<button class="mi${PAGE===k?" on":""}" data-a="page" data-p="${k}">${t}${k==="demandes"&&demandes().length?` <span class="bd" style="background:var(--er);color:#fff">${demandes().length}</span>`:""}</button>`).join("")}${peutInstaller()?'<button class="mi" data-a="installer">📲 Installer l\'application</button>':""}<button class="mi er" data-a="quitter">⎋ Se déconnecter</button><div class="sm mu appv" style="text-align:center;margin-top:12px">${versionTxt()}</div></nav></div>`}
 const vide=t=>ANGELS_UI.vide("vide",t);
 const file=()=>lsGet(LS.q,[]),envoyees=()=>lsGet(LS.e,[]);
 const faites=()=>lsGet(LS.f,[]),demandes=()=>((D&&D.demandes)||[]).filter(d=>!faites().includes(d.ref));
@@ -333,14 +333,24 @@ function pushCarte(){const E={actif:`<span style="color:var(--ok)">✔ actives</
 let IPROMPT=null;
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
 const estIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+const enAppIntegree=()=>/FBAN|FBAV|Instagram|WhatsApp|Line\/|TikTok|; wv\)/i.test(navigator.userAgent);
+const peutInstaller=()=>!standalone()&&/^https?:$/.test(location.protocol);
+function guideInstall(){const u=navigator.userAgent;
+ if(estIOS())return"iPhone / iPad : ouvrez cette page dans <b>Safari</b>, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.";
+ if(enAppIntegree())return"Cette page est ouverte dans le navigateur d'une autre application. Touchez <b>⋮</b> (ou « Ouvrir dans le navigateur »), ouvrez le lien dans <b>Chrome</b>, puis revenez ici pour installer.";
+ if(/SamsungBrowser/i.test(u))return"Samsung Internet : touchez le menu <b>☰</b>, puis <b>Ajouter la page à</b> et <b>Écran d'accueil</b>.";
+ if(/firefox/i.test(u))return"Firefox : touchez le menu <b>⋮</b>, puis <b>Installer</b>.";
+ return"Chrome : touchez le menu <b>⋮</b> en haut à droite, puis <b>Installer l'application</b> (ou <b>Ajouter à l'écran d'accueil</b>). Si vous ne voyez pas cette ligne, l'application est peut-être déjà installée sur ce téléphone : cherchez son icône."}
+let INSTGUIDE=false;
+async function installer(){if(IPROMPT){IPROMPT.prompt();try{await IPROMPT.userChoice}catch(x){}IPROMPT=null;INSTGUIDE=false}else INSTGUIDE=!INSTGUIDE;majInstall()}
 function majInstall(){let h="";
- if(!standalone()&&/^https?:$/.test(location.protocol)){
-  if(IPROMPT)h='<button type="button" class="btn ghost" data-a="installer">📲 Installer l\'application Vendeur</button>';
-  else if(estIOS())h='<div class="al">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l\'écran d\'accueil</b>.</div>'}
+ if(peutInstaller()){
+  h=IPROMPT?'<button type="button" class="btn" data-a="installer">📲 Installer l\'application Vendeur</button>'
+   :'<button type="button" class="btn ghost" data-a="installer">📲 Installer l\'application Vendeur</button>'+(INSTGUIDE?'<div class="al" style="margin-top:6px">'+guideInstall()+'</div>':"")}
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;majInstall()});
 addEventListener("appinstalled",()=>{IPROMPT=null;majInstall()});
-document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="installer"]');if(!b||!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(x){}IPROMPT=null;majInstall()});
+document.addEventListener("click",e=>{const b=e.target.closest('[data-a="installer"]');if(!b)return;if(b.closest(".dr")){MENU=false;vue()}installer().then(()=>window.scrollTo(0,0))});
 new MutationObserver(()=>{if(document.querySelector(".inst:empty"))majInstall()}).observe(document.getElementById("app"),{childList:true});
 /* Version affichée + mise à jour automatique (comme l'application livreur) */
 if("serviceWorker"in navigator){

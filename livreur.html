@@ -418,7 +418,7 @@ const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><na
  <button class="mi ${PAGE==="stats"?"on":""}" data-a="page" data-r="stats">📊 Mes statistiques</button>
  <button class="mi ${PAGE==="reglages"?"on":""}" data-a="page" data-r="reglages">⚙ GPS, mot de passe et alertes</button>
  <button class="mi" data-a="incident">⚠ Signaler un incident</button>
- <button class="mi er" data-a="quitter">⏻ Déconnexion</button><div class="sm mu sanix" style="padding:10px 14px">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></nav></div>`;
+ ${peutInstaller()?'<button class="mi" data-a="installer">📲 Installer l\'application</button>':""}<button class="mi er" data-a="quitter">⏻ Déconnexion</button><div class="sm mu sanix" style="padding:10px 14px">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></nav></div>`;
 const aujourdhui=t=>{const d=new Date(t),n=new Date();return d.toDateString()===n.toDateString()};
 function enteteLivreur(L,act){
  const z=typeof pauseActive==="function"?pauseActive():null,A=PL().argent,fait=L.filter(m=>m.statut==="livree"&&m.maj_le&&aujourdhui(m.maj_le)),coll=fait.reduce((a,m)=>a+(+(m.payload||{}).montant_attendu||0),0),nonEnc=act.filter(m=>m.statut==="en_cours").length;
@@ -632,14 +632,24 @@ addEventListener("online",()=>{reprendre()});addEventListener("offline",()=>{if(
 let IPROMPT=null;
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
 const estIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+const enAppIntegree=()=>/FBAN|FBAV|Instagram|WhatsApp|Line\/|TikTok|; wv\)/i.test(navigator.userAgent);
+const peutInstaller=()=>!standalone()&&/^https?:$/.test(location.protocol);
+function guideInstall(){const u=navigator.userAgent;
+ if(estIOS())return"iPhone / iPad : ouvrez cette page dans <b>Safari</b>, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.";
+ if(enAppIntegree())return"Cette page est ouverte dans le navigateur d'une autre application. Touchez <b>⋮</b> (ou « Ouvrir dans le navigateur »), ouvrez le lien dans <b>Chrome</b>, puis revenez ici pour installer.";
+ if(/SamsungBrowser/i.test(u))return"Samsung Internet : touchez le menu <b>☰</b>, puis <b>Ajouter la page à</b> et <b>Écran d'accueil</b>.";
+ if(/firefox/i.test(u))return"Firefox : touchez le menu <b>⋮</b>, puis <b>Installer</b>.";
+ return"Chrome : touchez le menu <b>⋮</b> en haut à droite, puis <b>Installer l'application</b> (ou <b>Ajouter à l'écran d'accueil</b>). Si vous ne voyez pas cette ligne, l'application est peut-être déjà installée sur ce téléphone : cherchez son icône."}
+let INSTGUIDE=false;
+async function installer(){if(IPROMPT){IPROMPT.prompt();try{await IPROMPT.userChoice}catch(x){}IPROMPT=null;INSTGUIDE=false}else INSTGUIDE=!INSTGUIDE;majInstall()}
 function majInstall(){let h="";
- if(!standalone()&&/^https?:$/.test(location.protocol)){
-  if(IPROMPT)h='<button type="button" class="btn ghost" data-a="installer">📲 Installer l\'application Livreur</button>';
-  else if(estIOS())h='<div class="al">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l\'écran d\'accueil</b>.</div>'}
+ if(peutInstaller()){
+  h=IPROMPT?'<button type="button" class="btn" data-a="installer">📲 Installer l\'application Livreur</button>'
+   :'<button type="button" class="btn ghost" data-a="installer">📲 Installer l\'application Livreur</button>'+(INSTGUIDE?'<div class="al" style="margin-top:6px">'+guideInstall()+'</div>':"")}
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;majInstall()});
 addEventListener("appinstalled",()=>{IPROMPT=null;majInstall()});
-document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="installer"]');if(!b||!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(x){}IPROMPT=null;majInstall()});
+document.addEventListener("click",e=>{const b=e.target.closest('[data-a="installer"]');if(!b)return;if(b.closest(".dr")){MENU=false;vueMissions()}installer().then(()=>window.scrollTo(0,0))});
 new MutationObserver(()=>{if(document.querySelector(".inst:empty"))majInstall()}).observe(document.getElementById("app"),{childList:true});
 /* Version de l'application (cache actif du service worker) affichée sous l'écran de connexion et dans « GPS, mot de passe et alertes » : permet de vérifier ce que le téléphone a réellement chargé */
 /* Mise à jour automatique : au retour au premier plan et toutes les 30 min on cherche une nouvelle version ; dès qu'elle prend la main la page se recharge (jamais pendant une saisie ou une fenêtre ouverte) */
