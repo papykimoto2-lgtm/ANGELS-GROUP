@@ -470,7 +470,7 @@ function mission(r){return missions.find(m=>m.livraison_ref===r)}
 async function envoyer(r,type,donnees,ok){
  try{if(!sb||!enLigne()){const e=new Error("hors ligne");e.reseau=true;throw e}
   const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{}});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}
- catch(x){if(x.reseau){mettreEnFile(r,type,donnees);ferme();ouvert=null;toast("📡 Hors ligne : action gardée sur le téléphone, elle partira au retour du réseau","ok");vueMissions();return null}if(x.status===409){ferme();ouvert=null;toast("⚠ "+x.message+" — liste actualisée","err");await charger();return null}toast(x.message,"err")}}
+ catch(x){if(x.reseau){mettreEnFile(r,type,donnees);ferme();ouvert=null;toast("📡 Hors ligne : action gardée sur le téléphone, elle partira au retour du réseau","ok");vueMissions();return null}if(x.status===409||(x.status===403&&/pas la vôtre/.test(x.message))){ferme();ouvert=null;toast("⚠ "+x.message+" — liste actualisée","err");await charger();return null}toast(x.message,"err")}}
 let vidage=false;
 async function vider(){if(vidage||!sb||!enLigne()||!file().length)return;vidage=true;let n=0;
  try{for(;;){const f=file()[0];if(!f)break;

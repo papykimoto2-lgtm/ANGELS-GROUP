@@ -251,6 +251,13 @@ Fin de tournée : le livreur (écran **🏁 Ma tournée**) voit ses courses livr
 - **Création en masse** : bouton « 🔑 Créer les accès manquants (N) » dans Vendeurs partenaires, par lots avec avancement, message WhatsApp par vendeur et export CSV (codes affichés une seule fois).
 - Côté serveur (`mission-sync`) : `genererCode`, identifiants issus du téléphone. À activer après déploiement : secret `LISTE_VENDEURS_LOGIN=0` pour fermer la liste publique.
 
+## Revue du pull #166 : fiabilisation (tests/revue-166.js)
+- **Circuit direct** : si une étape échoue (réaffectation, acceptation, confirmation…), tout est remis comme avant (livraisons, fonds, commande) ; la date saisie ne peut être ni future, ni antérieure à la commande, ni dans une journée déjà clôturée ; les horaires déjà réels sont conservés ; le bonus de zone suit la date réelle ; le vendeur ne reçoit plus « en route » juste avant « livrée ».
+- **Application livreur** : une mission retirée par le centre (réponse 403) ferme le formulaire comme un refus 409.
+- **Collectes** : l'origine « déposée par le vendeur » est enregistrée sur la commande (migrée une fois), plus déduite du nom de l'auteur.
+- **Accès vendeurs** : même normalisation du téléphone au bureau et dans l'application ; suffixe en lettres en cas de doublon ; en création en masse, chaque compte est enregistré au fil de l'eau et les codes sont retrouvés (« Derniers accès créés ») après un rechargement.
+- **Serveur** : seul un refus lié au mot de passe déclenche l'essai suivant (8 chiffres, puis mot de passe long) ; toute autre erreur est remontée telle quelle. Le mot de passe reste volontairement très simple (6 caractères minimum) pour ne pas freiner les partenaires.
+
 ## Collecte des colis chez le vendeur
 Une fois les commandes d'un vendeur confirmées, ANGEL'S GROUP passe récupérer les colis chez lui :
 1. **Superviseur / administrateur** : *Centre de livraison → Collectes chez les vendeurs* liste, par vendeur, les commandes confirmées à collecter. **🚚 Planifier la collecte** : choix des commandes, du livreur, du créneau de passage et de l'adresse de collecte (mémorisée sur la fiche du vendeur). Un tableau suit les collectes (réaffecter, annuler avec motif, imprimer le **bon de collecte**). Alertes sur le tableau de bord : commandes à collecter, collecte non réalisée, créneau dépassé.

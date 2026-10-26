@@ -9,7 +9,7 @@ const path=require("path");
  p.on("pageerror",e=>errs.push(e.message));p.on("dialog",d=>d.accept());
  await p.goto("file://"+path.resolve(__dirname,"../distribution.html"));await p.waitForTimeout(500);
  await p.evaluate(()=>{window.__T=[];toast=m=>{__T.push(m)};ME=S.users.find(u=>u.role==="admin"&&u.actif);S.config.signature_seuil=99999999;
-  window.__prete=n=>{const base=S.commandes.find(c=>c.statut==="prete")||S.commandes[0],c=JSON.parse(JSON.stringify(base));c.id="cd_"+n;c.numero="CMD-CD-"+n;c.statut="prete";c.colis=null;c.hist=[{ts:new Date().toISOString(),de:"preparation",a:"prete",par:"t",note:""}];c.client_id=base.client_id;S.commandes.push(c);return c};
+  window.__prete=n=>{const base=S.commandes.find(c=>c.statut==="prete")||S.commandes[0],c=JSON.parse(JSON.stringify(base));c.id="cd_"+n;c.numero="CMD-CD-"+n;c.statut="prete";c.date=new Date(Date.now()-5*864e5).toISOString();c.colis=null;c.hist=[{ts:new Date().toISOString(),de:"preparation",a:"prete",par:"t",note:""}];c.client_id=base.client_id;S.commandes.push(c);return c};
   window.__lv=S.livreurs.filter(l=>!l.archive);window.__hier=new Date(Date.now()-26*36e5).toISOString()});
  // 1. droits et ouverture
  let r=await p.evaluate(()=>{const c=__prete("1");ME=S.users.find(u=>u.role==="caissier"&&u.actif);__T.length=0;cenDirectModal();const refuse=/Réservé/.test(__T.join("|"));ME=S.users.find(u=>u.role==="admin"&&u.actif);cenDirectModal(c.id);const m=document.querySelector("#modal").innerText;closeModal();return{refuse,m:/Circuit direct/.test(m)&&/Articles remis/.test(m)&&/Livreur qui a livré/.test(m)&&m.includes(c.numero)}});
