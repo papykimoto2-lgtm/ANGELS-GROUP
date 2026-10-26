@@ -258,6 +258,12 @@ Fin de tournée : le livreur (écran **🏁 Ma tournée**) voit ses courses livr
 - **Accès vendeurs** : même normalisation du téléphone au bureau et dans l'application ; suffixe en lettres en cas de doublon ; en création en masse, chaque compte est enregistré au fil de l'eau et les codes sont retrouvés (« Derniers accès créés ») après un rechargement.
 - **Serveur** : seul un refus lié au mot de passe déclenche l'essai suivant (8 chiffres, puis mot de passe long) ; toute autre erreur est remontée telle quelle. Le mot de passe reste volontairement très simple (6 caractères minimum) pour ne pas freiner les partenaires.
 
+## Liens courts et rassurants (tests/liens-courts.js)
+- Les liens envoyés aux clients et aux vendeurs (localisation du client, suivi de commande, boutique) ne sont plus de longues adresses illisibles : ils deviennent `https://angelsgroups.vercel.app/l/AB3K9ZQ` (7 caractères lisibles, sans 0/O ni 1/I/L).
+- Le serveur (`supabase/functions/lien-court`, table `pg_liens`, migration `030_liens_courts.sql`) garde la partie longue ; la page `lien.html` (réécriture `/l/:code` dans `vercel.json`) redirige le client, avec un message clair si le lien est expiré (180 jours) ou introuvable.
+- Garde-fous : seules des pages de l'application sont acceptées (pas de redirection vers un site externe) ; création réservée au bureau (clé d'administration) ; hors ligne, sans passerelle ou en cas d'erreur, le lien long est conservé.
+- Déploiement : exécuter `030_liens_courts.sql`, déployer la fonction `lien-court` (verify_jwt désactivé).
+
 ## Collecte des colis chez le vendeur
 Une fois les commandes d'un vendeur confirmées, ANGEL'S GROUP passe récupérer les colis chez lui :
 1. **Superviseur / administrateur** : *Centre de livraison → Collectes chez les vendeurs* liste, par vendeur, les commandes confirmées à collecter. **🚚 Planifier la collecte** : choix des commandes, du livreur, du créneau de passage et de l'adresse de collecte (mémorisée sur la fiche du vendeur). Un tableau suit les collectes (réaffecter, annuler avec motif, imprimer le **bon de collecte**). Alertes sur le tableau de bord : commandes à collecter, collecte non réalisée, créneau dépassé.

@@ -93,6 +93,10 @@
       "destination": "/portail.html"
     },
     {
+      "source": "/l/:code",
+      "destination": "/lien.html"
+    },
+    {
       "source": "/espace-vendeur",
       "destination": "/vendeur.html"
     },
