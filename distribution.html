@@ -5251,7 +5251,7 @@ VIEWS.params=()=>{let h=VIEWS.params0();if(CL.on){const i=h.indexOf("<h2>Donnée
  const tabsV=PTABS.filter(p=>by[p[0]]);let cur=ui.ptab&&by[ui.ptab]?ui.ptab:tabsV[0][0];
  return head+`<div class="tabs" id="ptabs">${tabsV.map(p=>`<button type="button" class="${p[0]===cur?"on":""}" data-act="pTab" data-id="${p[0]}">${p[1]}</button>`).join("")}</div><div class="flex" style="justify-content:flex-end;margin:-4px 0 8px;gap:10px;align-items:center"><span class="sm mu">« Enregistrer » conserve les réglages de tous les onglets.</span><button type="button" class="btn" id="psave" data-act="saveParams">💾 Enregistrer les paramètres</button></div>`+tabsV.map(p=>`<div data-pt="${p[0]}" class="${p[0]===cur?"":"hide"}">${by[p[0]].join("")}</div>`).join("")};
 function geoLinkModal(cid,aid,ref){
- if(!CL.on){const c=cli(cid),a=c&&c.adresses.find(x=>x.id===aid);if(!a)return geoLinkModal0(cid,aid,ref);return lienCourt(portalLink(c,a,ref)).then(l=>{ui.cloudLink=l;try{geoLinkModal0(cid,aid,ref)}finally{ui.cloudLink=null}})}
+ if(!CL.on){const c=cli(cid),a=c&&c.adresses.find(x=>x.id===aid);if(!a||!PASS()||livMasque())return geoLinkModal0(cid,aid,ref);return lienCourt(portalLink(c,a,ref)).then(l=>{ui.cloudLink=l;try{geoLinkModal0(cid,aid,ref)}finally{ui.cloudLink=null}})}
  return CL.rpc("creer_lien_portail",{p_adresse:aid,p_ref:ref||null}).then(t=>lienCourt(location.href.split("#")[0].split("?")[0]+"#portail="+t)).then(l=>{ui.cloudLink=l;try{geoLinkModal0(cid,aid,ref)}finally{ui.cloudLink=null}}).catch(e=>toast(fixErr(e),"err"))}
 async function bootCloud(){
  S=emptyS();
