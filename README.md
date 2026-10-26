@@ -409,6 +409,8 @@ Chaque module lit désormais ses réglages dans son écran Paramètres (aucune v
   - **Performance** (livrées à la 1re tentative, délais, créneaux, coût par colis, par livreur / zone / motif, export CSV) et **Clôture du jour** (points ouverts, argent détenu, résumé imprimable, une clôture par jour).
   - **Réglages du centre** : règles partagées (tournée max, rayon, coûts, délais d'alerte) et préférences de l'appareil (son, écran allumé).
 - Test : `tests/centre-app.js`.
+- **Encaissements des livreurs sans point unique de défaillance** : tout poste du bureau relève les actions des livreurs (le « poste passerelle » reste seul à publier les missions) ; l'encaissement a le même identifiant d'un poste à l'autre (`f_ev<n° d'action>`), donc aucun doublon. Si une action reste sur le serveur sans être relevée, un bandeau rouge (Trésorerie, Aujourd'hui, accueil du centre) donne le nombre d'actions, les montants par livreur et l'ancienneté, avec « ⬇ Recevoir maintenant » ; un serveur injoignable est signalé. Test : `tests/encaissements-systematiques.js`.
+- **Code du client facultatif** : à la confirmation de livraison (application livreur, bureau et passerelle), le code donné par le client ne bloque plus. Sans code ou avec un code non conforme, la livraison est validée mais marquée (`code_etat`) : journal d'audit, dossier de preuve (« ⚠ non saisi ») et clôture du jour (« Livrées sans code client valide »). Test : `tests/code-non-bloquant.js`.
 
 ## Espace vendeur installable (Livraison)
 - Lien dédié : `/vendeur` (ou `distribution.html?app=vendeur`). Le vendeur l'ouvre sur son téléphone, puis « Installer l'espace vendeur » (Android) ou Partager → « Sur l'écran d'accueil » (iPhone).
