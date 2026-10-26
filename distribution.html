@@ -1200,7 +1200,9 @@ const COL_L={planifiee:"Planifiée",acceptee:"Acceptée",en_route:"En route",col
 const COL_K={planifiee:"wa",acceptee:"",en_route:"",collectee:"wa",recue:"ok",echouee:"er",annulee:"mu"};
 const colOpen=c=>["planifiee","acceptee","en_route","collectee"].includes(c.statut);
 const colOf=cid=>(S.collectes||[]).find(c=>colOpen(c)&&c.lignes.some(l=>l.commande_id===cid));
-const aCollecter=vid=>S.commandes.filter(c=>c.vendeur_id===vid&&c.statut==="confirmee"&&!colOf(c.id));
+/* Seules les commandes passées par le partenaire vendeur lui-même (son application, son espace ou sa boutique) sont à collecter chez lui : celles que l'agence enregistre pour un vendeur sont déjà entre ses mains. */
+const deposeParVendeur=c=>!!(c&&(c.depose_par_vendeur||c.app_ref||(c.hist&&c.hist[0]&&S.users.some(u=>u.role==="vendeur"&&u.nom===c.hist[0].par))));
+const aCollecter=vid=>S.commandes.filter(c=>c.vendeur_id===vid&&c.statut==="confirmee"&&deposeParVendeur(c)&&!colOf(c.id));
 const colAdrTxt=a=>a&&(a.zone||a.quartier||a.repere)?[a.zone,a.quartier,a.repere].filter(Boolean).join(" · ")+(a.lat!=null?" · 📍 GPS":""):"adresse non renseignée";
 const colBadge=c=>badge(COL_L[c.statut]||c.statut,COL_K[c.statut]||"");
 const dtLocal=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+"T"+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
@@ -1242,7 +1244,7 @@ function colPlanLocal(a){
  if(S.config.dossier_obligatoire&&!dossierEtat(l).ok)throw new Error("Dossier du livreur incomplet ou expiré : mission impossible");
  {const rq=risqueDetenu(l);if(rq.bloque)throw new Error(l.nom+" doit d'abord reverser : "+rq.raisons.join(" ; "))}
  if(!a.commandes.length)throw new Error("Sélectionnez au moins une commande");
- a.commandes.forEach(id=>{const c=cmd(id);if(!c||c.vendeur_id!==v.id)throw new Error("Commande étrangère à ce vendeur");if(c.statut!=="confirmee")throw new Error("Commande "+c.numero+" : elle doit être « confirmée »");if(colOf(id))throw new Error("Commande "+c.numero+" : une collecte est déjà en cours")});
+ a.commandes.forEach(id=>{const c=cmd(id);if(!c||c.vendeur_id!==v.id)throw new Error("Commande étrangère à ce vendeur");if(!deposeParVendeur(c))throw new Error("Commande "+c.numero+" : enregistrée par l'agence, il n'y a rien à collecter chez le vendeur");if(c.statut!=="confirmee")throw new Error("Commande "+c.numero+" : elle doit être « confirmée »");if(colOf(id))throw new Error("Commande "+c.numero+" : une collecte est déjà en cours")});
  if(a.adresse){const o=v.adresse_collecte||{};v.adresse_collecte=Object.assign({},a.adresse);if(a.adresse.lat==null&&o.lat!=null){v.adresse_collecte.lat=o.lat;v.adresse_collecte.lng=o.lng}}if(!v.adresse_collecte)throw new Error("Adresse de collecte du vendeur non renseignée");
  const y=new Date().getFullYear(),n=(S.collectes||[]).filter(c=>c.numero.startsWith("COL-"+y)).length+1;
  const col={id:uid("col"),numero:"COL-"+y+"-"+String(n).padStart(4,"0"),vendeur_id:v.id,vendeur_nom:v.nom,vendeur_tel:v.tel,livreur_id:l.id,livreur_prenom:l.nom.split(" ")[0],statut:"planifiee",creneau:a.creneau,note:a.note||"",adresse:Object.assign({},v.adresse_collecte),essais_code:0,cree_le:now(),cree_par_nom:ME.nom,
@@ -2152,7 +2154,7 @@ function cmdDetail(id){
  const c=cmd(id),cl=cli(c.client_id),a=c.adr,ls=livsOf(c.id),act=activeLiv(c.id);
  const b=[];
  if(can("admin","commercial","superviseur")&&["brouillon","attente"].includes(c.statut))b.push(`<button class="btn ok" data-act="cmdConfirm" data-id="${c.id}">Confirmer</button>`);
- if(can("admin","superviseur")&&c.vendeur_id&&c.statut==="confirmee"&&!colOf(c.id))b.push(`<button class="btn" data-act="colPlan" data-id="${c.vendeur_id}">🚚 Planifier la collecte chez le vendeur</button>`);
+ if(can("admin","superviseur")&&c.vendeur_id&&deposeParVendeur(c)&&c.statut==="confirmee"&&!colOf(c.id))b.push(`<button class="btn" data-act="colPlan" data-id="${c.vendeur_id}">🚚 Planifier la collecte chez le vendeur</button>`);
  if(can("admin","preparateur")){if(c.statut==="confirmee"&&colOf(c.id))b.push(`<button class="btn ghost" disabled>📦 Collecte ${esc(colOf(c.id).numero)} — ${esc(COL_L[colOf(c.id).statut])}</button>`);else if(c.statut==="confirmee")b.push(`<button class="btn" data-act="cmdPrep" data-id="${c.id}">${c.vendeur_id?"Marchandise reçue — démarrer la préparation":"Démarrer la préparation"}</button>`);if(c.statut==="preparation")b.push(`<button class="btn ok" data-act="cmdPrete" data-id="${c.id}">Marquer prête</button>`)}
  if(can("admin","superviseur")){if(c.statut==="prete")b.push(`<button class="btn" data-act="assign" data-id="${c.id}">Affecter un livreur</button>`);
   if(act)b.push(`<button class="btn wa" data-act="assign" data-id="${c.id}">Réaffecter</button>`);
@@ -4747,7 +4749,7 @@ function creerCmdVendeur(v,d){
  if(pv<0||pv>prods)throw new Error("Le montant payé au vendeur doit être compris entre 0 et le prix des articles ("+fcfa(prods)+")");if(d.pay==="partiel"&&pv===0)throw new Error("Indiquez le montant déjà payé au vendeur");
  const c=creerCmd({vendeur_id:v.id,vendeur_encaisse:prods>0&&pv>=prods,paye_vendeur:pv,client_id:cl.id,adr:Object.assign({},ad),lignes:d.lignes.map(l=>({produit_id:null,desig:l.desig,qte:l.qte,pu:l.pu})),frais:(zone(d.zone)||{}).frais||0,remise:0,paiement:pv>0?"partiel":"livraison",acompte:pv,mode:pv>0?"Payé au vendeur":"Espèces",type_colis:d.type_colis,priorite:"normale",canal:"Vendeur partenaire",obs:d.obs||"",confirmer:false});
  if(d.exp){const dd={portee:d.exp.portee,dest:d.exp.dest,poids:d.exp.poids,transp:""};try{expCheck(dd);expAppliquer(c,dd)}catch(x){c.obs=(c.obs?c.obs+" · ":"")+"Expédition demandée par le vendeur non appliquée : "+x.message}}
- setStatut(c,"attente","Commande déposée par le vendeur");return c}
+ c.depose_par_vendeur=true;setStatut(c,"attente","Commande déposée par le vendeur");return c}
 
 /* ---------- Chaîne de confiance (côté vendeur) et document « Nos garanties » (prospection) ---------- */
 function chaineEtapes(c){
