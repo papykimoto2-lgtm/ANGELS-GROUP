@@ -396,6 +396,18 @@ Chaque module lit désormais ses réglages dans son écran Paramètres (aucune v
 - Réservé au personnel du bureau (administrateur, superviseur, préparateur…) : les profils livreur et vendeur sont refusés. Thème vert, icône et nom dédiés ; raccourcis d'icône « Affecter les commandes » et « Collectes vendeurs » (`?go=affecter`, `?go=collectes`).
 - **Accueil** par tâches : à affecter, courses en cours, collectes à planifier, à réceptionner, à traiter ; chaque carte ouvre le travail, chaque commande prête a son bouton « Affecter », chaque vendeur à collecter son bouton « Planifier ».
 - Menu réduit au métier : Accueil (+ carte en direct), Affecter & suivre (répartition, tournées, incidents), Collectes, Commandes (+ expéditions, messages), Livreurs (+ équipements), Réglages. Sur téléphone : barre d'onglets en bas (Accueil, Affecter, Collectes, Carte, Menu) avec pastilles de ce qui attend. Argent, stock, RH et comptabilité restent dans l'application complète.
+- **Conduite active de la journée** (`centre-engine.js`, test `tests/centre-pilotage.js`) :
+  - **Tour de contrôle** : livreurs par état (libre, en course, en collecte, indisponible) avec leurs courses, collectes, fraîcheur de position, appel 📞 et WhatsApp 💬 ; commandes à affecter ; confirmations clients.
+  - **Affectation guidée** : les livreurs sont classés (zone, charge, distance à la destination, réussite des 30 derniers jours) ; le meilleur est suggéré ⭐ et « ⚡ Affecter » le choisit en un clic ; la décision reste au superviseur.
+  - **Tournées proposées** : les commandes prêtes proches (même zone, ≤ 3 km, 8 colis au plus) sont groupées avec l'économie estimée et un livreur par tournée.
+  - **Alertes** (avec son et vibration pour les urgentes) : offre non acceptée, course en retard sur le délai de la zone, position perdue, commande qui attend un livreur, collecte en retard, créneau dépassé, créneau non confirmé.
+  - **Créneaux promis** (fenêtres de 2 h) et **confirmation avant départ** : message WhatsApp « répondez 1 pour confirmer, 2 pour reporter », suivi de la réponse.
+  - **Échecs & retours** : motif, nombre de tentatives, nouvelle tentative avec créneau, retour au vendeur recommandé à 2 échecs, réception des colis en retour.
+  - **Dossier de preuve** par commande (historique, reçu par, position GPS, signature, photos des colis), imprimable.
+  - **Colis au départ** : scan ou case à cocher de chaque colis à la sortie du dépôt et au retour ; les colis non sortis sont signalés.
+  - **Planning des collectes** : 7 jours, rappel WhatsApp au vendeur, collectes récurrentes planifiées automatiquement.
+  - **Performance** (livrées à la 1re tentative, délais, créneaux, coût par colis, par livreur / zone / motif, export CSV) et **Clôture du jour** (points ouverts, argent détenu, résumé imprimable, une clôture par jour).
+  - **Réglages du centre** : règles partagées (tournée max, rayon, coûts, délais d'alerte) et préférences de l'appareil (son, écran allumé).
 - Test : `tests/centre-app.js`.
 
 ## Espace vendeur installable (Livraison)
