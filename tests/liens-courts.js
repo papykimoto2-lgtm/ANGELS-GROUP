@@ -59,6 +59,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("LK-16","ni passerelle ni synchronisation : le lien long est conservé",r===true);
  r=await p.evaluate(async()=>{localStorage.setItem("angels_sync",JSON.stringify({actif:true,cle:"SYNC-TEST"}));const long=location.origin+"/distribution.html#portail="+"W".repeat(500);const a=await lienCourt(long);const k=Object.keys(_lcMemo).find(x=>x===long);_lcMemo[k].t=Date.now()-2*864e5;const b=await lienCourt(long);return{a,b,diff:a!==b}});
  chk("LK-17","la mémoire des liens expire au bout de 24 h (un lien périmé côté serveur n'est jamais redonné)",r.diff&&/\/l\//.test(r.b),JSON.stringify(r));
+ r=await p.evaluate(async()=>{localStorage.setItem("angels_sync",JSON.stringify({actif:true,cle:"SYNC-TEST"}));S.config.passerelle_actif=false;S.config.appel_pont=null;const c=S.clients[0],a=c.adresses[0];await geoLinkModal(c.id,a.id);const v=(document.getElementById("gl")||{}).value||"";closeModal();return{v,pass:!!PASS()}});
+ chk("LK-20","téléphone sans clé d'administration : le lien de localisation du client (fenêtre « Portail client ») est COURT",!r.pass&&/\/l\/K[A-Z0-9]{6}$/.test(r.v),JSON.stringify(r).slice(0,200));
  const srcC=fs.readFileSync(path.join(root,"supabase/functions/lien-court/index.js"),"utf8"),mc=srcC.match(/const ALPHA = [^\n]+\n[\s\S]*?const code = [\s\S]*?\n(?=export const cibleValide)/)[0].replace(/\/\*[\s\S]*?\*\//g,"");
  const gen=eval("(function(){"+mc+";return code})()"),cs=new Set();for(let i=0;i<200;i++)cs.add(gen());
  chk("LK-18","les codes ont 10 caractères lisibles (sans 0, O, 1, I, L), tous différents",[...cs].every(x=>/^[A-HJKMNP-Z2-9]{10}$/.test(x))&&cs.size===200,[...cs][0]);

@@ -263,6 +263,7 @@ Fin de tournée : le livreur (écran **🏁 Ma tournée**) voit ses courses livr
 - Le serveur (`supabase/functions/lien-court`, table `pg_liens`, migration `030_liens_courts.sql`) garde la partie longue ; la page `lien.html` (réécriture `/l/:code` dans `vercel.json`) redirige le client, avec un message clair si le lien est expiré (180 jours) ou introuvable.
 - Garde-fous : seules des pages de l'application sont acceptées (pas de redirection vers un site externe) ; création réservée au bureau (clé d'administration) ; hors ligne, sans passerelle ou en cas d'erreur, le lien long est conservé.
 - **Tout poste du bureau peut créer un lien court**, téléphone compris (« Passerelle incomplète » ne l'empêche plus) : la fonction accepte la clé d'administration OU la clé de synchronisation du poste. Codes de 10 caractères tirés sans biais, délai maximal de 4 s (sinon lien long), mémoire limitée à 200 liens / 24 h, ménage des liens expirés au fil de l'eau, jamais pour un livreur à numéros masqués.
+- Correctif : la fenêtre « Portail client » (lien de localisation du client) n'utilisait pas le chemin « poste synchronisé » et restait en lien long sur téléphone.
 - Déploiement : exécuter `030_liens_courts.sql`, déployer la fonction `lien-court` (verify_jwt désactivé).
 
 ## Aperçu avant impression : fermeture (tests/apercu-fermeture.js)
