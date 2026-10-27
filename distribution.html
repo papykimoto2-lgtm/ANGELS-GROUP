@@ -622,6 +622,7 @@ function refuser(l,motif){if(!garde(LIVR,l))return false;if(!["affectee","accept
 function priseEnCharge(l,nb){if(!garde(LIVR,l))return false;if(l.statut!=="acceptee"||l.collecte_at)return false;l.collecte_at=now();l.nb_colis=nb;lhist(l,"collecte",{note:nb+" colis"});return true}
 function demarrer(l){if(!garde(LIVR,l))return false;if(l.statut!=="acceptee"||!l.collecte_at)return false;const c=cmd(l.commande_id);if(!setStatut(c,"en_cours","Départ du livreur"))return false;l.statut="en_cours";l.depart_at=now();lhist(l,"en_cours");return true}
 function confirmer(l,d){if(!garde(LIVR,l))return false;
+ const atReel=(()=>{const x=d&&d.at?new Date(d.at).getTime():NaN;return isFinite(x)&&x<=Date.now()+60000?new Date(x).toISOString():now()})();   /* heure réelle de la livraison (téléphone hors ligne, relève tardive du bureau), jamais l'heure de la relève */
  if(l.statut!=="en_cours"){toast("Cette livraison n'est plus en cours (déjà validée ?)","err");return false}
  const c=cmd(l.commande_id);
  if(verifOuverte(c)&&!d.pg){toast("Vérification du paiement chez le vendeur en cours : ne remettez pas le colis avant la réponse du centre","err");return false}
@@ -639,12 +640,12 @@ function confirmer(l,d){if(!garde(LIVR,l))return false;
  if(!setStatut(c,"livree","Livrée — reçu par "+d.recu_par))return false;
  if(d.colis_ok){try{l.colis_liv=JSON.parse(d.colis_ok)}catch(e){}}
  if(d.signature&&/^data:image\/png;base64,/.test(d.signature)&&d.signature.length<80000)l.signature=d.signature;
- l.statut="livree";if(scetat!=="ok"){l.scan_etat=scetat;audit("Livraison confirmée sans scan complet des colis",c.numero+" — "+(scetat==="absent"?"aucun colis scanné":"scan partiel"))}if(cetat!=="ok"){l.code_etat=cetat;audit("Livraison confirmée sans code client valide",c.numero+" — "+(cetat==="absent"?"code non saisi":cetat==="direct"?"validée par le centre (circuit direct)":"code non conforme"))}l.fin_at=now();l.recu_par=d.recu_par;l.obs=d.obs||"";l.montant_encaisse=m;l.mode=d.mode;l.ecart=ecart;
+ l.statut="livree";if(scetat!=="ok"){l.scan_etat=scetat;audit("Livraison confirmée sans scan complet des colis",c.numero+" — "+(scetat==="absent"?"aucun colis scanné":"scan partiel"))}if(cetat!=="ok"){l.code_etat=cetat;audit("Livraison confirmée sans code client valide",c.numero+" — "+(cetat==="absent"?"code non saisi":cetat==="direct"?"validée par le centre (circuit direct)":"code non conforme"))}l.fin_at=atReel;l.recu_par=d.recu_par;l.obs=d.obs||"";l.montant_encaisse=m;l.mode=d.mode;l.ecart=ecart;
  {const lvx=liv(l.livreur_id);if(estExterne(lvx)){const ca=Math.round((c.frais||0)*(+lvx.commission_pct||0)/100);l.commission_angels=ca;l.part_livreur=Math.max((c.frais||0)-ca,0)}}
  l.gps_confirm=S.pos[l.livreur_id]?{lat:S.pos[l.livreur_id].lat,lng:S.pos[l.livreur_id].lng,ts:S.pos[l.livreur_id].ts}:null;
  if(ecart!==0){l.ecart_statut="a_valider";l.ecart_note=d.ecart_note}
- if(m>0&&!(d.ev_id&&S.fonds.some(f=>f.id==="f_ev"+d.ev_id)))S.fonds.push({id:d.ev_id?"f_ev"+d.ev_id:uid("f"),type:"encaissement",livreur_id:l.livreur_id,livraison_id:l.id,commande_id:c.id,montant:m,mode:d.mode,ref:ref||null,direct:mob&&!!d.direct,ts:now(),par:who()});
- l.bonus_zone=bonusMontant(c.adr&&c.adr.zone,d.at?new Date(d.at):new Date());lhist(l,"livree",{note:`encaissé ${fcfa(m)}`});try{queteTick()}catch(e){}audit("Confirmation livraison",`${c.numero} — encaissé ${fcfa(m)} / attendu ${fcfa(att)}`);return true}
+ if(m>0&&!(d.ev_id&&S.fonds.some(f=>f.id==="f_ev"+d.ev_id)))S.fonds.push({id:d.ev_id?"f_ev"+d.ev_id:uid("f"),type:"encaissement",livreur_id:l.livreur_id,livraison_id:l.id,commande_id:c.id,montant:m,mode:d.mode,ref:ref||null,direct:mob&&!!d.direct,ts:atReel,par:who()});
+ l.bonus_zone=bonusMontant(c.adr&&c.adr.zone,new Date(atReel));lhist(l,"livree",{note:`encaissé ${fcfa(m)}`});try{queteTick()}catch(e){}audit("Confirmation livraison",`${c.numero} — encaissé ${fcfa(m)} / attendu ${fcfa(att)}`);return true}
 function echec(l,motif,obs,o){o=o||{};if(!garde(LIVR,l))return false;
  if(!["affectee","acceptee","en_cours"].includes(l.statut)){toast("Livraison déjà clôturée","err");return false}
  if(ijMotif(motif)){const pr=ijPreuve(l);if(!pr.ok){if(o.pg){l.echec_sans_preuve=true;audit("Échec client injoignable sans les preuves exigées (passerelle)",cmd(l.commande_id).numero+" — "+pr.manque.join(" ; "))}else if(ME&&ME.role==="livreur"){toast("Échec « client injoignable » refusé : "+pr.manque.join(" ; "),"err");return false}}}
@@ -3725,7 +3726,7 @@ function passAppliquer(ev){if(ev.type==="incident"&&String((ev.donnees||{}).natu
   else if(t==="arrive")ok=!!ijArrive(l);
   else if(t==="rappel_client")ok=!!ijDemande(l,String(d.motif||"").slice(0,120));
   else if(t==="confirmer"){const pr=ev.preuve||{},sg=pr.signature_client||pr.signature||"";
-   ok=confirmer(l,{code:l.code,code_etat:d.code_etat,scan_etat:d.scan_etat,ev_id:ev.id,montant:String(d.montant),mode:d.mode,ref:d.ref_paiement,direct:!!d.direct,recu_par:d.recu_par,obs:d.obs,ecart_note:d.ecart_note,pg:true,signature:sg,colis_ok:Array.isArray(d.scans)&&d.scans.length?JSON.stringify(d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))):""});
+   ok=confirmer(l,{at:ev.cree_le,code:l.code,code_etat:d.code_etat,scan_etat:d.scan_etat,ev_id:ev.id,montant:String(d.montant),mode:d.mode,ref:d.ref_paiement,direct:!!d.direct,recu_par:d.recu_par,obs:d.obs,ecart_note:d.ecart_note,pg:true,signature:sg,colis_ok:Array.isArray(d.scans)&&d.scans.length?JSON.stringify(d.scans.slice(0,99).map(x=>({n:+x.n||0,mode:x.mode==="scan"?"scan":"saisi"}))):""});
    if(ok){const c=cmd(l.commande_id);
     (S.regul_enc||[]).forEach(x=>{if(x.statut==="ouvert"&&x.type==="refuse"&&x.livraison_id===l.id){x.statut="traite";x.par="reconfirmée par le livreur";x.fin=now()}});
     if(d.direct&&+d.montant>0)regulAjout({type:"mm",ev_id:ev.id,livreur_id:lv.id,livraison_id:l.id,commande_id:l.commande_id,montant:+d.montant,mode:d.mode||"",ref:d.ref_paiement||"",motif:"Paiement Mobile Money « direct » déclaré par le livreur (il ne reverse rien) : à rapprocher du relevé de l'agence"});
@@ -3774,7 +3775,7 @@ async function passSync(force){const P=PASS();const solo=!!P&&ANGELS_SYNC.actif(
  /* 2. publication de la projection sans numéros */
   const lim=Date.now()-2*864e5,L=S.livraisons.filter(l=>l.circuit!=="direct"&&liv(l.livreur_id)&&cmd(l.commande_id)&&(isActive(l)||(l.fin_at&&new Date(l.fin_at).getTime()>lim))).slice(-300),M=L.map(passProjection).concat(passStatsMissions(),passCollectesMissions()),sig=JSON.stringify(M.map(m=>[m.livraison_ref,m.statut,m.payload,m.code,m.colis]));
   S.pass=S.pass||{refs:[]};const refs=M.map(m=>m.livraison_ref),retirer=S.pass.refs.filter(x=>!refs.includes(x));
-  if(sig!==_passSig||retirer.length){const r=await passPost(P,"mission-sync",{action:"publier",missions:M,retirer});if(!r.ignorees)_passSig=sig;if(retirer.length){S.pass.refs=refs;chg=true}else S.pass.refs=refs}
+  if(sig!==_passSig||retirer.length){const r=await passPost(P,"mission-sync",{action:"publier",missions:M,retirer});if(!r.ignorees&&!(r.livreurs_inconnus||[]).length)_passSig=sig;if(retirer.length){S.pass.refs=refs;chg=true}else S.pass.refs=refs}
   {const V=[];for(const v of S.vendeurs.filter(v=>v.ident_serveur))V.push({vendeur_ref:v.id,etat:await vendEtatPub(v)});const sv=JSON.stringify(V);if(V.length&&sv!==_vendSig){const r=await passPost(P,"mission-sync",{action:"vendeur-publier",vendeurs:V});if(!r.ignores)_vendSig=sv}}
   await suiviPublierSur();await colisPhotosPublierSur();
   await pushFlush();S.pass_err="";_passOkAt=Date.now()
