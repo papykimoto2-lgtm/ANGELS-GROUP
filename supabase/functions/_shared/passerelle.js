@@ -60,6 +60,8 @@ async function changerAvecCode(db, uid, meta) {
 
 /* Colis : l'étiquette de chaque colis porte un jeton de 5 caractères (dans le QR et imprimé dessous). Le serveur n'en garde que l'empreinte : le livreur ne peut valider un colis que s'il l'a vraiment sous les yeux. */
 export const empreinteColis = (livraison_ref, n, tok) => sha256hex("colis|" + livraison_ref + "|" + n + "|" + String(tok).trim().toUpperCase());
+/* Même empreinte que livraison-signer (signature-client.js) : sha256("signature|sel|ip") */
+export const empreinteIp = (sel, ip) => sha256hex("signature|" + String(sel || "") + "|" + String(ip || "inconnu"));
 export const empreinteJeton = (jeton) => sha256hex("sign|" + String(jeton).trim().toUpperCase());
 const ALPHA_J = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 /* Les preuves doivent être de vraies images : en-tête PNG / JPEG reconnu et taille minimale (un « data:image/jpeg;base64,AAAA » ne passe plus) */
@@ -298,7 +300,10 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     if (montant !== att && txt(d.ecart_note, 300).length < 3) return refuse(400, "Écart de " + (montant - att) + " F : explication obligatoire");
     /* preuves : colis remis (scan), signature (client sur son téléphone, sinon livreur), photo, position */
     if (p.exige_colis && p.colis_total > 0) { const v = await verifierScans(db, { livraison_ref: ref, commande_ref: m.commande_ref }, d.scans); ev.scan_etat = v.ok ? "ok" : (Array.isArray(d.scans) && d.scans.length ? "partiel" : "absent"); if (v.ok) ev.scans = v.scans; else ev.scan_msg = txt(v.msg, 160); }   /* scan facultatif : tracé, jamais bloquant */
-    const pr = await db.preuve(ref) || {}, sigL = typeof d.signature === "string" && d.signature ? d.signature : "";
+    const pr = await db.preuve(ref) || {};
+    /* Signature du client : si elle vient de la MÊME connexion Internet que cette confirmation (le livreur a pu signer lui-même avec le jeton du QR), le centre la voit « à vérifier » (jamais bloquant) */
+    if (pr.signature_client && pr.client_ip && req.ip_hash && egal(pr.client_ip, String(req.ip_hash))) ev.signature_suspecte = true;
+    const sigL = typeof d.signature === "string" && d.signature ? d.signature : "";
     if (sigL && (!PNG.test(sigL) || sigL.length > SIG_MAX || sigL.length < SIG_MIN)) return refuse(400, "Signature illisible : recommencez");
     const photo = typeof d.photo === "string" && d.photo ? d.photo : "";
     if (photo && (!JPG.test(photo) || photo.length > PHOTO_MAX || photo.length < PHOTO_MIN)) return refuse(400, "Photo illisible : reprenez-la");
