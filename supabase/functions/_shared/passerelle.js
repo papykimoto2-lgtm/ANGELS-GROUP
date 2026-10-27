@@ -235,6 +235,9 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
   const m = ref ? await db.mission(ref) : null;
   if (!m || m.livreur_ref !== c.livreur_ref) return err(403, "Cette mission n'est pas la vôtre");   // même réponse si elle n'existe pas
   const p = m.payload || {}, st = m.statut;
+  /* Rejeu : chaque action du téléphone porte un identifiant unique (cid). Si le serveur l'a déjà enregistrée (réponse perdue, double appui), on répond « déjà reçu » : jamais de doublon ni de faux refus. */
+  const cid = txt(req.cid, 40).replace(/[^A-Za-z0-9_-]/g, "");
+  if (cid && db.evenementParCid && await db.evenementParCid(ref, cid)) return rep(200, { ok: true, statut: st, rejeu: true });
   const maj = { statut: st, payload: p }, ev = {};
   const refuse = (s, msg) => err(s, msg);
 
@@ -370,6 +373,7 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
   }
 
   if (maj.statut !== st || type === "prise_en_charge" || type === "arrive" || type === "rappel_client") await db.majMission(ref, { statut: maj.statut, payload: p, maj_le: new Date(now).toISOString() });
+  if (cid) ev.cid = cid;
   await db.ajouterEvenement({ livraison_ref: ref, livreur_ref: c.livreur_ref, type, donnees: ev });
   return rep(200, { ok: true, statut: maj.statut });
 }

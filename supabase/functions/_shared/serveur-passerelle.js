@@ -49,5 +49,6 @@ export function dbPasserelle(sb = client()) {
     jeton: async (hash) => ok(await t("pg_sign_jetons").select("livraison_ref,expire,utilise").eq("token_hash", hash).maybeSingle()),
     consommerJeton: async (hash) => ok(await t("pg_sign_jetons").update({ utilise: true }).eq("token_hash", hash)),
     ajouterEvenement: async (row) => ok(await t("pg_evenements").insert(row)),
+    evenementParCid: async (ref, cid) => ((ok(await t("pg_evenements").select("id").eq("livraison_ref", ref).eq("donnees->>cid", cid).limit(1)) || []).length > 0),
   };
 }

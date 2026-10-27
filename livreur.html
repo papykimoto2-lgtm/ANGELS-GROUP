@@ -78,18 +78,21 @@ const ACTIFS=["affectee","acceptee","en_cours"];
 let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null,ouvertPour=null;   /* ouvertPour : la mission dont un formulaire est ouvert et les états où il reste valable */
 /* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
 const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan",m:"ang_lv_chat",v:"ang_lv_chatvu",n:"ang_lv_push",d:"ang_lv_pushinv",i:"ang_lv_ident",x:"ang_lv_idents"},DUREE_CACHE=48*36e5;
-const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
 const cache=()=>{const c=lsGet(LS.c,null);return c&&c.t&&c.uid&&Date.now()-c.t<DUREE_CACHE?c:null};
 const file=()=>lsGet(LS.f,[]),rejets=()=>lsGet(LS.r,[]),enFile=ref=>file().filter(f=>f.ref===ref),enLigne=()=>navigator.onLine!==false;
 const heureC=t=>new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
 function surcouche(m){const q=enFile(m.livraison_ref);if(!q.length)return m;const c=JSON.parse(JSON.stringify(m));q.forEach(f=>{const t=f.type;if(t==="accepter")c.statut="acceptee";else if(t==="refuser")c.statut="refusee";else if(t==="prise_en_charge"){c.payload.collecte_at=new Date(f.t).toISOString();c.payload.nb_colis=+(f.donnees||{}).nb_colis||c.payload.nb_colis}else if(t==="demarrer")c.statut="en_cours";else if(t==="echec")c.statut="echouee";else if(t==="arrive"){c.payload.contact=Object.assign({},c.payload.contact,{arrive_at:c.payload.contact&&c.payload.contact.arrive_at||new Date(f.t).toISOString()})}else if(t==="rappel_client"){const k=Object.assign({},c.payload.contact);k.statut="attente";k.arrive_at=k.arrive_at||new Date(f.t).toISOString();c.payload.contact=k}else if(t==="confirmer")c.attente=true});return c}
-function mettreEnFile(ref,type,donnees){let f=file();if(type==="position")f=f.filter(x=>!(x.ref===ref&&x.type==="position"));else if(type!=="incident"&&f.some(x=>x.ref===ref&&x.type===type))return;
- f.push({id:"a"+Date.now()+Math.random().toString(36).slice(2,6),ref,type,donnees:donnees||{},t:Date.now(),cmd:((missions.find(m=>m.livraison_ref===ref))||{}).commande_ref||ref});lsSet(LS.f,f)}
+const nouvId=()=>"a"+Date.now()+Math.random().toString(36).slice(2,6);
+/* Garde l'action sur le téléphone ; renvoie false si la mémoire du téléphone est pleine (l'action n'est alors PAS gardée : on ne le cache jamais au livreur) */
+function mettreEnFile(ref,type,donnees,id){let f=file();if(type==="position")f=f.filter(x=>!(x.ref===ref&&x.type==="position"));else if(type!=="incident"&&f.some(x=>x.ref===ref&&x.type===type))return true;
+ f.push({id:id||nouvId(),ref,type,donnees:donnees||{},t:Date.now(),cmd:((missions.find(m=>m.livraison_ref===ref))||{}).commande_ref||ref});return lsSet(LS.f,f)}
 function toast(m,t){const e=$("#toast");e.textContent=m;e.style.background=t==="err"?"#c62828":"#0b3b4c";e.classList.remove("hide");clearTimeout(toast._t);toast._t=setTimeout(()=>e.classList.add("hide"),3500)}
 function loadSb(){return new Promise((ok,ko)=>{if(window.supabase)return ok();const sc=document.createElement("script");sc.src=SB_LIB;sc.integrity=SB_SRI;sc.crossOrigin="anonymous";sc.onload=ok;sc.onerror=()=>ko(new Error("Connexion Internet requise pour se connecter"));document.head.appendChild(sc)})}
 async function api(fn,body){let t=null;try{const{data}=await sb.auth.getSession();t=data&&data.session&&data.session.access_token}catch(e){}
  if(!t){const e=new Error("Session expirée : reconnectez-vous");e.status=401;e.reseau=!enLigne();throw e}
- let r;try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body)})}catch(x){const e=new Error("Réseau indisponible");e.reseau=true;throw e}
+ let r;const ac=typeof AbortController!=="undefined"?new AbortController():null,to=ac?setTimeout(()=>ac.abort(),15000):0;   /* réseau trop lent : après 15 s l'action est gardée sur le téléphone et repart seule */
+ try{r=await fetch(FN+fn,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+t,apikey:CFG.key},body:JSON.stringify(body),signal:ac?ac.signal:undefined})}catch(x){const e=new Error("Réseau instable : votre action est gardée, elle partira toute seule");e.reseau=true;throw e}finally{clearTimeout(to)}
  const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false){const e=new Error(j.erreur||("Erreur "+r.status));e.status=r.status;throw e}return j}
 const ferme=()=>{ouvertPour=null;try{camStop();clearInterval(PVPOLL)}catch(e){}const o=$(".ov");if(o)o.remove()};
 function modal(html){ferme();const o=document.createElement("div");o.className="ov";o.innerHTML="<div>"+html+"</div>";o.addEventListener("click",e=>{if(e.target===o)ferme()});document.body.appendChild(o);return o}
@@ -467,15 +470,19 @@ document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.
  else if(t.dataset&&t.dataset.gp!=null){lsSet(LS.g,{on:t.checked});if(!t.checked&&watch!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watch);watch=null}else suivi();toast(t.checked?"Partage de la position activé pendant les courses":"Partage de la position coupé","ok")}});
 addEventListener("keydown",e=>{if(e.key==="Escape"&&MENU){MENU=false;if(user)vueMissions()}});
 function mission(r){return missions.find(m=>m.livraison_ref===r)}
+function gardee(r,type,donnees,cid,msg){if(!mettreEnFile(r,type,donnees,cid)){toast("⚠ Mémoire du téléphone pleine : l'action n'a PAS été gardée. Libérez de la place ou rétablissez le réseau, puis recommencez.","err");return false}ferme();ouvert=null;toast(msg,"ok");vueMissions();return true}
 async function envoyer(r,type,donnees,ok){
+ const cid=nouvId();   /* identifiant unique de l'action : si le serveur l'a déjà reçue (réponse perdue, double appui), il répond « déjà reçu » au lieu de la refuser */
  try{if(!sb||!enLigne()){const e=new Error("hors ligne");e.reseau=true;throw e}
-  const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{}});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}
- catch(x){if(x.reseau){mettreEnFile(r,type,donnees);ferme();ouvert=null;toast("📡 Hors ligne : action gardée sur le téléphone, elle partira au retour du réseau","ok");vueMissions();return null}if(x.status===409||(x.status===403&&/pas la vôtre/.test(x.message))){ferme();ouvert=null;toast("⚠ "+x.message+" — liste actualisée","err");await charger();return null}toast(x.message,"err")}}
+  if(file().length){if(gardee(r,type,donnees,cid,"⏳ Action ajoutée à la file : envoi dans l'ordre, un instant…"))vider();return null}   /* des actions attendent déjà : on garde l'ordre */
+  const j=await api("mission-action",{livraison_ref:r,type,donnees:donnees||{},cid});ferme();ouvert=null;toast(ok||"Enregistré","ok");await charger();return j}
+ catch(x){if(x.reseau){gardee(r,type,donnees,cid,"📡 Réseau instable ou absent : action gardée sur le téléphone, elle partira au retour du réseau");return null}if(x.status===409||(x.status===403&&/pas la vôtre/.test(x.message))){ferme();ouvert=null;toast("⚠ "+x.message+" — liste actualisée","err");await charger();return null}toast(x.message,"err")}}
 let vidage=false;
 async function vider(){if(vidage||!sb||!enLigne()||!file().length)return;vidage=true;let n=0;
  try{for(;;){const f=file()[0];if(!f)break;
-  try{await api("mission-action",{livraison_ref:f.ref,type:f.type,donnees:f.donnees});lsSet(LS.f,file().slice(1));n++}
-  catch(x){if(x.reseau||x.status===401)break;lsSet(LS.f,file().slice(1));if(f.type!=="position"){const R=rejets();R.push({id:f.id,msg:f.type+" — "+f.cmd+" : "+x.message});lsSet(LS.r,R.slice(-20))}}}}
+  try{await api("mission-action",{livraison_ref:f.ref,type:f.type,donnees:f.donnees,cid:f.id});lsSet(LS.f,file().slice(1));n++}
+  catch(x){if(x.reseau||x.status===401||x.status===408||x.status===429||x.status>=500)break;   /* erreur temporaire (réseau, serveur occupé) : l'action reste dans la file et sera renvoyée ; seul un vrai refus (4xx) la retire */
+   lsSet(LS.f,file().slice(1));if(f.type!=="position"){const R=rejets(),e=f.donnees||{};R.push({id:f.id,msg:f.type+" — "+f.cmd+" : "+x.message+(f.type==="confirmer"&&+e.montant>0?" — ENCAISSEMENT DE "+fcfa(e.montant)+" À RESAISIR OU À SIGNALER AU BUREAU":"")});lsSet(LS.r,R.slice(-20))}}}}
  finally{vidage=false}
  if(n)toast(n+" action(s) envoyée(s)","ok");await charger()}
 /* ---------- Collectes chez les vendeurs, versement, clôture de tournée, avis (actions envoyées au bureau par le serveur) ---------- */
