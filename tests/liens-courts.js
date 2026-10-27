@@ -51,6 +51,18 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("LK-12","le serveur n'accepte que des pages de l'application (refuse http://, //, javascript:, pages inconnues)",cv("distribution.html#portail=abc")&&cv("portail#/suivi/xyz")&&!cv("https://evil.test")&&!cv("//evil.test")&&!cv("javascript:alert(1)")&&!cv("admin.html#x"));
  const vj=JSON.parse(fs.readFileSync(path.join(root,"vercel.json"),"utf8"));
  chk("LK-13","vercel.json : /l/:code est servi par la page de résolution",vj.rewrites.some(x=>x.source==="/l/:code"&&x.destination==="/lien.html"));
+ /* 15. téléphone : poste synchronisé sans clé d'administration (« Passerelle incomplète ») */
+ const hdrs=[];await ctx.route("**/functions/v1/lien-court**",async rt=>{const rq=rt.request();hdrs.push(rq.headers());return rt.fallback()});
+ r=await p.evaluate(async()=>{S.config.passerelle_actif=false;S.config.appel_pont=null;localStorage.setItem("angels_sync",JSON.stringify({actif:true,cle:"SYNC-TEST"}));const l=await lienCourt(location.origin+"/distribution.html#portail="+"Z".repeat(500));return{l,pass:!!PASS()}});
+ chk("LK-15","poste synchronisé SANS clé d'administration (téléphone, « Passerelle incomplète ») : le lien court est quand même créé, avec la clé de synchronisation",!r.pass&&/\/l\/K[A-Z0-9]{6}$/.test(r.l)&&hdrs.some(h=>h["x-sync-key"]==="SYNC-TEST"&&!h["x-admin-key"]),JSON.stringify([r,hdrs.length]));
+ r=await p.evaluate(async()=>{localStorage.removeItem("angels_sync");const l=await lienCourt(location.origin+"/distribution.html#portail="+"Y".repeat(500));return l.length>400});
+ chk("LK-16","ni passerelle ni synchronisation : le lien long est conservé",r===true);
+ r=await p.evaluate(async()=>{localStorage.setItem("angels_sync",JSON.stringify({actif:true,cle:"SYNC-TEST"}));const long=location.origin+"/distribution.html#portail="+"W".repeat(500);const a=await lienCourt(long);const k=Object.keys(_lcMemo).find(x=>x===long);_lcMemo[k].t=Date.now()-2*864e5;const b=await lienCourt(long);return{a,b,diff:a!==b}});
+ chk("LK-17","la mémoire des liens expire au bout de 24 h (un lien périmé côté serveur n'est jamais redonné)",r.diff&&/\/l\//.test(r.b),JSON.stringify(r));
+ const srcC=fs.readFileSync(path.join(root,"supabase/functions/lien-court/index.js"),"utf8"),mc=srcC.match(/const ALPHA = [^\n]+\n[\s\S]*?const code = [\s\S]*?\n(?=export const cibleValide)/)[0].replace(/\/\*[\s\S]*?\*\//g,"");
+ const gen=eval("(function(){"+mc+";return code})()"),cs=new Set();for(let i=0;i<200;i++)cs.add(gen());
+ chk("LK-18","les codes ont 10 caractères lisibles (sans 0, O, 1, I, L), tous différents",[...cs].every(x=>/^[A-HJKMNP-Z2-9]{10}$/.test(x))&&cs.size===200,[...cs][0]);
+ chk("LK-19","le serveur accepte aussi la clé de synchronisation et une apostrophe dans la cible",/x-sync-key/.test(srcC)&&/SYNC_KEY/.test(srcC)&&cv("portail#/suivi/L'Enfance"),"");
  chk("LK-14","aucune erreur de script",errs.length===0,errs.join(" | "));
  console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");await b.close();srv.close();process.exit(ko?1:0);
 })();

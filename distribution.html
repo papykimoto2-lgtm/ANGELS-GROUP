@@ -5336,16 +5336,23 @@ const portailLien=h=>portailBase()+h;
 /* Lien court et rassurant (https://…/l/AB3K9ZQ) à la place des adresses de plusieurs centaines de caractères envoyées aux clients et aux vendeurs.
    Le serveur garde la partie longue ; sans passerelle, hors ligne ou en cas d'erreur, on garde le lien long (rien ne se perd). */
 const _lcMemo={};
+/* Poste qui peut créer un lien court : le poste passerelle (clé d'administration) OU tout poste synchronisé du bureau, téléphone compris (clé de synchronisation) */
+function lienCourtAcces(){const P=PASS();if(P)return{url:pontUrl(P,"lien-court"),h:{"x-admin-key":P.cle_admin}};
+ try{const s=JSON.parse(localStorage.getItem("angels_sync")||"null"),u=JSON.parse(localStorage.getItem("angels_supabase")||"null"),def=window.ANGELS_PASSERELLE||{},url=(u&&u.off)?"":(u&&u.url)||def.url||"";
+  if(s&&s.actif&&s.cle&&/^https:\/\//.test(url))return{url:String(url).replace(/\/+$/,"")+"/functions/v1/lien-court",h:{"x-sync-key":s.cle}}}catch(e){}return null}
 async function lienCourt(long){
  try{
   if(!long||long.length<120)return long;   /* déjà court */
-  if(_lcMemo[long])return _lcMemo[long];
-  const P=PASS();if(!P||!/^https?:\/\//.test(long)||(typeof navigator!=="undefined"&&navigator.onLine===false))return long;
+  if(typeof livMasque==="function"&&livMasque())return long;   /* un livreur à numéros masqués ne crée jamais de lien */
+  const m=_lcMemo[long];if(m&&Date.now()-m.t<864e5)return m.l;
+  const A=lienCourtAcces();if(!A||!/^https?:\/\//.test(long)||(typeof navigator!=="undefined"&&navigator.onLine===false))return long;
   const u=new URL(long),cible=u.pathname.replace(/^\/+/,"")+u.search+u.hash;
   if(!/^(portail|distribution|vendeur|livreur|centre|suivi|boutique)(\.html)?([#?\/]|$)/.test(cible)||cible.length>12000)return long;
-  const r=await passPost(P,"lien-court",{action:"creer",cible});
+  const ac=typeof AbortController!=="undefined"?new AbortController():null,to=ac?setTimeout(()=>ac.abort(),4000):0;   /* serveur lent : on garde le lien long plutôt que d'attendre */
+  let r;try{const x=await fetch(A.url,{method:"POST",headers:Object.assign({"content-type":"application/json"},A.h),body:JSON.stringify({action:"creer",cible}),signal:ac?ac.signal:undefined});r=await x.json().catch(()=>({}));if(!x.ok||r.ok===false)return long}finally{clearTimeout(to)}
   if(!r||!/^[A-Z0-9]{5,12}$/.test(r.code||""))return long;
-  return _lcMemo[long]=u.origin+"/l/"+r.code;
+  const k=Object.keys(_lcMemo);if(k.length>=200)delete _lcMemo[k[0]];
+  _lcMemo[long]={l:u.origin+"/l/"+r.code,t:Date.now()};return _lcMemo[long].l;
  }catch(e){return long}}
 /* Lien de commande court et lisible (au lieu d'un bloc codé de plusieurs centaines de caractères, qui inquiète les clients) : …/commander?boutique=Yoyoo+Boutique&tel=0585656086.
    Hors serveur web (fichier local) : ancien lien codé. */
