@@ -14,7 +14,7 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",i
   compteParUtilisateur:async u=>u==="U1"?{livreur_ref:"LV1",actif:true}:null,vendeurParUtilisateur:async u=>u==="V1"?{vendeur_ref:"v1",actif:true,nom:"Awa"}:null,mission:async r=>D.mis[r]||null,code:async r=>D.code[r]||null,majCode:async(r,p)=>Object.assign(D.code[r],p),majMission:async(r,p)=>Object.assign(D.mis[r],p),majPosition:async()=>{},
   ajouterEvenement:async e=>{D.ev.push(Object.assign({id:++D.n},e))},ecrireColis:async()=>{},colis:async()=>[],ecrirePreuve:async(r,p)=>{D.pre[r]=Object.assign(D.pre[r]||{},p)},preuve:async r=>D.pre[r]||null,
   ajouterCmdVendeur:async r=>{D.cmds.push(r)},nbCmdsVendeurEnAttente:async()=>0};
- const cfg={adminKey:"ADM",essaisCodeMax:5},NOW=Date.parse("2026-10-22T10:00:00Z"),jpg="data:image/jpeg;base64,/9j/4AAQ"+"A".repeat(500);
+ const cfg={adminKey:"ADM",essaisCodeMax:5},NOW=Date.parse("2026-10-22T10:00:00Z"),jpg="data:image/jpeg;base64,/9j/4AAQ"+"A".repeat(1500);
  await G.traiterSync(db,cfg,{action:"publier",missions:[{livraison_ref:"L-1",livreur_ref:"LV1",commande_ref:"CMD-1",statut:"en_cours",code:"4321",payload:{numero:"CMD-1",org:"X",lignes:[{desig:"Verres",qte:1}],montant_attendu:0,exige_colis:false,exige_signature:false,exige_photo:true,type_colis:{id:"fragile",nom:"Produit cassable"}}}]},"ADM",NOW);
  const conf=d=>G.traiterAction(db,cfg,{livraison_ref:"L-1",type:"confirmer",donnees:Object.assign({code:"4321",montant:0,mode:"Espèces",recu_par:"Awa"},d||{})},"U1",NOW);
  let r=await conf();chk("TC-1","serveur : remise refusée sans photo quand le type de colis l'exige",r.status===400&&/Photo de la remise obligatoire/.test(r.body.erreur),JSON.stringify(r));

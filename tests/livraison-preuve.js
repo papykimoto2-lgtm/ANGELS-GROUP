@@ -11,7 +11,7 @@ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",i
   ajouterEvenement:async e=>{D.ev.push(Object.assign({id:++D.n},e))},ecrireColis:async(r,L)=>{D.colis[r]=L},colis:async r=>D.colis[r]||[],ecrirePreuve:async(r,p)=>{D.pre[r]=Object.assign(D.pre[r]||{},p)},preuve:async r=>D.pre[r]||null,
   ecrireJeton:async j=>{for(const k of Object.keys(D.jet))if(D.jet[k].livraison_ref===j.livraison_ref)delete D.jet[k];D.jet[j.token_hash]=j},jeton:async h=>D.jet[h]||null,consommerJeton:async h=>{D.jet[h].utilise=true}};
  const cfg={adminKey:"ADM",essaisCodeMax:5},NOW=Date.parse("2026-10-22T10:00:00Z"),R="L-1",NUM="CMD-2026-0007";
- const png="data:image/png;base64,"+"iVBORw0KGgo".repeat(60),jpg="data:image/jpeg;base64,/9j/4AAQ"+"A".repeat(500);
+ const png="data:image/png;base64,"+"iVBORw0KGgo".repeat(60),jpg="data:image/jpeg;base64,/9j/4AAQ"+"A".repeat(1500);
  const pub=async(extra)=>G.traiterSync(db,cfg,{action:"publier",missions:[Object.assign({livraison_ref:R,livreur_ref:"LV1",commande_ref:NUM,statut:"acceptee",code:"4321",colis:[{n:1,tok:"AB2CD"},{n:2,tok:"XY7ZK"}],payload:{numero:NUM,org:"ANGEL'S",lignes:[{desig:"Sac",qte:2}],montant_attendu:15000,exige_colis:true,exige_signature:true}},extra||{})]},"ADM",NOW);
  const act=(type,donnees)=>G.traiterAction(db,cfg,{livraison_ref:R,type,donnees},"U1",NOW);
  let r=await pub();
