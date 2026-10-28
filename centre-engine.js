@@ -245,7 +245,7 @@ function cenDirectExec(c,o){
  /* dates réelles de la livraison (saisie après coup) ; l'heure de saisie reste dans le journal d'audit */
  const recale=a=>{(a||[]).forEach(h=>{if(h.ts&&new Date(h.ts).getTime()>=t0-1000)h.ts=quand})};
  recale(c.hist);recale(l.hist);["affectee_at","accept_at","collecte_at","depart_at","fin_at"].forEach(k=>{if(l[k]&&new Date(l[k]).getTime()>=t0-1000)l[k]=quand});   /* seules les étapes saisies maintenant sont datées à la livraison réelle ; les horaires déjà réels sont conservés */
- S.fonds.forEach(f=>{if(f.livraison_id===l.id&&new Date(f.ts).getTime()>=t0-1000)f.ts=quand});
+ S.fonds.forEach(f=>{if(f.livraison_id===l.id&&new Date(f.ts).getTime()>=t0-1000)f.ts=quand;if(f.livraison_id===l.id&&f.type==="encaissement")f.saisi_le=now()});   /* saisi_le : l'argent n'est détenu « au bureau » que depuis la saisie : le délai de reversement part de là, pas de la date réelle de livraison */
  l.circuit="direct";l.saisie_par=who();l.saisie_le=now();if(o.bon)l.bon_papier=String(o.bon).slice(0,40);
  if(Array.isArray(o.articles)&&o.articles.length){l.articles_remis=o.articles;const manque=o.articles.filter(a=>a.remis<a.cmd);if(manque.length){c.obs=(c.obs?c.obs+" · ":"")+"Remis en partie : "+manque.map(a=>a.desig+" "+a.remis+"/"+a.cmd).join(", ")}}
  audit("Livraison directe (circuit direct)",c.numero+" — "+lv.nom+" — "+(o.resultat==="echec"?"échec : "+(o.motif||""):"livrée, encaissé "+fcfa(l.montant_encaisse||0))+(o.bon?" — bon papier "+o.bon:""));

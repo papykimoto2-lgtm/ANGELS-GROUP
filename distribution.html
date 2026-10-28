@@ -1629,7 +1629,7 @@ function carteHook(){
  if(!ME||view!=="carte"||!document.getElementById("cm_map"))return;
  loadLeaflet().then(()=>{const el=document.getElementById("cm_map");if(!el||view!=="carte")return;el.innerHTML="";
   CARTE.map=L.map(el).setView(CARTE.view?[CARTE.view.c.lat,CARTE.view.c.lng]:[5.345,-4.02],CARTE.view?CARTE.view.z:12);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(CARTE.map);CARTE.lg=L.layerGroup().addTo(CARTE.map);CARTE.reg={};CARTE.mk={};
+  carteFonds(CARTE.map);CARTE.lg=L.layerGroup().addTo(CARTE.map);CARTE.reg={};CARTE.mk={};
   carteMarkers();if(!CARTE.view)carteFit();setTimeout(()=>CARTE.map&&CARTE.map.invalidateSize(),150);
   CARTE.timer=setInterval(()=>{
    if(view!=="carte"||!CARTE.map){clearInterval(CARTE.timer);return}
@@ -3226,8 +3226,9 @@ function enTaxPayForm(x){modal("Payer — "+x.libelle,`<div class="pill">Échéa
 const PIECES={cni:"Carte nationale d'identité",passeport:"Passeport",attestation:"Attestation d'identité",carte_consulaire:"Carte consulaire"};
 const FKINDS=[["photo","Photo d'identité du livreur"],["piece_recto","Pièce d'identité — recto"],["piece_verso","Pièce d'identité — verso"],["permis","Permis de conduire"]];
 /* Argent détenu : plafond et délai de reversement. Au-delà, plus aucune nouvelle mission jusqu'au reversement. */
-function detenuAge(lid){let rest=reverseLiv(lid)+retenuLiv(lid);const E=S.fonds.filter(f=>f.type==="encaissement"&&f.livreur_id===lid&&!f.direct).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
- for(const f of E){if(rest>=f.montant){rest-=f.montant;continue}return Date.now()-new Date(f.ts)}return 0}
+const dateDetenu=f=>new Date(f.saisi_le||f.ts);   /* circuit direct : le délai de reversement part de la saisie au bureau, pas de la livraison (parfois ancienne) */
+function detenuAge(lid){let rest=reverseLiv(lid)+retenuLiv(lid);const E=S.fonds.filter(f=>f.type==="encaissement"&&f.livreur_id===lid&&!f.direct).sort((a,b)=>dateDetenu(a)-dateDetenu(b));
+ for(const f of E){if(rest>=f.montant){rest-=f.montant;continue}return Date.now()-dateDetenu(f)}return 0}
 function risqueDetenu(lv){const c=S.config,s=soldeLiv(lv.id),r=[],pl=+c.plafond_detenu||0,dl=+c.delai_reversement_h||0;
  if(pl>0&&s>pl)r.push(fcfa(s)+" détenus (plafond "+fcfa(pl)+")");
  if(dl>0&&s>0){const h=detenuAge(lv.id)/36e5;if(h>dl)r.push("argent détenu depuis "+Math.floor(h)+" h (délai "+dl+" h)")}
@@ -4982,6 +4983,16 @@ function vImportModal(){
    CARTES & PORTAIL CLIENT (géopositionnement de l'adresse)
    ============================================================ */
 let LP=null;
+/* Fonds de carte : plan OpenStreetMap (noms de rues quand ils sont cartographiés), satellite et satellite + rues/lieux (Esri) pour repérer bâtiments, carrefours et infrastructures là où OpenStreetMap est peu détaillé ; lien vers Google Maps (le plus détaillé à Abidjan) sur la zone affichée. Le choix est mémorisé. */
+function carteFonds(m){
+ const OSM=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}),
+  ES="https://server.arcgisonline.com/ArcGIS/rest/services/",o=a=>({maxZoom:19,attribution:a}),
+  SAT=L.tileLayer(ES+"World_Imagery/MapServer/tile/{z}/{y}/{x}",o("Imagerie © Esri, Maxar")),
+  HYB=L.layerGroup([L.tileLayer(ES+"World_Imagery/MapServer/tile/{z}/{y}/{x}",o("Imagerie © Esri, Maxar")),L.tileLayer(ES+"Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",o("")),L.tileLayer(ES+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",o(""))]),
+  B={"🗺 Plan (rues)":OSM,"🛰 Satellite":SAT,"🛰 Satellite + noms":HYB};let sv="";try{sv=localStorage.getItem("angels_carte_fond")||""}catch(e){}
+ (B[sv]||OSM).addTo(m);L.control.layers(B,null,{position:"topright",collapsed:false}).addTo(m);
+ m.on("baselayerchange",e=>{try{localStorage.setItem("angels_carte_fond",e.name)}catch(x){}});
+ const gm=L.control({position:"bottomleft"});gm.onAdd=()=>{const d=L.DomUtil.create("div","leaflet-bar");d.style.cssText="background:#fff;padding:4px 8px;font-size:12px";d.innerHTML='<a target="_blank" rel="noopener">📍 Ouvrir dans Google Maps</a>';const a=d.firstChild,mj=()=>{const c=m.getCenter();a.href="https://www.google.com/maps/@"+c.lat.toFixed(6)+","+c.lng.toFixed(6)+","+m.getZoom()+"z"};mj();m.on("moveend",mj);L.DomEvent.disableClickPropagation(d);return d};gm.addTo(m)}
 function loadLeaflet(){if(window.L)return Promise.resolve();if(LP)return LP;
  LP=new Promise((ok,ko)=>{const c=document.createElement("link");c.rel="stylesheet";c.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(c);
   const sc=document.createElement("script");sc.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";sc.onload=ok;sc.onerror=()=>{LP=null;ko(new Error("hors ligne"))};document.head.appendChild(sc);setTimeout(()=>{if(!window.L){LP=null;ko(new Error("délai dépassé"))}},12000)});return LP}
@@ -5002,7 +5013,7 @@ function mapInto(el,o){
  const c=o.dest||o.center||{lat:5.345,lng:-4.02};
  return loadLeaflet().then(()=>{
   el.innerHTML="";const m=L.map(el).setView([c.lat,c.lng],o.dest?17:12);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(m);
+  carteFonds(m);
   let mk=null;const put=ll=>{if(mk)mk.setLatLng(ll);else{mk=L.marker(ll,{icon:pinIcon("📍"),draggable:!!o.onPick}).addTo(m);if(o.onPick)mk.on("dragend",()=>o.onPick(mk.getLatLng()))}};
   if(o.dest)put([o.dest.lat,o.dest.lng]);
   if(o.me){L.marker([o.me.lat,o.me.lng],{icon:pinIcon("🏍️")}).addTo(m);if(o.dest)m.fitBounds([[o.dest.lat,o.dest.lng],[o.me.lat,o.me.lng]],{padding:[35,35],maxZoom:17})}
