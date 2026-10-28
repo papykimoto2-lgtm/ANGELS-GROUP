@@ -77,7 +77,7 @@ const STATUTS={affectee:"À accepter",acceptee:"Acceptée",en_cours:"En cours",l
 const ACTIFS=["affectee","acceptee","en_cours"];
 let sb=null,user=null,moi=null,missions=[],erreur="",timer=null,watch=null,derPos=0,ouvert=null,ouvertPour=null;   /* ouvertPour : la mission dont un formulaire est ouvert et les états où il reste valable */
 /* ---------- Hors ligne d'abord : missions mémorisées sur le téléphone + file des actions à envoyer ---------- */
-const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan",m:"ang_lv_chat",v:"ang_lv_chatvu",n:"ang_lv_push",d:"ang_lv_pushinv",i:"ang_lv_ident",x:"ang_lv_idents"},DUREE_CACHE=48*36e5;
+const LS={c:"ang_lv_cache",f:"ang_lv_file",r:"ang_lv_rej",p:"ang_lv_posdem",g:"ang_lv_gps",z:"ang_lv_pause",l:"ang_lv_plan",m:"ang_lv_chat",v:"ang_lv_chatvu",n:"ang_lv_push",d:"ang_lv_pushinv",i:"ang_lv_ident",x:"ang_lv_idents",y:"ang_lv_liste"},DUREE_CACHE=48*36e5;
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?d:v}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
 const cache=()=>{const c=lsGet(LS.c,null);return c&&c.t&&c.uid&&Date.now()-c.t<DUREE_CACHE?c:null};
 const file=()=>lsGet(LS.f,[]),rejets=()=>lsGet(LS.r,[]),enFile=ref=>file().filter(f=>f.ref===ref),enLigne=()=>navigator.onLine!==false;
@@ -104,20 +104,22 @@ function vueLogin(msg){ANGELS_UI.monter(false);$("#app").innerHTML=`<div class="
  /* Liste déroulante des livreurs : ceux de la base (fonction « livreurs-liste », identifiant + nom seulement), le livreur enregistré sur cet appareil en tête ; hors ligne : celui de l'appareil.
     La flèche reste toujours visible : une liste vide l'explique (chargement, serveur injoignable, aucun livreur) au lieu de ne rien afficher. */
  try{const ul=$("#lvl"),bt=$("#lvb"),inp=$("#li"),ouvre=v=>{ul.hidden=!v;inp.setAttribute("aria-expanded",v?"true":"false")};
-  let L=lsGet(LS.x,[]).slice(0,1).map(o=>Object.assign({},o,{loc:true})),ET=CFG.url?"charge":"hors";
-  const msg={charge:"Chargement des livreurs…",hors:"Liste du serveur indisponible (hors ligne ou non activée). Saisissez votre identifiant.",vide:"Aucun livreur actif enregistré. Saisissez votre identifiant."};
-  const dessine=()=>{ul.innerHTML=L.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}${o.loc?` <em>· déjà utilisé sur ce téléphone</em>`:""}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("")+(ET==="ok"&&L.length?"":`<li class="cmbv" aria-disabled="true">${esc(msg[ET]||msg.hors)}</li>`)};
+  const loc0=(lsGet(LS.x,[])[0]||{}).i,mem=lsGet(LS.y,[]).filter(o=>o&&o.i).map(o=>({i:String(o.i),n:String(o.n||""),loc:o.i===loc0})).sort((p,q)=>(q.loc?1:0)-(p.loc?1:0));
+  let L=mem.length?mem:lsGet(LS.x,[]).slice(0,1).map(o=>Object.assign({},o,{loc:true})),ET=CFG.url?"charge":"hors",FIL="";
+  const msg={charge:"Chargement des livreurs…",hors:"Liste du serveur indisponible (hors ligne ou non activée). Saisissez votre identifiant.",vide:"La liste des livreurs est vide ou désactivée sur le serveur. Saisissez votre identifiant."};
+  const nrm=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""),vus=()=>{const q=nrm(FIL).trim();return q?L.filter(o=>nrm(o.n).includes(q)||nrm(o.i).includes(q)):L};
+  const dessine=()=>{const V=vus();ul.innerHTML=V.map(o=>`<li role="option" tabindex="-1" data-i="${esc(o.i)}"><b>${esc(o.n||o.i)}${o.loc?` <em>· déjà utilisé sur ce téléphone</em>`:""}</b>${o.n?`<small>${esc(o.i)}</small>`:""}</li>`).join("")+(ET==="ok"&&V.length?"":`<li class="cmbv" aria-disabled="true">${esc(ET==="ok"?"Aucun livreur ne correspond. Saisissez votre identifiant.":(msg[ET]||msg.hors))}</li>`)};
   dessine();
-  bt.onclick=()=>{dessine();ouvre(ul.hidden)};
-  const auto=()=>{if(!inp.value){dessine();ouvre(true)}};inp.addEventListener("focus",auto);inp.addEventListener("click",auto);
+  bt.onclick=()=>{FIL="";dessine();ouvre(ul.hidden)};
+  const auto=()=>{FIL=inp.value;dessine();ouvre(true)};inp.addEventListener("focus",auto);inp.addEventListener("click",auto);
   ul.onclick=e=>{const li=e.target.closest("li[data-i]");if(!li)return;inp.value=li.dataset.i;ouvre(false);$("#lp").focus()};
   document.addEventListener("click",e=>{if(!e.target.closest(".cmb"))ouvre(false)});
-  inp.addEventListener("input",()=>ouvre(false));
+  inp.addEventListener("input",()=>{FIL=inp.value;dessine();ouvre(!!inp.value&&vus().length>0)});   /* la liste se réduit pendant la saisie ; elle se ferme quand plus rien ne correspond */
   if(CFG.url){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),4000);
    fetch(FN+"livreurs-liste",{cache:"no-store",signal:ac.signal}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{clearTimeout(to);if(!j||!j.ok||!Array.isArray(j.livreurs))throw 0;
     const me=L[0]&&L[0].i,R=j.livreurs.filter(x=>x&&x.ident).map(x=>({i:String(x.ident),n:String(x.nom||""),loc:x.ident===me}));
-    if(!R.length){ET=L.length?"ok":"vide";return}
-    R.sort((p,q)=>(q.loc?1:0)-(p.loc?1:0));L=R;ET="ok";if(!ul.hidden)dessine()}).catch(()=>{ET=L.length?"ok":"hors";if(!ul.hidden)dessine()})}}catch(e){}
+    if(!R.length){ET="vide";lsSet(LS.y,[]);if(!ul.hidden)dessine();return}   /* liste désactivée côté serveur : on le dit, au lieu de n'afficher que le livreur de ce téléphone sans explication */
+    R.sort((p,q)=>(q.loc?1:0)-(p.loc?1:0));L=R;ET="ok";lsSet(LS.y,R.map(o=>({i:o.i,n:o.n})));if(!ul.hidden)dessine()}).catch(()=>{ET=mem.length?"ok":"hors";if(!ul.hidden)dessine()})}}catch(e){}
  try{const q=new URLSearchParams(location.search).get("id"),i=identDe(q||"")||lsGet(LS.i,"");if(i){$("#li").value=i;$("#lp").focus()}}catch(e){}
  $("#fl").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button:not(.aa-e)");b.disabled=true;try{await loadSb();sb=sb||window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});const em=emailDe($("#li").value),pw=$("#lp").value;let{error}=await sb.auth.signInWithPassword({email:em,password:pw});
    /* le clavier du téléphone ajoute souvent une espace après le dernier mot : on réessaie sans les espaces de début et de fin */
