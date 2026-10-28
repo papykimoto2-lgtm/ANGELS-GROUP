@@ -20,6 +20,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .hd small{opacity:.75;display:block}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
 .mc.urg{border-color:var(--er)}
+.mc{border-left:6px solid var(--bd)}.mc.st-affectee{border-left-color:#e0a030}.mc.st-acceptee{border-left-color:#35b3d6}.mc.st-en_cours{border-left-color:#3ccf85}.mc .cn{font-size:21px;letter-spacing:.3px}.mc .cs{margin:6px 0 2px;font-weight:700;font-size:15px}.bd.rg{background:#1f3a4a;color:#9fd8ee}
 label{display:block;font-weight:600;margin:10px 0 0}
 input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:#fff;margin-top:4px}
 .btn{display:block;width:100%;padding:13px;border:0;border-radius:11px;background:var(--b);color:#fff;font-weight:700;margin-top:8px;cursor:pointer}
@@ -195,7 +196,7 @@ function cphHtml(m,L){return`<div class="cphb"><div class="sm"><b>📦 Colis à 
 function colisPhotosBloc(m){const n=+((m.payload||{}).photos_colis)||0;if(!n)return"";const c=CPH[m.livraison_ref];
  if(!c||c.n!==n||(c.L.length<n&&Date.now()-(c.t||0)>15000))setTimeout(()=>cphCharger(m.livraison_ref,n),0);
  return c&&c.L.length?cphHtml(m,c.L):`<div class="sm mu" style="margin-top:6px">📷 ${enLigne()?"Chargement des photos des colis…":"Photos des colis : disponibles dès le retour du réseau."}</div>`}
-function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
+function carte(m,ix,arr){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g.lng}`:encodeURIComponent([a.quartier,a.zone,"Abidjan"].filter(Boolean).join(", "));let b="";
  if(m.statut==="affectee")b=`<button class="btn ok" data-a="accepter" data-r="${esc(m.livraison_ref)}">✔ Accepter</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Je ne peux pas la prendre</button>`;
  else if(m.statut==="acceptee")b=!p.collecte_at?`<button class="btn" data-a="prise" data-r="${esc(m.livraison_ref)}">📦 Je prends les colis</button><button class="btn er" data-a="refuser" data-r="${esc(m.livraison_ref)}">✖ Je ne peux pas la prendre</button>`:`<button class="btn ok" data-a="demarrer" data-r="${esc(m.livraison_ref)}">🏍 Démarrer la course</button>`;
  else if(m.statut==="en_cours"){const vp=p.verif_paiement;
@@ -203,7 +204,8 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
   (vp&&vp.statut==="a_verifier"?"":`<button class="btn ok" data-a="confirmer" data-r="${esc(m.livraison_ref)}">✔ Confirmer la livraison</button>`)+(vp&&vp.statut==="a_verifier"?"":codeBloc(m))+`<button class="btn wa" data-a="echec" data-r="${esc(m.livraison_ref)}">Livraison impossible</button>`}
  const act=ACTIFS.includes(m.statut),nq=enFile(m.livraison_ref).length;
  if(m.attente)b=`<div class="al">⏳ <b>Confirmation en attente d'envoi</b> : le serveur vérifiera le code dès le retour du réseau. Ne la refaites pas.</div>`;else if(nq)b=(b||"")+`<div class="sm" style="color:#b86e00;margin-top:6px">⏳ ${nq} action(s) en attente d'envoi</div>`;
- return`<div class="card mc ${p.priorite==="urgente"?"urg":""}"><div class="between"><b>${esc(m.commande_ref)}</b><span>${p.priorite==="urgente"?'<span class="bd" style="background:#fde5e5;color:#c62828">URGENT</span> ':""}<span class="bd">${esc(STATUTS[m.statut]||m.statut)}</span></span></div>${parcoursMission(m)}${typeColisLiv(m.payload)}
+ const rang=act&&Array.isArray(arr)&&arr.length>1?`<span class="bd rg">${(ix||0)+1}/${arr.length}</span> `:"";   /* rang dans la liste + résumé gras : deux commandes se distinguent d'un coup d'œil */
+ return`<div class="card mc st-${esc(m.statut)} ${p.priorite==="urgente"?"urg":""}"><div class="between"><b class="cn">${esc(m.commande_ref)}</b><span>${p.priorite==="urgente"?'<span class="bd" style="background:#fde5e5;color:#c62828">URGENT</span> ':""}${rang}<span class="bd">${esc(STATUTS[m.statut]||m.statut)}</span></span></div><div class="cs">📍 ${adrTxt(a)||"adresse"} · ${p.montant_attendu>0?fcfa(p.montant_attendu):"Déjà payé"}</div>${parcoursMission(m)}${typeColisLiv(m.payload)}
  <div style="margin-top:6px"><b>${esc(p.client_nom)}</b><br>📍 ${adrTxt(a)}${a.repere?`<br><span class="mu">${esc(a.repere)}</span>`:""}${a.instructions?`<br><i>${esc(a.instructions)}</i>`:""}${p.obs?`<br><span class="sm mu">${esc(p.obs)}</span>`:""}</div>
  ${act?`<div class="pill sm">${(p.lignes||[]).map(l=>esc(l.qte+" × "+l.desig)).join("<br>")}</div>`:""}
  ${act?colisPhotosBloc(m):""}
