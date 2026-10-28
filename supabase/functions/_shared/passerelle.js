@@ -392,7 +392,10 @@ export async function traiterAction(db, cfg, req, userId, now = Date.now()) {
     else if (!ev.description) return refuse(400, "Décrivez l'incident");
   }
 
-  if (maj.statut !== st || type === "prise_en_charge" || type === "arrive" || type === "rappel_client") await db.majMission(ref, { statut: maj.statut, payload: p, maj_le: new Date(now).toISOString() });
+  if (maj.statut !== st || type === "prise_en_charge" || type === "arrive" || type === "rappel_client") {
+    /* écriture conditionnelle : si une autre requête a déjà changé le statut (double appui, deux téléphones), rien n'est écrit ni mis en file */
+    if (await db.majMission(ref, { statut: maj.statut, payload: p, maj_le: new Date(now).toISOString() }, st) === false) return refuse(409, "Mission déjà modifiée : actualisez");
+  }
   if (cid) ev.cid = cid;
   await db.ajouterEvenement({ livraison_ref: ref, livreur_ref: c.livreur_ref, type, donnees: ev });
   return rep(200, { ok: true, statut: maj.statut });
