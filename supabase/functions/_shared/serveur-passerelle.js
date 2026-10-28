@@ -39,7 +39,7 @@ export function dbPasserelle(sb = client()) {
     mission: async (ref) => ok(await t("pg_missions").select("*").eq("livraison_ref", ref).maybeSingle()),
     code: async (ref) => ok(await t("pg_codes").select("*").eq("livraison_ref", ref).maybeSingle()),
     majCode: async (ref, patch) => ok(await t("pg_codes").update(patch).eq("livraison_ref", ref)),
-    majMission: async (ref, patch) => ok(await t("pg_missions").update(patch).eq("livraison_ref", ref)),
+    majMission: async (ref, patch, attendu) => { let q = t("pg_missions").update(patch).eq("livraison_ref", ref); if (attendu != null) q = q.eq("statut", attendu); const r = ok(await q.select("livraison_ref")); return attendu == null ? r : (r || []).length > 0; },
     majPosition: async (ref, pos) => ok(await t("pg_missions").update({ position: pos, position_le: pos.ts }).eq("livraison_ref", ref)),
     ecrireColis: async (ref, L) => { ok(await t("pg_colis").delete().eq("livraison_ref", ref)); if (L.length) ok(await t("pg_colis").insert(L.map((k) => ({ livraison_ref: ref, n: k.n, hash: k.hash })))); },
     colis: async (ref) => ok(await t("pg_colis").select("n,hash").eq("livraison_ref", ref).order("n")) || [],
@@ -48,7 +48,7 @@ export function dbPasserelle(sb = client()) {
     ecrireJeton: async (j) => { ok(await t("pg_sign_jetons").delete().eq("livraison_ref", j.livraison_ref)); ok(await t("pg_sign_jetons").insert(j)); },
     jeton: async (hash) => ok(await t("pg_sign_jetons").select("livraison_ref,expire,utilise").eq("token_hash", hash).maybeSingle()),
     consommerJeton: async (hash) => ok(await t("pg_sign_jetons").update({ utilise: true }).eq("token_hash", hash)),
-    ajouterEvenement: async (row) => ok(await t("pg_evenements").insert(row)),
+    ajouterEvenement: async (row) => { const r = await t("pg_evenements").insert(row); if (r.error && r.error.code !== "23505") throw new Error(r.error.message); },   // 23505 : même cid déjà enregistré (rejeu simultané) = déjà reçu
     nbEvenementsRecents: async (lv, depuis, type, sansPosition) => { let q = t("pg_evenements").select("id", { count: "exact", head: true }).eq("livreur_ref", lv).gt("cree_le", depuis); if (type) q = q.eq("type", type); if (sansPosition) q = q.neq("type", "position"); const r = await q; if (r.error) throw new Error(r.error.message); return r.count || 0; },
     evenementParCid: async (ref, cid) => ((ok(await t("pg_evenements").select("id").eq("livraison_ref", ref).eq("donnees->>cid", cid).limit(1)) || []).length > 0),
   };
