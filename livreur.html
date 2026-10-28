@@ -210,7 +210,7 @@ function carte(m){const p=m.payload||{},a=p.adr||{},g=a.gps,dest=g?`${g.lat},${g
  ${p.paye_vendeur>0?`<div class="sm mu">💳 ${fcfa(p.paye_vendeur)} déjà payés chez le fournisseur — vous n'encaissez que le reste.</div>`:""}
  ${act?`${posBloc(m,a,g)}${p.appel_possible?`<button class="btn ghost" data-a="appeler" data-r="${esc(m.livraison_ref)}">📞 Appeler le client (numéro masqué)</button>`:`<div class="sm mu" style="margin-top:8px">Pour joindre le client, appelez le bureau.</div>`}`:""}
  ${act&&p.msg_possible!==false&&["acceptee","en_cours"].includes(m.statut)?`<button class="btn ghost" data-a="msgc" data-r="${esc(m.livraison_ref)}">💬 Message au client</button>${msgsCarte(m)}`:""}
- ${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
+ ${p.valide_bureau?`<div class="sm mu" style="margin-top:6px">🏢 Validée par le bureau (saisie faite hors application)</div>`:""}${m.statut==="livree"&&p.recu!=null?`<div class="sm mu">Encaissé : ${fcfa(p.recu)}</div>`:""}${m.statut==="echouee"&&p.motif_echec?`<div class="sm mu">${esc(p.motif_echec)}</div>`:""}${b}</div>`}
 let STATS=null,SP="s7";
 /* Pseudo-missions : « stats:… » (chiffres du livreur) et « col:… » (collectes chez les vendeurs) ne sont pas des livraisons */
 let COLS=[];
