@@ -1,0 +1,645 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Manuel de procédure détaillé — LOGISTICA</title>
+<style>
+@page{size:A4}
+*{box-sizing:border-box}body{font:10pt/1.45 Helvetica,Arial,sans-serif;color:#1b2430;margin:0}
+h1{font-size:18pt;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:4px;margin:0 0 10px;page-break-before:always}
+h1.nb{page-break-before:avoid}
+h2{font-size:12.5pt;color:#fff;background:#1F3864;padding:4px 8px;margin:16px 0 6px;page-break-after:avoid;border-radius:3px}
+h3{font-size:10.5pt;color:#1F3864;margin:10px 0 3px;page-break-after:avoid}
+p{margin:4px 0}
+table{border-collapse:collapse;width:100%;margin:5px 0 9px;font-size:9pt}
+tr{page-break-inside:avoid}th{background:#dfe7f5;color:#1F3864;text-align:left}
+th,td{border:1px solid #9aa5b5;padding:3px 5px;vertical-align:top}tbody tr:nth-child(even){background:#f7f9fc}
+ol,ul{margin:3px 0 7px;padding-left:19px}li{margin:1.5px 0}
+.fiche{border:1px solid #1F3864;border-radius:4px;margin:6px 0 8px;font-size:9pt;page-break-inside:avoid}
+.fiche div{padding:2px 7px;border-bottom:1px solid #dfe7f5}.fiche div:last-child{border:0}.fiche b{color:#1F3864}
+.box{border-left:4px solid #c0392b;background:#fdf0ee;padding:5px 9px;margin:6px 0;page-break-inside:avoid;font-size:9.5pt}
+.ok{border-left-color:#2e7d32;background:#eef7ee}.info{border-left-color:#1F3864;background:#eef3fb}
+.flow{font-weight:bold;background:#eaf0fb;padding:5px 9px;border-radius:4px;margin:6px 0;font-size:9.5pt}
+code{background:#eef;padding:0 3px;border-radius:2px;font-size:8.5pt}
+.cover{height:262mm;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.cover img{width:300px;margin-bottom:20px;mix-blend-mode:multiply}
+.cover h1{border:0;font-size:30pt;page-break-before:avoid;margin:10px 0}.cover p{font-size:12.5pt;margin:4px}
+.sg{display:flex;gap:20px;margin-top:30px}.sg div{flex:1;border:1px solid #9aa5b5;padding:6px;min-height:60px;font-size:9pt}
+</style></head><body><div class="cover">
+<img src="file:///home/user/ANGELS-GROUP/docs/logo-sanix-africa.jpg" alt="SANIX AFRICA SARL">
+<h1 class="nb" style="border:0;font-size:30pt;margin:10px 0">MANUEL DE PROCÉDURE<br>DÉTAILLÉ</h1>
+<p style="font-size:15pt;color:#1F3864"><b>LOGISTICA</b></p>
+<p><b>Distribution — Courrier express et e-commerce</b></p>
+<p><b>Placement de personnel · Courtage d'assurance · CRM</b></p>
+<p style="margin-top:34px">Version 1.0 · Octobre 2026</p>
+<p style="font-size:10pt;margin-top:30px">Élaboré par SANIX AFRICA SARL — Division Technologies<br>Songon Kassamblé · +225 0779181075 / 0140017751 · paypikmoto2@gmail.com</p>
+</div>
+
+<h1 class="nb" style="page-break-before:always">Fiche du document</h1>
+<table><tbody>
+<tr><th style="width:28%">Titre</th><td>Manuel de procédure détaillé — LOGISTICA : Distribution, Placement de personnel, Courtage d'assurance, CRM</td></tr>
+<tr><th>Client</th><td>LOGISTICA — Cité CIE, Niangon, Yopougon · Rue du commerce, Immeuble EL NASR, Plateau · 29 BP 173 Abidjan 29 <i>(coordonnées publiques de l'instance : à confirmer)</i></td></tr>
+<tr><th>Éditeur du logiciel</th><td>SANIX AFRICA SARL — Division Technologies</td></tr>
+<tr><th>Version / date</th><td>1.0 — 28 octobre 2026</td></tr>
+<tr><th>Public</th><td>Administrateur, direction, superviseur, commercial, préparateur, caissier, livreur, vendeur partenaire, gestionnaire de placement, courtier</td></tr>
+<tr><th>Documents liés</th><td>Offre technique et financière (proforma SA-PRO-2026-001) · Check-list de fin de formation · Mise en service de l'instance (<code>docs/LOGISTICA.md</code>) · Déploiement du serveur (<code>docs/LOGISTICA-DEPLOIEMENT.md</code>)</td></tr>
+<tr><th>Approbation</th><td><div class="sg"><div>Pour SANIX AFRICA<br>Nom, date, signature</div><div>Pour LOGISTICA — Direction<br>Nom, date, signature</div></div></td></tr>
+</tbody></table>
+<div class="box info"><b>Comment lire ce manuel.</b> Chaque procédure suit le même plan : <b>fiche</b> (objectif, acteurs, pré-requis, résultat), <b>étapes</b>, <b>contrôles</b> et <b>cas particuliers</b>. Les noms entre « guillemets » sont ceux des menus et boutons du logiciel. Les mentions <b>[À valider]</b> signalent un point d'organisation à confirmer par la direction avant diffusion.</div>
+
+<h2>Sommaire</h2>
+<table><tbody>
+<tr><td style="width:9%"><b>0</b></td><td>Introduction — applications, acteurs, règles générales</td></tr>
+<tr><td><b>A</b></td><td><b>DISTRIBUTION</b> (courrier express et e-commerce) — A1 Parcours · A2 Tiers · A3 Prise de commande · A4 Confirmation · A5 Collecte · A6 Préparation et étiquettes · A7 Centre de livraison · A8 Livreur · A9 Suivi client · A10 Échecs, retours, SOS · A11 Argent · A12 Documents · A13 Clôture du jour · A14 Livreurs et motos · A15 Dépannage · A16 Prestations, services et abonnements · A17 Portail client</td></tr>
+<tr><td><b>B</b></td><td><b>PLACEMENT DE PERSONNEL</b> — B1 à B9</td></tr>
+<tr><td><b>C</b></td><td><b>COURTAGE D'ASSURANCE</b> — C1 à C10</td></tr>
+<tr><td><b>D</b></td><td><b>CRM</b> — D1 à D7</td></tr>
+<tr><td><b>E</b></td><td><b>ADMINISTRATION ET MISE EN SERVICE</b> — E1 à E6</td></tr>
+<tr><td><b>F</b></td><td>Annexes — règles d'or, escalade, calendrier des contrôles, check-lists, glossaire, points à valider</td></tr>
+</tbody></table>
+
+<h1>0. Introduction</h1>
+<h2>0.1 Objet et périmètre</h2>
+<p>Ce manuel décrit, pour <b>LOGISTICA</b>, les procédures à suivre dans la plateforme livrée par SANIX AFRICA. LOGISTICA exerce quatre activités couvertes par quatre modules : la <b>Distribution</b> (courrier express, e-commerce), le <b>Placement de personnel</b> (temporaires et journaliers), le <b>Courtage d'assurance</b> et le <b>CRM</b> qui rassemble les contacts des trois autres. L'instance LOGISTICA dispose de son <b>propre site</b> et de son <b>propre serveur de données</b>.</p>
+<h2>0.2 Les applications et leurs accès</h2>
+<table><thead><tr><th>Application</th><th>Adresse / fichier</th><th>Utilisateurs</th><th>Usage</th></tr></thead><tbody>
+<tr><td>Accueil (Hub)</td><td><code>/</code></td><td>Administrateur, direction</td><td>Vue d'ensemble des modules, cartes de pilotage, Paramètres</td></tr>
+<tr><td>Distribution</td><td>distribution.html</td><td>Personnel du bureau</td><td>Commandes, stock, livraison, argent, documents, administration</td></tr>
+<tr><td>Centre de livraison</td><td><code>/centre</code> (installable)</td><td>Superviseur, préparateur, administrateur</td><td>Affecter, suivre, collectes, retours, clôture du jour</td></tr>
+<tr><td>Application livreur</td><td>livreur.html (installable)</td><td>Livreurs</td><td>Missions, preuves, argent, SOS</td></tr>
+<tr><td>Espace vendeur</td><td>vendeur.html (installable)</td><td>Vendeurs partenaires</td><td>Commandes, étiquettes, collecte, versements</td></tr>
+<tr><td>Portail client</td><td>portail.html</td><td>Clients</td><td>Programmer une livraison, commander, suivre, signer, s'abonner</td></tr>
+<tr><td>Placement de personnel</td><td>placement.html</td><td>Administrateur, direction, commercial</td><td>Travailleurs, besoins, pointage, facturation, paie</td></tr>
+<tr><td>Courtage d'assurance</td><td>assurance.html</td><td>Administrateur, direction, commercial</td><td>Assurés, devis, polices, primes, sinistres</td></tr>
+<tr><td>CRM</td><td>crm.html</td><td>Administrateur, direction, commercial</td><td>Fiches 360°, opportunités, tâches, relances</td></tr>
+<tr><td>Démonstration</td><td>demo.html</td><td>Prospects, formateurs</td><td>Données fictives, locales à l'appareil</td></tr>
+</tbody></table>
+<h3>Installer une application (PWA)</h3>
+<ol><li><b>Android / Chrome</b> : « Installer l'application » (menu ou écran de connexion).</li><li><b>iPhone / Safari</b> : Partager → « Sur l'écran d'accueil ».</li><li>Prérequis : connexion <b>https</b>. Hors ligne, l'application s'ouvre ; les actions du livreur restent en file.</li></ol>
+<h3>Connexion et mots de passe</h3>
+<ul><li>Compte initial : <b>ADMIN</b>. Son mot de passe temporaire est remis <b>hors du dépôt</b> (message sécurisé) et le <b>changement est imposé à la première connexion</b>.</li><li>Les comptes du personnel se créent dans <i>Paramètres → Utilisateurs</i>. Placement, Assurance et CRM s'ouvrent avec les comptes <b>administrateur, direction ou commercial</b> de la Distribution.</li><li>Mot de passe vérifié (PBKDF2), <b>5 essais puis blocage de 60 s</b>, session de 30 minutes. Jamais de partage de mot de passe.</li></ul>
+<h2>0.3 Acteurs</h2>
+<table><thead><tr><th>Activité</th><th>Acteur</th><th>Responsabilité principale</th></tr></thead><tbody>
+<tr><td rowspan="8">Distribution</td><td>Administrateur</td><td>Utilisateurs, droits, paramètres, audit, mise en production, corrections exceptionnelles</td></tr>
+<tr><td>Direction générale</td><td>Valide caisse, écarts, opérations RH ; lit les tableaux de bord</td></tr>
+<tr><td>Superviseur des livraisons</td><td>Planifie les collectes, affecte, traite échecs, incidents, SOS ; clôture la journée</td></tr>
+<tr><td>Responsable commercial</td><td>Clients, vendeurs, commandes, prestations, abonnements, documents</td></tr>
+<tr><td>Préparateur</td><td>Réceptions, préparation, étiquettes, stock</td></tr>
+<tr><td>Caissier</td><td>Trésorerie, caisse, versements, règlements vendeurs</td></tr>
+<tr><td>Livreur</td><td>Collecte, livraison, preuve, encaissement, versement</td></tr>
+<tr><td>Vendeur partenaire / Client</td><td>Expédie ses colis, suit ses versements / programme et reçoit sa livraison</td></tr>
+<tr><td>Placement</td><td>Gestionnaire de placement (commercial)</td><td>Travailleurs, entreprises clientes, besoins, pointage, facturation, paie</td></tr>
+<tr><td>Assurance</td><td>Courtier (commercial)</td><td>Assurés, devis, polices, primes, sinistres, renouvellements</td></tr>
+<tr><td>Comptabilité</td><td>Direction, comptable externe</td><td>Écritures SYSCOHADA, validation des comptes, clôtures</td></tr>
+</tbody></table>
+<h2>0.4 Règles générales (tous acteurs)</h2>
+<ol>
+<li><b>Une preuve par opération</b> : code, signature, photo, référence Mobile Money, justificatif, pointage, police.</li>
+<li><b>On ne supprime pas</b> : on annule avec un motif écrit, on corrige par un avoir, un avenant ou une extourne. Tout reste au journal d'audit.</li>
+<li><b>Personne ne valide ce qu'il a lui-même saisi.</b></li>
+<li><b>Argent</b> : un encaissement est enregistré le jour même ; une référence Mobile Money ne sert <b>qu'une fois</b>.</li>
+<li><b>Motifs obligatoires</b> : refus, annulation, écart, exclusion, résiliation, correction.</li>
+<li><b>Données personnelles</b> (loi n° 2013-450) : ne diffuser aucun numéro ; respecter l'opposition à la prospection ; informer travailleurs, assurés et clients de l'usage de leurs données.</li>
+<li><b>Sauvegarde</b> : export signé régulier ; restauration testée.</li>
+<li><b>Tableaux</b> : pagination au-delà de 50 lignes ; l'impression reprend toutes les lignes ; exports Excel protégés contre l'injection de formules.</li>
+</ol>
+<h1>A. DISTRIBUTION — Courrier express et e-commerce</h1>
+<h2>A1. Parcours général d'une livraison</h2>
+<div class="flow">Reçue → Confirmée → (Collecte) → Préparation → Prête → En livraison → Livrée  ·  issues : échec · retour · annulée</div>
+<table><thead><tr><th>Étape</th><th>Acteur</th><th>Écran</th><th>Preuve produite</th></tr></thead><tbody>
+<tr><td>1. Prise de commande</td><td>Commercial, vendeur, client</td><td>Commandes, espace vendeur, portail</td><td>N° de commande</td></tr>
+<tr><td>2. Confirmation</td><td>Commercial</td><td>Commandes → Confirmer</td><td>Statut Confirmée, notification client</td></tr>
+<tr><td>3. Collecte (vendeurs partenaires)</td><td>Superviseur, livreur, préparateur</td><td>Centre → Collectes</td><td>Bon COL-AAAA-NNNN, code vendeur à 4 chiffres, comptage</td></tr>
+<tr><td>4. Préparation</td><td>Préparateur</td><td>Commandes → Préparation</td><td>Étiquettes QR (80 × 80 mm), colis comptés</td></tr>
+<tr><td>5. Affectation</td><td>Superviseur</td><td>Centre → Affecter</td><td>Course proposée au livreur, tournée T-0001</td></tr>
+<tr><td>6. Prise en charge et livraison</td><td>Livreur</td><td>Application livreur</td><td>Scan des colis, code client, signature, photo, position GPS</td></tr>
+<tr><td>7. Encaissement et versement</td><td>Livreur, caissier</td><td>Ma tournée, Trésorerie</td><td>Montant, mode, référence, fiche de clôture CT-0001</td></tr>
+<tr><td>8. Règlement vendeur</td><td>Caissier</td><td>Trésorerie → Fournisseurs à régler</td><td>Sortie de caisse ou Mobile Money, bon de règlement</td></tr>
+<tr><td>9. Clôture du jour</td><td>Superviseur, caissier</td><td>Centre → Clôture</td><td>Résumé imprimable, une clôture par jour</td></tr>
+</tbody></table>
+<p>Dans le détail d'une commande, le logiciel montre 6 étapes (Reçue → Confirmée → Préparation → Prête → En livraison → Livrée) et <b>une seule action principale</b> ; les autres sont sous « ⋯ Plus d'actions ».</p>
+
+<h2>A2. Tiers : clients, vendeurs partenaires, clients de passage</h2>
+<div class="fiche"><div><b>Objectif</b> : disposer de fiches fiables avant toute commande.</div><div><b>Acteurs</b> : responsable commercial (création), superviseur (consultation).</div><div><b>Pré-requis</b> : droit « Voir : Clients » et « Voir : Vendeurs ».</div><div><b>Résultat</b> : fiche avec nom, téléphone, adresses (zone, quartier, repère, position GPS).</div></div>
+<h3>A2.1 Créer un client</h3>
+<ol><li><i>Tiers → Clients → Nouveau client</i>.</li><li>Saisir nom ou raison sociale, téléphone (obligatoire), second numéro, e-mail, NCC éventuel.</li><li>Ajouter l'adresse : <b>zone</b> (Grand Abidjan et périphérie), <b>quartier</b> ou <b>repère</b> (l'un des deux est obligatoire), position GPS si connue.</li><li>Valider. Cocher « Sans smartphone » si le client ne peut pas recevoir de lien ni de code.</li></ol>
+<h3>A2.2 Client de passage (« Client divers »)</h3>
+<ul><li>Si le nom du client final n'est pas connu, utiliser « Client divers ». Ces fiches sont dans l'onglet <b>👤 De passage</b>.</li><li>Si le téléphone est déjà connu, la fiche est retrouvée automatiquement et la nouvelle adresse y est ajoutée.</li><li><b>Identifier</b> : donner nom et téléphone ; la fiche devient un vrai client ou est fusionnée avec la fiche existante du même téléphone. <b>Fusionner les doublons</b> regroupe les fiches de même téléphone.</li></ul>
+<h3>A2.3 Vendeur partenaire</h3>
+<ol><li><i>Tiers → Vendeurs partenaires → Nouveau</i> : nom, téléphone, adresse de collecte (zone, quartier, repère, GPS conseillé), commission.</li><li>Créer son compte vendeur (identifiant et mot de passe temporaire remis en main propre).</li><li>Candidatures reçues depuis le portail : traiter dans <i>Produits → Candidatures</i> (accepter ou refuser).</li><li>Document de prospection : « 🛡️ Nos garanties (prospect) » (imprimable, ou « Copier pour WhatsApp »).</li></ol>
+
+<h2>A3. Prise de commande</h2>
+<div class="fiche"><div><b>Objectif</b> : enregistrer une commande complète, sans erreur d'adresse ni de prix.</div><div><b>Acteurs</b> : commercial, vendeur partenaire, client.</div><div><b>Résultat</b> : commande au statut « À confirmer » ou « Confirmée ».</div></div>
+<h3>A3.1 Cinq canaux d'entrée</h3>
+<table><thead><tr><th>Canal</th><th>Qui</th><th>Comment</th></tr></thead><tbody>
+<tr><td>Saisie au bureau</td><td>Commercial</td><td><i>Commandes → Créer</i> ; importation possible</td></tr>
+<tr><td>Saisie depuis WhatsApp</td><td>Vendeur, commercial</td><td>« Saisie depuis WhatsApp » : coller le message ; client, articles, prix et position sont préremplis</td></tr>
+<tr><td>Lien ou QR de commande du fournisseur</td><td>Client final</td><td>Le client remplit articles, adresse, position GPS, photos (jusqu'à 6). La demande arrive dans « 📥 Demandes reçues de vos clients » ; ce n'est <b>pas</b> encore une commande</td></tr>
+<tr><td>Portail « Programmez votre livraison » (QR)</td><td>Client</td><td>Demande reçue directement dans Distributions</td></tr>
+<tr><td>Vente en ligne (boutique du portail)</td><td>Client</td><td>Commande en ligne rattachée à la boutique</td></tr>
+</tbody></table>
+<h3>A3.2 Saisir une commande au bureau</h3>
+<ol>
+<li><i>Commandes → Créer</i>. Choisir le client (recherche par téléphone) ou « Client divers ».</li>
+<li>Choisir ou compléter l'<b>adresse de livraison</b> : zone, quartier ou repère. Le logiciel affiche les <b>frais de livraison</b> et le <b>délai estimé</b> de la zone.</li>
+<li>Ajouter les <b>articles</b> : désignation, quantité, prix. Pour un vendeur partenaire, choisir le vendeur.</li>
+<li>Choisir le mode de paiement : <b>payé d'avance</b>, <b>acompte</b> ou <b>à la livraison</b>. Un acompte en espèces entre en caisse (« Avance client »).</li>
+<li>Indiquer l'urgence si nécessaire (mention URGENT sur l'étiquette).</li>
+<li>Valider : la commande reçoit son numéro.</li></ol>
+<div class="box"><b>Demande reçue d'un client.</b> Ouvrir « Demandes reçues », vérifier les prix (le prix du client n'est qu'une proposition), puis <b>créer la commande</b> ou <b>refuser avec motif</b>. La position GPS du client devient celle de l'adresse de livraison.</div>
+<h3>A3.3 Contrôles</h3>
+<ul><li>Quartier ou repère obligatoire ; téléphone obligatoire.</li><li>Protection du lien de commande : jeton secret de 256 bits, 5 demandes par heure et par téléphone.</li><li>Renouveler le lien (cloud) invalide l'ancien.</li></ul>
+
+<h2>A4. Confirmation et notifications</h2>
+<ol>
+<li>Le commercial ouvre la commande, vérifie client, adresse, articles et prix, puis clique <b>Confirmer</b>.</li>
+<li>Le logiciel prépare un message dans <i>Notifications</i> (confirmation, départ du livreur avec heure estimée et code, livraison, échec). Le superviseur l'<b>envoie par WhatsApp en un clic</b>, le modifie ou l'ignore.</li>
+<li>« Envoyé » signifie que la conversation WhatsApp a été <b>ouverte</b>, pas que le client l'a reçue.</li>
+<li>Option : <b>confirmation avant départ</b> — message « répondez 1 pour confirmer, 2 pour reporter », avec fenêtre de 2 h.</li>
+<li>Commande modifiable tant qu'elle n'est pas en préparation ; ensuite, annuler avec motif et recréer.</li>
+</ol>
+
+<h2>A5. Collecte chez le vendeur partenaire</h2>
+<p>Procédure complète : <code>docs/MANUEL_COLLECTE.pdf</code>. Résumé opérationnel :</p>
+<div class="fiche"><div><b>Objectif</b> : enlever les colis des commandes <b>confirmées</b> d'un vendeur partenaire et les recevoir au dépôt avec double comptage.</div><div><b>Acteurs</b> : superviseur ou administrateur (planifier), livreur (collecter), préparateur (réceptionner), vendeur (remettre contre code).</div><div><b>Pré-requis</b> : adresse de collecte du vendeur renseignée ; commande confirmée et <b>passée par le vendeur lui-même</b> ; dossier du livreur complet si l'option est active.</div></div>
+<table><thead><tr><th>#</th><th>Acteur</th><th>Action</th><th>Contrôle</th></tr></thead><tbody>
+<tr><td>1</td><td>Superviseur</td><td><i>Centre de livraison → Collectes → 🚚 Planifier</i> : cocher les commandes, choisir livreur et créneau, vérifier l'adresse, noter</td><td>Numéro COL-AAAA-NNNN, code à 4 chiffres visible du vendeur seul</td></tr>
+<tr><td>2</td><td>Livreur</td><td><b>✔ Accepter</b> ou « Impossible » (motif)</td><td>Alerte si créneau dépassé de 15 min sans réponse</td></tr>
+<tr><td>3</td><td>Livreur</td><td><b>🏍️ Je pars chez le vendeur</b> ; vérifier les articles avec lui</td><td>Le vendeur donne son code <b>après</b> la remise</td></tr>
+<tr><td>4</td><td>Livreur</td><td><b>📦 Colis collectés</b> : code + nombre de colis par commande (0 = non remise)</td><td>5 essais de code par défaut, puis blocage</td></tr>
+<tr><td>5</td><td>Préparateur</td><td><i>Commandes → Collectes à réceptionner → Réceptionner</i> : compter les colis reçus</td><td>Reçus = collectés : passage en Préparation ; sinon incident automatique</td></tr>
+</tbody></table>
+<p><b>Commandes que l'agence saisit pour le vendeur</b> (marchandise déjà au dépôt) : pas de collecte ; passage direct en préparation.</p>
+<p>Cas particuliers : réaffecter (livreur et créneau), annuler (motif), collectes récurrentes planifiées automatiquement, planning 7 jours avec rappel WhatsApp au vendeur.</p>
+
+<h2>A6. Préparation et étiquetage des colis</h2>
+<div class="fiche"><div><b>Objectif</b> : préparer chaque colis et le rendre traçable par un QR unique.</div><div><b>Acteur</b> : préparateur.</div><div><b>Pré-requis</b> : commande confirmée ; pas de collecte ouverte pour cette commande (le bouton de préparation est désactivé tant qu'elle l'est).</div></div>
+<ol>
+<li><i>Commandes</i> → ouvrir la commande → <b>Démarrer la préparation</b>.</li>
+<li>Prélever les articles ; le stock décroît. Écart de stock : saisir un inventaire (<i>Stock → Inventaire</i>), jamais de correction « à la main ».</li>
+<li><b>🏷 Étiquettes colis</b> : indiquer le <b>nombre de colis</b> ; le logiciel génère une étiquette <b>80 × 80 mm</b> par colis : numéro de commande, QR unique, « 1/3 », zone en grand, quartier et repère, client, code court de 5 caractères, expéditeur pour les vendeurs partenaires, mention URGENT. Imprimante : Xprinter 80 mm.</li>
+<li>Coller une étiquette sur chaque colis.</li>
+<li><b>Marquer prête</b>. Imprimer le <b>bon de livraison</b> (<i>Documents → BL</i>).</li>
+</ol>
+<div class="box"><b>Attention.</b> Changer le nombre de colis invalide les étiquettes déjà collées ; c'est refusé dès qu'un colis a été scanné. La réimpression conserve les mêmes QR. Une alerte signale les commandes prêtes sans étiquettes.</div>
+<p>Le montant à encaisser et le téléphone du client ne s'impriment que si l'option est activée dans <i>Paramètres</i> ; le montant affiché dans l'application fait foi.</p>
+<h2>A7. Centre de livraison : affecter et suivre</h2>
+<div class="fiche"><div><b>Objectif</b> : répartir les commandes prêtes entre les livreurs et conduire la journée.</div><div><b>Acteurs</b> : superviseur, administrateur, préparateur (consultation).</div><div><b>Accès</b> : application <code>/centre</code> (bureau, tablette ou téléphone). Menu : Accueil, Affecter et suivre, Collectes, Commandes, Livreurs, Réglages.</div></div>
+<h3>A7.1 Accueil par tâches</h3>
+<p>Cartes : à affecter · courses en cours · collectes à planifier · à réceptionner · à traiter. Chaque carte ouvre le travail ; chaque commande prête a son bouton « Affecter », chaque vendeur à collecter son bouton « Planifier ».</p>
+<h3>A7.2 Affecter une commande</h3>
+<ol>
+<li><i>Affecter et suivre</i> → commande prête.</li>
+<li>Les livreurs sont <b>classés</b> (zone, charge, distance à la destination, réussite sur 30 jours) ; le meilleur est suggéré ⭐.</li>
+<li><b>⚡ Affecter</b> choisit le livreur suggéré en un clic ; la décision reste au superviseur (on peut choisir un autre livreur).</li>
+<li>Le téléphone du livreur <b>sonne</b> : il reçoit une offre (A8). Refus ⇒ la commande redevient disponible et le superviseur est informé.</li>
+<li>Vérifier les <b>contrôles d'aptitude</b> : plafond d'argent détenu, délai de reversement, dossier complet, moto disponible. Un livreur bloqué ne reçoit ni mission ni collecte.</li>
+</ol>
+<h3>A7.3 Tournées</h3>
+<ul>
+<li>« 🔁 Créer une tournée » regroupe au moins 2 commandes prêtes sur un livreur (même zone, 3 km au plus, 8 colis au plus). L'ordre de passage est proposé (plus proche voisin) et réglable avec ↑ ↓ tant que l'arrêt n'a pas démarré.</li>
+<li>Le livreur voit « Tournée T-0001 · arrêt 2/4 ».</li>
+<li>Estimation : distance à vol d'oiseau × 1,35, 18 km/h, 8 min par arrêt ; <b>sans trafic</b>, donc indicative.</li>
+</ul>
+<h3>A7.4 Tour de contrôle et alertes</h3>
+<table><thead><tr><th>Alerte</th><th>Signification</th><th>Action du superviseur</th></tr></thead><tbody>
+<tr><td>Offre non acceptée</td><td>Livreur sans réponse</td><td>Réaffecter</td></tr>
+<tr><td>Course en retard</td><td>Délai de la zone dépassé</td><td>Appeler 📞 ou WhatsApp 💬 le livreur ; prévenir le client</td></tr>
+<tr><td>Position perdue</td><td>Pas de signal récent</td><td>Contacter le livreur</td></tr>
+<tr><td>Commande en attente d'un livreur</td><td>Aucun livreur disponible</td><td>Affecter ou renforcer</td></tr>
+<tr><td>Collecte en retard / créneau dépassé / non confirmé</td><td>Collecte non réalisée</td><td>Réaffecter ou reprogrammer</td></tr>
+<tr><td>Prêtes sans étiquettes</td><td>Étiquetage oublié</td><td>Renvoyer au préparateur</td></tr>
+<tr><td>Signatures client à vérifier</td><td>Signée depuis la connexion du livreur</td><td>Vérifier auprès du client (jamais bloquant)</td></tr>
+</tbody></table>
+<h3>A7.5 Circuit direct (livraison faite hors application)</h3>
+<p>Quand le livreur n'a pas de réseau ou que son téléphone est en panne, le centre valide la livraison à sa place (<i>Circuit direct</i> ; administrateur et superviseur).</p>
+<ol><li>Saisir une ou plusieurs commandes : livreur qui a livré (réaffectation tracée), date et heure <b>réelles</b>, n° du bon papier, résultat (livrée ou non livrée + motif).</li><li>Montant encaissé et mode ; <b>référence Mobile Money obligatoire</b> ; explication obligatoire en cas d'écart.</li><li>Reçu par ; <b>articles remis ligne par ligne</b> (un article non remis est noté).</li><li>L'encaissement est daté de la livraison réelle et mis à la charge du livreur (Trésorerie). La livraison est marquée « validée par le centre ».</li></ol>
+
+<h2>A8. Livreur sur le terrain</h2>
+<div class="fiche"><div><b>Objectif</b> : livrer, prouver, encaisser, reverser.</div><div><b>Acteur</b> : livreur (interne ou externe avec sa moto).</div><div><b>Pré-requis</b> : compte livreur, application installée, « Activer la sonnerie » appuyé une fois, GPS activé, dossier complet.</div></div>
+<h3>A8.1 Début de journée</h3>
+<ol><li>Ouvrir l'application ; vérifier la charge du téléphone et du réseau.</li><li>⚙ Préférences (mémorisées sur le téléphone) : <b>gros caractères</b> et <b>économie de données</b> au besoin.</li><li>Se rendre disponible ; ne pas démarrer s'il reste de l'argent à reverser et que le plafond est atteint (« 🔒 Missions bloquées » : verser d'abord).</li></ol>
+<h3>A8.2 Recevoir et accepter une course</h3>
+<ol><li>Sonnerie, vibration et fiche plein écran : <b>gain</b> (frais de livraison, commission déduite pour un externe), zone, distance et durée, <b>montant à encaisser</b>, URGENT, détour éventuel.</li><li><b>Je prends les colis</b> (accepter) ou <b>Je ne peux pas la prendre</b> : un <b>motif</b> est demandé (trop loin, moto en panne ou sans carburant, déjà trop chargé, pause, zone inconnue, autre).</li><li>Compte à rebours de 60 s : la sonnerie s'arrête, la course reste dans la liste.</li><li>Plusieurs courses : « 🧭 Itinéraire conseillé » donne l'ordre le plus court ; « Ouvrir dans Maps » lance le trajet multi-arrêts (mode moto).</li></ol>
+<div class="box"><b>Limite.</b> La sonnerie fonctionne tant que l'application est ouverte (même en arrière-plan). Application fermée ou téléphone verrouillé : il faut la notification push serveur.</div>
+<h3>A8.3 Prise en charge des colis au dépôt</h3>
+<ol><li>Au départ du dépôt, <b>scanner chaque colis</b> (caméra) : un colis d'une autre commande est refusé avec le n° de la commande concernée ; une étiquette inventée est refusée.</li><li>Caméra indisponible ou étiquette abîmée : saisir le code de 5 caractères sous le QR (enregistré « saisi »).</li><li>Le scan est <b>facultatif</b> : valider sans scanner est possible, mais la livraison est alors marquée (« ⚠ colis non scannés ») au dossier de preuve et à la clôture du jour.</li><li><b>Après prise en charge, le refus de la course n'est plus possible.</b></li></ol>
+<h3>A8.4 Livrer</h3>
+<ol>
+<li>Appeler le client avant d'arriver (bouton d'appel ; les numéros transitent par le bureau si la passerelle est active).</li>
+<li>« 🗺 Voir sur la carte » : destination et position. Adresse sans GPS : demander la position au client en un clic (lien portail).</li>
+<li>Remettre les colis ; <b>scanner de nouveau</b> chaque colis remis.</li>
+<li>Demander le <b>code de confirmation</b> au client (donné dans son message). Facultatif : sans code ou code non conforme, la livraison passe mais est marquée (« ⚠ non saisi »).</li>
+<li><b>Signature du client au doigt</b> : obligatoire à partir d'un montant réglable (<b>100 000 F</b> par défaut ; 0 = jamais). Elle figure sur le bon de livraison. Si le client est absent, il peut signer sur son propre téléphone avec le jeton du QR.</li>
+<li><b>Photo</b> du colis remis si demandée ; vraie image obligatoire (PNG/JPEG de taille minimale).</li>
+<li>Encaissement : saisir nom du client (prérempli), montant, <b>mode</b> (Espèces, Wave, Orange Money, MTN MoMo, Moov Money…). Pour le Mobile Money : <b>référence de la transaction obligatoire et unique</b>. Case « payé directement sur le compte d'LOGISTICA » : le livreur ne détient rien.</li>
+<li>Toute différence de montant se justifie dans « Explication d'écart ».</li>
+<li>Appuyer <b>Confirmer</b> ; « Envoi… » puis délai maximal de 15 s ; sans réseau, l'action est <b>mise en file</b> et repart seule, sans doublon. « Déjà enregistré » = rien à refaire.</li>
+</ol>
+<h3>A8.5 Échec de livraison</h3>
+<p>« <b>Livraison impossible</b> » + <b>motif</b> (client absent, injoignable, adresse introuvable, refus…). Les colis restent au livreur et reviennent au dépôt. Voir A10.</p>
+<h3>A8.6 SOS</h3>
+<ol><li>Bouton rouge 🆘 toujours visible (même sur une offre).</li><li>Choisir la situation : accident, agression ou vol, moto en panne, malaise ou blessure, autre ; préciser.</li><li><b>Maintenir 1,5 s</b> (un appui accidentel n'envoie rien). L'alerte part avec la position.</li><li>Boutons affichés : Appeler le superviseur, WhatsApp, numéros d'urgence. Annulation possible si fausse alerte. Une seule alerte active par livreur, 5 par heure au maximum.</li></ol>
+<h3>A8.7 Fin de tournée (« 🏁 Ma tournée »)</h3>
+<ol><li>Vérifier : courses livrées, marchandise collectée, frais gardés, <b>montant à remettre</b> (dont le reliquat des tournées précédentes).</li><li><b>Terminer ma tournée</b> (refusé s'il reste une course en cours).</li><li>Remettre l'argent au caissier (A11.3), ou déclarer un versement Mobile Money (A11.4).</li></ol>
+<div class="box ok"><b>Bonnes pratiques.</b> Ne jamais donner le code à la place du client ; ne jamais encaisser sans saisir ; ne jamais garder d'argent d'une tournée à l'autre ; signaler tout colis abîmé avant la remise.</div>
+<h2>A9. Suivi client en direct et avis</h2>
+<ol>
+<li>Commercial ou superviseur : dans le détail de la commande, <b>📡 Lien de suivi client</b> ; envoyer par WhatsApp.</li>
+<li>Le client, sans compte, voit les 6 étapes avec heures, le <b>prénom</b> du livreur, l'<b>heure d'arrivée estimée</b>, la <b>carte</b> et le montant à régler ; mise à jour toutes les 15 secondes (« ● En direct »).</li>
+<li>Le code de confirmation n'apparaît jamais sur cette page. Une position de plus de 30 minutes est indiquée « indisponible ». Le lien expire 48 h après la fin de la commande.</li>
+<li>Après livraison, le client note de 1 à 5 étoiles (un seul avis, non modifiable). Les avis alimentent la colonne « Avis clients » des livreurs et la « Satisfaction client » du tableau de bord.</li>
+<li>Client sans connexion : lien de <b>signature de réception</b> (<code>signer.html</code>) ; lien de <b>position</b> pour placer le repère 📍 sur la carte. Le bureau peut « 📋 Coller une position reçue » (lien Google Maps, OpenStreetMap ou « lat, lng »).</li>
+</ol>
+
+<h2>A10. Échecs, retours, incidents et SOS</h2>
+<div class="fiche"><div><b>Acteurs</b> : superviseur, préparateur, administrateur.</div><div><b>Écrans</b> : Centre → « Échecs et retours », « Incidents et retours ».</div></div>
+<h3>A10.1 Après un échec de livraison</h3>
+<ol><li>Le superviseur voit le motif et le nombre de tentatives.</li><li>Choisir : <b>nouvelle tentative</b> (nouveau créneau, nouveau livreur éventuel) ou <b>retour</b>. À 2 échecs, le logiciel recommande le <b>retour au vendeur</b>.</li><li>Informer le client par WhatsApp (modèle « échec »).</li></ol>
+<h3>A10.2 Réceptionner un retour</h3>
+<ol><li>Préparateur : « Réceptionner le retour » ; compter les colis ; remettre en stock ou préparer le retour au vendeur.</li><li>Écart de comptage : incident créé automatiquement (INC-NNNN).</li></ol>
+<h3>A10.3 Traiter un incident</h3>
+<table><thead><tr><th>Type</th><th>Origine</th><th>Décision du superviseur</th></tr></thead><tbody>
+<tr><td>Colis manquant</td><td>Collecte ou livraison : reçus &lt; remis</td><td>Enquêter, décider de la responsabilité et du dédommagement (écrit dans l'incident)</td></tr>
+<tr><td>Écart de colis</td><td>Reçus &gt; collectés</td><td>Vérifier avec le vendeur</td></tr>
+<tr><td>Écart de livraison (argent)</td><td>Montant encaissé ≠ dû</td><td>Accepter ou rejeter l'écart (Trésorerie)</td></tr>
+<tr><td>Colis abîmé / litige client</td><td>Réclamation</td><td>Dossier de preuve, réponse écrite</td></tr>
+</tbody></table>
+<p><b>Dossier de preuve</b> (par commande, imprimable) : historique, reçu par, position GPS, signature, photos des colis, scans, mentions « ⚠ ».</p>
+<h3>A10.4 Alerte SOS (côté bureau)</h3>
+<ol><li>Barre rouge persistante, sirène et notification (administrateur, superviseurs, direction).</li><li>Un seul responsable <b>prend en charge</b> ; appeler le livreur et ouvrir sa position sur la carte ; si nécessaire, numéros d'urgence <b>[À valider : 110, 185, 180 proposés]</b>.</li><li><b>Clôturer</b> en écrivant ce qui a été fait, ou classer « fausse alerte ». Rien ne se supprime ; le livreur voit l'avancement en direct.</li></ol>
+
+<h2>A11. Argent : encaissements, caisse, reversements</h2>
+<div class="fiche"><div><b>Objectif</b> : que chaque franc encaissé soit retrouvé en caisse, chez le vendeur ou dans la marge.</div><div><b>Acteurs</b> : livreur, caissier, direction, administrateur.</div><div><b>Écran central</b> : <b>💼 Trésorerie</b> (module Argent, 1<sup>er</sup> onglet). Chaque bouton appelle l'action existante, avec les mêmes droits.</div></div>
+<div class="flow">Client paie → Livreur encaisse → Livreur reverse (espèces ou Mobile Money) → Caissier valide → Reversement vendeur</div>
+<h3>A11.1 Ouvrir la caisse (chaque matin — caissier)</h3>
+<ol><li><i>Argent → Caisse → Ouvrir la caisse</i>. Le fond d'ouverture reprend le dernier comptage ; seul l'administrateur peut le modifier, avec un motif.</li><li>Caisses : principale (compte 571), petite caisse (572…), créées par l'administrateur.</li><li><b>Caisse fermée</b> : un encaissement en espèces demande confirmation et est <b>mis en attente</b> (bannière « en attente de caisse »), puis rangé automatiquement à l'ouverture. Le Mobile Money n'est pas concerné.</li></ol>
+<h3>A11.2 Bons d'entrée (BE) et de sortie (BS)</h3>
+<ol><li><i>Caisse → Bon d'entrée / de sortie</i> : montant, motif, déposant ou bénéficiaire, pièce justificative, catégorie, <b>date du bon</b> (jamais dans le futur).</li><li>Numérotation <code>BE-571-AAAAMMJJ-001</code>. Un bon saisi par un <b>caissier</b> est <b>en attente</b> et ne compte pas dans le solde.</li><li>L'<b>administrateur ou la direction valide</b> (une sortie supérieure au solde est refusée) ou <b>rejette avec motif</b>. Les bons validés s'impriment (visa, signatures).</li><li>Bon daté avant la session en cours : « OK » = l'argent entre ou sort du tiroir aujourd'hui ; « Annuler » = <b>régularisation</b> hors tiroir (sans effet sur le solde ni sur l'écart de clôture).</li><li>Les catégories « Reversement livreur », « Règlement vendeur », « Paie livreurs » ne sont <b>pas</b> proposées en saisie manuelle : ces opérations se font depuis la Trésorerie.</li></ol>
+<h3>A11.3 Encaisser un livreur en espèces (clôture de tournée)</h3>
+<ol>
+<li>Le livreur a cliqué « Terminer ma tournée ».</li>
+<li>Caissier ou administrateur : <i>Trésorerie → tableau des livreurs → 🏁 Clôturer</i> (ou <i>Finance → 🏁 Clôtures</i>).</li>
+<li>Saisir le montant <b>compté</b> (espèces ou Mobile Money avec référence unique) ; <b>cocher la confirmation du livreur</b>.</li>
+<li>Montant remis &lt; dû : <b>motif d'écart obligatoire</b> ; l'écart reste à la charge du livreur.</li>
+<li>Le logiciel enregistre le reversement (entrée en caisse pour les espèces), numérote la fiche <b>CT-0001…</b>, prévient le livreur et propose la <b>fiche imprimable</b> (signatures livreur et caissier). Le récapitulatif repart de zéro.</li>
+<li>Livreur dont la tournée est en cours : bouton « 💵 Encaisser » = encaissement partiel.</li>
+</ol>
+<h3>A11.4 Versement par Mobile Money</h3>
+<ol><li>Le livreur ouvre « 💰 Mon argent à reverser » : montant dû et comptes Mobile Money d'LOGISTICA (réglés dans <i>Paramètres → Paiements et versements</i>).</li><li>Il envoie la somme, puis <b>déclare le versement</b> (montant, opérateur, référence). Il ne peut pas déclarer plus que son restant dû.</li><li>État : <b>⏳ En validation</b> → <b>✅ Encaissé</b> (date et valideur) ou <b>✖ Rejeté</b> (motif).</li><li>Caissier : <i>Trésorerie → « À traiter maintenant »</i> ou <i>Finance → 📲 Versements</i> : <b>vérifier la réception dans l'application Mobile Money</b>, puis <b>✔ Encaissé</b> ou <b>✖ Rejeter</b> avec motif. Pastille rouge sur Finance tant qu'il en reste.</li><li>Tant que ce n'est pas validé, la somme reste à la charge du livreur.</li><li>Rapprochement : export CSV des paiements Mobile Money, comparé au relevé de l'opérateur ; un Mobile Money « direct » est inscrit « à rapprocher du relevé ».</li></ol>
+<div class="box"><b>Encaissement refusé</b> (commande réaffectée, circuit direct, référence en double…) : il n'est pas perdu ; il est inscrit « à régulariser » (bandeau Trésorerie et Aujourd'hui) jusqu'à ce qu'un responsable le marque « Traité ».</div>
+<h3>A11.5 Livreur externe : commission d'LOGISTICA</h3>
+<ul><li>Fiche livreur : Type « Externe — partenaire (sa propre moto) » ; commission sur les frais de livraison (20 % proposé).</li><li>À chaque course livrée, il garde ses frais moins la commission. <b>Exemple</b> : frais 1 500 F à 20 % → commission 300 F, livreur 1 200 F ; encaissement 16 000 F → il reverse <b>14 800 F</b>.</li><li>La commission est <b>figée à la livraison</b> : changer le taux ne modifie pas les courses passées.</li><li>Client ayant payé directement sur le compte de LOGISTICA : le livreur ne détient rien ; sa part lui est due et se règle par « Payer un livreur ».</li></ul>
+<h3>A11.6 Régler les vendeurs partenaires</h3>
+<ol><li><i>Trésorerie → Fournisseurs à régler</i> : pour chaque vendeur, commandes livrées et payées, <b>net acquis</b> (prix des articles − déjà encaissé chez lui − commission), déjà réglé, reste à régler.</li><li><b>Détail</b> pour contrôler ; <b>💵 Régler</b> (administrateur, caissier) : partiel ou total, en espèces ou Mobile Money / virement ; règlement groupé possible.</li><li>Espèces : sortie automatique de la caisse principale ouverte (catégorie « Règlement vendeur »), <b>refusée si aucune caisse n'est ouverte ou si le solde est insuffisant</b>.</li><li>Le vendeur voit « Suivi n/7 » et l'état « à verser / en partie / versé » dans son espace.</li></ol>
+<h3>A11.7 Validations et hiérarchie</h3>
+<table><thead><tr><th>Mécanisme</th><th>Règle</th><th>Réglage</th></tr></thead><tbody>
+<tr><td>Validation par le DG</td><td>À partir d'un <b>seuil</b> (0 = tous les montants), bon de caisse, remise de fonds, réapprovisionnement, règlement fournisseur : seul le DG valide. Un règlement fournisseur devient une <b>demande</b> (aucun argent ne sort avant validation)</td><td><i>Paramètres → Validation par le DG</i> (désactivée par défaut) ; titulaire et suppléant</td></tr>
+<tr><td>Hiérarchie à 3 niveaux</td><td>N1 sous 50 000 F : administrateur ou direction (superviseur pour écarts livreurs) · N2 : direction · N3 : DG titulaire ou suppléant</td><td><i>Paramètres → 💳 Paiements et caisse</i> (désactivée par défaut)</td></tr>
+<tr><td>Visa final</td><td>Chaque pièce validée est visée par le DG, tracée et imprimée</td><td>Option</td></tr>
+<tr><td>Régularisation des écarts de caisse</td><td>Décision écrite de l'administrateur ou de la direction (du DG si l'option est activée)</td><td>Option</td></tr>
+</tbody></table>
+<h3>A11.8 Garde-fous contre la disparition d'argent</h3>
+<table><thead><tr><th>Garde-fou (Paramètres → Argent détenu et garanties)</th><th>Effet</th></tr></thead><tbody>
+<tr><td>Plafond d'argent détenu (F)</td><td>Au-delà, plus de mission, de tournée ni de collecte tant qu'il n'a pas reversé</td></tr>
+<tr><td>Délai maximal avant reversement (heures)</td><td>L'encaissement non reversé le plus ancien déclenche le même blocage</td></tr>
+<tr><td>Garant obligatoire, caution minimale</td><td>Manques signalés au dossier ; avec « Exiger un dossier complet », aucune mission sans eux</td></tr>
+</tbody></table>
+<p>Alerte rouge au centre avec la raison chiffrée ; mention « 🔒 Missions bloquées » dans <i>Finance → Encaissements et reversements</i> ; le blocage se lève dès que le reversement est enregistré. <b>[À valider]</b> : valeurs de plafond, délai et caution à fixer par la direction.</p>
+<h3>A11.9 Clôturer la caisse (chaque soir — caissier)</h3>
+<ol><li>Clôture refusée tant qu'un bon est en attente.</li><li>Saisir le <b>comptage réel</b> ; l'écart s'affiche en direct ; <b>justification obligatoire</b> si l'écart n'est pas nul.</li><li>Imprimer le <b>brouillard de caisse</b> (fond d'ouverture, totaux, fond compté, écart ; signatures « Caissier(ère) » et « Vérifié par »).</li><li>Un écart reste en rouge jusqu'à sa <b>régularisation</b> (décision écrite).</li></ol>
+<h3>A11.10 Comptabilité (SYSCOHADA révisé)</h3>
+<p>Les opérations de livraison génèrent automatiquement les écritures (comptes 571 caisse, 411 clients, vendeurs et livreurs en tiers, etc.). Le module « Comptabilité » (administrateur, direction) permet journal, grand livre, balance et clôture. Aucune écriture ne se saisit à la main pour les flux déjà automatiques ; correction par extourne.</p>
+
+<h2>A12. Documents</h2>
+<table><thead><tr><th>Document</th><th>Numéro</th><th>Établi par</th><th>Règle</th></tr></thead><tbody>
+<tr><td>Facture</td><td>FAC-AAAA-NNNN</td><td>Commercial, caissier</td><td>Figée ; pour un vendeur partenaire, ne porte que les frais de livraison, au nom du vendeur</td></tr>
+<tr><td>Reçu de paiement</td><td>REC-</td><td>Caissier, commercial</td><td>Une séquence continue par année et par type</td></tr>
+<tr><td>Avoir</td><td>AVO-</td><td>Commercial, caissier</td><td>Limité au montant de la facture ; corrige une erreur</td></tr>
+<tr><td>Bon de livraison</td><td>BL-</td><td>Préparateur, commercial, superviseur</td><td>Atteste la remise (livreur, date, destinataire, code, GPS, signature) ; ne tient pas lieu de facture</td></tr>
+<tr><td>Bon de collecte</td><td>COL-</td><td>Superviseur</td><td>Commandes, articles, colis remis et reçus, signatures</td></tr>
+<tr><td>Fiche de clôture de tournée</td><td>CT-</td><td>Caissier</td><td>Signatures livreur et caissier</td></tr>
+</tbody></table>
+<div class="box"><b>Réglementaire.</b> Ce sont des documents de gestion. Si LOGISTICA est assujetti à la facturation normalisée électronique (FNE), la facture réglementaire doit être émise par le dispositif officiel ; la mention de pied de page, l'adresse, le NIF et le RCCM se règlent dans <i>Paramètres → Société et documents</i>. Aucun numéro n'est pré-enregistré : <b>NIF, RCCM, adresse et téléphones sont à saisir</b> dans <i>Paramètres</i>.</div>
+<p>Impression : aperçu avant impression (Fermer, Échap ou clic extérieur) ; option « PDF sans en-tête ni pied de page ».</p>
+
+<h2>A13. Clôture de la journée du centre</h2>
+<ol>
+<li>Toutes les courses du jour sont livrées, reprogrammées ou en retour ; les points ouverts sont listés.</li>
+<li>Versements et clôtures de tournée traités ; <b>argent détenu</b> par les livreurs affiché.</li>
+<li>Lire les mentions : « Livrées sans code client valide », « sans scan complet des colis », « validées par le centre », signatures à vérifier.</li>
+<li>Superviseur : <i>Centre → Clôture du jour</i> ; imprimer le résumé ; <b>une clôture par jour</b>.</li>
+<li>Caissier : clôture de caisse (A11.9). Direction : lit le tableau de bord et la « Performance du centre » (1<sup>re</sup> tentative, délais, créneaux, coût par colis ; export CSV).</li>
+<li>Bandeau rouge « actions non relevées » : cliquer « ⬇ Recevoir maintenant » ; tout poste du bureau relève les actions des livreurs sans doublon.</li>
+</ol>
+
+<h2>A14. Livreurs, motos et dossiers</h2>
+<h3>A14.1 Recruter et créer un livreur</h3>
+<ol><li><i>Livraison → Livreurs et motos → Nouveau</i> : identité, téléphone, type (interne, externe), rémunération (fixe par course, % des frais ou mixte) ou commission.</li><li><b>📁 Dossier</b> : photo, pièce d'identité (recto/verso), permis, personne à prévenir, garant, accord du livreur, caution (montant et date). Statut « Dossier complet / À compléter » ; alerte à 30 jours d'une échéance.</li><li>Créer son compte (mot de passe temporaire) ; lui remettre le lien WhatsApp.</li><li>Affecter une moto.</li></ol>
+<h3>A14.2 Motos et équipements</h3>
+<ul><li>Fiche moto : immatriculation, documents (assurance, taxes), statut. Une moto en panne ou immobilisée reste <b>bloquée</b> pour les missions.</li><li>Bouton « 🔧 Entretien » : vidange, pneus, freinage, réparation, pièces ; date, kilométrage, coût, prochain entretien, statut après intervention.</li><li>GMAO : ordres de travail, plans préventifs, pièces, TPM.</li><li><b>Rentabilité par moto</b> : frais de livraison − commissions − dépenses de mission − entretien (indicative, hors comptabilité).</li><li>Équipements : téléphones, terminaux, engins roulants.</li></ul>
+
+<h2>A15. Dépannage — Livraison</h2>
+<table><thead><tr><th>Problème</th><th>Cause probable</th><th>Action</th></tr></thead><tbody>
+<tr><td>Le livreur ne reçoit pas la course</td><td>Sonnerie non activée ; plafond d'argent atteint ; dossier incomplet ; moto bloquée</td><td>« Activer la sonnerie » ; faire reverser ; compléter le dossier</td></tr>
+<tr><td>« Plus en cours » à la confirmation</td><td>Le centre a clôturé, annulé ou réaffecté la livraison</td><td>Le formulaire se ferme ; actualiser la liste</td></tr>
+<tr><td>Code client faux</td><td>Erreur de saisie</td><td>Réessayer ; sinon valider sans code (livraison marquée)</td></tr>
+<tr><td>Scan impossible</td><td>Caméra refusée, page en http, étiquette abîmée</td><td>Saisir le code de 5 caractères</td></tr>
+<tr><td>Référence Mobile Money refusée</td><td>Référence déjà utilisée</td><td>Vérifier le SMS de l'opérateur</td></tr>
+<tr><td>Encaissement en attente de caisse</td><td>Caisse fermée</td><td>Ouvrir la caisse : l'argent est rangé automatiquement</td></tr>
+<tr><td>Action des livreurs non relevée</td><td>Serveur injoignable</td><td>« ⬇ Recevoir maintenant » ; vérifier le réseau</td></tr>
+<tr><td>Téléphone plein / mémoire pleine</td><td>Photos lourdes</td><td>« Économie de données » ; vider les photos ; sauvegarde</td></tr>
+<tr><td>Dernier recours</td><td>—</td><td>Appeler le bureau (bouton « 📞 Appeler le bureau ») ; contacter l'administrateur</td></tr>
+</tbody></table>
+<h2>A16. Prestations, services de livraison et abonnements professionnels</h2>
+<div class="fiche"><div><b>Objectif</b> : vendre des services sans stock (express, course spéciale, retour, collecte…) et fidéliser les professionnels par forfaits mensuels.</div><div><b>Acteurs</b> : commercial (catalogue, abonnements), caissier (encaissement).</div><div><b>Principe</b> : <b>un seul catalogue</b>, tenu dans la Distribution ; le portail le lit.</div></div>
+<h3>A16.1 Catalogue de prestations</h3>
+<ol>
+<li><i>Commandes → Prestations</i> : code unique, désignation, prix, description, <b>actif</b>, <b>vendue en ligne</b>.</li>
+<li>Une prestation <b>ne se supprime pas</b> : on la désactive. Son prix est copié à la création de la commande (changer le tarif ne modifie pas l'historique).</li>
+<li>Une prestation peut porter un <b>service</b> : <i>Livraison express</i> (commande prioritaire), <i>Course spéciale</i> ou <i>Retour de colis</i>. Vendue en ligne, elle apparaît dans « Type de livraison » du portail avec son supplément.</li>
+<li><b>📦 Catalogue standard</b> : en production, le catalogue démarre vide ; installer en un clic <i>Livraison express</i>, <i>Course spéciale</i>, <i>Retour de colis</i>, <i>Collecte de colis</i>, <i>Emballage cadeau</i> et deux forfaits (<i>Pro 30</i>, <i>Pro 100 livraisons</i>). Les prix proposés sont <b>indicatifs</b> : les modifier avant de valider <b>[À valider : tarifs]</b>.</li>
+<li>Une ligne de prestation ne touche jamais au stock ; son chiffre d'affaires est comptabilisé en ventes de services.</li>
+</ol>
+<h3>A16.2 Abonnements professionnels</h3>
+<ol>
+<li><i>Commandes → Abonnements → Forfaits</i> : code, N livraisons par mois, prix mensuel, actif, proposé sur le portail.</li>
+<li><i>Abonnements → Nouveau</i> : titulaire (client ou vendeur partenaire), forfait, date de début. <b>Un seul abonnement en cours par titulaire.</b> Statuts : en attente d'activation, actif, suspendu, résilié (motif ; un abonnement résilié ne se réactive pas).</li>
+<li>L'<b>activation</b> émet la première <b>facture mensuelle</b> (une par mois, sans doublon ; prix et quota copiés à la souscription).</li>
+<li>Les commandes du titulaire créées dans le mois sont livrées <b>sans frais de zone</b> tant que le <b>quota</b> n'est pas consommé ; une commande annulée libère une place ; au-delà du quota, ou sans facture du mois, les frais sont normaux.</li>
+<li>Encaissement (caissier ou administrateur) : espèces, Mobile Money ou virement, avec référence unique.</li>
+<li>Comptabilité : facture mensuelle D client / C prestations vendues (+ TVA) ; règlement D trésorerie / C client ; la part non consommée en fin de période se traite en produit constaté d'avance <b>[À valider avec l'expert-comptable]</b>.</li>
+</ol>
+
+<h2>A17. Portail client : programmer, commander, s'abonner</h2>
+<div class="fiche"><div><b>Objectif</b> : permettre au client de demander une livraison sans appeler.</div><div><b>Acteurs</b> : client (demande), commercial ou superviseur (import et confirmation).</div></div>
+<h3>A17.1 Programmer une livraison (<code>/portail#/livraison</code>)</h3>
+<ol>
+<li>Le client indique où récupérer le colis (zone, quartier, repère, position GPS), le destinataire et son adresse, la description du colis, la <b>date</b> (jusqu'à 60 jours) et le <b>créneau</b>, le <b>type de livraison</b> et <b>qui paie</b> (collecte ou livraison). Un <b>tarif estimé</b> s'affiche (frais de zone + supplément), confirmé ensuite.</li>
+<li>Il peut scanner le <b>QR code</b> du portail (seules les pages du portail s'ouvrent ; tout autre QR est refusé). Une <b>affiche QR</b> à imprimer est disponible : <i>Vente en ligne → Programmation de livraison par QR code</i>.</li>
+<li>Pour un <b>retour de colis</b>, les libellés s'inversent et le client peut donner le n° de la commande d'origine.</li>
+</ol>
+<h3>A17.2 Recevoir les demandes</h3>
+<ol>
+<li><b>Réception directe</b> (si la passerelle est déployée et activée par l'administrateur) : le bureau relève la file toutes les 30 s ; sinon, la demande arrive par WhatsApp.</li>
+<li><i>Vente en ligne → Importer les commandes reçues</i> : chaque demande devient une commande « en attente de confirmation » (zone et frais recalculés, date et créneau notés « Programmée le … ») ou un abonnement « en attente d'activation ».</li>
+<li>Refus avec motif : zone inconnue, date passée, colis ou adresses manquants, doublon, prestation inactive. Les demandes refusées restent dans « À traiter à la main » (rien n'est perdu).</li>
+<li>Le <b>catalogue</b> (produits, prestations, forfaits, prix, stock, photos) se publie vers le portail 2 s après chaque modification, ou avec « 📤 Publier le catalogue maintenant ».</li>
+</ol>
+
+<h1>B. PLACEMENT DE PERSONNEL</h1>
+<div class="flow">Travailleur → Entreprise cliente → Besoin → Affectation → Pointage → Facture → Paie → Marge</div>
+<div class="info box"><b>Principe.</b> LOGISTICA met à disposition des entreprises clientes du personnel temporaire et journalier. Le logiciel tient les fiches, contrôle les affectations, enregistre le pointage journalier, facture le client, paie le travailleur et calcule la marge, avec écritures SYSCOHADA automatiques. Menu : Accueil · Travailleurs · Entreprises · Besoins · Pointage · Facturation · Paie · Réglages.</div>
+<div class="fiche"><div><b>Acteurs</b> : gestionnaire de placement (commercial), direction, administrateur.</div><div><b>Accès</b> : comptes administrateur, direction ou commercial ; mot de passe vérifié, 5 essais puis blocage 60 s, session 30 min.</div></div>
+
+<h2>B1. Travailleurs</h2>
+<ol>
+<li><i>Travailleurs → Nouveau</i> : identité, téléphone, <b>type</b> (temporaire, journalier…), <b>compétences</b>, numéro <b>Mobile Money</b> et opérateur.</li>
+<li>Statut : <b>disponible</b>, <b>indisponible</b>, <b>exclu</b> (motif obligatoire). Un travailleur exclu n'est <b>jamais</b> affecté.</li>
+<li>Informer le travailleur de l'usage de ses données personnelles (loi n° 2013-450).</li>
+</ol>
+<h2>B2. Entreprises clientes</h2>
+<ol><li><i>Entreprises → Nouvelle</i> : raison sociale, contact, téléphone, adresse, NIF/NCC si connu.</li><li>La fiche apparaît dans le CRM (achats = factures TTC, dû = reste à encaisser).</li></ol>
+<h2>B3. Besoins (demandes des entreprises)</h2>
+<ol>
+<li><i>Besoins → ➕ Nouveau besoin</i> : entreprise, <b>poste</b>, <b>nombre</b> de travailleurs, <b>période</b>, <b>tarif client par jour</b> et <b>paie du travailleur par jour</b>.</li>
+<li>Le logiciel <b>refuse</b> un besoin dont la paie dépasse le tarif client (marge négative).</li>
+<li>Le badge du menu compte les besoins à pourvoir.</li>
+</ol>
+<h2>B4. Affectation</h2>
+<ol>
+<li>Ouvrir le besoin → <b>Affecter</b> : le logiciel ne propose que les <b>candidats disponibles sans chevauchement</b> de période.</li>
+<li>Règles : jamais deux affectations simultanées pour un même travailleur ; jamais un travailleur exclu ; une affectation « planifiée » passe « en cours » au premier pointage.</li>
+<li>Prévenir le travailleur (appel, WhatsApp) : lieu, horaires, interlocuteur.</li>
+</ol>
+<h2>B5. Pointage journalier</h2>
+<ol>
+<li>Chaque jour : <b>✅ Pointer aujourd'hui</b> (ou <i>Pointage</i>) → choisir <b>journée</b>, <b>demi-journée</b> ou <b>absent</b> pour chaque travailleur en cours.</li>
+<li>Refusés : jour futur, jour hors période d'affectation, doublon.</li>
+<li><b>Correction</b> : motif obligatoire, tracée à l'audit ; <b>impossible dès que la journée est facturée ou payée</b>.</li>
+<li>Faire valider le pointage par l'entreprise cliente (feuille signée) <b>[À valider : modèle]</b>.</li>
+</ol>
+<h2>B6. Facturation du client</h2>
+<ol>
+<li><i>Facturation → Nouvelle facture</i> : entreprise, période ; le logiciel reprend les <b>journées pointées non encore facturées</b> (<b>chaque journée n'est facturée qu'une seule fois</b>).</li>
+<li><b>TVA</b> configurable dans <i>Réglages</i> (<b>18 %</b> par défaut) ; délai de paiement réglable.</li>
+<li>Impression de la facture (en-tête, signature). <b>[À valider]</b> : assujettissement à la facturation normalisée électronique.</li>
+<li><b>Encaissement</b> : partiel ou total ; Mobile Money avec <b>référence unique</b> ; espèces ou banque. Écriture automatique.</li>
+</ol>
+<h2>B7. Paie du travailleur</h2>
+<ol>
+<li><i>Paie → Nouvelle paie</i> : travailleur, journées pointées <b>non encore payées</b> (<b>une journée n'est payée qu'une seule fois</b>).</li>
+<li>Mode : Espèces, Wave, Orange Money, MTN MoMo, Moov Money ou Virement ; référence pour le Mobile Money.</li>
+<li><b>⬇ Exporter (Excel)</b> la liste des paies pour le paiement groupé.</li>
+<li><b>Aucune retenue sociale ni fiscale n'est calculée</b> (journaliers payés au montant convenu) : à valider avec l'expert-comptable avant tout usage de paie réglementée <b>[À valider]</b>.</li>
+</ol>
+<h2>B8. Marge et comptabilité</h2>
+<table><thead><tr><th>Opération</th><th>Écriture SYSCOHADA générée</th></tr></thead><tbody>
+<tr><td>Facture client</td><td>4111 Clients / 7061 Prestations + 4431 TVA collectée</td></tr>
+<tr><td>Encaissement</td><td>553 (Mobile Money), 571 (caisse) ou 5211 (banque) / 4111</td></tr>
+<tr><td>Paie du travailleur</td><td>6611 / 422 puis 422 / trésorerie</td></tr>
+</tbody></table>
+<ul><li>Les écritures ne se saisissent jamais à la main ; elles sont équilibrées. <b>⬇ Exporter le journal (Excel)</b>.</li><li><b>Marge du mois</b> = facturé − payé aux travailleurs.</li><li>Les comptes se modifient dans les réglages ; <b>faire valider les comptes par l'expert-comptable</b> avant l'ouverture.</li></ul>
+<h2>B9. Réglages, audit, synchronisation</h2>
+<ul><li><i>Réglages</i> : TVA, délai de paiement, comptes.</li><li>Chaque action est au <b>journal d'audit</b> ; tout texte affiché est échappé ; les exports sont protégés contre l'injection de formules.</li><li><b>Synchronisation</b> entre postes via le serveur (profil « placement ») : la migration 019 doit être appliquée et la fonction <code>sync</code> déployée.</li></ul>
+<h3>Dépannage — Placement</h3>
+<table><thead><tr><th>Problème</th><th>Cause probable</th><th>Action</th></tr></thead><tbody>
+<tr><td>Besoin refusé</td><td>Paie supérieure au tarif</td><td>Revoir tarif ou paie</td></tr>
+<tr><td>Travailleur absent de la liste d'affectation</td><td>Indisponible, exclu ou déjà affecté sur la période</td><td>Vérifier statut et planning</td></tr>
+<tr><td>Pointage refusé</td><td>Jour futur, hors période, doublon</td><td>Corriger la date ; en cas d'erreur : correction motivée</td></tr>
+<tr><td>Correction impossible</td><td>Journée déjà facturée ou payée</td><td>Passer par une écriture de régularisation (direction)</td></tr>
+<tr><td>Facture sans journée</td><td>Journées déjà facturées</td><td>Vérifier la période</td></tr>
+<tr><td>Référence Mobile Money refusée</td><td>Référence déjà utilisée</td><td>Vérifier le SMS de l'opérateur</td></tr>
+</tbody></table>
+<h1>C. COURTAGE D'ASSURANCE</h1>
+<div class="flow">Assuré → Devis comparatif → Police → Primes (encaissement, reversement) → Avenants → Renouvellement · Sinistres</div>
+<div class="info box"><b>Principe.</b> Le cabinet <b>conseille, compare, place et suit</b>. Il perçoit une <b>commission</b> de la compagnie. Menu : Accueil · Assurés · Compagnies · Devis · Polices · Sinistres · Réglages.</div>
+<div class="fiche"><div><b>Acteurs</b> : courtier (commercial), direction, administrateur.</div><div><b>Pré-requis</b> : numéro d'<b>agrément CIMA</b> et TVA applicable aux commissions renseignés dans <i>Réglages</i> (TVA à 0 par défaut) ; compagnies partenaires créées.</div></div>
+
+<h2>C1. Assurés</h2>
+<ol><li><i>Assurés → Nouveau</i> : nom, téléphone (<b>une fiche par téléphone</b>), adresse, pièce d'identité, e-mail.</li><li>Informer l'assuré de l'usage de ses données (loi n° 2013-450) ; respecter son opposition à la prospection.</li></ol>
+<h2>C2. Compagnies partenaires</h2>
+<ol><li><i>Compagnies → Nouvelle</i> : nom, contact, <b>commission par défaut</b> et <b>par branche</b> (auto, santé, habitation, transport…).</li><li>La commission est <b>plafonnée à 40 %</b>.</li></ol>
+<h2>C3. Devis comparatif</h2>
+<ol>
+<li><i>Devis → 📝 Nouveau devis</i> : assuré, branche, risque à couvrir.</li>
+<li>Saisir <b>jusqu'à 3 propositions</b> de compagnies : prime <b>nette</b>, <b>accessoires</b>, <b>taxes telles que fixées par la compagnie</b>. Le logiciel repère la <b>moins chère</b>.</li>
+<li>Envoyer le comparatif à l'assuré. S'il refuse : <b>refuser le devis avec motif</b> (obligatoire).</li>
+<li>Aucune taxe d'assurance n'est calculée par le logiciel : elle figure dans la prime TTC de la compagnie.</li>
+</ol>
+<h2>C4. Police</h2>
+<ol>
+<li><i>Polices → Nouvelle</i>, ou <b>émettre depuis le devis</b> (choisir la proposition retenue).</li>
+<li>Saisir le <b>n° de police donné par la compagnie</b> (unique par compagnie), la date d'<b>effet</b>, l'<b>échéance</b> (durée de 5 ans au plus), la prime TTC.</li>
+<li>Un devis déjà accepté ne s'émet pas deux fois.</li>
+</ol>
+<h2>C5. Primes : encaissement et reversement</h2>
+<table><thead><tr><th>Cas</th><th>Procédure</th></tr></thead><tbody>
+<tr><td><b>Prime payée au cabinet</b></td><td>Encaisser (partiel ou total, jamais plus que le TTC) : espèces, Mobile Money (référence unique) ou banque. Puis <b>reverser à la compagnie</b> : prime encaissée − commission proportionnelle, jamais plus que le dû</td></tr>
+<tr><td><b>Prime payée directement à la compagnie</b></td><td>Enregistrer le paiement : la <b>commission à recevoir</b> est constatée</td></tr>
+</tbody></table>
+<h2>C6. Avenants et résiliation</h2>
+<ul><li><b>Avenant</b> : supplément ou ristourne de prime ; effet daté ; tracé.</li><li><b>Résiliation</b> : <b>motif obligatoire</b> ; la police résiliée sort des primes à encaisser et des renouvellements.</li></ul>
+<h2>C7. Renouvellements</h2>
+<ol><li>Le tableau d'accueil alerte à <b>30 jours</b> de l'échéance.</li><li>Contacter l'assuré, proposer un nouveau devis si besoin, puis <b>renouveler en un geste</b> (nouvelle période, nouvelle prime).</li></ol>
+<h2>C8. Sinistres</h2>
+<div class="flow">Déclaré → Transmis → Expertise → Accepté / Refusé → Indemnisé → Clos</div>
+<ol>
+<li><i>Sinistres → 🚨 Déclarer</i> : <b>police en cours à la date du sinistre</b> (sinon refus), date, circonstances, pièces.</li>
+<li>Transmettre à la compagnie dans le délai du contrat <b>[À valider : délai]</b> ; suivre l'expertise.</li>
+<li><b>Refuser ou clore</b> : motif obligatoire ; chaque étape garde son historique.</li>
+<li>Tenir l'assuré informé à chaque étape.</li>
+</ol>
+<h2>C9. Comptabilité SYSCOHADA</h2>
+<table><thead><tr><th>Opération</th><th>Écriture générée</th></tr></thead><tbody>
+<tr><td>Prime encaissée</td><td>553 / 571 / 5211 en contrepartie de 4712 (reçue pour le compte de la compagnie)</td></tr>
+<tr><td>Commission</td><td>4712 / 7061 (+ 4431), au fil des encaissements (cumul arrondi : la somme égale exactement la commission)</td></tr>
+<tr><td>Reversement à la compagnie</td><td>4712 / trésorerie</td></tr>
+<tr><td>Prime payée directement à la compagnie</td><td>4111 / 7061, puis trésorerie / 4111</td></tr>
+</tbody></table>
+<p>Comptes modifiables dans <i>Réglages</i> ; export Excel du journal et des polices. <b>[À valider]</b> : comptes et TVA sur commissions par l'expert-comptable.</p>
+<h2>C10. Dépannage — Assurance</h2>
+<table><thead><tr><th>Problème</th><th>Cause probable</th><th>Action</th></tr></thead><tbody>
+<tr><td>N° de police refusé</td><td>Déjà utilisé pour cette compagnie</td><td>Vérifier le n° sur la police papier</td></tr>
+<tr><td>Durée refusée</td><td>Plus de 5 ans</td><td>Réduire la durée</td></tr>
+<tr><td>Encaissement refusé</td><td>Dépasse le TTC ou référence Mobile Money déjà utilisée</td><td>Contrôler le solde et le SMS</td></tr>
+<tr><td>Reversement refusé</td><td>Supérieur au dû</td><td>Recalculer prime − commission</td></tr>
+<tr><td>Sinistre refusé</td><td>Aucune police en cours à la date du sinistre</td><td>Vérifier les dates d'effet et d'échéance</td></tr>
+</tbody></table>
+
+<h1>D. CRM</h1>
+<div class="info box"><b>Principe.</b> <b>Une fiche unique par personne</b>, fusionnée par numéro de téléphone (formats 0505…, +225 05…, 225… reconnus). Le CRM <b>lit sans jamais modifier</b> les clients et vendeurs de la Distribution, les entreprises clientes et travailleurs du Placement, les assurés du Courtage. Les clients « divers » restent hors du CRM.</div>
+<div class="fiche"><div><b>Acteurs</b> : commercial, direction, administrateur.</div><div><b>Accès</b> : mot de passe habituel ; blocage 60 s après 5 échecs ; session de 30 minutes ; bouton « Verrouiller ».</div></div>
+<h2>D1. Pilotage</h2>
+<p>Onglet <b>📊 Pilotage</b> : contacts uniques, chiffre d'affaires 12 mois, clients actifs 90 j, nouveaux clients 30 j, rétention, encours et clients en retard, opportunités ouvertes et taux de conversion, répartition par segment, 10 meilleurs clients.</p>
+<h2>D2. Contacts et fiche 360°</h2>
+<ol><li>Recherche instantanée (touche <code>/</code> ou Ctrl+K) : nom, téléphone, étiquette ; filtres par segment et par application (limités aux modules de l'instance) ; affichage en cartes ou en liste.</li><li>La fiche montre achats, CA, panier moyen, encours, ancienneté, <b>historique de toutes les applications</b> (livraisons, factures de placement, primes d'assurance), échanges, étiquettes ; bouton <b>WhatsApp</b>.</li></ol>
+<h2>D3. Segments</h2>
+<p>Calculés, jamais enregistrés (donc toujours justes) : <b>VIP, Fidèle, Nouveau, Actif, À risque, Dormant, Prospect, Partenaire</b>. Seuils réglables dans <i>Réglages</i> <b>[À valider : seuils]</b>.</p>
+<h2>D4. Opportunités</h2>
+<ol><li><i>🎯 Opportunités</i> : tableau <b>Nouveau → Contacté → Devis → Négociation → Gagné / Perdu</b>, valeur par colonne, glisser-déposer.</li><li><b>Perdu</b> : motif obligatoire.</li><li>Les candidats vendeurs du portail s'importent comme opportunités.</li></ol>
+<h2>D5. Tâches et relances</h2>
+<ul><li><b>✅ Tâches</b> liées à un contact, avec échéance ; retards signalés.</li><li><b>📣 Relances</b> : impayés, clients à risque ou dormants, candidats en attente ; lien WhatsApp et message déjà rédigé ; « Relancé » masque le contact 14 jours.</li></ul>
+<h2>D6. Qualité des données</h2>
+<p><b>🧹 Qualité</b> : contacts sans téléphone, même numéro avec noms différents, même nom avec numéros différents (doublons possibles), personnes présentes dans plusieurs applications. Corriger dans l'application d'origine : le CRM ne modifie pas les fiches sources.</p>
+<h2>D7. Données personnelles et export</h2>
+<ul><li><b>Opposition à la prospection</b> par contact (loi n° 2013-450) : le contact est exclu des relances et de l'export marketing.</li><li>Export CSV (Excel, protégé contre l'injection de formules) ; chaque action du CRM est au journal d'audit.</li><li>L'état propre au CRM se synchronise entre postes (profil « crm ») ; si deux postes modifient le même contact au même moment, la première modification enregistrée gagne et l'autre poste est prévenu.</li></ul>
+
+<h1>E. ADMINISTRATION ET MISE EN SERVICE</h1>
+<h2>E1. Utilisateurs, rôles et droits</h2>
+<ol>
+<li><i>Paramètres → Utilisateurs → Nouveau</i> : nom, rôle, mot de passe temporaire remis en main propre ou par message sécurisé ; changement obligatoire à la première connexion.</li>
+<li>Rôles et droits : par module et par action ; rôles personnalisés possibles ; le <b>dernier administrateur actif</b> ne peut être ni désactivé ni rétrogradé.</li>
+<li>Désactiver (jamais supprimer) le compte d'une personne qui quitte l'entreprise.</li>
+<li>Les comptes liés à une fiche (livreur, vendeur) se créent dans leur application.</li>
+</ol>
+<h2>E2. Coordonnées de l'entreprise et documents</h2>
+<p><i>Paramètres → Société et documents</i> : adresse, téléphones, e-mail, NIF, RCCM, pied de page. <b>Aucun numéro n'est pré-enregistré</b> : à saisir avant d'émettre le premier document. Coordonnées publiques indiquées sur l'instance : Cité CIE, Niangon, Yopougon ; Rue du commerce, Immeuble EL NASR, Plateau ; 29 BP 173 Abidjan 29 ; courrier@logistica.ci ; www.logistica.ci <b>[À confirmer]</b>.</p>
+<h2>E3. Serveur de données (synchronisation entre postes)</h2>
+<p>Sans serveur, chaque poste fonctionne seul (stockage local). Pour synchroniser plusieurs postes, le portail et le suivi des livreurs :</p>
+<table><thead><tr><th>Étape</th><th>Action</th><th>Responsable</th></tr></thead><tbody>
+<tr><td>1</td><td>Projet serveur <b>dédié à LOGISTICA</b> (jamais celui d'un autre client)</td><td>SANIX AFRICA</td></tr>
+<tr><td>2</td><td>Appliquer les <b>migrations 001 à 030</b> dans l'ordre</td><td>SANIX AFRICA</td></tr>
+<tr><td>3</td><td>Déployer les <b>24 fonctions Edge</b> à jour (sync, portail, missions, suivi, photos, liens courts, FNE, reset, push…)</td><td>SANIX AFRICA</td></tr>
+<tr><td>4</td><td>Saisir les <b>secrets obligatoires</b> : <code>SYNC_KEY</code>, <code>ADMIN_KEY</code>, <code>PORTAIL_SEL</code> (jamais dans le dépôt ni dans le navigateur)</td><td>SANIX AFRICA, direction</td></tr>
+<tr><td>5</td><td>Sur chaque poste : <i>Paramètres → Cloud / Supabase</i> : adresse du projet et clé de synchronisation</td><td>Administrateur</td></tr>
+<tr><td>6</td><td>Activer la protection contre les mots de passe compromis ; sauvegardes quotidiennes ; <b>tester une restauration</b></td><td>SANIX AFRICA</td></tr>
+<tr><td>7</td><td>Secrets facultatifs : notifications push (VAPID), appels masqués, rapport quotidien par e-mail</td><td>Direction <b>[À valider]</b></td></tr>
+</tbody></table>
+<div class="box"><b>État au 28/10/2026.</b> Le serveur LOGISTICA est en cours de mise à niveau : les migrations 020 à 025, 027, 029 et 030 sont appliquées ; <b>026 et 028 (remise à zéro de production)</b> et le déploiement à jour des fonctions Edge sont en attente.</div>
+<h2>E4. Démonstration et formation</h2>
+<ol><li>Ouvrir <code>demo.html</code> → « Lancer la démonstration » : des <b>données fictives</b> (12 travailleurs, 6 entreprises, 6 besoins, 7 assurés, 4 compagnies, devis, polices, sinistres, commandes de distribution) se chargent <b>sur l'appareil seulement</b>.</li><li>La synchronisation est <b>coupée</b> pendant la démonstration : rien ne part vers le serveur.</li><li>« Effacer la démonstration » remet l'appareil à vide. <b>Ne jamais utiliser la démonstration avec des données réelles.</b></li></ol>
+<h2>E5. Passage en production</h2>
+<ol>
+<li>Compléter la <b>check-list de fin de formation</b> : tous les points « Acquis ».</li>
+<li>Faire valider par l'expert-comptable : plans de comptes de Placement et d'Assurance, TVA, paie.</li>
+<li>Renseigner l'agrément CIMA, la TVA, les tarifs, les zones, les prestations.</li>
+<li>Faire une <b>sauvegarde signée</b> et un test de restauration.</li>
+<li>Administrateur : <i>Paramètres → Passage en production</i> : <b>vider les données d'exercice</b> (action définitive, code et phrase de confirmation) ; le serveur est vidé par la fonction <code>reset</code> (comptes livreurs et vendeurs, catalogue et abonnements push conservés).</li>
+<li>Créer les comptes réels ; remettre les mots de passe temporaires.</li>
+</ol>
+<h2>E6. Sauvegarde, audit et sécurité</h2>
+<ul><li><b>Sauvegarde signée</b> (somme de contrôle) à ranger hors de l'appareil ; <b>jauge de mémoire locale</b> : avertissement à 70 % ; restauration sécurisée.</li><li><b>Journal d'audit</b> : toutes les actions sensibles ; consulté par l'administrateur et la direction.</li><li><b>Sécurité</b> : droits appliqués dans chaque fonction ; tables du serveur protégées (RLS) ; numéros de clients masqués côté serveur ; secrets jamais exposés.</li></ul>
+<h1>F. ANNEXES</h1>
+<h2>F1. Règles d'or</h2>
+<ol>
+<li><b>Pas de preuve, pas de validation</b> : code, scan, signature, photo, pointage, police, référence Mobile Money, justificatif.</li>
+<li><b>On ne supprime pas</b> : on annule avec motif, on corrige par avoir, avenant ou extourne.</li>
+<li><b>Un encaissement = une saisie le jour même</b> ; une référence Mobile Money ne sert qu'une fois.</li>
+<li><b>Personne ne valide ce qu'il a saisi.</b></li>
+<li><b>Aucune sortie de caisse sans bon</b> ; aucune clôture avec un bon en attente.</li>
+<li><b>Une journée de placement n'est facturée qu'une fois et payée qu'une fois.</b></li>
+<li><b>Une prime encaissée appartient à la compagnie</b> tant que la commission n'est pas prélevée et le reste reversé.</li>
+<li><b>Tout écart est expliqué par écrit</b> avant la clôture.</li>
+<li><b>Tout incident grave est signalé au responsable dans l'heure</b> (SOS, vol, agression, perte d'argent).</li>
+<li><b>Aucune donnée réelle dans la démonstration.</b></li>
+</ol>
+<h2>F2. Escalade</h2>
+<table><thead><tr><th>Situation</th><th>1<sup>er</sup> contact</th><th>2<sup>e</sup> niveau</th><th>Délai</th></tr></thead><tbody>
+<tr><td>Danger, agression, accident, SOS</td><td>Superviseur</td><td>Direction, urgences</td><td>Immédiat</td></tr>
+<tr><td>Écart de caisse</td><td>Superviseur</td><td>Direction</td><td>Le jour même</td></tr>
+<tr><td>Colis manquant, litige client</td><td>Superviseur</td><td>Commercial, direction</td><td>24 h</td></tr>
+<tr><td>Livreur bloqué (plafond, délai)</td><td>Caissier</td><td>Superviseur, administrateur</td><td>Le jour même</td></tr>
+<tr><td>Litige de pointage ou de facture (placement)</td><td>Gestionnaire de placement</td><td>Direction</td><td>48 h</td></tr>
+<tr><td>Sinistre non transmis dans le délai</td><td>Courtier</td><td>Direction</td><td>Selon contrat</td></tr>
+<tr><td>Accès, mot de passe, panne logicielle</td><td>Administrateur</td><td>SANIX AFRICA — +225 0779181075 / 0140017751</td><td>Selon contrat de support</td></tr>
+</tbody></table>
+<p><b>[À valider]</b> : délais d'escalade à confirmer par la direction.</p>
+<h2>F3. Calendrier des contrôles</h2>
+<table><thead><tr><th>Fréquence</th><th>Contrôle</th><th>Responsable</th></tr></thead><tbody>
+<tr><td rowspan="4"><b>Quotidien</b></td><td>Ouverture et clôture de caisse ; bons en attente à zéro</td><td>Caissier</td></tr>
+<tr><td>Versements validés ; tournées clôturées ; « À traiter maintenant » vide ; clôture du jour</td><td>Caissier, superviseur</td></tr>
+<tr><td>Alertes du centre ; incidents ; SOS</td><td>Superviseur</td></tr>
+<tr><td>Pointage des travailleurs en mission</td><td>Gestionnaire de placement</td></tr>
+<tr><td rowspan="3"><b>Hebdomadaire</b></td><td>Factures de placement à émettre ; paies à régler ; impayés à relancer</td><td>Gestionnaire de placement, caissier</td></tr>
+<tr><td>Devis en attente ; sinistres ouverts ; primes impayées ; renouvellements à 30 jours</td><td>Courtier</td></tr>
+<tr><td>Relances CRM ; tâches en retard ; qualité des fiches</td><td>Commercial</td></tr>
+<tr><td rowspan="3"><b>Mensuel</b></td><td>Facturation des abonnements ; marge du placement ; commissions d'assurance ; reversements aux compagnies</td><td>Direction, caissier, courtier</td></tr>
+<tr><td>Validation des écritures SYSCOHADA par l'expert-comptable ; clôture</td><td>Direction, comptable</td></tr>
+<tr><td>Sauvegarde signée ; revue des droits et des comptes inactifs ; test de restauration trimestriel</td><td>Administrateur</td></tr>
+</tbody></table>
+<h2>F4. Check-lists rapides par acteur</h2>
+<table><thead><tr><th>Acteur</th><th>Matin</th><th>Pendant</th><th>Soir</th></tr></thead><tbody>
+<tr><td>Commercial</td><td>Demandes du portail importées ; commandes à confirmer</td><td>Créer, confirmer, notifier ; relances CRM</td><td>Aucune commande « à confirmer » oubliée</td></tr>
+<tr><td>Préparateur</td><td>Collectes à réceptionner</td><td>Préparer, étiqueter, marquer prêtes</td><td>Aucune commande prête sans étiquette</td></tr>
+<tr><td>Superviseur</td><td>Alertes ; livreurs disponibles</td><td>Affecter, suivre, échecs, SOS</td><td>Clôture du jour</td></tr>
+<tr><td>Livreur</td><td>Sonnerie activée ; colis scannés</td><td>Appeler, livrer, code, signature, encaisser</td><td>Terminer la tournée et reverser</td></tr>
+<tr><td>Caissier</td><td>Ouvrir la caisse</td><td>Valider versements ; régler vendeurs ; encaisser factures</td><td>Clôturer la caisse, brouillard signé</td></tr>
+<tr><td>Gestionnaire de placement</td><td>Besoins à pourvoir ; affectations du jour</td><td>Pointer ; facturer ; payer</td><td>Pointage complet</td></tr>
+<tr><td>Courtier</td><td>Alertes de renouvellement</td><td>Devis, polices, sinistres</td><td>Primes du jour encaissées et saisies</td></tr>
+<tr><td>Direction</td><td>Tableau de bord ; à valider</td><td>Valider bons et écarts</td><td>Visa final</td></tr>
+<tr><td>Administrateur</td><td>Sauvegarde, comptes</td><td>Droits, réinitialisations</td><td>Journal d'audit</td></tr>
+</tbody></table>
+<h2>F5. Glossaire</h2>
+<table><tbody>
+<tr><th style="width:24%">Avenant</th><td>Modification d'une police : supplément ou ristourne de prime.</td></tr>
+<tr><th>Avoir (AVO)</th><td>Document qui corrige une facture ; la facture n'est jamais modifiée.</td></tr>
+<tr><th>BE / BS</th><td>Bon d'entrée / bon de sortie de caisse.</td></tr>
+<tr><th>BL</th><td>Bon de livraison : atteste la remise ; ne remplace pas une facture.</td></tr>
+<tr><th>CIMA</th><td>Conférence interafricaine des marchés d'assurances ; son agrément est requis pour le courtier.</td></tr>
+<tr><th>Circuit direct</th><td>Livraison validée par le centre à la place du livreur.</td></tr>
+<tr><th>Clôture de tournée (CT)</th><td>Contrôle et encaissement de ce que le livreur doit remettre.</td></tr>
+<tr><th>Commission</th><td>Rémunération du courtier sur la prime, versée par la compagnie (plafonnée à 40 %).</td></tr>
+<tr><th>Extourne</th><td>Écriture comptable inverse qui annule une écriture sans la supprimer.</td></tr>
+<tr><th>FNE</th><td>Facture normalisée électronique.</td></tr>
+<tr><th>Forfait</th><td>Abonnement mensuel à un nombre de livraisons.</td></tr>
+<tr><th>Mobile Money</th><td>Paiement par opérateur (Wave, Orange Money, MTN MoMo, Moov Money) ; référence unique.</td></tr>
+<tr><th>Placement</th><td>Mise à disposition de personnel temporaire ou journalier auprès d'une entreprise.</td></tr>
+<tr><th>Pointage</th><td>Enregistrement quotidien du temps travaillé (journée, demi-journée, absent).</td></tr>
+<tr><th>Police</th><td>Contrat d'assurance émis par la compagnie.</td></tr>
+<tr><th>Prime TTC</th><td>Prime nette + accessoires + taxes, fixée par la compagnie.</td></tr>
+<tr><th>PWA</th><td>Application installable depuis le navigateur.</td></tr>
+<tr><th>QR du colis</th><td>Code unique imprimé sur l'étiquette ; scanné à la prise en charge et à la remise.</td></tr>
+<tr><th>SYSCOHADA</th><td>Système comptable OHADA révisé.</td></tr>
+<tr><th>Tournée</th><td>Groupe de commandes confiées à un même livreur dans un ordre de passage.</td></tr>
+</tbody></table>
+<h2>F6. Points à valider avant diffusion</h2>
+<table><thead><tr><th>#</th><th>Point</th><th>Décideur</th></tr></thead><tbody>
+<tr><td>1</td><td>Coordonnées officielles de LOGISTICA, NIF, RCCM (non pré-enregistrés) ; assujettissement à la FNE</td><td>Direction</td></tr>
+<tr><td>2</td><td>Plans de comptes Placement et Assurance (indicatifs), TVA, traitement de la paie sans retenues, produit constaté d'avance des abonnements</td><td>Expert-comptable</td></tr>
+<tr><td>3</td><td>Agrément CIMA ; taux de commission par compagnie et par branche ; délai de transmission des sinistres</td><td>Direction, courtier</td></tr>
+<tr><td>4</td><td>Tarifs du catalogue de prestations et forfaits ; zones et frais de livraison</td><td>Direction, commercial</td></tr>
+<tr><td>5</td><td>Plafond d'argent détenu, délai de reversement, caution, seuils de validation du DG</td><td>Direction</td></tr>
+<tr><td>6</td><td>Numéros d'urgence affichés aux livreurs</td><td>Superviseur</td></tr>
+<tr><td>7</td><td>Seuils des segments CRM ; modèle de feuille de pointage ; délais d'escalade</td><td>Direction</td></tr>
+<tr><td>8</td><td>Secrets du serveur, notifications push, appels masqués, rapport par e-mail ; fin de la mise à niveau du serveur (migrations 026 et 028, fonctions Edge)</td><td>SANIX AFRICA, direction</td></tr>
+</tbody></table>
+<h2>F7. Contact support</h2>
+<p><b>SANIX AFRICA SARL — Division Technologies</b><br>Songon Kassamblé · Tél / WhatsApp : +225 0779181075 / 0140017751 · paypikmoto2@gmail.com</p>
+</body></html>
