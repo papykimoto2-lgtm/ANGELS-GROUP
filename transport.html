@@ -116,7 +116,8 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 <script>ANGELS_PRINT.hook({division:"transport",fallback:()=>({nom:ORGRAW(),siege:stv("org_adresse"),tel:stv("org_tel")}),emetteur:()=>ME&&ME.nom})</script>
 <script>
 "use strict";
-const KEY="angels_transport_v3";
+const APP_CHAUF=/[?&]app=chauffeur(&|$)/.test(location.search);
+const KEY=APP_CHAUF?"angels_transport_chauffeur":"angels_transport_v3";
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -3117,7 +3118,7 @@ A["bk.chk"]=()=>{const p=integrite();alert(p.length?"Anomalies :\n"+p.join("\n")
 /* ---- Portail chauffeur ---- */
 function portalData(did){
  guardDriver(did);const am=allocMap(),obs=S.obligations.filter(o=>o.driver_id===did).sort((a,b)=>b.date_ech.localeCompare(a.date_ech)||b.num-a.num);
- return{am,obs,solde:soldeTiers(by(S.drivers,did).tiers_id),recus:S.receipts.filter(r=>r.driver_id===did&&r.statut==="valide").slice().reverse()};
+ return{am,obs,solde:S.__solde!=null?S.__solde:soldeTiers(by(S.drivers,did).tiers_id),recus:S.receipts.filter(r=>r.driver_id===did&&r.statut==="valide").slice().reverse()};
 }
 function creerDemande(f){
  const d=meDriver();if(!d)throw new Error("Réservé aux chauffeurs.");need("portail","v");
@@ -4314,7 +4315,6 @@ const modNavT=items=>MODULES_T.map(m=>{const L=vuesVisT(m,items);if(!L.length)re
 const modTabsT=items=>{const m=modOfT(view);if(!m)return"";const L=vuesVisT(m,items);MOD_DERN[m.id]=view;if(L.length<2)return"";
  return`<div class="mtabs noprint" role="tablist" aria-label="${esc(m.l)}">${L.map(n=>`<a role="tab" aria-selected="${n.v===view}" class="${n.v===view?"on":""}" data-a="nav" data-id="${n.v}">${esc(n.l)}</a>`).join("")}</div>`};
 
-const APP_CHAUF=/[?&]app=chauffeur(&|$)/.test(location.search);
 if(APP_CHAUF){try{document.getElementById("appt").content="Angel's Chauffeur"}catch(e){}}
 async function login(uidv,mdp){
  const u=by(S.users,uidv);if(!u)return"Compte inconnu.";if(APP_CHAUF&&u.role!=="chauffeur")return"Cet accès est réservé aux chauffeurs. Le personnel du bureau utilise l'application Transport.";
@@ -4372,6 +4372,89 @@ A["bg"]=()=>$("#sb").classList.toggle("open");
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t||!S)return;if(t.tagName==="INPUT")return;const fn=A[t.dataset.a];if(fn){e.preventDefault();fn(t.dataset.id,t,e)}});
 document.addEventListener("change",e=>{const t=e.target;if(!S)return;if(t.dataset.f){const[k,p]=t.dataset.f.split(":");(UI.f[k]=UI.f[k]||{})[p]=t.value;render();return}if(t.dataset.a&&t.tagName==="INPUT"&&t.type==="checkbox"&&A[t.dataset.a])A[t.dataset.a](t.dataset.id,t)});
 window.addEventListener("storage",e=>{if(e.key===KEY&&e.newValue&&!document.querySelector(".md")){try{S=JSON.parse(e.newValue);if(ME)ME=by(S.users,ME.id);if(ME&&!ME.actif)ME=null;render()}catch(x){}}});
+/* ---------- Application chauffeur (?app=chauffeur) : aucun accès à la base partagée ----------
+   Le téléphone ne reçoit JAMAIS la clé de synchronisation ni les données des autres : il s'identifie avec le mot de passe du chauffeur auprès de la fonction « chauffeur »,
+   reçoit un jeton signé et n'obtient que ses propres données. Ses saisies (courses, position, déclarations, demandes) sont mises en file d'attente locale puis envoyées
+   et REVALIDÉES par le serveur (voir supabase/functions/_shared/chauffeur.js). La file survit à la perte de réseau. */
+const CH={jeton:null,file:[],occupe:false};
+const chLire=(k,d)=>{try{return JSON.parse(localStorage.getItem(k)||"null")||d}catch(e){return d}},chEcrire=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const chUrl=()=>String((window.ANGELS_PASSERELLE||{}).url||"").replace(/\/+$/,"")+"/functions/v1/chauffeur";
+function chToast(m,err){const e=document.createElement("div");e.setAttribute("role","status");e.textContent=m;e.style.cssText="position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:99999;max-width:90vw;padding:10px 16px;border-radius:10px;font-size:14px;color:#fff;background:"+(err?"#b91c1c":"#166534");document.body.appendChild(e);setTimeout(()=>e.remove(),5000)}
+async function srv(action,corps){
+ const c=window.ANGELS_PASSERELLE||{},r=await fetch(chUrl(),{method:"POST",headers:{"content-type":"application/json",apikey:c.key||"",authorization:"Bearer "+(c.key||"")},body:JSON.stringify({action,jeton:CH.jeton,...(corps||{})})});
+ let b;try{b=await r.json()}catch(e){b={ok:false,erreur:"Réponse illisible du serveur."}}b.status=r.status;return b;
+}
+function chargerChauffeur(){
+ try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}
+ if(!S||!S.perms||!S.__ch){seed();S.users=[];S.__ch=1;S.settings.acces_demo=false}
+ CH.jeton=chLire("tr_ch_jeton",null);CH.file=chLire("tr_ch_file",[]);migrerNegoce();
+ if(CH.jeton&&S.users[0]&&S.users[0].role==="chauffeur")ME=S.users[0];
+}
+function hydrater(M){
+ const loc=CH.file.map(o=>o.loc).filter(Boolean),idsC=new Set(M.mes_courses.map(c=>c.id));
+ S.users=[M.utilisateur];S.drivers=[M.chauffeur];S.tiers=M.tiers?[M.tiers]:[];S.contracts=M.contrats;S.assignments=M.affectations;S.vehicles=M.vehicules;S.obligations=M.obligations;S.allocs=M.allocations;
+ S.payments=M.paiements;S.receipts=M.recus;S.declarations=M.declarations;S.requests=M.demandes;S.notifs=M.notifs;S.lignes=M.lignes;S.__solde=M.solde;
+ S.courses=[...M.courses_flotte.filter(c=>!idsC.has(c.id)),...M.mes_courses];Object.assign(S.settings,M.reglages);
+ /* saisies pas encore acceptées par le serveur : on les garde à l'écran */
+ CH.file.forEach(o=>{if(!o.loc)return;if(o.a==="course"&&!S.courses.some(c=>c.id===o.loc.id))S.courses.push(o.loc);
+  if(o.a==="declarer_recette"&&!S.declarations.some(c=>c.id===o.loc.id))S.declarations.push(o.loc);if(o.a==="demande"&&!S.requests.some(c=>c.id===o.loc.id))S.requests.push(o.loc);
+  if(o.a==="retirer_course")S.courses=S.courses.filter(c=>c.id!==o.c.id);if(o.a==="retirer_declaration"){const x=by(S.declarations,o.c.id);if(x)x.statut="retiree"}});
+ ME=S.users[0];try{save()}catch(e){}
+}
+function chPousser(a,c,loc){
+ if(a==="position")CH.file=CH.file.filter(o=>o.a!=="position"&&o.a!=="arret_position");if(a==="arret_position")CH.file=CH.file.filter(o=>o.a!=="position");
+ CH.file.push({a,c,loc:loc||null,id:uid("op")});chEcrire("tr_ch_file",CH.file);chVider();
+}
+async function chVider(){
+ if(CH.occupe||!CH.jeton)return;CH.occupe=true;let refus=false;
+ try{while(CH.file.length){const o=CH.file[0];let r;try{r=await srv(o.a,o.c)}catch(e){break}
+   if(r.status===401&&r.reconnecter){chDeconnecter(true);return}
+   if(r.ok||(r.status>=400&&r.status<500&&r.status!==429)){if(!r.ok){refus=true;chToast("Refusé par le serveur : "+(r.erreur||"erreur"),true)}CH.file.shift();chEcrire("tr_ch_file",CH.file)}else break}
+ }finally{CH.occupe=false}
+ if(refus||!CH.file.length)chRafraichir();
+}
+async function chRafraichir(){
+ if(!CH.jeton||CH.file.length&&CH.occupe)return;let M;try{M=await srv("moi",{})}catch(e){return}
+ if(M.status===401&&M.reconnecter)return chDeconnecter(true);if(!M.ok)return;hydrater(M);if(ME&&!document.querySelector(".md"))render();
+}
+function chDeconnecter(expire){
+ CH.jeton=null;try{localStorage.removeItem("tr_ch_jeton");localStorage.removeItem("tr_ch_file");localStorage.removeItem(KEY);sessionStorage.removeItem("tr_me")}catch(e){}
+ if(expire)chToast("Session expirée : reconnectez-vous.",true);setTimeout(()=>location.reload(),expire?1200:0);
+}
+async function chListe(){
+ try{const r=await srv("liste",{});if(r.ok){S.users=r.chauffeurs.map(x=>({id:x.id,nom:x.nom,role:"chauffeur",actif:true}));chEcrire("tr_ch_liste",S.users);if(!ME)render()}}catch(e){}
+}
+function demarrerChauffeur(){
+ if(!ME){const c=chLire("tr_ch_liste",[]);if(c.length&&!S.users.length)S.users=c}
+ if(!ME)chListe();else{chRafraichir();chVider()}
+ setInterval(()=>{if(ME&&!document.hidden&&navigator.onLine){chVider();chRafraichir()}},60000);window.addEventListener("online",()=>{chVider();chRafraichir()});
+}
+if(APP_CHAUF){
+ const _dc=declarerCourse,_rc=retirerCourse,_dr=declarerRecette,_rd=retirerDeclaration,_cd=creerDemande,_ep=enregistrerPosChauf,_rp=retirerPosChauf;
+ declarerCourse=f=>{const x=_dc(f);chPousser("course",{id:x.id,zone:x.zone,passagers:x.passagers,montant:x.montant,t:x.t},x);return x};
+ retirerCourse=id=>{_rc(id);chPousser("retirer_course",{id})};
+ declarerRecette=f=>{const x=_dr(f);chPousser("declarer_recette",{id:x.id,date:x.date,montant:x.montant,mode:x.mode,ref:x.ref,note:x.note},x);return x};
+ retirerDeclaration=id=>{_rd(id);chPousser("retirer_declaration",{id})};
+ creerDemande=f=>{const r=_cd(f);chPousser("demande",{id:r.id,type:f.type,texte:f.texte,ob:f.ob||null,payload:f.payload||null},r);return r};
+ signalerIncident=f=>creerDemande({type:"incident",texte:"Incident "+f.type+" du "+f.date+" : "+f.description});
+ enregistrerPosChauf=(la,ln,v,pr)=>{const it=_ep(la,ln,v,pr);chPousser("position",{lat:it.lat,lng:it.lng,vit:it.vit,prec:it.prec,t:it.t});return it};
+ retirerPosChauf=()=>{_rp();chPousser("arret_position",{})};
+ login=async(uidv,mdp)=>{
+  let r;try{r=await srv("login",{uid:uidv,mdp})}catch(e){return"Pas de réseau : la première connexion exige internet."}
+  if(!r.ok)return r.erreur||"Connexion impossible.";
+  if(r.changer){let r2=null;const nom=(by(S.users,uidv)||{}).nom||"";
+   await ANGELS_AUTH.ouvrirChangement({titre:"Créez votre mot de passe",nom,min:Math.max(10,+((S.settings||{}).mdp_min)||10),obligatoire:true,intro:"Votre mot de passe est temporaire : choisissez un mot de passe personnel pour continuer.",
+    enregistrer:async n=>{const x=await srv("changer_mdp",{uid:uidv,mdp,nouveau:n});if(!x.ok)throw new Error(x.erreur||"Changement refusé.");r2=x}});
+   if(!r2)return"Changement de mot de passe annulé.";r=r2}
+  CH.jeton=r.jeton;chEcrire("tr_ch_jeton",CH.jeton);let M;try{M=await srv("moi",{})}catch(e){return"Pas de réseau : réessayez."}
+  if(!M.ok)return M.erreur||"Données indisponibles.";hydrater(M);ouvrirSession(S.users[0],false);chVider();return null;
+ };
+ A["out"]=()=>{if(CH.file.length&&!confirm("Des saisies n'ont pas encore été envoyées au serveur. Se déconnecter les perdra. Continuer ?"))return;chDeconnecter(false)};
+ A["p.pin"]=()=>{const m0=ME;let ancien="";return ANGELS_AUTH.ouvrirChangement({titre:"Changer mon mot de passe",nom:m0.nom,min:Math.max(10,+((S.settings||{}).mdp_min)||10),obligatoire:false,
+  ancien:async m=>{const r=await srv("login",{uid:m0.id,mdp:m});if(r.ok)ancien=m;return !!r.ok},
+  enregistrer:async n=>{const x=await srv("changer_mdp",{uid:m0.id,mdp:ancien,nouveau:n});if(!x.ok)throw new Error(x.erreur||"Changement refusé.");CH.jeton=x.jeton;chEcrire("tr_ch_jeton",x.jeton)}})};
+}
+
 /* ---------- PWA : installation, mise à jour, hors ligne ---------- */
 let DEF=null,MAJ=false;
 const estIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
@@ -4399,10 +4482,10 @@ if("serviceWorker" in navigator&&/^https?:$/.test(location.protocol)){
  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 }
 barre();
-load();
+if(APP_CHAUF)chargerChauffeur();else load();
 try{const id=sessionStorage.getItem("tr_me");if(id){const u=by(S.users,id);if(u&&u.actif&&(!APP_CHAUF||u.role==="chauffeur"))ME=u}}catch(e){}
 render();
-ANGELS_RAPPORT.init({peut:()=>!!ME&&["admin","directeur"].includes(ME.role)});ANGELS_SYNC.init({app:"transport",nom:"Transport",ajout:["audit","connexions"],get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries","gps_pos","gps_alerts","alertes_etat"],qui:()=>ME?ME.nom:"poste"});
+if(APP_CHAUF)demarrerChauffeur();else{ANGELS_RAPPORT.init({peut:()=>!!ME&&["admin","directeur"].includes(ME.role)});ANGELS_SYNC.init({app:"transport",nom:"Transport",ajout:["audit","connexions"],get:()=>S,persist:()=>save(),refresh:()=>render(),exclude:["tries","gps_pos","gps_alerts","alertes_etat"],qui:()=>ME?ME.nom:"poste"});}
 fichiersCharger().then(()=>{if(S&&S.attachments.length&&!document.querySelector(".md"))render();try{majPortailVehicules()}catch(e){}});
 </script>
 </body>
