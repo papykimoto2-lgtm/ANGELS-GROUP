@@ -17,11 +17,12 @@ const pwd=m=>{const s=crypto.randomBytes(16),h=crypto.pbkdf2Sync(m,s,150000,32,"
  const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});
  await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
  const ctx=await b.newContext({viewport:{width:390,height:800},serviceWorkers:"block",permissions:["geolocation"],geolocation:{latitude:5.3364,longitude:-4.0267,accuracy:20}});
- const appels=[],autres=[];let hors=false;
+ const appels=[],autres=[];let hors=false,panne=false;
  await ctx.route(u=>/\/functions\/v1\//.test(u.pathname),async route=>{const rq=route.request(),u=new URL(rq.url()),CORS={"access-control-allow-origin":"*","access-control-allow-headers":"*","access-control-allow-methods":"POST, OPTIONS"};
   if(!/\/functions\/v1\/chauffeur$/.test(u.pathname)){autres.push(u.pathname);return route.fulfill({status:403,headers:CORS,body:"{}"})}
   if(rq.method()==="OPTIONS")return route.fulfill({status:204,headers:CORS});
   if(hors)return route.abort("internetdisconnected");
+  if(panne)return route.fulfill({status:500,headers:{...CORS,"content-type":"application/json"},body:JSON.stringify({ok:false,erreur:"Service non configuré"})});
   const body=JSON.parse(rq.postData()||"{}");appels.push(body.action);const r=await C.traiterChauffeur(db,cfg,body);route.fulfill({status:r.status,headers:{...CORS,"content-type":"application/json"},body:JSON.stringify(r.body)})});
  const p=await ctx.newPage(),E=[];p.on("pageerror",e=>E.push(e.message));p.on("dialog",d=>d.accept());
  await p.addInitScript(()=>{try{if(!localStorage.getItem("angels_transport_v3"))localStorage.setItem("angels_transport_v3",JSON.stringify({sentinelle:"ADMIN-INTACT"}))}catch(e){}});
@@ -29,6 +30,8 @@ const pwd=m=>{const s=crypto.randomBytes(16),h=crypto.pbkdf2Sync(m,s,150000,32,"
  await p.goto(base+"/transport.html?app=chauffeur");await p.waitForTimeout(1200);
  const l0=await p.evaluate(()=>({opts:[...document.querySelectorAll("#lf select[name=u] option")].map(o=>o.textContent),hero:document.body.innerText.includes("Votre espace chauffeur")}));
  chk("CC-1","écran de connexion : la liste vient du serveur (chauffeurs uniquement)",l0.hero&&l0.opts.length===2&&l0.opts.every(x=>/Chauffeur/.test(x))&&!l0.opts.some(x=>/KESSIE/.test(x)),JSON.stringify(l0));
+const dg=await p.evaluate(()=>document.getElementById("chdiag")&&document.getElementById("chdiag").innerText);
+ chk("CC-1b","diagnostic sur l'écran de connexion : version, réseau, serveur joignable avec le nombre de chauffeurs",!!dg&&/v184/.test(dg)&&/réseau : oui/.test(dg)&&/joignable, 2 chauffeur/.test(dg)&&/Retester/.test(dg),dg);
  await p.fill('#lf input[name=p]',"mauvais");await p.press("#lf input[name=p]","Enter");await p.waitForTimeout(700);
  chk("CC-2","mauvais mot de passe : message du serveur, pas de session",await p.evaluate(()=>!ME&&document.getElementById("le").textContent.includes("incorrect")));
  await p.selectOption("#lf select[name=u]","u1");await p.fill('#lf input[name=p]',"Chauffeur@Test2026");await p.press("#lf input[name=p]","Enter");await p.waitForTimeout(1200);
@@ -71,4 +74,9 @@ const pwd=m=>{const s=crypto.randomBytes(16),h=crypto.pbkdf2Sync(m,s,150000,32,"
  chk("CC-13","compte désactivé par le bureau : l'appareil est déconnecté et ses données locales effacées",r2.jeton===null,JSON.stringify(r2).slice(0,200));
  const adm2=await p.evaluate(()=>localStorage.getItem("angels_transport_v3"));
  chk("CC-14","jamais de contact avec la base du bureau ; aucune erreur de script",adm2.includes("ADMIN-INTACT")&&autres.length===0&&!E.length,JSON.stringify([autres,E[0]]));
- console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");await b.close();srv.close();process.exit(ko?1:0)})();
+ /* panne serveur et coupure réseau : le diagnostic nomme la cause */
+ const p2=await ctx.newPage();panne=true;await p2.goto(base+"/transport.html?app=chauffeur");await p2.waitForTimeout(1200);
+ const d2=await p2.evaluate(()=>document.getElementById("chdiag").innerText);panne=false;hors=true;await p2.click('#chdiag a[data-a="ch.diag"]');await p2.waitForTimeout(900);
+ const d3=await p2.evaluate(()=>document.getElementById("chdiag").innerText);hors=false;await p2.click('#chdiag a[data-a="ch.diag"]');await p2.waitForTimeout(900);const d4=await p2.evaluate(()=>document.getElementById("chdiag").innerText);await p2.close();
+ chk("CC-1c","diagnostic : erreur serveur nommée (500 « Service non configuré »), réseau coupé détecté, retest réussi",/erreur 500/.test(d2)&&/Service non configuré/.test(d2)&&/injoignable/.test(d3)&&/joignable, \d+ chauffeur/.test(d4),JSON.stringify([d2,d3,d4]));
+  console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");await b.close();srv.close();process.exit(ko?1:0)})();
