@@ -11,12 +11,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   if(!document.querySelector('[data-a="pwa.qr"]'))e.push("lien absent de l'écran de connexion");
   document.querySelector('[data-a="pwa.qr"]').click();
   const m=document.querySelector(".md");if(!m)return"fenêtre non ouverte";
-  const svg=m.querySelector("#qr_inst svg");if(!svg)return"QR absent";
-  const url=new URL("transport.html",location.href).href;if(!m.textContent.includes(url))e.push("adresse non affichée");
+  const svgs=[...m.querySelectorAll(".qr_inst svg")];if(svgs.length!==2)return"2 QR attendus (chauffeur + bureau), trouvés : "+svgs.length;
+  const base=new URL("transport.html",location.href).href,att=[base+"?app=chauffeur",base];
+  if(!/Application chauffeur/.test(m.textContent))e.push("libellé application chauffeur");
   if(!/Android/.test(m.textContent)||!/iPhone/.test(m.textContent))e.push("consignes");
-  const xml=new XMLSerializer().serializeToString(svg),img=new Image();img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(xml);await img.decode();
-  const c=document.createElement("canvas");c.width=c.height=600;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,600,600);x.drawImage(img,30,30,540,540);
-  const d=x.getImageData(0,0,600,600),res=window.jsQR(d.data,600,600);if(!res||res.data!==url)e.push("QR illisible ou différent : "+(res&&res.data));
+  for(let k=0;k<2;k++){if(!m.textContent.includes(att[k]))e.push("adresse non affichée : "+att[k]);
+   const xml=new XMLSerializer().serializeToString(svgs[k]),img=new Image();img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(xml);await img.decode();
+   const c=document.createElement("canvas");c.width=c.height=600;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,600,600);x.drawImage(img,30,30,540,540);
+   const d=x.getImageData(0,0,600,600),res=window.jsQR(d.data,600,600);if(!res||res.data!==att[k])e.push("QR illisible ou différent : "+(res&&res.data))}
   m.querySelector("button").click();if(document.querySelector(".md"))e.push("Fermer sans effet");
   return e.length?e.join(" | "):true});
  const ok=r===true&&!E.length;console.log(ok?"PASS":"FAIL",r,E[0]||"");await b.close();srv.close();process.exit(ok?0:1)})();

@@ -1,0 +1,32 @@
+/* Application chauffeur : ?app=chauffeur → manifeste et titre dédiés, connexion réservée aux chauffeurs, session admin ignorée ; page Transport inchangée. */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
+const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
+const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]);if(u==="/")u="/index.html";const f=path.join(root,u);if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end("404")}r.writeHead(200,{"Content-Type":u.endsWith(".html")?"text/html; charset=utf-8":u.endsWith(".js")?"application/javascript":u.endsWith(".webmanifest")?"application/manifest+json":"application/octet-stream"});fs.createReadStream(f).pipe(r)});
+(async()=>{
+ await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
+ const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:390,height:800},serviceWorkers:"block"}),p=await ctx.newPage(),E=[];
+ p.on("pageerror",e=>E.push(e.message));p.on("dialog",d=>d.accept());
+ let ok=0,ko=0;const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+ await p.goto(base+"/transport.html");await p.waitForTimeout(400);
+ await p.evaluate(()=>{S.drivers.push({id:"drv_a",nom:"Kouassi Yao",actif:true});S.users.push({id:"u_ch1",nom:"Kouassi",role:"chauffeur",actif:true,driver_id:"drv_a",chg:false});save()});
+ const norm=await p.evaluate(()=>({m:document.querySelector('link[rel=manifest]').getAttribute("href"),opts:[...document.querySelectorAll("#lf select[name=u] option, .pcard")].length,hero:document.body.innerText.includes("Votre espace chauffeur")}));
+ await p.goto(base+"/transport.html?app=chauffeur");await p.waitForTimeout(500);
+ const ch=await p.evaluate(()=>({m:document.querySelector('link[rel=manifest]').getAttribute("href"),t:document.title,hero:document.body.innerText.includes("Votre espace chauffeur"),esp:document.body.innerText.includes("ESPACE CHAUFFEUR"),opts:[...document.querySelectorAll("#lf select[name=u] option")].map(o=>o.textContent),cartes:[...document.querySelectorAll(".pcard")].map(c=>c.innerText)}));
+ chk("AC-1","?app=chauffeur : manifeste, titre, écran « Espace chauffeur »",/manifest-chauffeur/.test(ch.m)&&ch.t==="Angel's Chauffeur"&&ch.hero&&ch.esp,JSON.stringify(ch));
+ chk("AC-2","connexion : seuls les comptes chauffeur sont proposés",ch.opts.length>=1&&ch.opts.every(x=>/chauffeur/i.test(x))&&ch.cartes.every(x=>/chauffeur/i.test(x)),JSON.stringify([ch.opts,ch.cartes]));
+ chk("AC-3","page Transport normale inchangée (manifeste transport, pas d'écran chauffeur)",/manifest-transport/.test(norm.m)&&!norm.hero,JSON.stringify(norm));
+ const rej=await p.evaluate(async()=>{const a=S.users.find(u=>u.role==="admin"&&u.actif);return a?await login(a.id,"x"):"pas d'admin"});
+ chk("AC-4","un compte non chauffeur est refusé dans l'application chauffeur",/réservé aux chauffeurs/.test(rej),rej);
+ await p.evaluate(()=>sessionStorage.setItem("tr_me",S.users.find(u=>u.role==="admin"&&u.actif).id));await p.reload();await p.waitForTimeout(500);
+ const adm=await p.evaluate(()=>({me:!!ME,login:!!document.getElementById("lf")}));
+ chk("AC-5","session admin existante ignorée dans l'application chauffeur (retour à la connexion)",!adm.me&&adm.login,JSON.stringify(adm));
+ await p.evaluate(()=>sessionStorage.setItem("tr_me","u_ch1"));await p.reload();await p.waitForTimeout(500);
+ const ok2=await p.evaluate(()=>({me:ME&&ME.role,txt:document.body.innerText.includes("Partage de ma position"),btm:!!document.querySelector(".btm")}));
+ chk("AC-6","session chauffeur restaurée : accueil avec partage de position et barre mobile",ok2.me==="chauffeur"&&ok2.txt&&ok2.btm,JSON.stringify(ok2));
+ const mf=JSON.parse(fs.readFileSync(path.join(root,"manifest-chauffeur.webmanifest"),"utf8"));
+ chk("AC-7","manifeste chauffeur : démarre sur ?app=chauffeur, icônes existantes",/app=chauffeur/.test(mf.start_url)&&mf.short_name==="Chauffeur"&&mf.icons.every(i=>fs.existsSync(path.join(root,i.src))),JSON.stringify([mf.start_url,mf.short_name]));
+ chk("AC-8","manifeste chauffeur précaché hors ligne (sw.js)",/manifest-chauffeur\.webmanifest/.test(fs.readFileSync(path.join(root,"sw.js"),"utf8")));
+ chk("AC-9","aucune erreur de script",!E.length,E[0]);
+ await p.screenshot({path:process.env.CAPT||"/tmp/transport-chauffeur.png"});
+ await p.evaluate(()=>{sessionStorage.removeItem("tr_me")});await p.reload();await p.waitForTimeout(500);await p.screenshot({path:"/tmp/transport-chauffeur-login.png"});
+ console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");await b.close();srv.close();process.exit(ko?1:0)})();
