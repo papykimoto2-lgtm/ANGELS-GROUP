@@ -163,8 +163,8 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px 12px 90px}
  <div>📊 Tableau de bord consolidé</div><div>📎 Pièces jointes, exports PDF/Excel</div>
 </div>
 </div></main>
-<footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
-<script src="marque.js"></script><script src="auth-engine.js"></script><script src="crm-engine.js"></script>
+<footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a> · <a href="#" id="qrinst">📱 QR d'installation des applications</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
+<script src="qr-install.js"></script><script src="marque.js"></script><script src="auth-engine.js"></script><script src="crm-engine.js"></script>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
 /* Modules et outils de l'instance (marque.js) : seuls ceux choisis apparaissent. */
@@ -199,6 +199,10 @@ try{
   $("a-v").textContent=en.reduce((s,l)=>s+Math.max(0,l.initial-mor(l)-sor(l)),0).toLocaleString("fr-FR");$("a-l").textContent=en.length;
   const q=p=>(G.mvts||[]).filter(m=>m.produit_id===p.id).reduce((s,m)=>s+(m.sens==="entree"?m.qte:-m.qte),0);$("a-s").textContent=(G.produits||[]).filter(p=>p.categorie!=="fini"&&p.seuil>0&&q(p)<=p.seuil).length}
 }catch(e){}
+/* QR d'installation : une carte par module actif, plus les applications livreur et vendeur quand la livraison est active */
+$("qrinst").onclick=e=>{e.preventDefault();const L=[["distribution","Livraison","distribution.html","🛵"],["transport","Transport","transport.html","🚕"],["agro","Agro","agro.html","🐔"]].filter(x=>ACTIF(x[0])).map(x=>({nom:x[1],page:x[2],icone:x[3]}));
+ if(ACTIF("distribution"))L.push({nom:"Livreur",page:"livreur.html",icone:"🏍"},{nom:"Vendeur partenaire",page:"vendeur.html",icone:"🏪"});
+ ANGELS_QR.ouvrir({titre:"Installer les applications sur un téléphone",items:L})};
 let DEF=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();DEF=e;$("inst").hidden=false});
 window.addEventListener("appinstalled",()=>{DEF=null;$("inst").hidden=true});
