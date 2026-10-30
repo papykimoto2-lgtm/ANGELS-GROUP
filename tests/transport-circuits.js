@@ -26,7 +26,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   /* ≥30 courses sur 5 jours à l'heure courante → cartes */
   const h=new Date().getHours();S.courses=S.courses.filter(c=>c.id!=="crs_autre");
   for(let i=0;i<40;i++){const d=new Date();d.setDate(d.getDate()-(i%5));d.setHours(h,10+(i%40),0,0);S.courses.push({id:"crs_s"+i,driver_id:i%2?"drv_c1":"drv_c2",zone:i%4?z0:z1,montant:2000+i*10,t:d.toISOString()})}
-  render();const txt=document.body.innerText;o.cartes=document.querySelectorAll("#app .card, main .card").length;o.top=txt.includes("1. "+z0)||txt.includes("1. "+z1);o.btn=!!document.querySelector('[data-a="p.course"]');
+  render();const txt=document.body.innerText;o.cartes=document.querySelectorAll("#app .card, main .card").length;o.top=txt.includes("1. "+z0)||txt.includes("1. "+z1);o.btn=!!document.querySelector('[data-a="p.course"]');o.itin=document.body.innerText.includes("Mon itinéraire rentable");o.nav=!!document.querySelector('a[href^="https://www.google.com/maps/dir/"]');A["circ.hz"](6);o.hz6=document.querySelectorAll('[data-a="circ.hz"].ghost').length===3;A["circ.hz"](4);
   /* bureau */
   login("admin");view="circuits";render();o.bureau=document.body.innerText.length>200;
   const tabs=[...document.querySelectorAll(".mtabs a")].map(a=>a.dataset.id);o.tabsMod=tabs.includes("circuits");o.hm=document.querySelectorAll(".hm").length;
@@ -39,7 +39,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("CI-3","déclaration créée puis retirée par son auteur",r.cree===true&&r.retire===true,JSON.stringify([r.cree,r.retire]));
  chk("CI-4","retrait d'une course d'un autre chauffeur refusé",/refus/i.test(r.autre||""),r.autre);
  chk("CI-5","40 courses : suggestion classée + bouton déclarer",r.top===true&&r.btn===true,JSON.stringify([r.top,r.btn]));
- chk("CI-6","bureau : écran Circuits rendu",r.bureau===true,r.bureau);
+ chk("CI-9","itinéraire rentable affiché (horizon réglable) avec lien de navigation",r.itin===true&&r.nav===true&&r.hz6===true,JSON.stringify([r.itin,r.nav,r.hz6]));chk("CI-6","bureau : écran Circuits rendu",r.bureau===true,r.bureau);
  chk("CI-7","aucune erreur de script",!E.length,E[0]);
  await p.evaluate(()=>{ME=S.users.find(x=>x.role==="admin");view="circuits";render()});await p.screenshot({path:process.env.CAPT||"/tmp/transport-circuits.png"});
  console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");await b.close();srv.close();process.exit(ko?1:0)})();

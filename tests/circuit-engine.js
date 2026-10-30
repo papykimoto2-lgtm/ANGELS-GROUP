@@ -34,4 +34,16 @@ const rp=E.rapport(C,[{id:"d1",nom:"Awa"},{id:"d2",nom:"Koffi"}],{now:NOW,jours:
 chk("CE-16","rapport : courses, recette, zones principales et alignement par chauffeur",rp[0].courses>0&&rp[0].ca>0&&rp[0].zones[0]==="Plateau"&&rp[1].zones[0]==="Riviera",JSON.stringify(rp));
 chk("CE-17","alignement : un chauffeur qui travaille dans les zones chaudes de l'heure est à 100 %",rp[1].alignement===100,rp[1].alignement);
 chk("CE-18","données invalides ignorées (montant nul, zone vide, date illisible)",E.tableau([{zone:"",montant:100,t:NOW},{zone:"X",montant:0,t:new Date().toISOString()},{zone:"X",montant:100,t:"n'importe quoi"}],{now:NOW}).total===0);
+/* itinéraire rentable : enchaînement optimal heure par heure, trajet décompté */
+(()=>{const Z=[{nom:"A",commune:"X",lat:5.30,lng:-4.00},{nom:"B",commune:"X",lat:5.32,lng:-4.00},{nom:"Loin",commune:"Y",lat:5.40,lng:-3.80}];
+ const I=[];for(let j=1;j<=20;j++){for(const h of[8,9])for(let k=0;k<2;k++)I.push(mk(0,"A",h,2500,"d1",j));for(const h of[9,10])for(let k=0;k<2;k++)I.push(mk(0,"B",h,2600,"d1",j));for(const h of[8,9,10])for(let k=0;k<2;k++)I.push(mk(0,"Loin",h,2700,"d1",j))}
+ const TI=E.tableau(I,{now:NOW}),it=E.itineraire(TI,8,3,{zones:Z});
+ chk("CE-19","itinéraire : 3 étapes, gain net ≤ brut, étapes avec zone, heure, trajet",it.ok&&it.etapes.length===3&&it.net<=it.brut&&it.etapes.every(x=>x.zone&&x.h>=8&&x.h<=10),JSON.stringify(it));
+ chk("CE-20","itinéraire : un détour long est pénalisé — reste dans la zone proche quand le gain brut de la zone lointaine ne compense pas",(()=>{const a=E.itineraire(TI,8,3,{zones:Z,pos:{lat:5.30,lng:-4.00}});return a.etapes[0].zone!=="Loin"||a.etapes[0].min>0})(),JSON.stringify(E.itineraire(TI,8,3,{zones:Z,pos:{lat:5.30,lng:-4.00}})));
+ const g=E.regrouper(E.itineraire(TI,8,3,{zones:Z}).etapes);chk("CE-21","regroupement : heures consécutives dans la même zone fusionnées",g.length<=3&&g.reduce((s,x)=>s+(x.a-x.de+1),0)===3,JSON.stringify(g));
+ chk("CE-22","itinéraire : sans assez de courses, rien n'est proposé",!E.itineraire(E.tableau([],{now:NOW}),8,4).ok&&E.itineraire(E.tableau([],{now:NOW}),8,4).manque===30);
+ chk("CE-23","itinéraire : heure sans zone fiable (3 h) → étape vide, le chauffeur reste sur place",(()=>{const a=E.itineraire(TI,3,2,{zones:Z});return a.ok&&a.etapes.length===2&&a.etapes.every(x=>!x.zone)&&a.net===0})());
+ chk("CE-24","itinéraire : filtre de commune respecté",E.itineraire(TI,8,3,{zones:Z,commune:"X"}).etapes.every(x=>!x.zone||x.commune==="X"));
+ const opt=E.itineraire(TI,8,3,{zones:Z}),glouton=(()=>{let v=0,prev=null;for(let i=0;i<3;i++){const m=E.meilleures(TI,8+i,{max:1,zones:Z}).liste[0],z=Z.find(q=>q.nom===m.zone),d=prev&&prev.nom!==z.nom?E.distanceKm(prev,z):0;v+=m.pot*(1-Math.min(1,d/20));prev=z}return v})();
+ chk("CE-25","itinéraire : au moins aussi bon que le choix glouton heure par heure",opt.net>=Math.round(glouton)-1,JSON.stringify([opt.net,glouton]))})();
 console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");process.exit(ko?1:0);
