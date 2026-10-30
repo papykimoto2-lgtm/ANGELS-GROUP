@@ -216,7 +216,7 @@ body.appc{padding-bottom:0}body.appc .fab{bottom:14px;right:12px;padding:10px 14
 <body>
 <div id="app"></div><div id="modal"></div><div id="toast"></div>
 <noscript>JavaScript est requis.</noscript>
-<script src="qrcode.js"></script>
+<script src="qrcode.js"></script><script src="qr-install.js"></script>
 <script src="marque.js"></script><script src="auth-engine.js"></script><script src="habillage.js"></script>
 <script src="sync-engine.js"></script>
 <script src="roles-engine.js"></script>
@@ -973,7 +973,8 @@ function refreshInstall(){
  let h="";
  if(!isStandalone()&&/^https?:$/.test(location.protocol)){
   if(IPROMPT)h=`<button type="button" class="btn ghost" data-act="installApp" style="width:100%">📲 Installer ${APPC?"le centre de livraison":APPV?"l'espace vendeur":"l'application"}</button>`;
-  else if(isIOS())h=`<div class="sm mu">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l'écran d'accueil</b>.</div>`}
+  else if(isIOS())h=`<div class="sm mu">📲 Pour installer : touchez <b>Partager</b> puis <b>Sur l'écran d'accueil</b>.</div>`
+  h+=`<div style="margin-top:6px"><a href="#" data-act="qrInstall">📱 Installer sur un téléphone (QR)</a></div>`}
  document.querySelectorAll(".inst").forEach(e=>{e.innerHTML=h;e.style.display=h?"block":"none"})}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();IPROMPT=e;refreshInstall()});
 window.addEventListener("appinstalled",()=>{IPROMPT=null;refreshInstall();try{toast("Application installée ✔","ok")}catch(e){}});
@@ -3960,6 +3961,7 @@ itiPos:async()=>{const p=await localiser();if(!p)return toast("Position indispon
    if(CL.on)return CL.go(()=>CL.rpc("annuler_inventaire",{p_inventaire:i.id,p_motif:m}),"Inventaire annulé");
    i.statut="annule";i.clos_le=now();i.clos_par_nom=ME.nom;i.motif_annulation=m;audit("Inventaire annulé",i.numero+" — "+m);save();render()},{cls:"er"})},
 
+ qrInstall:()=>ANGELS_QR.ouvrir({titre:"Installer sur un téléphone",items:[{nom:APPC?"Centre de livraison":APPV?"Espace vendeur":"Livraison",page:location.pathname.split("/").pop()||"distribution.html",icone:"🛵"}]}),
  installApp:async()=>{if(!IPROMPT)return;IPROMPT.prompt();try{await IPROMPT.userChoice}catch(e){}IPROMPT=null;refreshInstall()},
  tiersRel:id=>tiersRelDepuis(id),carteFit:()=>carteFit(),carteFocus:id=>{const m=CARTE.mk[id];if(m&&CARTE.map){CARTE.map.setView(m.getLatLng(),16);m.openPopup()}else toast("Ce livreur n'a pas de position récente à afficher","err")},
  suiviLien:async id=>{const c=cmd(id);let link;if(CL.on){const t=await CL.rpc("creer_lien_suivi",{p_commande:id});link=location.href.split("#")[0].split("?")[0]+"#suivi="+t}else link=await suiviLienPortail(c);suiviModal(c,link,!CL.on)},
