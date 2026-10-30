@@ -101,6 +101,47 @@
     return { ok: true, manque: 0, lignes: A.filter(function (a) { return a.taxis > 0; }), non_places: reste };
   }
 
+  /* Itinéraire rentable : enchaîne n heures à partir de h0 en choisissant, heure par heure, la zone qui maximise le gain net total.
+     Gain net d'une heure = potentiel de la zone × (1 − part de l'heure perdue en trajet), le trajet depuis la zone précédente (ou la position
+     du chauffeur au départ) durant km / vitesse urbaine. Programmation dynamique : le meilleur enchaînement, pas seulement le meilleur choix local.
+     Heure sans zone fiable : le chauffeur reste où il est (étape vide). Renvoie { ok, manque, etapes:[{h, zone, commune, pot, fiab, km, min, net, lat, lng}], net, brut } */
+  function itineraire(tab, h0, n, o) {
+    o = o || {}; n = Math.max(1, Math.min(12, n || 4));
+    if (!tab.suffisant) return { ok: false, manque: tab.manque, etapes: [], net: 0, brut: 0 };
+    var zones = o.zones || ZONES_DEF, par = {}; zones.forEach(function (z) { par[z.nom] = z; });
+    var km = function (a, b) { return a && b && a.lat != null && b.lat != null ? distanceKm(a, b) : 0; };
+    var etats = [{ zone: null, c: o.pos || null, val: 0, back: null, step: null }], pile = [etats];
+    for (var i = 0; i < n; i++) {
+      var h = (h0 + i) % 24, m = meilleures(tab, h, { max: 99, commune: o.commune, zones: zones }), suiv = [];
+      if (!m.liste.length) { etats.forEach(function (e) { suiv.push({ zone: e.zone, c: e.c, val: e.val, back: e, step: { h: h, zone: null } }); }); }
+      else m.liste.forEach(function (r) {
+        var info = par[r.zone] || {}, c = info.lat != null ? { lat: info.lat, lng: info.lng } : null, best = null;
+        etats.forEach(function (e) {
+          var d = e.zone === r.zone ? 0 : km(e.c, c), min = d / VITESSE_URBAINE_KMH * 60, net = r.pot * (1 - Math.min(1, min / 60)), v = e.val + net;
+          if (!best || v > best.val) best = { zone: r.zone, c: c, val: v, back: e, step: { h: h, zone: r.zone, commune: info.commune || "", pot: r.pot, fiab: r.fiab, km: Math.round(d * 10) / 10, min: Math.round(min), net: Math.round(net), lat: info.lat, lng: info.lng } };
+        });
+        suiv.push(best);
+      });
+      etats = suiv; pile.push(etats);
+    }
+    var fin = etats.reduce(function (a, b) { return b.val > a.val ? b : a; }), E = [];
+    for (var e = fin; e && e.step; e = e.back) E.unshift(e.step);
+    var brut = 0; for (var j = 0; j < n; j++) { var mj = meilleures(tab, (h0 + j) % 24, { max: 1, commune: o.commune, zones: zones }).liste[0]; if (mj) brut += mj.pot; }
+    return { ok: true, manque: 0, etapes: E, net: Math.round(fin.val), brut: Math.round(brut) };
+  }
+
+  /* Regroupe les heures consécutives dans la même zone : [{ de, a, zone, commune, net, km, min, lat, lng }] */
+  function regrouper(etapes) {
+    var out = [];
+    etapes.forEach(function (x) {
+      var d = out[out.length - 1];
+      if (d && x.zone && d.zone === x.zone) { d.a = x.h; d.net += x.net; }
+      else if (d && !x.zone && !d.zone) d.a = x.h;
+      else out.push({ de: x.h, a: x.h, zone: x.zone, commune: x.commune || "", net: x.net || 0, km: x.km || 0, min: x.min || 0, lat: x.lat, lng: x.lng, fiab: x.fiab });
+    });
+    return out;
+  }
+
   /* Rapport par chauffeur sur les n derniers jours : courses, recette, zones principales, alignement avec les zones chaudes de l'heure */
   function rapport(courses, chauffeurs, o) {
     o = o || {}; var now = o.now == null ? Date.now() : o.now, jours = o.jours || 7, depuis = now - jours * 864e5, tab = o.tab || tableau(courses, { now: now });
@@ -117,5 +158,5 @@
     });
   }
 
-  return { ZONES_DEF: ZONES_DEF, MIN_TOTAL: MIN_TOTAL, FIABLE: FIABLE, INDICATIF: INDICATIF, PLAGE: PLAGE, tableau: tableau, meilleures: meilleures, creneaux: creneaux, plan: plan, rapport: rapport, distanceKm: distanceKm, typeJour: typeJour };
+  return { ZONES_DEF: ZONES_DEF, MIN_TOTAL: MIN_TOTAL, FIABLE: FIABLE, INDICATIF: INDICATIF, PLAGE: PLAGE, tableau: tableau, meilleures: meilleures, creneaux: creneaux, plan: plan, itineraire: itineraire, regrouper: regrouper, rapport: rapport, distanceKm: distanceKm, typeJour: typeJour };
 });
