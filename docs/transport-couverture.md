@@ -58,3 +58,12 @@ Les fichiers (PNG, JPEG, WebP, PDF) sont stockés dans IndexedDB, hors du stocka
 - **Circuits chauffeur** : communal limité à sa commune, intercommunal à ses lignes, libre avec choix du périmètre.
 - **Rapports** (Circuits › Lignes et communes) : par ligne et par commune (trajets, passagers, remplissage, recette).
 - Tests : `tests/transport-woro-communal.js`.
+
+## Accès chauffeur sécurisé (C1)
+- **Problème** : la synchronisation entre postes donne toute la base Transport (comptes et empreintes de mots de passe, comptabilité, positions de tous) à tout appareil qui détient la clé de synchronisation. Un téléphone de chauffeur ne doit jamais la recevoir.
+- **Solution** : fonction serveur `chauffeur` (`supabase/functions/chauffeur`, logique dans `_shared/chauffeur.js`). Le chauffeur s'identifie avec son mot de passe personnel (PBKDF2, mêmes comptes que le bureau), reçoit un jeton signé (HMAC, 14 jours, invalidé si le mot de passe change ou si le compte est désactivé) et n'obtient que ses données : échéances, paiements, reçus, contrat, véhicule, courses, déclarations, demandes + courses de la flotte anonymisées pour les circuits.
+- **Écritures** : courses, position, déclarations de recette, demandes — revalidées par le serveur (tarifs, exploitation du taxi, dates, doublons) puis écrites dans la base partagée, lues par le bureau comme avant.
+- **Sécurité** : blocage 15 min après 5 échecs (`chauffeur_essais`, migration 032), refus uniforme (compte inconnu, inactif, admin), réglages en liste blanche, aucune clé partagée sur le téléphone.
+- **Application** (`?app=chauffeur`) : base locale séparée (`angels_transport_chauffeur`), aucune synchronisation partagée, file d'envoi hors ligne, session restaurée au redémarrage, déconnexion automatique si le compte est désactivé.
+- **Limites v1** : pas de pièces jointes (photos) depuis l'application chauffeur ; incident et demande d'entretien arrivent au bureau comme « demandes ».
+- Tests : `tests/chauffeur-serveur.js` (31), `tests/transport-chauffeur-connecte.js` (15).
