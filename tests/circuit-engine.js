@@ -46,4 +46,14 @@ chk("CE-18","données invalides ignorées (montant nul, zone vide, date illisibl
  chk("CE-24","itinéraire : filtre de commune respecté",E.itineraire(TI,8,3,{zones:Z,commune:"X"}).etapes.every(x=>!x.zone||x.commune==="X"));
  const opt=E.itineraire(TI,8,3,{zones:Z}),glouton=(()=>{let v=0,prev=null;for(let i=0;i<3;i++){const m=E.meilleures(TI,8+i,{max:1,zones:Z}).liste[0],z=Z.find(q=>q.nom===m.zone),d=prev&&prev.nom!==z.nom?E.distanceKm(prev,z):0;v+=m.pot*(1-Math.min(1,d/20));prev=z}return v})();
  chk("CE-25","itinéraire : au moins aussi bon que le choix glouton heure par heure",opt.net>=Math.round(glouton)-1,JSON.stringify([opt.net,glouton]))})();
+/* lignes wôrô-wôrô : rapport par ligne, exclusion d'une ligne désactivée */
+(()=>{const L=[{id:"l1",nom:"Gare Adjamé — Siporex",commune:"Adjamé",tarif:300,places:4},{id:"l2",nom:"Ligne vide",commune:"Adjamé",tarif:200,places:4}];
+ const mkL=(lig,pax,h,drv,dayBack,tarif)=>{const c=mk(0,lig.nom,h,pax*tarif,drv,dayBack);c.ligne_id=lig.id;c.passagers=pax;c.tarif=tarif;return c};
+ const LC=[];for(let j=1;j<=6;j++){LC.push(mkL(L[0],4,8,"d1",j,300));LC.push(mkL(L[0],2,8,"d2",j,300));LC.push(mkL(L[0],3,17,"d1",j,300))}LC.push(mkL(L[0],4,8,"d1",20,300));
+ const rl=E.rapportLignes(LC,L,{now:NOW,jours:7});
+ chk("CE-26","rapport par ligne : trajets, passagers, recette = passagers × tarif, remplissage",rl[0].trajets===18&&rl[0].passagers===54&&rl[0].ca===16200&&rl[0].remplissage===75&&rl[0].par_trajet===900,JSON.stringify(rl[0]));
+ chk("CE-27","rapport par ligne : chauffeurs distincts, meilleure heure, course trop ancienne exclue",rl[0].chauffeurs===2&&rl[0].meilleure_heure===8&&rl[1].trajets===0&&rl[1].remplissage===null,JSON.stringify(rl));
+ const T2=E.tableau((()=>{const a=[...LC];for(let j=1;j<=20;j++)for(let k=0;k<2;k++)a.push(mk(0,"Zone libre",8,1000,"d1",j));return a})(),{now:NOW});
+ const mm=E.meilleures(T2,8,{max:5}).liste.map(r=>r.zone),mx=E.meilleures(T2,8,{max:5,exclure:[L[0].nom]}).liste.map(r=>r.zone);
+ chk("CE-28","une ligne est classée comme une zone ; désactivée (exclure), elle disparaît des suggestions et de l'itinéraire",mm.includes(L[0].nom)&&!mx.includes(L[0].nom)&&E.itineraire(T2,8,2,{exclure:[L[0].nom]}).etapes.every(x=>x.zone!==L[0].nom),JSON.stringify([mm,mx]))})();
 console.log("\nRÉSULTAT : "+ok+" réussis, "+ko+" échecs");process.exit(ko?1:0);

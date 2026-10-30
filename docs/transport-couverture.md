@@ -42,3 +42,10 @@ Les fichiers (PNG, JPEG, WebP, PDF) sont stockés dans IndexedDB, hors du stocka
 - Bureau (Pilotage › Circuits rentables) : carte de chaleur, plan de la journée, rapport hebdomadaire par chauffeur, zones paramétrables.
 - Seuils : ≥ 30 courses pour proposer, ≥ 5 pour « indicatif », ≥ 20 pour « fiable ».
 - Tests : `tests/circuit-engine.js`, `tests/transport-circuits.js`.
+
+## Lignes wôrô-wôrô (taxis communaux)
+- Pilotage › Lignes wôrô-wôrô : ligne = trajet fixe (commune, départ, arrivée), tarif par place, places par taxi, coordonnées facultatives ; modifier, désactiver. Le nom ne change plus après des courses déclarées.
+- Portail chauffeur : déclaration d'un trajet de ligne avec le nombre de passagers ; recette = passagers × tarif (refus si le montant saisi diffère). Les zones (VTC / taxi libre) restent à montant libre.
+- Circuits : les lignes sont classées comme des zones (carte de chaleur, plan, suggestions, itinéraire) ; une ligne désactivée est exclue.
+- Bureau (Circuits › Par ligne, 7 jours) : trajets, passagers, remplissage, recette, recette par trajet, chauffeurs, meilleure heure.
+- Tests : `tests/transport-lignes.js`, `tests/circuit-engine.js` (CE-26 à 28).
