@@ -76,7 +76,7 @@
       var r = { zone: nom, commune: info.commune || "", pot: Math.round(p), fiab: z.fiab[h], tendance: suiv > p * 1.15 ? "hausse" : suiv < p * 0.85 ? "baisse" : "stable" };
       if (o.pos && info.lat != null) { r.km = Math.round(distanceKm(o.pos, info) * 10) / 10; r.min = Math.max(1, Math.round(r.km / VITESSE_URBAINE_KMH * 60)); }
       return r;
-    }).filter(function (r) { return r.fiab !== "insuffisant" && r.pot > 0 && (!o.commune || r.commune === o.commune); });
+    }).filter(function (r) { return r.fiab !== "insuffisant" && r.pot > 0 && (!o.commune || r.commune === o.commune) && !(o.exclure && o.exclure.indexOf(r.zone) >= 0); });
     L.sort(function (a, b) { return b.pot - a.pot; });
     return { ok: true, manque: 0, liste: L.slice(0, max) };
   }
@@ -112,7 +112,7 @@
     var km = function (a, b) { return a && b && a.lat != null && b.lat != null ? distanceKm(a, b) : 0; };
     var etats = [{ zone: null, c: o.pos || null, val: 0, back: null, step: null }], pile = [etats];
     for (var i = 0; i < n; i++) {
-      var h = (h0 + i) % 24, m = meilleures(tab, h, { max: 99, commune: o.commune, zones: zones }), suiv = [];
+      var h = (h0 + i) % 24, m = meilleures(tab, h, { max: 99, commune: o.commune, zones: zones, exclure: o.exclure }), suiv = [];
       if (!m.liste.length) { etats.forEach(function (e) { suiv.push({ zone: e.zone, c: e.c, val: e.val, back: e, step: { h: h, zone: null } }); }); }
       else m.liste.forEach(function (r) {
         var info = par[r.zone] || {}, c = info.lat != null ? { lat: info.lat, lng: info.lng } : null, best = null;
@@ -126,7 +126,7 @@
     }
     var fin = etats.reduce(function (a, b) { return b.val > a.val ? b : a; }), E = [];
     for (var e = fin; e && e.step; e = e.back) E.unshift(e.step);
-    var brut = 0; for (var j = 0; j < n; j++) { var mj = meilleures(tab, (h0 + j) % 24, { max: 1, commune: o.commune, zones: zones }).liste[0]; if (mj) brut += mj.pot; }
+    var brut = 0; for (var j = 0; j < n; j++) { var mj = meilleures(tab, (h0 + j) % 24, { max: 1, commune: o.commune, zones: zones, exclure: o.exclure }).liste[0]; if (mj) brut += mj.pot; }
     return { ok: true, manque: 0, etapes: E, net: Math.round(fin.val), brut: Math.round(brut) };
   }
 
@@ -140,6 +140,21 @@
       else out.push({ de: x.h, a: x.h, zone: x.zone, commune: x.commune || "", net: x.net || 0, km: x.km || 0, min: x.min || 0, lat: x.lat, lng: x.lng, fiab: x.fiab });
     });
     return out;
+  }
+
+  /* Lignes wôrô-wôrô : une course de ligne porte { ligne_id, passagers } ; recette = passagers × tarif de la ligne.
+     Rapport par ligne sur les n derniers jours : trajets, passagers, remplissage (passagers / places offertes), recette, recette par trajet, chauffeurs, meilleure heure. */
+  function rapportLignes(courses, lignes, o) {
+    o = o || {}; var now = o.now == null ? Date.now() : o.now, jours = o.jours || 7, depuis = now - jours * 864e5;
+    return (lignes || []).map(function (l) {
+      var cap = Math.max(1, +l.places || 4), C = (courses || []).filter(function (c) { return valide(c) && c.ligne_id === l.id && ts(c) >= depuis && ts(c) <= now; });
+      var pass = sum(C.map(function (c) { return +c.passagers || 0; })), ca = sum(C.map(function (c) { return +c.montant; })), parH = {};
+      C.forEach(function (c) { var h = heure(c); parH[h] = (parH[h] || 0) + (+c.montant); });
+      var bh = Object.keys(parH).sort(function (a, b) { return parH[b] - parH[a]; })[0];
+      return { ligne_id: l.id, nom: l.nom, commune: l.commune || "", tarif: +l.tarif || 0, places: cap, trajets: C.length, passagers: pass, ca: ca,
+        remplissage: C.length ? Math.round(100 * pass / (C.length * cap)) : null, par_trajet: C.length ? Math.round(ca / C.length) : 0,
+        chauffeurs: new Set(C.map(function (c) { return c.driver_id; })).size, meilleure_heure: bh == null ? null : +bh };
+    });
   }
 
   /* Rapport par chauffeur sur les n derniers jours : courses, recette, zones principales, alignement avec les zones chaudes de l'heure */
@@ -158,5 +173,5 @@
     });
   }
 
-  return { ZONES_DEF: ZONES_DEF, MIN_TOTAL: MIN_TOTAL, FIABLE: FIABLE, INDICATIF: INDICATIF, PLAGE: PLAGE, tableau: tableau, meilleures: meilleures, creneaux: creneaux, plan: plan, itineraire: itineraire, regrouper: regrouper, rapport: rapport, distanceKm: distanceKm, typeJour: typeJour };
+  return { ZONES_DEF: ZONES_DEF, MIN_TOTAL: MIN_TOTAL, FIABLE: FIABLE, INDICATIF: INDICATIF, PLAGE: PLAGE, tableau: tableau, meilleures: meilleures, creneaux: creneaux, plan: plan, itineraire: itineraire, rapportLignes: rapportLignes, regrouper: regrouper, rapport: rapport, distanceKm: distanceKm, typeJour: typeJour };
 });
