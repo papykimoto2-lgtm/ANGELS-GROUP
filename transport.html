@@ -21,6 +21,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 aside{width:236px;background:var(--b2);color:#fff;padding:14px 10px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
 aside .brand{font-weight:800;font-size:16px;padding:6px 8px 12px;line-height:1.2}
 aside .brand small{display:block;font-weight:400;opacity:.7;font-size:11px}
+.mtabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 14px;padding:4px;background:var(--card);border:1px solid var(--bd);border-radius:12px;position:sticky;top:0;z-index:5}.mtabs a{display:inline-flex;align-items:center;padding:8px 14px;border-radius:9px;color:var(--tx);cursor:pointer;text-decoration:none;font-weight:600;font-size:13px;min-height:38px}.mtabs a:hover{background:rgba(127,127,127,.12)}.mtabs a.on{background:var(--b);color:#fff}
 aside .gt{margin:12px 10px 3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.55;font-weight:700}
 aside a{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:8px;color:#ffe8db;cursor:pointer;text-decoration:none}
 aside a:hover{background:rgba(255,255,255,.12)}aside a.on{background:#fff;color:var(--b2);font-weight:700}
@@ -4106,6 +4107,23 @@ const NAV=[
  {v:"p_accueil",l:"Accueil",i:"🏠",g:"Mon espace",e:"P01",m:"portail"},{v:"p_compte",l:"Mon compte",i:"💳",g:"Mon espace",e:"P02",m:"portail"},{v:"p_recus",l:"Mes reçus",i:"🧾",g:"Mon espace",e:"P03",m:"portail"},{v:"p_vehicule",l:"Mon véhicule",i:"🚕",g:"Mon espace",e:"P04",m:"portail"},{v:"p_recettes",l:"Déclarer ma recette",i:"📝",g:"Mon espace",e:"P08",m:"portail"},{v:"p_historique",l:"Mon historique",i:"🕘",g:"Mon espace",e:"P09",m:"portail"},{v:"p_incident",l:"Signaler un incident",i:"⚠️",g:"Mon espace",e:"P05",m:"portail"},{v:"p_demandes",l:"Mes demandes",i:"✉️",g:"Mon espace",e:"P06",m:"portail"},{v:"p_profil",l:"Mon profil",i:"👤",g:"Mon espace",e:"P07",m:"portail"}
 ];
 const showNav=n=>n.m==="*"?!["chauffeur","transitaire"].includes(ME.role):can(n.m,"v");
+/* Navigation en modules (comme le module Livraison) : 8 entrées au lieu de 40 ; chaque écran garde son identifiant (droits, tests, liens) et s'ouvre dans les onglets de son module. L'espace chauffeur (p_*) garde sa liste courte. */
+const MODULES_T=[
+ {id:"pil",l:"Pilotage",i:"📊",vues:["dashboard","rapports","bord_com","alertes"]},
+ {id:"flo",l:"Flotte",i:"🚕",vues:["vehicules","chauffeurs","affectations","contrats","planning","gps","gpsdev"]},
+ {id:"arg",l:"Argent",i:"💰",vues:["echeances","encaissements","recus","caisse","depenses"]},
+ {id:"cpt",l:"Comptabilité",i:"📒",vues:["compta","tiers","etats"]},
+ {id:"atl",l:"Atelier",i:"🔧",vues:["maintenance","entretien","pieces","agenda","sinistres","documents"]},
+ {id:"mad",l:"Mise à disposition",i:"🧑‍✈️",vues:["mad_resa","mad_planning","mad_offres"]},
+ {id:"neg",l:"Négoce & export",i:"🏷️",vues:["catalogue_veh","achats_veh","ventes_veh","impexp","stock_veh","devis_veh","clients_veh","export_v2"]},
+ {id:"adm",l:"Administration",i:"⚙️",vues:["rh","users","audit"]}];
+const MOD_DERN={},modOfT=v=>MODULES_T.find(m=>m.vues.includes(v))||null;
+const vuesVisT=(m,items)=>m.vues.map(v=>items.find(n=>n.v===v)).filter(Boolean);
+const modNavT=items=>MODULES_T.map(m=>{const L=vuesVisT(m,items);if(!L.length)return"";const cur=modOfT(view)===m,cible=(L.find(n=>n.v===MOD_DERN[m.id])||L[0]).v;
+ return`<a data-a="nav" data-id="${cible}" data-mod="${m.id}" class="${cur?"on":""}" title="${esc(L.map(n=>n.l).join(" · "))}">${m.i} ${esc(m.l)}</a>`}).join("");
+const modTabsT=items=>{const m=modOfT(view);if(!m)return"";const L=vuesVisT(m,items);MOD_DERN[m.id]=view;if(L.length<2)return"";
+ return`<div class="mtabs noprint" role="tablist" aria-label="${esc(m.l)}">${L.map(n=>`<a role="tab" aria-selected="${n.v===view}" class="${n.v===view?"on":""}" data-a="nav" data-id="${n.v}">${esc(n.l)}</a>`).join("")}</div>`};
+
 async function login(uidv,mdp){
  const u=by(S.users,uidv);if(!u)return"Compte inconnu.";
  const t=S.tries[u.id]||{n:0,until:0};if(Date.now()<t.until){ANGELS_AUTH.trace(S,{app:"transport",uid:u.id,nom:u.nom,role:u.role,ev:"bloque",motif:"Compte bloqué après trop de tentatives"});try{save()}catch(e){}return"Compte bloqué "+stv("blocage_min")+" minute(s) (trop de tentatives)."}
@@ -4149,9 +4167,9 @@ function render(){
   $("#lf").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button"),u=e.target.u.value,p=e.target.p.value;b.disabled=true;$("#le").textContent="";const r=await login(u,p);if(r){$("#le").textContent=r;const l=$("#lf");if(l){l.p.value="";l.querySelector("button").disabled=false}}else render()};return;
  }
  const items=NAV.filter(showNav);if(!items.some(n=>n.v===view))view=items[0].v;
- let g="",nav="";items.forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
+ let g="",nav=modNavT(items);items.filter(n=>!modOfT(n.v)).forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
  AFTER=null;let body;try{body=V[view]()}catch(e){body=`<div class="card"><b>Erreur d'affichage</b><p>${esc(e.message)}</p></div>`}
- app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">${"🚕 "+ORG()+"<small>"+ORGACT()+" · "+VILLE()+"</small>"}</div>${clkBox()}${nav}<a href="index.html">🏠 Hub groupe</a><div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}${qrBtn()?qrBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="mdp.me">Mon mot de passe</a><br><a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${body}</main></div>`;
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">${"🚕 "+ORG()+"<small>"+ORGACT()+" · "+VILLE()+"</small>"}</div>${clkBox()}${nav}<a href="index.html">🏠 Hub groupe</a><div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}${qrBtn()?qrBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="mdp.me">Mon mot de passe</a><br><a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${modTabsT(items)}${body}</main></div>`;
  try{ANGELS_HABILLAGE.appliquer()}catch(e){}
  if(AFTER){const f=AFTER;AFTER=null;f()}
 }
