@@ -49,3 +49,12 @@ Les fichiers (PNG, JPEG, WebP, PDF) sont stockés dans IndexedDB, hors du stocka
 - Circuits : les lignes sont classées comme des zones (carte de chaleur, plan, suggestions, itinéraire) ; une ligne désactivée est exclue.
 - Bureau (Circuits › Par ligne, 7 jours) : trajets, passagers, remplissage, recette, recette par trajet, chauffeurs, meilleure heure.
 - Tests : `tests/transport-lignes.js`, `tests/circuit-engine.js` (CE-26 à 28).
+
+## Wôrô-wôrô communal et intercommunal
+- **Exploitation du taxi** (Flotte › Véhicules) : Libre (VTC, taxi compteur : montant libre), Communal (circulation libre dans une commune, tarif communal par place), Intercommunal (trajets sur des lignes). Un taxi communal exige une commune et un tarif communal défini.
+- **Tarifs communaux** (Pilotage › Lignes & tarifs) : un tarif par place et par commune ; suppression refusée tant que des taxis communaux y circulent.
+- **Lignes** : commune de départ et d'arrivée ; arrivée différente = intercommunale, sinon intra-communale.
+- **Déclaration** : communal = quartier de sa commune seulement, recette = passagers × tarif communal ; intercommunal = lignes seulement, passagers × tarif de la ligne ; libre inchangé.
+- **Circuits chauffeur** : communal limité à sa commune, intercommunal à ses lignes, libre avec choix du périmètre.
+- **Rapports** (Circuits › Lignes et communes) : par ligne et par commune (trajets, passagers, remplissage, recette).
+- Tests : `tests/transport-woro-communal.js`.

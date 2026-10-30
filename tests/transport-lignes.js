@@ -19,7 +19,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const l=creerLigne({nom:"Gare Adjamé — Siporex",commune:"Adjamé",depart:"Gare Adjamé",arrivee:"Siporex",tarif:300,places:4,lat:5.36,lng:-4.03});
   o.eDbl=err(()=>creerLigne({nom:"gare adjamé — siporex",commune:"Adjamé",tarif:300}));
   creerLigne({nom:"Ligne Cocody — Riviera",commune:"Cocody",tarif:250,places:4});
-  view="lignes";render();o.vue=document.body.innerText.includes("Lignes wôrô-wôrô")&&document.body.innerText.includes("Gare Adjamé — Siporex")&&!!document.querySelector('[data-a="lg.add"]');
+  view="lignes";render();o.vue=document.body.innerText.includes("Lignes & tarifs wôrô-wôrô")&&document.body.innerText.includes("Gare Adjamé — Siporex")&&!!document.querySelector('[data-a="lg.add"]');
   /* déclaration chauffeur */
   login("chauffeur","drv_l1");
   A["p.course"]();o.opts=[...document.querySelectorAll(".md select[name=zone] option")].map(x=>x.textContent);document.querySelectorAll(".md").forEach(m=>m.remove());
