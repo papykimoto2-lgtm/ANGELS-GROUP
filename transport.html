@@ -2202,15 +2202,17 @@ V.echeances=()=>{
 CSVS.echeances=()=>{const am=allocMap();return[["Échéance","Date","Véhicule","Chauffeur","Montant","Versé","Solde"],S.obligations.map(o=>["ECH-"+o.num,o.date_ech,vehImmat(o.vehicle_id),chauffeurNom(o.driver_id),o.montant,am[o.id]||0,soldeM(o,am)])]};
 function rejeterPaiement(pid,motif){need("encaissements","a");const p=by(S.payments,pid);if(!p||p.statut!=="a_verifier")throw new Error("Paiement non rejetable.");if(!motif)throw new Error("Motif obligatoire.");p.statut="rejete";p.motif=motif;audit("Paiement rejeté",p.ref+" "+motif)}
 V.encaissements=()=>{
- const att=S.payments.filter(p=>p.statut==="a_verifier");
+ const att=S.payments.filter(p=>p.statut==="a_verifier"),adc=S.declarations.filter(x=>(x.statut==="declaree"||x.statut==="validee")&&x.montant-declEnc(x.driver_id,x.date)>0);
  return head("Encaissements au bureau",can("encaissements","c")?`<button class="btn" data-a="enc.open" data-id="">+ Nouvel encaissement</button>`:"")+
+ (adc.length?`<h2>Recettes déclarées à encaisser (${adc.length})</h2><div class="note">Le chauffeur a déclaré avoir versé : encaissez en un clic, montant, mode et référence sont préremplis.</div>`+tbl(["Date","Chauffeur","Déclaré","Déjà encaissé","Reste","Mode / réf.",""],adc.map(x=>tr([fd(x.date),esc(chauffeurNom(x.driver_id)),fcfa(x.montant),fcfa(declEnc(x.driver_id,x.date)),fcfa(x.montant-declEnc(x.driver_id,x.date)),esc(x.mode)+(x.ref?" · "+esc(x.ref):""),can("encaissements","c")?btn("enc.decl",x.id,"Encaisser","ok"):""]))):"")+
  (att.length?`<h2>À vérifier avant confirmation (${att.length})</h2>`+tbl(["Date","Chauffeur","Montant","Mode","Référence","Saisi par",""],att.map(p=>tr([fdt(p.date_reelle),esc(chauffeurNom(p.driver_id)),fcfa(p.montant),esc(p.mode),esc(p.ref),esc(p.par),can("encaissements","a")?`<div class="flex">${btn("enc.ok",p.id,"Confirmer la réception","ok")}${btn("enc.rej",p.id,"Rejeter","er")}</div>`:""]))):"")+
  `<h2>Derniers encaissements</h2>`+tbl(["Reçu","Date","Chauffeur","Montant","Mode","Réf.","Statut"],S.payments.filter(p=>p.statut!=="a_verifier").slice(-40).reverse().map(p=>{const r=by(S.receipts,p.receipt_id);return tr([r?esc(r.numero):"—",fd(p.date_valeur),esc(chauffeurNom(p.driver_id)),fcfa(p.montant),esc(p.mode),esc(p.ref),badge(p.statut,p.statut==="confirme"?"ok":"er")])}));
 };
 A["enc.ok"]=id=>{const r=atomic(()=>confirmerPaiement(id));if(r){render();recu(r)}};
 A["enc.rej"]=id=>motifForm("Rejeter le paiement",m=>rejeterPaiement(id,m));
-A["enc.open"]=did=>{
- const idem=uid("k"),st={d:did||"",type:"echeances",sel:null};
+A["enc.decl"]=id=>{const x=by(S.declarations,id);if(!x)return;A["enc.open"](x.driver_id,{mt:x.montant-declEnc(x.driver_id,x.date),mode:x.mode==="banque"?"virement":x.mode,rf:x.ref,dv:x.date})};
+A["enc.open"]=(did,pre)=>{
+ const idem=uid("k"),st=Object.assign({d:did||"",type:"echeances",sel:null},pre||{});
  const m=modal("");const box=m.firstChild;
  const draw=()=>{
   const d=st.d?by(S.drivers,st.d):null,am=allocMap(),obs=d?S.obligations.filter(o=>o.driver_id===d.id&&soldeM(o,am)>0).sort((a,b)=>a.date_ech.localeCompare(b.date_ech)):[],
@@ -2233,7 +2235,8 @@ A["enc.open"]=did=>{
   box.querySelectorAll("[data-o]").forEach(c=>c.onchange=()=>{c.checked?st.sel.add(c.dataset.o):st.sel.delete(c.dataset.o);st.mt=undefined;st.mode=$("#md",box).value;st.rf=$("#rf",box).value;draw()});
   $("#md",box).onchange=e=>{st.mode=e.target.value;st.mt=+$("#mt",box).value;st.rf=$("#rf",box).value;draw()};
   const prev=()=>{try{const mt=+$("#mt",box).value;if(st.type==="echeances"){const p=planAlloc(d.id,mt,[...st.sel]);$("#pv",box).textContent="Imputation : "+p.map(x=>"ECH-"+String(by(S.obligations,x.ob).num).padStart(5,"0")+" "+fcfa(x.m)).join(" · ")}else $("#pv",box).textContent=""}catch(x){$("#pv",box).textContent="⚠ "+x.message}};
-  $("#mt",box).oninput=prev;prev();
+  const gc=()=>{const ko=$("#md",box).value==="especes"&&!openSession();$("#go",box).disabled=ko;if(ko)$("#pv",box).insertAdjacentHTML("afterend",'<div class="al er sm">Caisse fermée : ouvrez la caisse (Argent › Caisse) avant un encaissement en espèces, ou choisissez Mobile Money / Virement.</div>')};
+  $("#mt",box).oninput=prev;prev();gc();
   $("#go",box).onclick=async()=>{const b=$("#go",box);b.disabled=true;
    const f={driver_id:d.id,montant:+$("#mt",box).value,mode:$("#md",box).value,ref:$("#rf",box).value,date_valeur:$("#dv",box).value,idem,obs:[...st.sel],type:st.type,contract_id:st.type==="depot"?$("#ct",box).value:null};
    const r=atomic(()=>enregistrerPaiement(f));
