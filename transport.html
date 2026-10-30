@@ -1465,9 +1465,18 @@ function declarationTVA(m){
  const ca=sum(ls.filter(l=>l.compte===cdef("produit")),l=>(l.credit||0)-(l.debit||0)),cred=Math.max(0,soldeA(cdef("tva_credit"),monthEnd(pm))),net=t.net,due=Math.max(0,net-cred),rep=Math.max(0,cred-net);
  return{mois:m,taux:tvaTaux(),ca_ht:ca,collectee:t.coll,deductible:t.ded,net,credit_anterieur:cred,a_payer:due,credit_a_reporter:rep,liquidee:!!t.liq};
 }
+const normDep=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+function depDoublon(f){
+ const fo=normDep(f.fournisseur),j=String(f.justificatif||"").trim().toLowerCase(),t=new Date(f.date||today()).getTime(),sem=7*864e5,m=Math.round(+f.montant);
+ const d=S.expenses.find(x=>x.statut!=="rejetee"&&((j&&String(x.justificatif||"").trim().toLowerCase()===j&&x.montant===m)||(x.montant===m&&x.categorie===f.categorie&&normDep(x.fournisseur)===fo&&Math.abs(new Date(x.date).getTime()-t)<=sem)));
+ if(d)return{type:"dépense",ref:d.numero,date:d.date,montant:d.montant};
+ const b=S.cash_mv.find(x=>x.sens==="sortie"&&x.statut!=="rejetee"&&(!x.source||x.source.type!=="expense")&&x.montant===m&&Math.abs(new Date(x.date).getTime()-Date.now())<=2*864e5&&(CX_OUT_ANC.includes(x.categorie)||(fo&&normDep(x.motif+" "+(x.tiers||"")).includes(fo))));
+ return b?{type:"bon de caisse",ref:b.numero||"bon",date:String(b.date).slice(0,10),montant:b.montant}:null;
+}
 function creerDepense(f){
  need("depenses","c");if(!(f.montant>0))throw new Error("Montant invalide.");if(!CATS[f.categorie])throw new Error("Catégorie invalide.");
  if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
+ const dd=f.confirme_doublon||f.source?null:depDoublon(f);if(dd)throw new Error("Doublon probable : "+dd.type+" "+dd.ref+" du "+dd.date+" ("+fcfa(dd.montant)+"). Confirmez pour enregistrer quand même.");
  const e={id:uid("dp"),numero:seq("dp","DEP"),date:f.date,vehicle_id:f.vehicle_id||null,categorie:f.categorie,fournisseur:f.fournisseur||"",montant:f.montant,justificatif:f.justificatif||"",statut:"a_valider",par:ME.nom,source:f.source||null};
  S.expenses.push(e);audit("Dépense saisie",e.numero+" "+f.montant+" F");return e;
 }
@@ -1478,6 +1487,7 @@ function validerDepense(id,mode,ok,cid){
  const jr=esp?"CAI":"BQ",tre=esp?cptCaisse(cs):cdef("treso_banque");
  const en=postEntry({journal:jr,date:e.date>today()?today():e.date,libelle:e.categorie+" — "+(e.fournisseur||e.numero),piece:e.numero,source:{type:"expense",id:e.id},lines:[...chargeLignes(e),{compte:tre,credit:e.montant}]});
  if(esp)S.cash_mv.push({id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",montant:e.montant,categorie:"Dépense",motif:e.numero+" "+e.categorie,statut:"validee",source:{type:"expense",id:e.id},par:ME.nom});
+ if(!esp)S.bank_tx.push({id:uid("bt"),expense_id:e.id,date:e.date>today()?today():e.date,montant:-e.montant,mode:"banque",ref:e.numero+(e.fournisseur?" — "+e.fournisseur:""),pointe:false});
  e.statut="validee";e.mode=mode;e.entry_id=en.id;e.valide_par=ME.nom;audit("Dépense validée",e.numero);
 }
 function saisirOD(f){
@@ -2340,7 +2350,7 @@ V.caisse=()=>{
  if(t==="remises")h+=cxRemisesUI();
  if(t==="rapp")h+=cxRappUI();
  if(t==="banque"){const pt=sum(S.bank_tx.filter(b=>b.pointe&&!b.annule),b=>b.montant),cmp=sum(S.entries.flatMap(e=>e.lines.filter(l=>bkComptes().includes(l.compte))),l=>(l.debit||0)-(l.credit||0));
-  h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cmp)}</div><div class="l">Solde comptable (banque / mobile money)</div></div><div class="kpi o"><div class="v">${fcfa(pt)}</div><div class="l">Encaissements pointés (relevé)</div></div></div>`+tbl(["Date","Montant","Mode","Référence","Pointé"],S.bank_tx.filter(b=>!b.annule).slice().reverse().map(b=>tr([fd(b.date),fcfa(b.montant),esc(b.mode),esc(b.ref),can("caisse","e")?`<input type="checkbox" data-a="bk.pt" data-id="${b.id}" ${b.pointe?"checked":""}>`:(b.pointe?"Oui":"Non")])),{empty:"Aucune opération bancaire."});}
+  h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cmp)}</div><div class="l">Solde comptable (banque / mobile money)</div></div><div class="kpi o"><div class="v">${fcfa(pt)}</div><div class="l">Mouvements pointés (relevé, encaissements − dépenses)</div></div><div class="kpi"><div class="v">${fcfa(sum(S.bank_tx.filter(b=>!b.pointe&&!b.annule),b=>b.montant))}</div><div class="l">Mouvements à pointer</div></div></div>`+tbl(["Date","Sens","Montant","Mode","Référence","Pointé"],S.bank_tx.filter(b=>!b.annule).slice().reverse().map(b=>tr([fd(b.date),b.montant<0?badge("Dépense","er"):badge("Encaissement","ok"),`<b style="color:var(--${b.montant<0?"er":"ok"})">${fcfa(b.montant)}</b>`,esc(b.mode),esc(b.ref),can("caisse","e")?`<input type="checkbox" data-a="bk.pt" data-id="${b.id}" ${b.pointe?"checked":""}>`:(b.pointe?"Oui":"Non")])),{empty:"Aucune opération bancaire."});}
  return h;
 };
 A["cx.per"]=id=>{cxUI().p=id;render()};
@@ -2379,7 +2389,7 @@ V.depenses=()=>{
  tbl(["N°","Date","Véhicule","Catégorie","Fournisseur","Montant","Justificatif","Statut","Par",""],S.expenses.filter(e=>!f.s||e.statut===f.s).slice().reverse().map(e=>tr([esc(e.numero),fd(e.date),esc(e.vehicle_id?vehImmat(e.vehicle_id):"—"),esc(e.categorie),esc(e.fournisseur),fcfa(e.montant),esc(e.justificatif),badge(e.statut==="a_valider"?"À valider":e.statut==="validee"?"Validée":"Rejetée",e.statut==="validee"?"ok":e.statut==="a_valider"?"wa":"er"),esc(e.par),e.statut==="a_valider"&&can("depenses","a")?`<div class="flex">${btn("dp.val",e.id,"Valider","ok")}${btn("dp.rej",e.id,"Rejeter","er")}</div>`:""])));
 };
 CSVS.depenses=()=>[["N°","Date","Catégorie","Montant","Statut"],S.expenses.map(e=>[e.numero,e.date,e.categorie,e.montant,e.statut])];
-A["dp.add"]=()=>form("Nouvelle dépense",[{k:"date",l:"Date",t:"date",req:1},{k:"vehicle_id",l:"Véhicule (facultatif)",t:"select",o:()=>[["","—"],...vehOpts()]},{k:"categorie",l:"Catégorie",t:"select",o:Object.keys(CATS).map(x=>[x,x])},{k:"fournisseur",l:"Fournisseur"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"justificatif",l:"Justificatif (n° facture / pièce)",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)}],{date:today()},o=>{creerDepense(o)});
+A["dp.add"]=()=>form("Nouvelle dépense",[{k:"date",l:"Date",t:"date",req:1},{k:"vehicle_id",l:"Véhicule (facultatif)",t:"select",o:()=>[["","—"],...vehOpts()]},{k:"categorie",l:"Catégorie",t:"select",o:Object.keys(CATS).map(x=>[x,x])},{k:"fournisseur",l:"Fournisseur"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"justificatif",l:"Justificatif (n° facture / pièce)",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)}],{date:today()},o=>{const dd=depDoublon(o);if(dd){if(!confirm("⚠ Doublon probable : "+dd.type+" "+dd.ref+" du "+fd(dd.date)+" ("+fcfa(dd.montant)+").\nEnregistrer quand même ?"))throw new Error("Saisie annulée : doublon probable.");o={...o,confirme_doublon:true}}creerDepense(o)});
 A["dp.val"]=id=>form("Valider la dépense",[{k:"mode",l:"Règlement",t:"select",o:[["caisse","Espèces (caisse)"],["banque","Banque / mobile money"]]},{k:"caisse",l:"Caisse (si espèces)",t:"select",o:()=>[["","Automatique (première caisse ouverte)"],...caissesAct().filter(c=>openSession(c.id)).map(c=>[c.id,c.nom+" — "+fcfa(cxSoldeC(c))])]}],{},o=>validerDepense(id,o.mode,true,o.caisse||undefined),"Valider");
 A["dp.rej"]=id=>{if(atomic(()=>validerDepense(id,null,false)))render()};
 /* ---- Comptabilité ---- */
