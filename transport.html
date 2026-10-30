@@ -21,6 +21,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 aside{width:236px;background:var(--b2);color:#fff;padding:14px 10px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
 aside .brand{font-weight:800;font-size:16px;padding:6px 8px 12px;line-height:1.2}
 aside .brand small{display:block;font-weight:400;opacity:.7;font-size:11px}
+.hm{border-collapse:separate;border-spacing:2px}.hm th,.hm td{border:0}.hm td{border-radius:3px}
 .mtabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 14px;padding:4px;background:var(--card);border:1px solid var(--bd);border-radius:12px;position:sticky;top:0;z-index:5}.mtabs a{display:inline-flex;align-items:center;padding:8px 14px;border-radius:9px;color:var(--tx);cursor:pointer;text-decoration:none;font-weight:600;font-size:13px;min-height:38px}.mtabs a:hover{background:rgba(127,127,127,.12)}.mtabs a.on{background:var(--b);color:#fff}
 aside .gt{margin:12px 10px 3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.55;font-weight:700}
 aside a{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:8px;color:#ffe8db;cursor:pointer;text-decoration:none}
@@ -94,7 +95,7 @@ aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;borde
 </head>
 <body>
 <div id="app"></div>
-<script src="qrcode.js"></script>
+<script src="qrcode.js"></script><script src="circuit-engine.js"></script>
 <script src="passerelle-config.js"></script>
 <script src="marque.js"></script><script src="auth-engine.js"></script><script src="production-engine.js"></script><script src="fne-engine.js"></script><script src="habillage.js"></script>
 <script src="sync-engine.js"></script>
@@ -3173,6 +3174,63 @@ A["dcl.no"]=id=>form("Rejeter la déclaration",[{k:"motif",l:"Motif (communiqué
 A["p.inc"]=()=>form("Signaler un incident",[{k:"type",l:"Type",t:"select",o:[["panne","Panne"],["accident","Accident"],["autre","Autre"]]},{k:"date",l:"Date",t:"date",req:1},{k:"description",l:"Description",t:"area",req:1,full:1},{k:"pj",l:"Photo",t:"file"}],{date:today()},o=>signalerIncident(o),"Envoyer");
 A["p.dem"]=()=>form("Nouvelle demande",[{k:"type",l:"Type",t:"select",o:[["justificatif","Dépôt d'un justificatif"],["contestation","Contestation"],["autre","Autre"]]},{k:"texte",l:"Message",t:"area",req:1,full:1},{k:"pj",l:"Pièce jointe",t:"file"}],{},o=>creerDemande(o),"Envoyer");
 A["p.prof"]=()=>{const d=meDriver();form("Modifier mes coordonnées",[{k:"tel",l:"Téléphone"},{k:"adresse",l:"Adresse"}],d,o=>creerDemande({type:"profil",texte:"Changement de coordonnées",payload:{tel:o.tel,adresse:o.adresse}}),"Envoyer pour validation")};
+
+/* ---------- Circuits rentables : courses déclarées → zones et heures où les clients sont les plus nombreux (circuit-engine.js) ---------- */
+const CIRC=()=>ANGELS_CIRCUIT,zonesCirc=()=>Array.isArray(S.settings.circuit_zones)&&S.settings.circuit_zones.length>=3?S.settings.circuit_zones:ANGELS_CIRCUIT.ZONES_DEF;
+const circHeure=h=>h+" h",circTab=()=>ANGELS_CIRCUIT.tableau(S.courses||[],{jour:ANGELS_CIRCUIT.typeJour(Date.now())});
+const FIAB_B={fiable:["Fiable","ok"],indicatif:["Indicatif","wa"],insuffisant:["Peu de données","mu"]};
+function declarerCourse(f){
+ const d=meDriver();if(!d)throw new Error("Réservé aux chauffeurs.");need("portail","v");
+ const zone=String(f.zone||""),m=Math.round(+f.montant);if(!zonesCirc().some(z=>z.nom===zone))throw new Error("Choisissez une zone de la liste.");
+ if(!(m>=100&&m<=200000))throw new Error("Montant invalide (entre 100 et 200 000 FCFA).");
+ const t=f.t?new Date(f.t):new Date();if(isNaN(t))throw new Error("Heure invalide.");if(t.getTime()>Date.now()+3e5)throw new Error("L'heure ne peut pas être dans le futur.");if(Date.now()-t.getTime()>48*36e5)throw new Error("Une course se déclare dans les 48 heures.");
+ const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),x={id:uid("crs"),driver_id:d.id,vehicle_id:as?as.vehicle_id:null,zone,montant:m,t:t.toISOString(),par:d.nom};
+ S.courses.push(x);const lim=Date.now()-180*864e5;S.courses=S.courses.filter(c=>new Date(c.t).getTime()>=lim);return x;
+}
+function retirerCourse(id){const d=meDriver(),x=by(S.courses,id);if(!d||!x||x.driver_id!==d.id)throw new Error("Accès refusé : course d'un autre chauffeur.");if(Date.now()-new Date(x.t).getTime()>24*36e5)throw new Error("Une course ne se retire que dans les 24 heures.");S.courses=S.courses.filter(c=>c.id!==id)}
+const posChauffeur=d=>{const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),dev=as&&S.gps_dev.find(x=>x.vehicle_id===as.vehicle_id&&x.actif),p=dev&&lastPos(dev.id);return p&&Date.now()-new Date(p.t)<18e5?{lat:p.lat,lng:p.lng}:null};
+const communeChoix=d=>{try{return localStorage.getItem("tr_commune_"+d.id)||""}catch(e){return""}};
+const trendTxt={hausse:"↗ monte à l'heure suivante",baisse:"↘ baisse à l'heure suivante",stable:"→ stable"};
+V.p_circuit=()=>{
+ const d=meDriver(),tab=circTab(),h=new Date().getHours(),commune=communeChoix(d),pos=posChauffeur(d),m=ANGELS_CIRCUIT.meilleures(tab,h,{max:3,pos,commune,zones:zonesCirc()}),communes=[...new Set(zonesCirc().map(z=>z.commune).filter(Boolean))];
+ const jr=ANGELS_CIRCUIT.typeJour(Date.now())==="weekend"?"week-end":"semaine";
+ let o=`<h1>Où aller maintenant</h1><div class="note">Suggestions calculées à partir des courses déclarées par toute la flotte (zone de prise en charge, heure, montant). Plus vous déclarez vos courses, plus elles sont justes. Ce sont des indications, pas une garantie.</div>`;
+ o+=`<div class="flex" style="margin:8px 0;flex-wrap:wrap"><span class="mu sm">Mon périmètre :</span><button class="btn sm ${commune?"ghost":""}" data-a="circ.com" data-id="">Toute la ville (VTC)</button>${communes.map(c=>`<button class="btn sm ${commune===c?"":"ghost"}" data-a="circ.com" data-id="${esc(c)}">${esc(c)}</button>`).join("")}</div>`;
+ if(!m.ok)o+=`<div class="card"><b>Pas encore assez de courses déclarées</b><p class="mu">La flotte doit déclarer encore <b>${m.manque}</b> course(s) avant que des zones puissent être proposées (minimum ${ANGELS_CIRCUIT.MIN_TOTAL}). Déclarez chaque course après l'avoir faite : zone, montant, heure.</p></div>`;
+ else if(!m.liste.length)o+=`<div class="card"><b>Aucune zone fiable pour ${circHeure(h)}</b><p class="mu">Pas assez de courses déclarées à cette heure${commune?" dans "+esc(commune):""}. Essayez « Toute la ville » ou revenez plus tard.</p></div>`;
+ else o+=`<div class="grid">${m.liste.map((r,i)=>`<div class="card"><div class="between"><b style="font-size:17px">${i+1}. ${esc(r.zone)}</b>${badge(FIAB_B[r.fiab][0],FIAB_B[r.fiab][1])}</div><div style="font-size:22px;font-weight:800;margin:6px 0">${fcfa(r.pot)}<span class="mu sm"> / heure (flotte)</span></div><div class="sm">${trendTxt[r.tendance]}</div>${r.km!=null?`<div class="sm mu">À ${r.km} km de vous · environ ${r.min} min</div>`:'<div class="sm mu">Distance indisponible (GPS inactif)</div>'}</div>`).join("")}</div>`;
+ if(m.ok){const cr=ANGELS_CIRCUIT.creneaux(tab,h,6,{commune,zones:zonesCirc()});o+=`<h2>Les prochaines heures (profil ${jr})</h2>`+tbl(["Heure","Meilleure zone","Potentiel"],cr.map(x=>tr([circHeure(x.h),x.meilleure?esc(x.meilleure.zone):'<span class="mu">—</span>',x.meilleure?fcfa(x.meilleure.pot):""])),{max:6})}
+ const mine=(S.courses||[]).filter(c=>c.driver_id===d.id&&new Date(c.t).toDateString()===new Date().toDateString()).sort((a,b)=>b.t.localeCompare(a.t));
+ o+=`<h2>Mes courses d'aujourd'hui (${mine.length} · ${fcfa(sum(mine,c=>c.montant))})</h2><p><button class="btn" data-a="p.course">➕ Déclarer une course</button></p>`+tbl(["Heure","Zone","Montant",""],mine.map(c=>tr([new Date(c.t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),esc(c.zone),fcfa(c.montant),`<a data-a="p.coursex" data-id="${c.id}">Retirer</a>`])),{empty:"Aucune course déclarée aujourd'hui."});
+ return o};
+A["circ.com"]=c=>{const d=meDriver();if(!d)return;try{if(c)localStorage.setItem("tr_commune_"+d.id,c);else localStorage.removeItem("tr_commune_"+d.id)}catch(e){}render()};
+A["p.course"]=()=>{const n=new Date(),loc=new Date(n.getTime()-n.getTimezoneOffset()*6e4).toISOString().slice(0,16);form("Déclarer une course",[{k:"zone",l:"Zone de prise en charge du client",t:"select",o:zonesCirc().map(z=>[z.nom,z.nom+" ("+z.commune+")"])},{k:"montant",l:"Montant de la course (FCFA)",t:"number",req:1},{k:"t",l:"Heure de la prise en charge",t:"datetime-local",h:"Laissez l'heure actuelle si la course vient d'avoir lieu."}],{t:loc},o=>declarerCourse(o),"Enregistrer")};
+A["p.coursex"]=id=>{if(confirm("Retirer cette course ?"))atomic(()=>retirerCourse(id))!==false&&render()};
+/* Bureau : carte de chaleur, plan de la journée, rapport par chauffeur, zones */
+const heatCell=(z,h,max)=>{const p=z.pot[h],f=z.fiab[h],a=max>0?Math.round(100*p/max):0;return `<td title="${esc(circHeure(h)+" : "+fcfa(Math.round(p))+" / h · "+FIAB_B[f][0])}" style="${p>0?`background:color-mix(in srgb,var(--b) ${Math.max(6,a)}%,transparent);`:""}${f==="insuffisant"?"opacity:.45;":""}min-width:22px;text-align:center;font-size:10px;padding:3px 2px">${a>=60?"●":""}</td>`};
+V.circuits=()=>{
+ const t=tabOf("circ","chaleur"),tab=circTab(),hh=[];for(let h=ANGELS_CIRCUIT.PLAGE[0];h<=ANGELS_CIRCUIT.PLAGE[1];h++)hh.push(h);
+ const nbTaxis=S.assignments.filter(a=>!a.fin).length||1,jr=tab.jour?(tab.jour==="weekend"?"week-end":"semaine"):"tous les jours",Z=Object.entries(tab.zones);
+ let o=head("Circuits rentables",can("audit","e")?'<button class="btn ghost" data-a="circ.zones">⚙ Zones</button>':"")+tabs("circ",[["chaleur","Carte de chaleur"],["plan","Plan de la journée"],["chauffeurs","Par chauffeur (7 jours)"]]);
+ o+=`<div class="note">Source : les <b>courses déclarées par les chauffeurs</b> (${tab.total} course(s) sur ${tab.jours} jour(s) d'activité, profil ${jr}). Potentiel = recette déclarée dans la zone à cette heure, par jour d'activité de la flotte. ${tab.suffisant?"":`<b>Il manque ${tab.manque} course(s) déclarée(s) pour atteindre le minimum de ${ANGELS_CIRCUIT.MIN_TOTAL} : aucune suggestion n'est affichée avant.</b>`}</div>`;
+ if(t==="chaleur"){
+  if(!Z.length)return o+'<div class="card mu">Aucune course déclarée pour le moment. Les chauffeurs déclarent leurs courses depuis leur espace (« Où aller maintenant »).</div>';
+  const max=Math.max(...Z.flatMap(([n,z])=>z.pot)),rows=Z.sort((a,b)=>sum(b[1].pot,x=>x)-sum(a[1].pot,x=>x));
+  o+=`<div class="tw"><table class="hm"><thead><tr><th>Zone</th>${hh.map(h=>`<th style="font-size:10px;padding:3px 2px">${h}</th>`).join("")}</tr></thead><tbody>${rows.map(([n,z])=>`<tr><td><b>${esc(n)}</b></td>${hh.map(h=>heatCell(z,h,max)).join("")}</tr>`).join("")}</tbody></table></div><div class="sm mu" style="margin-top:6px">Plus la case est foncée, plus la zone rapporte à cette heure (● = au moins 60 % du maximum). Cases pâles : peu de courses déclarées (indicatif).</div>`}
+ else if(t==="plan"){
+  const h=UI.circ&&UI.circ.h!=null?UI.circ.h:new Date().getHours(),nb=UI.circ&&UI.circ.nb||nbTaxis,pl=ANGELS_CIRCUIT.plan(tab,h,nb,{zones:zonesCirc()});
+  o+=`<div class="flex" style="margin:8px 0;align-items:center;flex-wrap:wrap"><b>Heure : ${circHeure(h)}</b><button class="btn sm ghost" data-a="circ.h" data-id="-1">−</button><button class="btn sm ghost" data-a="circ.h" data-id="1">+</button><b style="margin-left:14px">Taxis disponibles : ${nb}</b><button class="btn sm ghost" data-a="circ.nb" data-id="-1">−</button><button class="btn sm ghost" data-a="circ.nb" data-id="1">+</button></div>`;
+  o+=pl.ok?tbl(["Zone","Taxis à y envoyer","Potentiel (F/h, flotte)","Fiabilité"],pl.lignes.map(l=>tr([esc(l.zone),"<b>"+l.taxis+"</b>",fcfa(l.pot),badge(FIAB_B[l.fiab][0],FIAB_B[l.fiab][1])])),{empty:"Aucune zone fiable à cette heure."}):'<div class="card mu">Pas assez de courses déclarées pour proposer une répartition.</div>';
+  o+=`<h2>Meilleures zones heure par heure</h2>`+tbl(["Heure","1re zone","2e zone"],hh.map(x=>{const m=ANGELS_CIRCUIT.meilleures(tab,x,{max:2,zones:zonesCirc()}).liste;return tr([circHeure(x),m[0]?esc(m[0].zone)+" · "+fcfa(m[0].pot):'<span class="mu">—</span>',m[1]?esc(m[1].zone)+" · "+fcfa(m[1].pot):'<span class="mu">—</span>'])}),{max:30})}
+ else{
+  const R=ANGELS_CIRCUIT.rapport(S.courses||[],S.drivers.filter(d=>d.statut!=="sorti"),{tab}).sort((a,b)=>b.ca-a.ca);
+  o+=tbl(["Chauffeur","Courses","Recette déclarée","Panier moyen","Jours actifs","Zones principales","Alignement sur les zones chaudes","Meilleur créneau"],R.map(r=>tr([esc(r.nom),r.courses,fcfa(r.ca),fcfa(r.panier),r.jours,esc(r.zones.join(", ")||"—"),r.alignement==null?'<span class="mu">—</span>':`<b class="${r.alignement<40?"er":""}">${r.alignement} %</b>`,r.meilleur?esc(r.meilleur.zone)+" à "+circHeure(r.meilleur.h):"—"])),{empty:"Aucun chauffeur."})+`<div class="sm mu" style="margin-top:6px">Alignement = part des courses faites dans l'une des 3 meilleures zones de l'heure. Un bas niveau suggère de réorienter le chauffeur ; il ne prouve pas une faute (trafic, clientèle fidèle, zone d'attache).</div>`}
+ return o};
+A["circ.h"]=d=>{UI.circ=UI.circ||{};const h=UI.circ.h!=null?UI.circ.h:new Date().getHours();UI.circ.h=(h+(+d)+24)%24;render()};
+A["circ.nb"]=d=>{UI.circ=UI.circ||{};const n=UI.circ.nb||S.assignments.filter(a=>!a.fin).length||1;UI.circ.nb=Math.min(200,Math.max(1,n+(+d)));render()};
+A["circ.zones"]=()=>{need("audit","e");form("Zones de prise en charge",[{k:"txt",l:"Une zone par ligne : Nom ; Commune ; latitude ; longitude",t:"area",req:1,full:1,h:"Positions approximatives, utilisées pour la distance. Minimum 3 zones. Une zone déjà utilisée dans des courses ne doit pas être renommée."}],{txt:zonesCirc().map(z=>[z.nom,z.commune,z.lat,z.lng].join(" ; ")).join("\n")},o=>{need("audit","e");const L=String(o.txt||"").split("\n").map(x=>x.trim()).filter(Boolean).map(x=>{const[n,c,la,lo]=x.split(";").map(y=>y.trim());return{nom:n,commune:c,lat:+la,lng:+lo}});
+  if(L.length<3)throw new Error("Au moins 3 zones.");if(L.some(z=>!z.nom||!z.commune||!isFinite(z.lat)||!isFinite(z.lng)||Math.abs(z.lat)>90||Math.abs(z.lng)>180))throw new Error("Chaque ligne doit être « Nom ; Commune ; latitude ; longitude ».");if(new Set(L.map(z=>z.nom)).size!==L.length)throw new Error("Deux zones portent le même nom.");
+  S.settings.circuit_zones=L;audit("Zones de circuits modifiées",L.length+" zone(s)")},"Enregistrer")};
 A["p.pin"]=()=>{changerMdp()};A["mdp.me"]=()=>{changerMdp()};
 
 /* ---------- Négoce de véhicules : achats, ventes et importations (transit, douane) ----------
@@ -3193,7 +3251,7 @@ const IMP_CLES=[["valeur","Valeur d'achat"],["poids","Poids"],["volume","Volume"
 const IMP_CAUSES=[["document","Document manquant"],["paiement","Paiement"],["controle","Contrôle"],["transitaire","Action du transitaire"],["autre","Autre cause"]];
 const impEtapesCfg=()=>{const c=S.settings.imp_etapes;return IMP_ETAPES_DEF.map(([k,l])=>({k,l,actif:!c||c[k]!==false}))};
 const nomEtape=k=>(IMP_ETAPES_DEF.find(x=>x[0]===k)||[0,k])[1];
-function migrerNegoce(){["vn","ventes_veh","imports","tiers_vn","reservations","devis","inventaires_vn","declarations","demandes_veh","xp_produits","xp_clients","xp_prestataires","xp_lots","xp_cmd"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.alertes_etat)S.alertes_etat={};
+function migrerNegoce(){["courses","vn","ventes_veh","imports","tiers_vn","reservations","devis","inventaires_vn","declarations","demandes_veh","xp_produits","xp_clients","xp_prestataires","xp_lots","xp_cmd"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.alertes_etat)S.alertes_etat={};
  S.ventes_veh.forEach(x=>{if(!x.livraison)x.livraison={statut:x.export&&x.exp&&x.exp.statut==="livre"?"livree":"a_livrer"};if(!x.hist)x.hist=[{t:x.t||now(),par:x.par||"",statut:"facturee",note:"Facture émise"}];if(x.acompte===undefined)x.acompte=sum(x.encaissements,e=>e.montant);if(!x.echeancier)x.echeancier=[];if(!x.statut)x.statut="facturee"});
  if(!S.settings.mig_perm_stock){["admin","directeur"].forEach(r=>{const a=(S.perms[r]||{}).ventes_veh;if(a)["x","a"].forEach(l=>{if(!a.includes(l))a.push(l)})});S.settings.mig_perm_stock=true}
  [["3111","Véhicules destinés à la vente","actif"],["3112","Produits destinés à l'exportation","actif"],["4112","Clients — acheteurs de véhicules","actif"],["4113","Clients — exportation de produits","actif"]].forEach(([num,nom,nat])=>{try{if(!planIndex().m.has(num))planCreer({num,nom,nat},true)}catch(e){}});
@@ -4092,7 +4150,7 @@ V.rh=()=>head("Ressources humaines et paie")+ANGELS_RH.view(RH_HOST);
 
 /* ---------- Navigation, rendu, événements ---------- */
 const NAV=[
- {v:"dashboard",l:"Tableau de bord",i:"📊",g:"Pilotage",e:"E02",m:"*"},{v:"rapports",l:"Rapports",i:"📈",g:"Pilotage",e:"E21",m:"rapports"},{v:"bord_com",l:"Tableau commercial",i:"💹",g:"Pilotage",e:"E34",m:"rapports"},{v:"alertes",l:"Notifications et alertes",i:"🔔",g:"Pilotage",e:"E35",m:"rapports"},
+ {v:"dashboard",l:"Tableau de bord",i:"📊",g:"Pilotage",e:"E02",m:"*"},{v:"rapports",l:"Rapports",i:"📈",g:"Pilotage",e:"E21",m:"rapports"},{v:"bord_com",l:"Tableau commercial",i:"💹",g:"Pilotage",e:"E34",m:"rapports"},{v:"alertes",l:"Notifications et alertes",i:"🔔",g:"Pilotage",e:"E35",m:"rapports"},{v:"circuits",l:"Circuits rentables",i:"🧭",g:"Pilotage",e:"E39",m:"rapports"},
  {v:"vehicules",l:"Véhicules",i:"🚕",g:"Flotte",e:"E03",m:"vehicules"},{v:"chauffeurs",l:"Chauffeurs",i:"🧑‍✈️",g:"Flotte",e:"E04",m:"chauffeurs"},{v:"affectations",l:"Affectations",i:"🔗",g:"Flotte",e:"E05",m:"vehicules"},{v:"contrats",l:"Contrats",i:"📑",g:"Flotte",e:"E06",m:"contrats"},{v:"planning",l:"Planning journalier",i:"🗓️",g:"Flotte",e:"E07",m:"planning"},
  {v:"mad_resa",l:"Réservations",i:"🧑‍✈️",g:"Mise à disposition",e:"E50",m:"mad"},{v:"mad_planning",l:"Planning chauffeurs et véhicules",i:"📆",g:"Mise à disposition",e:"E51",m:"mad"},{v:"mad_offres",l:"Offres et tarifs",i:"🏷️",g:"Mise à disposition",e:"E52",m:"mad"},
  {v:"catalogue_veh",l:"Catalogue véhicules",i:"🖼️",g:"Négoce de véhicules",e:"E36",m:"stock_veh"},{v:"achats_veh",l:"Achats de véhicules",i:"🛒",g:"Négoce de véhicules",e:"E28",m:"achats_veh"},{v:"ventes_veh",l:"Ventes de véhicules",i:"🏷️",g:"Négoce de véhicules",e:"E29",m:"ventes_veh"},{v:"impexp",l:"Importations (transit, douane)",i:"🚢",g:"Négoce de véhicules",e:"E30",m:"impexp"},{v:"stock_veh",l:"Stock commercial",i:"📦",g:"Négoce de véhicules",e:"E31",m:"stock_veh"},{v:"devis_veh",l:"Devis et réservations",i:"📝",g:"Négoce de véhicules",e:"E32",m:"ventes_veh"},{v:"clients_veh",l:"Clients (véhicules)",i:"🧑‍💼",g:"Négoce de véhicules",e:"E33",m:"ventes_veh"},
@@ -4104,12 +4162,12 @@ const NAV=[
  {v:"gps",l:"Carte GPS",i:"📍",g:"GPS",e:"E16",m:"gps"},{v:"gpsdev",l:"Dispositifs GPS",i:"📡",g:"GPS",e:"E17",m:"gps"},
  {v:"maintenance",l:"Maintenance",i:"🔧",g:"Exploitation",e:"E18",m:"maintenance"},{v:"entretien",l:"Entretien préventif",i:"🛠️",g:"Exploitation",e:"E25",m:"entretien"},{v:"pieces",l:"Pièces détachées",i:"🔩",g:"Exploitation",e:"E26",m:"pieces"},{v:"agenda",l:"Agenda atelier",i:"🗓️",g:"Exploitation",e:"E27",m:"agenda"},{v:"sinistres",l:"Sinistres",i:"⚠️",g:"Exploitation",e:"E19",m:"sinistres"},{v:"documents",l:"Documents et alertes",i:"🔔",g:"Exploitation",e:"E20",m:"documents"},
  {v:"users",l:"Utilisateurs et droits",i:"🛡️",g:"Administration",e:"E23",m:"users"},{v:"audit",l:"Audit et paramètres",i:"🗂️",g:"Administration",e:"E24",m:"audit"},
- {v:"p_accueil",l:"Accueil",i:"🏠",g:"Mon espace",e:"P01",m:"portail"},{v:"p_compte",l:"Mon compte",i:"💳",g:"Mon espace",e:"P02",m:"portail"},{v:"p_recus",l:"Mes reçus",i:"🧾",g:"Mon espace",e:"P03",m:"portail"},{v:"p_vehicule",l:"Mon véhicule",i:"🚕",g:"Mon espace",e:"P04",m:"portail"},{v:"p_recettes",l:"Déclarer ma recette",i:"📝",g:"Mon espace",e:"P08",m:"portail"},{v:"p_historique",l:"Mon historique",i:"🕘",g:"Mon espace",e:"P09",m:"portail"},{v:"p_incident",l:"Signaler un incident",i:"⚠️",g:"Mon espace",e:"P05",m:"portail"},{v:"p_demandes",l:"Mes demandes",i:"✉️",g:"Mon espace",e:"P06",m:"portail"},{v:"p_profil",l:"Mon profil",i:"👤",g:"Mon espace",e:"P07",m:"portail"}
+ {v:"p_accueil",l:"Accueil",i:"🏠",g:"Mon espace",e:"P01",m:"portail"},{v:"p_compte",l:"Mon compte",i:"💳",g:"Mon espace",e:"P02",m:"portail"},{v:"p_recus",l:"Mes reçus",i:"🧾",g:"Mon espace",e:"P03",m:"portail"},{v:"p_vehicule",l:"Mon véhicule",i:"🚕",g:"Mon espace",e:"P04",m:"portail"},{v:"p_recettes",l:"Déclarer ma recette",i:"📝",g:"Mon espace",e:"P08",m:"portail"},{v:"p_circuit",l:"Où aller maintenant",i:"🧭",g:"Mon espace",e:"P10",m:"portail"},{v:"p_historique",l:"Mon historique",i:"🕘",g:"Mon espace",e:"P09",m:"portail"},{v:"p_incident",l:"Signaler un incident",i:"⚠️",g:"Mon espace",e:"P05",m:"portail"},{v:"p_demandes",l:"Mes demandes",i:"✉️",g:"Mon espace",e:"P06",m:"portail"},{v:"p_profil",l:"Mon profil",i:"👤",g:"Mon espace",e:"P07",m:"portail"}
 ];
 const showNav=n=>n.m==="*"?!["chauffeur","transitaire"].includes(ME.role):can(n.m,"v");
 /* Navigation en modules (comme le module Livraison) : 8 entrées au lieu de 40 ; chaque écran garde son identifiant (droits, tests, liens) et s'ouvre dans les onglets de son module. L'espace chauffeur (p_*) garde sa liste courte. */
 const MODULES_T=[
- {id:"pil",l:"Pilotage",i:"📊",vues:["dashboard","rapports","bord_com","alertes"]},
+ {id:"pil",l:"Pilotage",i:"📊",vues:["dashboard","rapports","bord_com","alertes","circuits"]},
  {id:"flo",l:"Flotte",i:"🚕",vues:["vehicules","chauffeurs","affectations","contrats","planning","gps","gpsdev"]},
  {id:"arg",l:"Argent",i:"💰",vues:["echeances","encaissements","recus","caisse","depenses"]},
  {id:"cpt",l:"Comptabilité",i:"📒",vues:["compta","tiers","etats"]},

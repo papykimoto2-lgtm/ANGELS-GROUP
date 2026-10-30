@@ -34,3 +34,11 @@ Légende : ✅ réalisé et testé · 🟡 réalisé, validation externe requise
 
 ## Pièces jointes
 Les fichiers (PNG, JPEG, WebP, PDF) sont stockés dans IndexedDB, hors du stockage local limité à ≈ 5 Mo. Les images sont compressées automatiquement (JPEG, ≤ 300 Ko), les PDF sont limités à 300 Ko. Ils sont inclus dans la sauvegarde signée (somme de contrôle des fichiers) et restaurés avec elle.
+
+## Circuits rentables (taxis communaux et VTC)
+- Source : courses déclarées par les chauffeurs (zone, heure, montant), sans grille de demande préremplie.
+- Moteur : `circuit-engine.js` (potentiel par zone × heure, demi-vie 30 j, lissage ±1 h, profil semaine/week-end, fiabilité, répartition D'Hondt plafonnée à 40 %).
+- Portail chauffeur : « Où aller maintenant » (top 3, prochaines heures, filtre commune/ville), déclaration/retrait de course.
+- Bureau (Pilotage › Circuits rentables) : carte de chaleur, plan de la journée, rapport hebdomadaire par chauffeur, zones paramétrables.
+- Seuils : ≥ 30 courses pour proposer, ≥ 5 pour « indicatif », ≥ 20 pour « fiable ».
+- Tests : `tests/circuit-engine.js`, `tests/transport-circuits.js`.
