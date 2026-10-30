@@ -88,6 +88,8 @@ html[data-theme=turquoise]{--b:#0e7490;--b2:#0b3b4c;--b3:#1aa3c6}html[data-theme
 .themes{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.themes button{all:unset;cursor:pointer;width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--bd);transition:.15s}.themes button:hover{transform:scale(1.15)}.themes button.on{box-shadow:0 0 0 2px var(--tx)}
 aside .themes{margin:6px 0 2px}aside .themes button{width:18px;height:18px;border-color:rgba(255,255,255,.5)}
 @media(max-width:760px){.login.hero{grid-template-columns:1fr}.hero-l{padding:28px 22px;min-height:0}.hero-l h1{font-size:23px}.hero-r{padding:22px 16px}.pcards{grid-template-columns:1fr}}
+.btm{display:none}
+@media(max-width:800px){.btm{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card,#fff);border-top:1px solid var(--bd,#ddd);padding:4px 0 env(safe-area-inset-bottom)}.btm a{flex:1;text-align:center;font-size:11px;padding:6px 2px;cursor:pointer;color:var(--mu,#666)}.btm a span{display:block;font-size:20px}.btm a.on{color:var(--b,#0e7490);font-weight:700}main{padding-bottom:78px!important}}
 @media(max-width:800px){.shell{display:block}aside{position:fixed;z-index:40;height:100%;transform:translateX(-100%);transition:transform .2s}aside.open{transform:none}.burger{display:inline-block;margin-bottom:10px}main{padding:12px}}
 @media print{aside,.noprint,.burger{display:none!important}.md{position:static;background:none;padding:0}.md>div{max-height:none}body{background:#fff;color:#000}}
 .cgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));margin:10px 0}.vc{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;break-inside:avoid}.vc .ph{height:150px;background:rgba(0,0,0,.06);display:flex;align-items:center;justify-content:center;font-size:44px}.vc img{width:100%;height:150px;object-fit:cover;display:block}.vc .bd{padding:10px;display:flex;flex-direction:column;gap:4px}.vc .px{font-weight:800;font-size:17px;color:var(--b2)}.gal{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.gal img{height:84px;border-radius:8px;border:1px solid var(--bd);cursor:zoom-in}
@@ -1465,9 +1467,18 @@ function declarationTVA(m){
  const ca=sum(ls.filter(l=>l.compte===cdef("produit")),l=>(l.credit||0)-(l.debit||0)),cred=Math.max(0,soldeA(cdef("tva_credit"),monthEnd(pm))),net=t.net,due=Math.max(0,net-cred),rep=Math.max(0,cred-net);
  return{mois:m,taux:tvaTaux(),ca_ht:ca,collectee:t.coll,deductible:t.ded,net,credit_anterieur:cred,a_payer:due,credit_a_reporter:rep,liquidee:!!t.liq};
 }
+const normDep=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+function depDoublon(f){
+ const fo=normDep(f.fournisseur),j=String(f.justificatif||"").trim().toLowerCase(),t=new Date(f.date||today()).getTime(),sem=7*864e5,m=Math.round(+f.montant);
+ const d=S.expenses.find(x=>x.statut!=="rejetee"&&((j&&String(x.justificatif||"").trim().toLowerCase()===j&&x.montant===m)||(x.montant===m&&x.categorie===f.categorie&&normDep(x.fournisseur)===fo&&Math.abs(new Date(x.date).getTime()-t)<=sem)));
+ if(d)return{type:"dépense",ref:d.numero,date:d.date,montant:d.montant};
+ const b=S.cash_mv.find(x=>x.sens==="sortie"&&x.statut!=="rejetee"&&(!x.source||x.source.type!=="expense")&&x.montant===m&&Math.abs(new Date(x.date).getTime()-Date.now())<=2*864e5&&(CX_OUT_ANC.includes(x.categorie)||(fo&&normDep(x.motif+" "+(x.tiers||"")).includes(fo))));
+ return b?{type:"bon de caisse",ref:b.numero||"bon",date:String(b.date).slice(0,10),montant:b.montant}:null;
+}
 function creerDepense(f){
  need("depenses","c");if(!(f.montant>0))throw new Error("Montant invalide.");if(!CATS[f.categorie])throw new Error("Catégorie invalide.");
  if(f.montant>S.settings.seuil_justificatif&&!String(f.justificatif||"").trim())throw new Error("Justificatif obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)+".");
+ const dd=f.confirme_doublon||f.source?null:depDoublon(f);if(dd)throw new Error("Doublon probable : "+dd.type+" "+dd.ref+" du "+dd.date+" ("+fcfa(dd.montant)+"). Confirmez pour enregistrer quand même.");
  const e={id:uid("dp"),numero:seq("dp","DEP"),date:f.date,vehicle_id:f.vehicle_id||null,categorie:f.categorie,fournisseur:f.fournisseur||"",montant:f.montant,justificatif:f.justificatif||"",statut:"a_valider",par:ME.nom,source:f.source||null};
  S.expenses.push(e);audit("Dépense saisie",e.numero+" "+f.montant+" F");return e;
 }
@@ -1478,6 +1489,7 @@ function validerDepense(id,mode,ok,cid){
  const jr=esp?"CAI":"BQ",tre=esp?cptCaisse(cs):cdef("treso_banque");
  const en=postEntry({journal:jr,date:e.date>today()?today():e.date,libelle:e.categorie+" — "+(e.fournisseur||e.numero),piece:e.numero,source:{type:"expense",id:e.id},lines:[...chargeLignes(e),{compte:tre,credit:e.montant}]});
  if(esp)S.cash_mv.push({id:uid("cm"),session_id:cs.id,date:now(),sens:"sortie",montant:e.montant,categorie:"Dépense",motif:e.numero+" "+e.categorie,statut:"validee",source:{type:"expense",id:e.id},par:ME.nom});
+ if(!esp)S.bank_tx.push({id:uid("bt"),expense_id:e.id,date:e.date>today()?today():e.date,montant:-e.montant,mode:"banque",ref:e.numero+(e.fournisseur?" — "+e.fournisseur:""),pointe:false});
  e.statut="validee";e.mode=mode;e.entry_id=en.id;e.valide_par=ME.nom;audit("Dépense validée",e.numero);
 }
 function saisirOD(f){
@@ -2340,7 +2352,7 @@ V.caisse=()=>{
  if(t==="remises")h+=cxRemisesUI();
  if(t==="rapp")h+=cxRappUI();
  if(t==="banque"){const pt=sum(S.bank_tx.filter(b=>b.pointe&&!b.annule),b=>b.montant),cmp=sum(S.entries.flatMap(e=>e.lines.filter(l=>bkComptes().includes(l.compte))),l=>(l.debit||0)-(l.credit||0));
-  h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cmp)}</div><div class="l">Solde comptable (banque / mobile money)</div></div><div class="kpi o"><div class="v">${fcfa(pt)}</div><div class="l">Encaissements pointés (relevé)</div></div></div>`+tbl(["Date","Montant","Mode","Référence","Pointé"],S.bank_tx.filter(b=>!b.annule).slice().reverse().map(b=>tr([fd(b.date),fcfa(b.montant),esc(b.mode),esc(b.ref),can("caisse","e")?`<input type="checkbox" data-a="bk.pt" data-id="${b.id}" ${b.pointe?"checked":""}>`:(b.pointe?"Oui":"Non")])),{empty:"Aucune opération bancaire."});}
+  h+=`<div class="grid"><div class="kpi"><div class="v">${fcfa(cmp)}</div><div class="l">Solde comptable (banque / mobile money)</div></div><div class="kpi o"><div class="v">${fcfa(pt)}</div><div class="l">Mouvements pointés (relevé, encaissements − dépenses)</div></div><div class="kpi"><div class="v">${fcfa(sum(S.bank_tx.filter(b=>!b.pointe&&!b.annule),b=>b.montant))}</div><div class="l">Mouvements à pointer</div></div></div>`+tbl(["Date","Sens","Montant","Mode","Référence","Pointé"],S.bank_tx.filter(b=>!b.annule).slice().reverse().map(b=>tr([fd(b.date),b.montant<0?badge("Dépense","er"):badge("Encaissement","ok"),`<b style="color:var(--${b.montant<0?"er":"ok"})">${fcfa(b.montant)}</b>`,esc(b.mode),esc(b.ref),can("caisse","e")?`<input type="checkbox" data-a="bk.pt" data-id="${b.id}" ${b.pointe?"checked":""}>`:(b.pointe?"Oui":"Non")])),{empty:"Aucune opération bancaire."});}
  return h;
 };
 A["cx.per"]=id=>{cxUI().p=id;render()};
@@ -2379,7 +2391,7 @@ V.depenses=()=>{
  tbl(["N°","Date","Véhicule","Catégorie","Fournisseur","Montant","Justificatif","Statut","Par",""],S.expenses.filter(e=>!f.s||e.statut===f.s).slice().reverse().map(e=>tr([esc(e.numero),fd(e.date),esc(e.vehicle_id?vehImmat(e.vehicle_id):"—"),esc(e.categorie),esc(e.fournisseur),fcfa(e.montant),esc(e.justificatif),badge(e.statut==="a_valider"?"À valider":e.statut==="validee"?"Validée":"Rejetée",e.statut==="validee"?"ok":e.statut==="a_valider"?"wa":"er"),esc(e.par),e.statut==="a_valider"&&can("depenses","a")?`<div class="flex">${btn("dp.val",e.id,"Valider","ok")}${btn("dp.rej",e.id,"Rejeter","er")}</div>`:""])));
 };
 CSVS.depenses=()=>[["N°","Date","Catégorie","Montant","Statut"],S.expenses.map(e=>[e.numero,e.date,e.categorie,e.montant,e.statut])];
-A["dp.add"]=()=>form("Nouvelle dépense",[{k:"date",l:"Date",t:"date",req:1},{k:"vehicle_id",l:"Véhicule (facultatif)",t:"select",o:()=>[["","—"],...vehOpts()]},{k:"categorie",l:"Catégorie",t:"select",o:Object.keys(CATS).map(x=>[x,x])},{k:"fournisseur",l:"Fournisseur"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"justificatif",l:"Justificatif (n° facture / pièce)",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)}],{date:today()},o=>{creerDepense(o)});
+A["dp.add"]=()=>form("Nouvelle dépense",[{k:"date",l:"Date",t:"date",req:1},{k:"vehicle_id",l:"Véhicule (facultatif)",t:"select",o:()=>[["","—"],...vehOpts()]},{k:"categorie",l:"Catégorie",t:"select",o:Object.keys(CATS).map(x=>[x,x])},{k:"fournisseur",l:"Fournisseur"},{k:"montant",l:"Montant (F)",t:"number",req:1},{k:"justificatif",l:"Justificatif (n° facture / pièce)",h:"Obligatoire au-delà de "+fcfa(S.settings.seuil_justificatif)}],{date:today()},o=>{const dd=depDoublon(o);if(dd){if(!confirm("⚠ Doublon probable : "+dd.type+" "+dd.ref+" du "+fd(dd.date)+" ("+fcfa(dd.montant)+").\nEnregistrer quand même ?"))throw new Error("Saisie annulée : doublon probable.");o={...o,confirme_doublon:true}}creerDepense(o)});
 A["dp.val"]=id=>form("Valider la dépense",[{k:"mode",l:"Règlement",t:"select",o:[["caisse","Espèces (caisse)"],["banque","Banque / mobile money"]]},{k:"caisse",l:"Caisse (si espèces)",t:"select",o:()=>[["","Automatique (première caisse ouverte)"],...caissesAct().filter(c=>openSession(c.id)).map(c=>[c.id,c.nom+" — "+fcfa(cxSoldeC(c))])]}],{},o=>validerDepense(id,o.mode,true,o.caisse||undefined),"Valider");
 A["dp.rej"]=id=>{if(atomic(()=>validerDepense(id,null,false)))render()};
 /* ---- Comptabilité ---- */
@@ -2636,8 +2648,10 @@ V.gps=()=>{
  let h=head("Carte GPS")+tabs("gps",[["carte","Carte"],["histo","Historique"],...(can("gps","c")?[["collecte","Réception de positions"]]:[])]);
  if(t==="carte"){
   const q=f.q.toLowerCase(),rows=S.gps_dev.filter(g=>g.vehicle_id).map(g=>({g,v:by(S.vehicles,g.vehicle_id),l:lastPos(g.id),as:S.assignments.find(a=>a.vehicle_id===g.vehicle_id&&!a.fin)})).filter(r=>!q||(r.v.immat+r.g.ident+(r.as?chauffeurNom(r.as.driver_id):"")).toLowerCase().includes(q));
-  AFTER=()=>drawMap(rows.filter(r=>r.l).map(r=>({lat:r.l.lat,lng:r.l.lng,label:r.v.immat+" — "+gpsEtat(r.g)[0]+" — "+fdt(r.l.t)})));
+  const tel=posChaufListe().filter(x=>!q||chauffeurNom(x.p.driver_id).toLowerCase().includes(q)||(x.p.vehicle_id?vehImmat(x.p.vehicle_id).toLowerCase():"").includes(q));
+  AFTER=()=>drawMap([...rows.filter(r=>r.l).map(r=>({lat:r.l.lat,lng:r.l.lng,label:r.v.immat+" — "+gpsEtat(r.g)[0]+" — "+fdt(r.l.t)})),...tel.map(x=>({lat:x.p.lat,lng:x.p.lng,label:"📱 "+chauffeurNom(x.p.driver_id)+(x.p.vehicle_id?" ("+vehImmat(x.p.vehicle_id)+")":"")+" — "+x.e[0]+" — "+fdt(x.p.t)}))]);
   h+=`<div class="card"><input data-f="gps:q" placeholder="Immatriculation, dispositif ou chauffeur…" value="${esc(f.q)}"></div><div id="map"></div>`+tbl(["Véhicule","Chauffeur","Dispositif","Dernière position","Dernière transmission","Fraîcheur","Vitesse"],rows.map(r=>{const e=gpsEtat(r.g);return tr([esc(r.v.immat),esc(r.as?chauffeurNom(r.as.driver_id):"—"),esc(r.g.ident),r.l?`<a href="${osm(r.l.lat,r.l.lng)}" target="_blank" rel="noopener noreferrer">${r.l.lat.toFixed(5)}, ${r.l.lng.toFixed(5)}</a>`:"—",r.l?fdt(r.l.t):"—",badge(e[0],e[1]),r.l?r.l.vit+" km/h":"—"])}),{empty:"Aucun véhicule équipé."})+
+  `<h2>📱 Chauffeurs (position du téléphone)</h2>`+tbl(["Chauffeur","Véhicule","Dernière position","Dernière transmission","État","Précision","Vitesse"],tel.map(x=>tr([esc(chauffeurNom(x.p.driver_id)),esc(x.p.vehicle_id?vehImmat(x.p.vehicle_id):"—"),`<a href="${osm(x.p.lat,x.p.lng)}" target="_blank" rel="noopener noreferrer">${x.p.lat.toFixed(5)}, ${x.p.lng.toFixed(5)}</a>`,fdt(x.p.t),badge(x.e[0],x.e[1]),x.p.prec?x.p.prec+" m":"—",x.p.vit+" km/h"])),{empty:"Aucun chauffeur ne partage sa position (activer dans l'application chauffeur › Accueil)."})+
   `<h2>Alertes</h2>`+tbl(["Date","Véhicule","Alerte"],S.gps_alerts.slice(0,20).map(a=>tr([fdt(a.t),esc(vehImmat(a.vehicle_id)),esc(a.texte)])),{empty:"Aucune alerte."});
  }
  if(t==="histo"){
@@ -3117,7 +3131,7 @@ function changerMdp(obligatoire){const m0=ME;return ANGELS_AUTH.ouvrirChangement
 const myNotifs=()=>{const d=meDriver();return S.notifs.filter(n=>n.to==="*"||n.to===d.id).slice().reverse()};
 V.p_accueil=()=>{
  const d=meDriver();if(!d)return"<h1>Accueil</h1><div class='card'>Profil chauffeur introuvable.</div>";const P=portalData(d.id),as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),c=S.contracts.find(c=>c.driver_id===d.id&&ctOuvert(c)),next=P.obs.filter(o=>soldeM(o,P.am)>0).slice().reverse().slice(0,3),nn=myNotifs();
- return `<h1>Bonjour ${esc(d.nom.split(" ")[0])}</h1><div class="grid"><div class="kpi"><div class="v">${esc(as?vehImmat(as.vehicle_id):"—")}</div><div class="l">Mon véhicule</div></div><div class="kpi"><div class="v">${c?esc(c.mode==="recette"?"Recette "+fcfa(c.montant)+"/jour":"Location "+fcfa(c.montant)+"/"+c.periodicite):"—"}</div><div class="l">Mode d'exploitation</div></div><div class="kpi ${P.solde?"e":"o"}"><div class="v">${fcfa(P.solde)}</div><div class="l">Solde restant dû</div></div></div>
+ return `<h1>Bonjour ${esc(d.nom.split(" ")[0])}</h1>${posCarte(d)}<div class="grid"><div class="kpi"><div class="v">${esc(as?vehImmat(as.vehicle_id):"—")}</div><div class="l">Mon véhicule</div></div><div class="kpi"><div class="v">${c?esc(c.mode==="recette"?"Recette "+fcfa(c.montant)+"/jour":"Location "+fcfa(c.montant)+"/"+c.periodicite):"—"}</div><div class="l">Mode d'exploitation</div></div><div class="kpi ${P.solde?"e":"o"}"><div class="v">${fcfa(P.solde)}</div><div class="l">Solde restant dû</div></div></div>
  <h2>Prochaines échéances</h2>${tbl(["Date","Montant","Solde","Retard"],next.map(o=>tr([fd(o.date_ech),fcfa(o.montant),fcfa(soldeM(o,P.am)),retardJ(o,P.am)?`<b style="color:var(--er)">${retardJ(o,P.am)} j</b>`:"—"])),{empty:"Aucune échéance impayée."})}
  <h2>Notifications (${nn.length})</h2>${nn.slice(0,10).map(n=>`<div class="card"><b>${esc(n.titre)}</b> <span class="mu sm">${fdt(n.t)}</span><br>${esc(n.texte)}</div>`).join("")||'<div class="card mu">Aucune notification.</div>'}`;
 };
@@ -3127,6 +3141,38 @@ V.p_vehicule=()=>{const d=meDriver(),as=S.assignments.find(a=>a.driver_id===d.id
 V.p_incident=()=>{const d=meDriver();return `<h1>Signaler un incident</h1><p><button class="btn" data-a="p.inc">Signaler une panne / un incident</button></p>`+tbl(["N°","Date","Type","Description","Statut"],S.incidents.filter(i=>i.driver_id===d.id).slice().reverse().map(i=>tr([esc(i.numero),fd(i.date),esc(i.type),esc(i.description),badge(SIN[i.statut],i.statut==="clos"?"ok":"wa")])),{empty:"Aucun signalement."})};
 V.p_demandes=()=>{const d=meDriver();return `<h1>Mes demandes</h1><p><button class="btn" data-a="p.dem">Nouvelle demande</button></p>`+tbl(["Date","Type","Message","Statut","Réponse"],S.requests.filter(r=>r.driver_id===d.id).slice().reverse().map(r=>tr([fdt(r.t),esc(r.type),esc(r.texte),badge(r.statut,r.statut==="ouverte"?"wa":r.statut==="traitee"?"ok":"er"),esc(r.reponse||"")])),{empty:"Aucune demande."})};
 V.p_profil=()=>{const d=meDriver();return `<h1>Mon profil</h1><div class="card"><p><b>${esc(d.nom)}</b><br>Téléphone : ${esc(d.tel||"—")}<br>Adresse : ${esc(d.adresse||"—")}<br>Permis : ${esc(d.permis_no||"—")} ${dateBadge(d.permis_fin)}</p><div class="flex"><button class="btn" data-a="p.prof">Modifier mes coordonnées</button><button class="btn ghost" data-a="p.pin">Changer mon mot de passe</button></div><p class="mu sm">Les changements de coordonnées sont soumis à validation du bureau.</p></div>`};
+/* ---------- Application chauffeur : partage de position depuis le téléphone (comme les livreurs) ---------- */
+const POS_FRAIS=[3e5,18e5],POS_MAX=864e5,posKey=d=>"tr_pos_"+d.id,posOn=d=>{try{return localStorage.getItem(posKey(d))==="1"}catch(e){return false}};
+const POS_ST={w:null,der:0,lat:null,lng:null,st:"",err:""};
+function enregistrerPosChauf(lat,lng,vit,prec){
+ const d=meDriver();if(!d)throw new Error("Réservé aux chauffeurs.");lat=+lat;lng=+lng;
+ if(!(isFinite(lat)&&isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180))throw new Error("Position invalide.");
+ const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),it={id:"pc_"+d.id,driver_id:d.id,vehicle_id:as?as.vehicle_id:null,lat:+lat.toFixed(6),lng:+lng.toFixed(6),vit:Math.max(0,Math.min(250,Math.round((+vit||0)*3.6))),prec:Math.max(0,Math.round(+prec||0)),t:now()};
+ S.pos_chauf=S.pos_chauf||[];const i=S.pos_chauf.findIndex(x=>x.driver_id===d.id);if(i>=0)S.pos_chauf[i]=it;else S.pos_chauf.push(it);save();return it;
+}
+function retirerPosChauf(){const d=meDriver();if(!d)return;S.pos_chauf=(S.pos_chauf||[]).filter(x=>x.driver_id!==d.id);save()}
+function arretPos(){if(POS_ST.w!=null&&navigator.geolocation)navigator.geolocation.clearWatch(POS_ST.w);POS_ST.w=null}
+function suiviPos(){
+ const d=meDriver();if(!d||!posOn(d)||!navigator.geolocation){arretPos();return}if(POS_ST.w!=null)return;
+ POS_ST.w=navigator.geolocation.watchPosition(p=>{
+  const c=p.coords;POS_ST.st="ok";if((c.accuracy||0)>1000)return;const n=Date.now();if(n-POS_ST.der<45000)return;
+  const dm=POS_ST.lat==null?1e9:CIRC().distanceKm({lat:POS_ST.lat,lng:POS_ST.lng},{lat:c.latitude,lng:c.longitude})*1000;if(dm<30&&n-POS_ST.der<18e4)return;
+  try{enregistrerPosChauf(c.latitude,c.longitude,c.speed,c.accuracy);POS_ST.der=n;POS_ST.lat=c.latitude;POS_ST.lng=c.longitude;POS_ST.err="";const e=document.getElementById("posinfo");if(e)e.innerHTML=posInfo(d)}catch(x){POS_ST.err=x.message}
+ },e=>{if(e&&e.code===1){try{localStorage.setItem(posKey(d),"0")}catch(x){}POS_ST.st="refuse";arretPos();retirerPosChauf();if(ME)render()}else POS_ST.st="indispo"},{enableHighAccuracy:true,maximumAge:15000,timeout:30000});
+}
+const posInfo=d=>{const q=(S.pos_chauf||[]).find(x=>x.driver_id===d.id);
+ if(!posOn(d))return POS_ST.st==="refuse"?'<span style="color:var(--er)">Localisation refusée : autorisez-la dans les réglages du navigateur, puis réactivez.</span>':'<span class="mu">Partage désactivé : le bureau ne voit pas votre position.</span>';
+ return q?badge("Actif","ok")+" dernier envoi à "+new Date(q.t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+(q.prec?" · précision "+q.prec+" m":""):badge("En attente du GPS…","wa")+(POS_ST.st==="indispo"?" signal indisponible":"")};
+const posCarte=d=>`<div class="card"><div class="between"><b>📍 Partage de ma position</b><button class="btn sm ${posOn(d)?"ghost":"ok"}" data-a="pos.tg">${posOn(d)?"Arrêter":"Activer"}</button></div><div class="sm" id="posinfo" style="margin-top:6px">${posInfo(d)}</div><p class="mu sm" style="margin:6px 0 0">Gardez l'application ouverte, écran allumé : le navigateur coupe la localisation en arrière-plan. Seul le bureau voit votre dernière position, uniquement quand le partage est activé.</p></div>`;
+A["pos.tg"]=()=>{const d=meDriver();if(!d)return;
+ if(posOn(d)){try{localStorage.setItem(posKey(d),"0")}catch(e){}arretPos();retirerPosChauf();audit("Partage de position arrêté",d.nom);return render()}
+ if(!navigator.geolocation)return alert("Localisation indisponible sur cet appareil.");
+ navigator.geolocation.getCurrentPosition(p=>{try{localStorage.setItem(posKey(d),"1")}catch(e){}POS_ST.st="ok";POS_ST.der=0;POS_ST.lat=null;try{enregistrerPosChauf(p.coords.latitude,p.coords.longitude,p.coords.speed,p.coords.accuracy);POS_ST.der=Date.now();POS_ST.lat=p.coords.latitude;POS_ST.lng=p.coords.longitude}catch(x){}audit("Partage de position activé",d.nom);suiviPos();render()},
+  e=>{POS_ST.st=e&&e.code===1?"refuse":"indispo";alert(e&&e.code===1?"Localisation refusée. Autorisez-la dans les réglages du navigateur pour ce site, puis réessayez.":"Position introuvable : sortez à l'air libre ou activez le GPS.");render()},{enableHighAccuracy:true,timeout:20000});
+};
+const posChaufListe=()=>(S.pos_chauf||[]).filter(p=>Date.now()-new Date(p.t)<POS_MAX).map(p=>{const age=Date.now()-new Date(p.t);return{p,age,e:age<POS_FRAIS[0]?["En ligne","ok"]:age<POS_FRAIS[1]?["Récent","wa"]:["Hors ligne","er"]}}).sort((a,b)=>a.age-b.age);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&ME)try{arretPos();suiviPos()}catch(e){}});
+const btmBar=()=>meDriver()?`<nav class="btm">${[["p_accueil","🏠","Accueil"],["p_circuit","🎯","Où aller"],["p_compte","💳","Compte"],["p_incident","⚠️","Incident"]].map(([v,i,l])=>`<a data-a="nav" data-id="${v}" class="${view===v?"on":""}"><span>${i}</span>${l}</a>`).join("")}<a data-a="bg"><span>☰</span>Menu</a></nav>`:"";
 A["p.contest"]=id=>form("Contester une échéance",[{k:"texte",l:"Motif de la contestation",t:"area",req:1,full:1},{k:"pj",l:"Justificatif (facultatif)",t:"file"}],{},o=>creerDemande({type:"contestation",ob:id,texte:o.texte,pj:o.pj}),"Envoyer");
 /* --- Portail chauffeur (module 12) : déclaration de recette, entretien, versements, historique --- */
 const DECL_ST={declaree:["À valider","wa"],validee:["Validée","ok"],rejetee:["Rejetée","er"],retiree:["Retirée","mu"]};
@@ -3191,7 +3237,7 @@ function declarerCourse(f){
  S.courses.push(x);const lim=Date.now()-180*864e5;S.courses=S.courses.filter(c=>new Date(c.t).getTime()>=lim);return x;
 }
 function retirerCourse(id){const d=meDriver(),x=by(S.courses,id);if(!d||!x||x.driver_id!==d.id)throw new Error("Accès refusé : course d'un autre chauffeur.");if(Date.now()-new Date(x.t).getTime()>24*36e5)throw new Error("Une course ne se retire que dans les 24 heures.");S.courses=S.courses.filter(c=>c.id!==id)}
-const posChauffeur=d=>{const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),dev=as&&S.gps_dev.find(x=>x.vehicle_id===as.vehicle_id&&x.actif),p=dev&&lastPos(dev.id);return p&&Date.now()-new Date(p.t)<18e5?{lat:p.lat,lng:p.lng}:null};
+const posChauffeur=d=>{const q=(S.pos_chauf||[]).find(x=>x.driver_id===d.id);if(q&&Date.now()-new Date(q.t)<18e5)return{lat:q.lat,lng:q.lng};const as=S.assignments.find(a=>a.driver_id===d.id&&!a.fin),dev=as&&S.gps_dev.find(x=>x.vehicle_id===as.vehicle_id&&x.actif),p=dev&&lastPos(dev.id);return p&&Date.now()-new Date(p.t)<18e5?{lat:p.lat,lng:p.lng}:null};
 const communeChoix=d=>{try{return localStorage.getItem("tr_commune_"+d.id)||""}catch(e){return""}};
 const trendTxt={hausse:"↗ monte à l'heure suivante",baisse:"↘ baisse à l'heure suivante",stable:"→ stable"};
 V.p_circuit=()=>{
@@ -3254,7 +3300,7 @@ const IMP_CLES=[["valeur","Valeur d'achat"],["poids","Poids"],["volume","Volume"
 const IMP_CAUSES=[["document","Document manquant"],["paiement","Paiement"],["controle","Contrôle"],["transitaire","Action du transitaire"],["autre","Autre cause"]];
 const impEtapesCfg=()=>{const c=S.settings.imp_etapes;return IMP_ETAPES_DEF.map(([k,l])=>({k,l,actif:!c||c[k]!==false}))};
 const nomEtape=k=>(IMP_ETAPES_DEF.find(x=>x[0]===k)||[0,k])[1];
-function migrerNegoce(){["courses","vn","ventes_veh","imports","tiers_vn","reservations","devis","inventaires_vn","declarations","demandes_veh","xp_produits","xp_clients","xp_prestataires","xp_lots","xp_cmd"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.alertes_etat)S.alertes_etat={};
+function migrerNegoce(){["pos_chauf","courses","vn","ventes_veh","imports","tiers_vn","reservations","devis","inventaires_vn","declarations","demandes_veh","xp_produits","xp_clients","xp_prestataires","xp_lots","xp_cmd"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.alertes_etat)S.alertes_etat={};
  S.ventes_veh.forEach(x=>{if(!x.livraison)x.livraison={statut:x.export&&x.exp&&x.exp.statut==="livre"?"livree":"a_livrer"};if(!x.hist)x.hist=[{t:x.t||now(),par:x.par||"",statut:"facturee",note:"Facture émise"}];if(x.acompte===undefined)x.acompte=sum(x.encaissements,e=>e.montant);if(!x.echeancier)x.echeancier=[];if(!x.statut)x.statut="facturee"});
  if(!S.settings.mig_perm_caisse_admin){const a=S.perms.admin;if(a){const D=defPerms().admin;["caisse","encaissements"].forEach(m=>{a[m]=[...new Set([...(a[m]||[]),...D[m]])]})}S.settings.mig_perm_caisse_admin=true}
  if(!S.settings.mig_perm_depenses_admin){const a=S.perms.admin;if(a){const D=defPerms().admin;a.depenses=[...new Set([...(a.depenses||[]),...D.depenses])]}S.settings.mig_perm_depenses_admin=true}
@@ -4233,8 +4279,9 @@ function render(){
  const items=NAV.filter(showNav);if(!items.some(n=>n.v===view))view=items[0].v;
  let g="",nav=modNavT(items);items.filter(n=>!modOfT(n.v)).forEach(n=>{if(n.g!==g){g=n.g;nav+=`<div class="gt">${esc(g)}</div>`}nav+=`<a data-a="nav" data-id="${n.v}" class="${n.v===view?"on":""}">${n.i} ${esc(n.l)}</a>`});
  AFTER=null;let body;try{body=V[view]()}catch(e){body=`<div class="card"><b>Erreur d'affichage</b><p>${esc(e.message)}</p></div>`}
- app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">${"🚕 "+ORG()+"<small>"+ORGACT()+" · "+VILLE()+"</small>"}</div>${clkBox()}${nav}<a href="index.html">🏠 Hub groupe</a><div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}${qrBtn()?qrBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="mdp.me">Mon mot de passe</a><br><a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${modTabsT(items)}${body}</main></div>`;
+ app.innerHTML=`<div class="shell"><aside id="sb"><div class="brand">${"🚕 "+ORG()+"<small>"+ORGACT()+" · "+VILLE()+"</small>"}</div>${clkBox()}${nav}<a href="index.html">🏠 Hub groupe</a><div class="sanix" style="margin:10px 12px;font-size:11px;opacity:.7;line-height:1.4">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div><div class="who">${esc(ME.nom)}<br><span class="mu">${esc(ROLES[ME.role])}</span><br>${pwaBtn()?pwaBtn()+"<br>":""}${qrBtn()?qrBtn()+"<br>":""}<div class="mu sm" style="margin-top:6px">Couleur</div>${themeDots()}<a data-a="mdp.me">Mon mot de passe</a><br><a data-a="out">Déconnexion</a></div></aside><main><button class="btn ghost burger" data-a="bg">☰ Menu</button>${modTabsT(items)}${body}</main>${btmBar()}</div>`;
  try{ANGELS_HABILLAGE.appliquer()}catch(e){}
+ try{suiviPos()}catch(e){}
  if(AFTER){const f=AFTER;AFTER=null;f()}
 }
 A["out"]=()=>{atomic(()=>{if(ME)ANGELS_AUTH.trace(S,{app:"transport",uid:ME.id,nom:ME.nom,role:ME.role,ev:"out"});audit("Déconnexion")},true);ME=null;try{sessionStorage.removeItem("tr_me")}catch(x){}render()};
