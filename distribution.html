@@ -4253,6 +4253,9 @@ function expCreer(o){
  if(!EXRO()&&!can("vendeur"))throw new Error("Droits insuffisants pour créer une expédition");
  if(!EXP_TYPE_L[o.type])throw new Error("Type d'expédition invalide");
  const dn=o.dest||{};if(!String(dn.nom||"").trim())throw new Error("Le destinataire est obligatoire");
+ {const nv=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim(),vil=nv(dn.ville);   /* une expédition se fait hors d'Abidjan : Abidjan et ses communes relèvent de la livraison */
+  if(!vil)throw new Error("La ville de destination est obligatoire (hors Abidjan)");
+  if(/abidjan/.test(vil)||(S.config.zones||[]).some(z=>nv(z.nom)===vil))throw new Error("Une expédition se fait hors d'Abidjan : pour Abidjan, utilisez une livraison")}
  const cids=(o.commande_ids||[]).filter(Boolean);cids.forEach(id=>{const c=cmd(id);if(!c)throw new Error("Commande introuvable");if(activeLiv(c.id))throw new Error("La commande "+c.numero+" est déjà affectée à un livreur : retirez la course avant de créer un dossier d'expédition");if(can("vendeur")&&(!vend()||c.vendeur_id!==vend().id))throw new Error("Cette commande ne vous appartient pas")});
  const e={id:uid("x"),numero:numExp(),type:o.type,statut:"brouillon",commande_ids:cids,origine:String(o.origine||S.config.org||"").trim(),dest:{nom:String(dn.nom).trim(),tel:String(dn.tel||"").trim(),adresse:String(dn.adresse||"").trim(),ville:String(dn.ville||"").trim(),pays:String(dn.pays||"Côte d'Ivoire").trim()},
   colis:[],transporteur:String(o.transporteur||"").trim(),mode:o.mode||"Route",responsable:o.responsable||"",livreur_id:o.livreur_id||"",depart_prevu:o.depart_prevu||"",eta:o.eta||"",depart_reel:null,bordereau:"",
