@@ -7,7 +7,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
  const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1200,height:900}}),errs=[];let ok=0,ko=0;
  const t=(id,l,r)=>{if(r===true){ok++;console.log("PASS",id,l)}else{ko++;console.log("FAIL",id,l,"→",r)}};
- const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));
+ const p=await ctx.newPage();await p.addInitScript(()=>{window.ANGELS_HUB_LOCAL=true;try{sessionStorage.setItem("hub_fin",JSON.stringify({exp:Date.now()+36e5}))}catch(e){}});p.on("pageerror",e=>errs.push(e.message));
  await p.goto(base+"/index.html");await p.waitForTimeout(400);
  t("HP-1","sans opportunité : panneau masqué",await p.$eval("#prio",e=>e.hidden)?true:"visible");
  const t0=Date.now();

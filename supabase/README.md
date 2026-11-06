@@ -182,3 +182,13 @@ Un refus côté bureau (doublon, montant trop élevé, course en cours) est sign
 ## Facturation normalisée (FNE)
 
 Fonction `fne` (migration `025_fne.sql`) : certification des factures auprès de la DGI. Secrets : `FNE_TEST_KEY`, `FNE_PROD_KEY`, `FNE_PROD_URL` (ou par division `FNE_<DISTRIBUTION|TRANSPORT|AGRO>_<TEST|PROD>_KEY/URL`), `FNE_TEST_URL` (défaut plateforme de test). Voir le README principal.
+
+## Hub : chiffres consolidés réservés à la direction (migration 033)
+
+| Élément | Rôle |
+|---|---|
+| `migrations/033_hub_acces.sql` | `hub_profils` (RLS : chacun lit son profil, aucune écriture cliente), `hub_acces_journal` (aucun accès client), `hub_peut_voir_finance()`, `hub_consolide_lire()` (`SECURITY DEFINER`, rôles `admin` / `direction` / `directeur` actifs ; refus et accès journalisés ; comptes, connexions et journaux exclus) |
+| `index.html` | Si `passerelle-config.js` est présent : connexion Supabase Auth (e-mail + mot de passe), lecture par `hub_consolide_lire`, données gardées en mémoire 10 min (rien sur l'appareil). Sans configuration : ancien verrou local |
+
+Mise en service : appliquer 006, 019, 033 ; créer l'utilisateur dans *Authentication*, puis `insert into public.hub_profils(user_id, nom, role) values ('<uuid>', 'Nom', 'directeur');`. Recette : `PGHOST=… PGPORT=… PGUSER=… PGDATABASE=… bash tests/recette-hub-acces.sh` (11 contrôles) et `node tests/hub-serveur.js` (9 contrôles).
+Limite : `sync_enreg` reste lisible par la clé de synchronisation partagée des postes (`SYNC_KEY`) ; la fonction `sync` n'est pas concernée par ce verrou.

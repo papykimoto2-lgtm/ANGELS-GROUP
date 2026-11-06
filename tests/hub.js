@@ -8,7 +8,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await new Promise(ok=>srv.listen(0,"127.0.0.1",ok));const base="http://127.0.0.1:"+srv.address().port;
  const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const ctx=await b.newContext({viewport:{width:1100,height:900}}),errs=[];let ok=0,ko=0;
  const t=(id,l,r)=>{if(r===true){ok++;console.log("PASS",id,l)}else{ko++;console.log("FAIL",id,l,"→",r)}};
- const page=async u=>{const p=await ctx.newPage();p.on("pageerror",e=>errs.push(u+" : "+e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/"+u);await p.waitForTimeout(400);return p};
+ const page=async u=>{const p=await ctx.newPage();await p.addInitScript(()=>{window.ANGELS_HUB_LOCAL=true;try{sessionStorage.setItem("hub_fin",JSON.stringify({exp:Date.now()+36e5}))}catch(e){}});p.on("pageerror",e=>errs.push(u+" : "+e.message));p.on("dialog",d=>d.accept());await p.goto(base+"/"+u);await p.waitForTimeout(400);return p};
  // 1. hub avant toute utilisation : « non ouvert »
  let h=await page("index.html");const vide=await h.$eval("#tcons",e=>e.innerText);t("HUB-1","applications jamais ouvertes : « non ouvert », aucun chiffre inventé",/non ouvert/.test(vide)&&!/[1-9]\d* F/.test(vide.replace(/0 F/g,""))?true:vide.slice(0,200));await h.close();
  // 2. valeurs de référence calculées par chaque application
