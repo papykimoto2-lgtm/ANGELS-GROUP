@@ -1,0 +1,22 @@
+/* Distributions : Utilisateurs & droits → bouton « Modifier » (nom, profil, garde-fous). Usage : NODE_OPTIONS="--require ./tests/demo-hook.js" node tests/utilisateur-modifier.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");const path=require("path");
+(async()=>{const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const p=await (await b.newContext({viewport:{width:1200,height:900}})).newPage(),E=[];let ok=0,ko=0;
+ const chk=(id,l,o,i)=>{console.log(o===true?"PASS":"FAIL",id,l,o===true?"":"-> "+(i===undefined?o:i));o===true?ok++:ko++};
+ p.on("pageerror",e=>E.push(e.message));await p.goto("file://"+path.resolve(__dirname,"../distribution.html"));await p.waitForTimeout(500);
+ const r=await p.evaluate(async()=>{const o={};window.__T=[];toast=m=>{__T.push(m)};const adm=S.users.find(u=>u.role==="admin"&&u.actif);ME=adm;
+  S.users.push({id:"u_e1",nom:"Compta Test",role:"caissier",actif:true,chg:false},{id:"u_e2",nom:"Autre Test",role:"caissier",actif:true,chg:false});
+  view="utilisateurs";render();o.btn=document.body.innerHTML.includes('data-act="editUser"');
+  const go=async(id,nom,role)=>{ACT.editUser(id);const f=document.querySelector("#mf");if(!f)return"noform";f.elements.nom.value=nom;if(role&&!f.elements.r.disabled)f.elements.r.value=role;f.requestSubmit();await new Promise(r=>setTimeout(r,80));return document.querySelector("#mf")?"ouvert":"ferme"};
+  ACT.editUser("u_e1");o.pre=document.querySelector("#mf").elements.nom.value;closeModal();
+  o.ok=await go("u_e1","Compta Renommé","commercial");const u=S.users.find(x=>x.id==="u_e1");o.maj=u.nom==="Compta Renommé"&&u.role==="commercial";o.aud=S.audit.some(a=>a.action==="Utilisateur modifié");
+  o.dup=await go("u_e1","Autre Test","commercial");if(document.querySelector("#mf"))closeModal();o.dupOk=S.users.find(x=>x.id==="u_e1").nom==="Compta Renommé"&&__T.some(m=>/déjà ce nom/.test(m));
+  o.moi=await go(adm.id,adm.nom,"caissier");o.moiRole=S.users.find(x=>x.id===adm.id).role==="admin";
+  ME=S.users.find(x=>x.role==="caissier");__T.length=0;ACT.editUser("u_e2");o.refus=__T.some(m=>/Réservé/.test(m))&&!document.querySelector("#mf");
+  return o});
+ chk("UM-1","bouton Modifier présent",r.btn===true,JSON.stringify(r));
+ chk("UM-2","formulaire prérempli ; nom et profil modifiés ; audit",r.pre==="Compta Test"&&r.ok==="ferme"&&r.maj&&r.aud,JSON.stringify(r));
+ chk("UM-3","nom déjà utilisé refusé",r.dupOk===true,JSON.stringify(r));
+ chk("UM-4","son propre profil inchangé",r.moiRole===true,JSON.stringify(r));
+ chk("UM-5","réservé à l'administrateur",r.refus===true,JSON.stringify(r));
+ chk("UM-6","aucune erreur JS",E.length===0,E.join("|"));
+ console.log(ok+" PASS / "+ko+" FAIL");await b.close();process.exit(ko?1:0)})();
