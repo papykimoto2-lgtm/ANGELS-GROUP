@@ -60,7 +60,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const pa=await ctx.newPage();pa.on("pageerror",e=>errs.push("agro: "+e.message));await pa.goto(base+"/agro.html");await pa.waitForTimeout(500);
  const r9=await pa.evaluate(()=>{ME=S.users.find(u=>u.actif);save();const r=JSON.parse(localStorage.getItem("angels_compta_agro"));return r});
  {const o=r9&&r9.module==="agro"&&r9.debit===r9.credit&&r9.desequilibres===0&&typeof r9.nb_ecritures==="number";console.log(o?"PASS":"FAIL","CPA-9 Agro : synthèse comptable publiée à l'enregistrement",o?"":JSON.stringify(r9));o?ok++:ko++}
- const ph=await ctx.newPage();ph.on("pageerror",e=>errs.push("hub: "+e.message));await ph.goto(base+"/compta-groupe.html");await ph.waitForTimeout(400);
+ const ph=await ctx.newPage();ph.on("pageerror",e=>errs.push("hub: "+e.message));await ph.goto(base+"/compta-groupe.html");await ph.waitForTimeout(400);await ph.fill("#gate [name=pwd]","Demo@Angels2026");await ph.click("#gate button[type=submit]");await ph.waitForTimeout(900);
  const tx=await ph.evaluate(()=>document.body.innerText);
  {const o=/3 \/ 3/.test(tx)&&(tx.match(/Conforme/g)||[]).length>=3&&/Résultat par activité/.test(tx)&&/Frais de transit et douane/.test(tx)&&!/NaN|undefined/.test(tx);console.log(o?"PASS":"FAIL","CPA-10 Hub : page « Comptabilité du groupe » — trois applications conformes, totaux consolidés, résultat par activité",o?"":tx.slice(0,900));o?ok++:ko++}
  // une anomalie remontée au Hub

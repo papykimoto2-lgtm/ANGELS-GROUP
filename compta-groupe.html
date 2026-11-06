@@ -31,12 +31,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 8px;b
 .mu{color:var(--mu);font-size:13px}.er{color:var(--er)}
 a.btn{display:inline-block;padding:9px 14px;border-radius:10px;background:var(--b);color:#fff;text-decoration:none;font-weight:700;font-size:13px}
 .scroll{overflow-x:auto}
+.gate{max-width:430px;margin:28px auto}.gate h2{margin-top:0}.gate label{display:block;font-size:13px;font-weight:700;margin-top:12px}
+.gate select,.gate input{display:block;width:100%;margin-top:4px;font:16px system-ui,sans-serif;padding:11px 12px;border:1.5px solid var(--bd);border-radius:9px;background:var(--card);color:var(--tx)}
+.gate button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:10px;background:var(--b);color:#fff;font:700 15px system-ui,sans-serif;cursor:pointer;min-height:44px}
+.msg{padding:9px 12px;border-radius:9px;background:#fde7e4;color:#b42318;font-size:13px;font-weight:700;margin-top:8px}
+.who{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:13px}.who button{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:9px;padding:6px 12px;font:700 13px system-ui,sans-serif;cursor:pointer;min-height:36px}
 </style>
 </head>
 <body>
-<header><div class="w"><a href="index.html">← Hub du groupe</a><h1>📒 Comptabilité du groupe</h1><p>Contrôle d'intégrité et consolidation des trois applications : chaque module comptabilise-t-il ses opérations, ses écritures sont-elles équilibrées, le plan est-il commun ?</p></div></header>
+<header><div class="w"><a href="index.html">← Hub du groupe</a><h1>📒 Comptabilité du groupe</h1><p>Contrôle d'intégrité et consolidation des trois applications : chaque module comptabilise-t-il ses opérations, ses écritures sont-elles équilibrées, le plan est-il commun ?</p><div class="who" id="who" hidden></div></div></headerer>
 <main><div class="w" id="app"></div></main>
 <script src="inter-engine.js"></script>
+<script src="marque.js"></script><script src="auth-engine.js"></script>
 <script>
 const MODS=[
  {k:"distribution",nom:"Distributions",ic:"🛵",url:"distribution.html",c:"#0e7490"},
@@ -54,7 +60,40 @@ function statut(r){ // une application est « conforme » si ses écritures sont
  if(r.debit!==r.credit)pb.push("total débit ≠ total crédit");
  return pb.length?["ko","À corriger",pb.join(" · ")]:["ok","Conforme","Toutes les opérations sont comptabilisées et équilibrées."];
 }
+/* ---------- Accès : administrateur, direction ou comptable de l'une des trois applications (même mot de passe que dans l'application) ---------- */
+const APPS_CX=[["distribution","angels_erp_v1","Distributions"],["transport","angels_transport_v3","Transport"],["agro","angels_agro_v1","Agro"]];
+const ROLES_OK=["admin","direction","directeur","comptable"],DUREE=30*60*1000,SK="angels_compta_sess";
+let SESS=null,TRY={n:0,until:0},MSG=null;
+try{const x=JSON.parse(sessionStorage.getItem(SK)||"null");if(x&&x.exp>Date.now())SESS=x}catch(e){}
+const lireApp=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
+function comptes(){const L=[];APPS_CX.forEach(([app,key,nom])=>{const G=lireApp(key);if(!G)return;(G.users||[]).filter(u=>u.actif!==false&&ROLES_OK.includes(u.role)).forEach(u=>L.push({app,appNom:nom,key,id:u.id,nom:u.nom,role:u.role}))});return L}
+function enSession(){if(SESS&&SESS.exp<Date.now()){SESS=null;try{sessionStorage.removeItem(SK)}catch(e){}}return !!SESS}
+function prolonger(){if(!enSession())return;SESS.exp=Date.now()+DUREE;try{sessionStorage.setItem(SK,JSON.stringify(SESS))}catch(e){}}
+function verrouiller(){SESS=null;MSG=null;try{sessionStorage.removeItem(SK)}catch(e){}render()}
+function ecranAcces(){const cs=comptes(),w=document.getElementById("who");w.hidden=true;w.innerHTML="";
+ if(!cs.length)return`<div class="card gate"><h2>🔒 Comptabilité verrouillée</h2><p class="mu">Aucune application n'a encore de compte autorisé sur cet appareil (administrateur, direction ou comptable). Ouvrez d'abord une application du groupe et connectez-vous une fois.</p></div>`;
+ return`<form id="gate" class="card gate" autocomplete="on"><h2>🔒 Accès à la comptabilité du groupe</h2><p class="mu">Réservé à l'administrateur, à la direction et aux comptables. Choisissez votre compte et saisissez votre mot de passe habituel.</p>
+ ${MSG?`<div class="msg" role="alert">${esc(MSG)}</div>`:""}
+ <label>Utilisateur<select name="u">${cs.map((c,i)=>`<option value="${i}">${esc(c.nom)} — ${esc(c.appNom)} (${esc(c.role)})</option>`).join("")}</select></label>
+ <label>Mot de passe<input type="password" name="pwd" autocomplete="current-password" required></label>
+ <button type="submit">Se connecter</button></form>`}
+document.addEventListener("submit",e=>{const f=e.target;if(f.id!=="gate")return;e.preventDefault();
+ if(TRY.until>Date.now()){MSG="Trop d'essais : patientez "+Math.ceil((TRY.until-Date.now())/1000)+" s.";return render()}
+ const d=new FormData(f),c=comptes()[+d.get("u")],G=c&&lireApp(c.key),u=G&&(G.users||[]).find(x=>x.id===c.id&&x.actif!==false&&ROLES_OK.includes(x.role)),btn=f.querySelector("button");btn.disabled=true;
+ (async()=>{let r={ok:false};try{if(u)r=await ANGELS_AUTH.connecter(u,String(d.get("pwd")))}catch(x){}
+  if(r.ok&&r.legacy)MSG="Les codes PIN ne sont plus acceptés : connectez-vous une fois à l'application pour créer votre mot de passe.";
+  else if(r.ok&&u.chg)MSG="Votre mot de passe est temporaire : ouvrez l'application et connectez-vous une fois pour le remplacer.";
+  else if(r.ok){TRY={n:0,until:0};MSG=null;SESS={app:c.app,appNom:c.appNom,id:c.id,nom:c.nom,role:c.role,exp:Date.now()+DUREE};try{sessionStorage.setItem(SK,JSON.stringify(SESS))}catch(x){}}
+  else{TRY.n++;if(TRY.n>=5){TRY.n=0;TRY.until=Date.now()+60000}MSG="Utilisateur ou mot de passe incorrect."}
+  render()})()});
+document.addEventListener("click",e=>{if(e.target.closest("#lock"))return verrouiller();prolonger()});
+document.addEventListener("keydown",prolonger);
+setInterval(()=>{if(SESS&&!enSession())render()},30000);
 function render(){
+ if(!enSession()){document.getElementById("app").innerHTML=ecranAcces();setTimeout(()=>{const i=document.querySelector("#gate [name=pwd]");if(i)i.focus()},30);return}
+ {const w=document.getElementById("who");w.hidden=false;w.innerHTML=`<span>👤 ${esc(SESS.nom)} — ${esc(SESS.appNom)}</span><button type="button" id="lock">🔒 Verrouiller</button>`}
+ renderCompta()}
+function renderCompta(){
  const R=MODS.map(m=>({m,r:lire(m.k)})),V=R.filter(x=>x.r);
  const tot=k=>V.reduce((t,x)=>t+(+x.r[k]||0),0),D=tot("debit"),C=tot("credit"),nonc=tot("non_comptabilisees"),dsq=tot("desequilibres"),bad=R.filter(x=>statut(x.r)[0]==="ko").length;
  let h=`<div class="kpis"><div class="kpi ${V.length===3?"ok":"wa"}"><b>${V.length} / 3</b><span>Applications qui publient leur synthèse</span></div><div class="kpi"><b>${tot("nb_ecritures").toLocaleString("fr-FR")}</b><span>Écritures du groupe</span></div><div class="kpi ${D===C?"ok":"ko"}"><b>${D===C?"Équilibré":"Écart "+fcfa(D-C)}</b><span>Débit ${fcfa(D)} · Crédit ${fcfa(C)}</span></div><div class="kpi ${nonc||dsq?"ko":"ok"}"><b>${nonc+dsq}</b><span>Opérations non comptabilisées ou écritures déséquilibrées</span></div><div class="kpi ${bad?"ko":"ok"}"><b>${bad?bad+" à corriger":"Tout est conforme"}</b><span>État du contrôle d'intégrité</span></div></div>`;

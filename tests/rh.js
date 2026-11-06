@@ -110,7 +110,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   const vis=r=>NAV.some(x=>x.v==="rh"&&x.r.includes(r));let ok=true;for(const x of ["tableau","employes","conges","paie","charges","livre","params"]){ANGELS_RH.UI.tab=x;view="rh";render();ok=ok&&document.getElementById("app").innerText.length>50}
   return ext===1&&C.manuelles.length===before+1&&vis("admin")&&vis("direction")&&!vis("caissier")&&!vis("commercial")&&ok||[ext,vis("admin")]});
  /* Hub et impressions des autres divisions */
- const pg=await ctx.newPage();pg.on("pageerror",e=>errs.push("compta-groupe: "+e.message));await pg.goto(base+"/compta-groupe.html");await pg.waitForTimeout(500);
+ const pg=await ctx.newPage();pg.on("pageerror",e=>errs.push("compta-groupe: "+e.message));await pg.goto(base+"/compta-groupe.html");await pg.waitForTimeout(500);await pg.fill("#gate [name=pwd]","Demo@Angels2026");await pg.click("#gate button[type=submit]");await pg.waitForTimeout(900);
  const hub=await pg.evaluate(()=>document.body.innerText);
  chk("RH-40","consolidé du groupe : carte Ressources humaines avec l'effectif et la masse salariale de chaque division",/Ressources humaines/.test(hub)&&/Transport/.test(hub)&&/Distribution/.test(hub)&&/Agro/.test(hub)&&/Effectif/.test(hub),hub.slice(0,300));
  console.log("\nRÉSULTAT :",ok,"réussis,",ko,"échecs");if(errs.length)console.log("Erreurs de page :",errs);await b.close();srv.close();process.exit(ko||errs.length?1:0);
