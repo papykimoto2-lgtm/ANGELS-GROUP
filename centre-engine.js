@@ -238,7 +238,11 @@ function cenDirectExec(c,o){
   if(l.statut==="acceptee"&&!l.collecte_at&&!priseEnCharge(l,(c.colis&&c.colis.length)||1))return fin(msg||"Prise en charge impossible");
   if(l.statut==="acceptee"&&!demarrer(l))return fin(msg||"Départ impossible");
   if(l.statut!=="en_cours")return fin("La livraison n'est pas en cours");
-  if(o.resultat==="echec"){if(!echec(l,o.motif||"Client absent",o.obs||"",{pg:true}))return fin(msg||"Échec non enregistré")}
+  if(o.resultat==="echec"||o.resultat==="retour"){if(!echec(l,o.motif||"Client absent",o.obs||"",{pg:true}))return fin(msg||"Échec non enregistré");
+   if(o.resultat==="retour"){   /* colis déjà revenu au dépôt : échec → retour en cours → retour réceptionné, remis en stock */
+    if(!setStatut(c,"retour_cours","Retour du colis (circuit direct)")||!setStatut(c,"retour_recu","Réceptionné (circuit direct)"))return fin(msg||"Retour impossible");
+    if(c.stock_sorti){c.lignes.forEach(x=>{if(x.produit_id&&x.qte>0)stockMvt(prod(x.produit_id),x.qte,"retour_stock",c.numero)});c.stock_sorti=false}
+    S.retours.push({id:uid("r"),commande_id:c.id,ts:now(),motif:o.motif||"",etat:"Intact",decision:"Remise en stock",par:who(),qtes:c.lignes.map(x=>x.qte),circuit:"direct"})}}
   else{const att=l.montant_attendu||0,mt=o.montant===""||o.montant==null?att:Math.round(+o.montant);
    if(!confirmer(l,{centre:true,code:"",montant:String(mt),mode:o.mode||"Espèces",ref:o.ref||"",recu_par:o.recu_par,obs:o.obs||"",ecart_note:o.ecart_note||"",colis_ok:"",signature:"",at:quand}))return fin(msg||"Confirmation refusée")}
  }catch(e){annuler();return e&&e.message||"Erreur inattendue"}finally{CEN_DIRECT=false;toast=garde_toast}
@@ -248,7 +252,7 @@ function cenDirectExec(c,o){
  S.fonds.forEach(f=>{if(f.livraison_id===l.id&&new Date(f.ts).getTime()>=t0-1000)f.ts=quand;if(f.livraison_id===l.id&&f.type==="encaissement")f.saisi_le=now()});   /* saisi_le : l'argent n'est détenu « au bureau » que depuis la saisie : le délai de reversement part de là, pas de la date réelle de livraison */
  l.circuit="direct";l.saisie_par=who();l.saisie_le=now();if(o.bon)l.bon_papier=String(o.bon).slice(0,40);
  if(Array.isArray(o.articles)&&o.articles.length){l.articles_remis=o.articles;const manque=o.articles.filter(a=>a.remis<a.cmd);if(manque.length){c.obs=(c.obs?c.obs+" · ":"")+"Remis en partie : "+manque.map(a=>a.desig+" "+a.remis+"/"+a.cmd).join(", ")}}
- audit("Livraison directe (circuit direct)",c.numero+" — "+lv.nom+" — "+(o.resultat==="echec"?"échec : "+(o.motif||""):"livrée, encaissé "+fcfa(l.montant_encaisse||0))+(o.bon?" — bon papier "+o.bon:""));
+ audit("Livraison directe (circuit direct)",c.numero+" — "+lv.nom+" — "+(o.resultat==="retour"?"retour réceptionné : "+(o.motif||""):o.resultat==="echec"?"échec : "+(o.motif||""):"livrée, encaissé "+fcfa(l.montant_encaisse||0))+(o.bon?" — bon papier "+o.bon:""));
  return""}
 function cenDirectModal(cid){
  if(!can("admin","superviseur"))return toast("Réservé à l'administrateur et au superviseur","err");
@@ -256,8 +260,8 @@ function cenDirectModal(cid){
  const L=cenDirectListe();if(!L.length)return modal("📝 Circuit direct",'<div class="pill">Aucune commande prête, affectée ou en cours à valider.</div>',{focus:false});
  const lvs=lvActifs(),dtl=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16),mots=(S.config.motifs||["Client absent"]),modes=S.config.modes||["Espèces"];
  const row=c=>{const cl=cenCli(c),act=activeLiv(c.id),att=soldeCmd(c);return`<div class="card cdrow" data-lv="${act?esc(act.livreur_id):""}" style="margin:8px 0"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" name="ck_${c.id}" style="width:auto;margin-top:4px" ${c.id===cid?"checked":""}><span style="flex:1"><b>${esc(c.numero)}</b> · ${esc(cl.nom||"")} <span class="mu sm">${esc(zoneDe(c))} ${esc(c.adr.quartier||"")}</span> <span class="mu sm">· commandé le ${fdt(c.date)}</span> ${badge(ST[c.statut],"")}${act?` <span class="mu sm">(${esc((liv(act.livreur_id)||{}).nom||"")})</span>`:""}<br><span class="sm">À encaisser : <b>${fcfa(att)}</b></span></span></label>
-  <div class="g3"><label>Résultat<select name="rs_${c.id}"><option value="livree">✅ Livrée</option><option value="echec">❌ Non livrée</option></select></label><label>Montant encaissé (F)<input type="number" name="mt_${c.id}" min="0" value="${att}"></label><label>Mode<select name="md_${c.id}">${opts(modes,modes[0])}</select></label></div>
-  <div class="g3"><label>Reçu par<input name="rp_${c.id}" placeholder="Nom du client"></label><label>Réf. Mobile Money<input name="rf_${c.id}" placeholder="si Mobile Money"></label><label>Explication si écart / motif d'échec<input name="ex_${c.id}" list="cen_mots"></label></div>
+  <div class="g3"><label>Résultat<select name="rs_${c.id}"><option value="livree">✅ Livrée</option><option value="echec">❌ Non livrée</option><option value="retour">↩️ Colis retourné au dépôt</option></select></label><label>Montant encaissé (F)<input type="number" name="mt_${c.id}" min="0" value="${att}"></label><label>Mode<select name="md_${c.id}">${opts(modes,modes[0])}</select></label></div>
+  <div class="g3"><label>Reçu par<input name="rp_${c.id}" placeholder="Nom du client"></label><label>Réf. Mobile Money<input name="rf_${c.id}" placeholder="si Mobile Money"></label><label>Explication si écart / motif d'échec ou de retour<input name="ex_${c.id}" list="cen_mots"></label></div>
   <details><summary class="sm mu" style="cursor:pointer">👕 Articles remis (${c.lignes.length})</summary>${c.lignes.map((x,i)=>`<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="flex:1">${esc(lname(x))}</span><span class="mu sm">commandé ${x.qte} · remis</span><input type="number" name="q_${c.id}_${i}" min="0" max="${x.qte}" value="${x.qte}" style="width:70px"></label>`).join("")}</details></div>`};
  modal("📝 Circuit direct — livraison validée par le centre",`<div class="pill">Pour les livraisons faites hors application (livreur sans réseau ou téléphone en panne) : le centre valide à la place du livreur, enregistre l'encaissement et les articles remis. Le livreur garde le circuit habituel s'il peut l'utiliser.</div>
  <div class="g3"><label>Livreur qui a livré<select name="lid" required>${opts([{v:"",t:"— choisir —"}].concat(lvs.map(l=>({v:l.id,t:l.nom}))),(activeLiv(cid)||{}).livreur_id||"")}</select></label><label>Date et heure de la livraison<input type="datetime-local" name="quand" value="${dtl}" max="${dtl}" required></label><label>Bon papier n° (facultatif)<input name="bon" maxlength="40"></label></div>
@@ -269,7 +273,7 @@ function cenDirectModal(cid){
   for(const c of ids){const att=soldeCmd(c),mt=+d["mt_"+c.id],res=d["rs_"+c.id],ex=String(d["ex_"+c.id]||"").trim();
    const art=c.lignes.map((x,i)=>({desig:lname(x),cmd:x.qte,remis:Math.max(0,Math.min(x.qte,+d["q_"+c.id+"_"+i]||0))}));
    if(res==="livree"){if(!String(d["rp_"+c.id]||"").trim()){R.ko.push(c.numero+" : indiquez qui a reçu");continue}if(mt!==att&&ex.length<3){R.ko.push(c.numero+" : écart de "+fcfa(mt-att)+", explication obligatoire");continue}}
-   else if(ex.length<3){R.ko.push(c.numero+" : motif d'échec obligatoire");continue}
+   else if(ex.length<3){R.ko.push(c.numero+" : motif "+(res==="retour"?"de retour":"d'échec")+" obligatoire");continue}
    const e=cenDirectExec(c,{lid:d.lid,quand,resultat:res,montant:mt,mode:d["md_"+c.id],ref:String(d["rf_"+c.id]||"").trim().toUpperCase(),recu_par:String(d["rp_"+c.id]||"").trim(),ecart_note:ex,motif:ex,obs:ex,bon:d.bon,articles:art});
    e?R.ko.push(c.numero+" : "+e):R.ok.push(c.numero)}
   save();if(R.ko.length){toast(R.ok.length+" enregistrée(s) ; à revoir : "+R.ko.join(" | "),"err");render();return R.ok.length>0}
@@ -282,7 +286,7 @@ const cenV_direct=()=>{
  const j=ymd(new Date()),H=S.livraisons.filter(l=>l.circuit==="direct"&&ymd(l.saisie_le||l.fin_at)===j).sort((a,b)=>new Date(b.saisie_le)-new Date(a.saisie_le)),n=cenDirectListe().length;
  return`<div class="cdl"><div class="ban"><h1>Circuit direct</h1><p>Le centre valide lui-même les livraisons faites hors application</p></div>
  <div class="card"><div class="between"><span><b>${n}</b> commande(s) prête(s), affectée(s) ou en cours peuvent être validées ici.<div class="sm mu">Le livreur n'a rien à faire sur son téléphone ; l'argent encaissé est compté à sa charge comme d'habitude (Trésorerie).</div></span><button class="btn" data-act="cenDirect">📝 Saisir des livraisons</button></div></div>
- <h2>Saisies aujourd'hui (${H.length})</h2>${tbl(["Commande","Livreur","Résultat","Encaissé","Reçu par","Saisi par",""],H.map(l=>{const c=cmd(l.commande_id)||{};return`<tr><td><b>${esc(c.numero||"")}</b></td><td>${esc((liv(l.livreur_id)||{}).nom||"")}</td><td>${l.statut==="livree"?badge("Livrée","ok"):badge("Non livrée","er")}</td><td>${l.statut==="livree"?fcfa(l.montant_encaisse||0):"—"}</td><td class="sm">${esc(l.recu_par||"")}</td><td class="sm">${esc(l.saisie_par||"")}</td><td><button class="btn sm ghost" data-act="cenPreuve" data-id="${c.id}">🧾</button></td></tr>`}),"Aucune saisie aujourd'hui")}</div>`};
+ <h2>Saisies aujourd'hui (${H.length})</h2>${tbl(["Commande","Livreur","Résultat","Encaissé","Reçu par","Saisi par",""],H.map(l=>{const c=cmd(l.commande_id)||{};return`<tr><td><b>${esc(c.numero||"")}</b></td><td>${esc((liv(l.livreur_id)||{}).nom||"")}</td><td>${l.statut==="livree"?badge("Livrée","ok"):c.statut==="retour_recu"?badge("Retourné","wa"):badge("Non livrée","er")}</td><td>${l.statut==="livree"?fcfa(l.montant_encaisse||0):"—"}</td><td class="sm">${esc(l.recu_par||"")}</td><td class="sm">${esc(l.saisie_par||"")}</td><td><button class="btn sm ghost" data-act="cenPreuve" data-id="${c.id}">🧾</button></td></tr>`}),"Aucune saisie aujourd'hui")}</div>`};
 
 /* ---------- Réglages, sons, écran allumé, veille ---------- */
 function cenReglages(){const C=cenCfg(),D=cenDev(),adm=can("admin","superviseur");
