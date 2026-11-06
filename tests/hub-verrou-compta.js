@@ -11,7 +11,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const p=await ctx.newPage();await p.goto(base+"/transport.html");await p.waitForTimeout(500);
  const mdp="Verrou-Test-77!x";
  await p.evaluate(async mdp=>{const S=JSON.parse(localStorage.getItem("angels_transport_v3"));const mk=async(id,nom,role)=>({id,nom,role,actif:true,pwd:await ANGELS_AUTH.creer(mdp)});S.users=[await mk("u_dir","Dir Test","directeur"),await mk("u_cpt","Cpt Test","comptable")];localStorage.setItem("angels_transport_v3",JSON.stringify(S))},mdp);await p.close();
- const h=await ctx.newPage();await h.goto(base+"/index.html");await h.waitForTimeout(500);
+ const h=await ctx.newPage();await h.addInitScript(()=>{window.ANGELS_HUB_LOCAL=true});await h.goto(base+"/index.html");await h.waitForTimeout(500);
  t("VER-1","verrouillé par défaut : aucun chiffre",(await h.$("#fgate"))&&!/\d\s?F/.test(await h.$eval("#cons",e=>e.innerText))&&(await h.$$eval("#tcons *",e=>e.length))===0?true:"visible");
  const essai=async(n,m)=>{await h.fill("#fgate [name=nom]",n);await h.fill("#fgate [name=pwd]",m);await h.click("#fgate button[type=submit]");await h.waitForTimeout(2500)};
  await essai("Cpt Test",mdp);t("VER-2","comptable : refusé",(await h.$("#fgate"))!==null?true:"déverrouillé");

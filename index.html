@@ -164,7 +164,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px 12px 90px}
 </div>
 </div></main>
 <footer>© ANGEL'S GROUP · Hub · <a href="#" id="inst" hidden>📲 Installer</a> · <a href="#" id="qrinst">📱 QR d'installation des applications</a><br><small>Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</small></footer>
-<script src="qr-install.js"></script><script src="marque.js"></script><script src="auth-engine.js"></script><script src="crm-engine.js"></script>
+<script src="passerelle-config.js"></script><script src="qr-install.js"></script><script src="marque.js"></script><script src="auth-engine.js"></script><script src="crm-engine.js"></script>
 <script>
 const KEY="angels_erp_v1",$=s=>document.getElementById(s);
 /* Modules et outils de l'instance (marque.js) : seuls ceux choisis apparaissent. */
@@ -285,7 +285,7 @@ function assurance(G){
 function consolide(){
  if(!finOk()){verrou();return}
  $("tdbh").hidden=false;
- const X=REG.map(r=>[r.nom,r.fn(lire(r.cle))]);
+ const X=REG.map(r=>[r.nom,r.fn(donnees(r))]);
  const tot=k=>som(X.filter(x=>x[1]&&x[1][k]!=null),x=>x[1][k]),cell=(x,k,f)=>!x?'<span class="nd">non ouvert</span>':x[k]==null?'<span class="nd">—</span>':(f?f(x[k]):F(x[k]));
  $("big").innerHTML=[["💰","Trésorerie du groupe",tot("tres")],["📈","Chiffre d'affaires du mois",tot("ca")],["💵","Encaissé du mois",tot("enc")],["🧾","Créances à recouvrer",tot("cre")]].map(([i,l,v])=>`<div><i class="ic">${i}</i><b>${F(v)}</b><span>${l}</span></div>`).join("");
  const nd=t=>`<span class="nd">${t}</span>`,tc=tot("ca")||1;
@@ -302,21 +302,31 @@ function consolide(){
 /* ---------- Tableau de bord par module ---------- */
 const TOUS=[{id:"dist",mod:"distribution",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)",cle:"angels_erp_v1",fn:distribution},{id:"trans",mod:"transport",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)",cle:"angels_transport_v3",fn:transport},{id:"agro",mod:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)",cle:"angels_agro_v1",fn:agro},{id:"plac",mod:"placement",nom:"Placement",ic:"👷",href:"placement.html",c:"#b45309",cle:"angels_placement_v1",fn:placement},{id:"assu",mod:"assurance",nom:"Assurance",ic:"🛡️",href:"assurance.html",c:"#1e6ea0",cle:"angels_assurance_v1",fn:assurance}];
 const REG=TOUS.filter(r=>ACTIF(r.mod)),MODS=REG;
-/* ---------- Verrou des chiffres comptables : réservé aux rôles de direction (admin, direction, directeur) ---------- */
+/* ---------- Verrou des chiffres comptables : réservé aux rôles de direction (admin, direction, directeur) ----------
+   Mode serveur (passerelle-config.js présent) : connexion Supabase Auth + fonction hub_consolide_lire (RLS, migration 033) ; les chiffres ne sont jamais lus sur l'appareil.
+   Mode local (sans configuration) : mots de passe des comptes de l'application, comme avant. */
 const HAUT=["admin","direction","directeur"],FIN_DUREE=10*60*1000,FTRY={n:0,until:0};
-const finOk=()=>{try{const s=JSON.parse(sessionStorage.getItem("hub_fin")||"null");if(s&&s.exp>Date.now())return true;sessionStorage.removeItem("hub_fin")}catch(e){}return false};
+const PG=window.ANGELS_PASSERELLE,SRVMODE=!!(PG&&PG.url&&PG.key&&!window.ANGELS_HUB_LOCAL);
+let SRV=null,SRVEXP=0,SRVTOK=null;   /* en mémoire seulement : jamais écrits sur l'appareil */
+const donnees=r=>{if(!SRVMODE)return lire(r.cle);if(!SRV)return null;const G={};(SRV[r.mod]||[]).forEach(l=>{if(l.coll==="_doc")G[l.id]=l.data&&l.data.v;else(G[l.coll]||(G[l.coll]=[])).push(l.data)});return Object.keys(G).length?G:null};
+const finOk=()=>{if(SRVMODE){if(SRV&&Date.now()<SRVEXP)return true;SRV=null;SRVTOK=null;return false}try{const s=JSON.parse(sessionStorage.getItem("hub_fin")||"null");if(s&&s.exp>Date.now())return true;sessionStorage.removeItem("hub_fin")}catch(e){}return false};
 const hautUsers=()=>TOUS.flatMap(r=>((lire(r.cle)||{}).users||[]).filter(u=>HAUT.includes(u.role)&&u.actif!==false));
+const srvH=t=>({apikey:PG.key,Authorization:"Bearer "+(t||PG.key),"Content-Type":"application/json"});
+async function srvLire(){const r=await fetch(PG.url+"/rest/v1/rpc/hub_consolide_lire",{method:"POST",headers:srvH(SRVTOK),body:"{}"});if(!r.ok)throw new Error("Serveur indisponible");const d=await r.json();if(d&&d.refuse)throw new Error("Accès réservé à la direction.");SRV=d;SRVEXP=Date.now()+FIN_DUREE}
+async function srvConnexion(email,pwd){const r=await fetch(PG.url+"/auth/v1/token?grant_type=password",{method:"POST",headers:srvH(),body:JSON.stringify({email,password:pwd})});if(!r.ok)throw new Error("Identifiant ou mot de passe incorrect.");SRVTOK=(await r.json()).access_token;await srvLire()}
 function verrou(msg){
  if(!msg&&$("fgate"))return;
  const e=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  $("tcons").innerHTML="";$("tabs").innerHTML="";$("tdb").innerHTML="";$("tdbh").hidden=true;$("prio").hidden=true;$("ncons").textContent="";
- $("big").innerHTML=`<form id="fgate" style="grid-column:1/-1;background:#fff;border-radius:16px;padding:18px;display:grid;gap:10px;max-width:420px"><b>🔒 Chiffres comptables réservés</b><span class="note">Accès : administrateur ou direction. Saisissez votre nom et votre mot de passe.</span><input name="nom" placeholder="Nom" autocomplete="username" required maxlength="60"><input name="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password" required><button class="btn" type="submit">Déverrouiller</button><span class="note" id="fmsg" role="alert" style="color:#b42318">${msg?e(msg):""}</span></form>`}
+ $("big").innerHTML=`<form id="fgate" style="grid-column:1/-1;background:#fff;border-radius:16px;padding:18px;display:grid;gap:10px;max-width:420px"><b>🔒 Chiffres comptables réservés</b><span class="note">Accès : administrateur ou direction. ${SRVMODE?"Connectez-vous avec votre compte.":"Saisissez votre nom et votre mot de passe."}</span><input name="nom" placeholder="${SRVMODE?"E-mail":"Nom"}" type="${SRVMODE?"email":"text"}" autocomplete="username" required maxlength="120"><input name="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password" required><button class="btn" type="submit">Déverrouiller</button><span class="note" id="fmsg" role="alert" style="color:#b42318">${msg?e(msg):""}</span></form>`}
 document.addEventListener("submit",e=>{if(e.target.id!=="fgate")return;e.preventDefault();
  if(FTRY.until>Date.now())return verrou("Trop d'essais : patientez "+Math.ceil((FTRY.until-Date.now())/1000)+" s.");
- const d=new FormData(e.target),nom=String(d.get("nom")||"").trim().toLowerCase(),pwd=String(d.get("pwd")||"");
+ const d=new FormData(e.target),id=String(d.get("nom")||"").trim(),pwd=String(d.get("pwd")||""),nom=id.toLowerCase();
+ const fin=ok=>{if(ok){FTRY.n=0;return consolide()}if(++FTRY.n>=5){FTRY.n=0;FTRY.until=Date.now()+60000}};
+ if(SRVMODE)return(async()=>{try{await srvConnexion(id,pwd);fin(true)}catch(x){SRVTOK=null;fin(false);verrou(x.message)}})();
  (async()=>{let ok=false;try{for(const u of hautUsers().filter(x=>String(x.nom).trim().toLowerCase()===nom)){const r=await ANGELS_AUTH.connecter(u,pwd);if(r.ok&&!r.legacy&&!u.chg){ok=true;break}}}catch(x){}
-  if(ok){FTRY.n=0;try{sessionStorage.setItem("hub_fin",JSON.stringify({nom,exp:Date.now()+FIN_DUREE}))}catch(x){}return consolide()}
-  if(++FTRY.n>=5){FTRY.n=0;FTRY.until=Date.now()+60000}verrou("Nom ou mot de passe incorrect, ou accès non autorisé.")})()});
+  if(ok){try{sessionStorage.setItem("hub_fin",JSON.stringify({nom,exp:Date.now()+FIN_DUREE}))}catch(x){}return fin(true)}
+  fin(false);verrou("Nom ou mot de passe incorrect, ou accès non autorisé.")})()});
 let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||REG[0].id}catch(e){return REG[0].id}})();
 function tdb(X){
  const i=Math.max(0,MODS.findIndex(m=>m.id===MOD)),m=MODS[i],d=X[i][1];
@@ -346,7 +356,7 @@ function salut(X,alt){
 $("gs").oninput=e=>{const q=e.target.value.trim().toLowerCase();document.querySelectorAll(".cards .card").forEach(c=>{c.style.display=!q||c.textContent.toLowerCase().includes(q)?"":"none"})};
 document.addEventListener("keydown",e=>{if(e.key==="/"&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName)){e.preventDefault();$("gs").focus()}});
 document.querySelectorAll("#nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("#nav a").forEach(x=>x.classList.toggle("on",x===a))});
-$("maj").onclick=consolide;window.addEventListener("storage",consolide);document.addEventListener("visibilitychange",()=>{if(!document.hidden)consolide()});consolide();
+$("maj").onclick=async()=>{if(SRVMODE&&SRVTOK){try{await srvLire()}catch(x){SRV=null}}consolide()};window.addEventListener("storage",consolide);document.addEventListener("visibilitychange",()=>{if(!document.hidden)consolide()});consolide();
 
 if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
 
