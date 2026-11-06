@@ -31,11 +31,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 8px;b
 .mu{color:var(--mu);font-size:13px}.er{color:var(--er)}
 a.btn{display:inline-block;padding:9px 14px;border-radius:10px;background:var(--b);color:#fff;text-decoration:none;font-weight:700;font-size:13px}
 .scroll{overflow-x:auto}
+.gate{max-width:430px;margin:36px auto}.gate label{display:block;font-size:13px;font-weight:700;margin-top:12px}.gate select,.gate input{width:100%;font:16px system-ui;padding:11px 12px;border:1.5px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);margin-top:4px}.gate button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:10px;background:var(--b);color:#fff;font:700 15px system-ui;cursor:pointer}.gate .msg{margin-top:10px;padding:9px 12px;border-radius:10px;background:#fde7e4;color:#b42318;font-size:13px;font-weight:700}.bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;margin-bottom:12px}.bar button{padding:7px 12px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
 <header><div class="w"><a href="index.html">← Hub du groupe</a><h1>📒 Comptabilité du groupe</h1><p>Contrôle d'intégrité et consolidation des trois applications : chaque module comptabilise-t-il ses opérations, ses écritures sont-elles équilibrées, le plan est-il commun ?</p></div></header>
 <main><div class="w" id="app"></div></main>
+<script src="marque.js"></script><script src="auth-engine.js"></script>
 <script src="inter-engine.js"></script>
 <script>
 const MODS=[
@@ -101,7 +103,31 @@ function render(){
  h+=`<h2>Plan comptable commun</h2><div class="card"><p class="mu">Les trois applications appliquent le plan SYSCOHADA révisé ; chaque application conserve ses comptes personnalisés. Un compte hors plan ou de regroupement mouvementé est signalé dans la colonne « Hors plan ». ${V.length?"Comptes au plan : "+V.map(x=>esc(x.m.nom)+" "+(x.r.comptes||0)).join(" · ")+".":""}</p></div>`;
  document.getElementById("app").innerHTML=h;
 }
-addEventListener("storage",render);render();
+/* ---------- Accès protégé : utilisateur + mot de passe (comptes des applications du groupe) ---------- */
+const ROLES_OK=["admin","direction","directeur","comptable"],DUREE=30*60*1000,SK="angels_comptag_sess",RLN={admin:"Administrateur",direction:"Direction générale",directeur:"Directeur",comptable:"Comptable"};
+let SESS=null,TRY={n:0,until:0},MSG=null;
+try{const x=JSON.parse(sessionStorage.getItem(SK)||"null");if(x&&x.exp>Date.now())SESS=x}catch(e){}
+function comptes(){const L=[];MODS.forEach(m=>{const G=lireJ0(CLES[m.k]);if(!G)return;(G.users||[]).filter(u=>u.actif!==false&&ROLES_OK.includes(u.role)).forEach(u=>L.push({key:m.k,app:m.nom,id:u.id,nom:u.nom,role:u.role}))});return L}
+function lireJ0(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
+const CLES={distribution:"angels_erp_v1",transport:"angels_transport_v3",agro:"angels_agro_v1"};
+function garde(){if(SESS&&SESS.exp<Date.now()){SESS=null;try{sessionStorage.removeItem(SK)}catch(e){}}if(SESS){SESS.exp=Date.now()+DUREE;try{sessionStorage.setItem(SK,JSON.stringify(SESS))}catch(e){}}return !!SESS}
+function gate(){const cs=comptes(),el=document.getElementById("app");
+ if(!cs.length){el.innerHTML=`<div class="card gate"><h2 style="margin-top:0">🔒 Comptabilité du groupe verrouillée</h2><p class="mu">Aucun compte autorisé (administrateur, direction ou comptable) n'existe encore sur cet appareil. Ouvrez d'abord une application du groupe et connectez-vous une fois.</p></div>`;return}
+ el.innerHTML=`<form id="gate" class="card gate"><h2 style="margin-top:0">🔒 Accès à la comptabilité du groupe</h2><p class="mu">Réservé à l'administrateur, à la direction et aux comptables. Choisissez votre utilisateur et saisissez votre mot de passe.</p>${MSG?`<div class="msg" role="alert">${esc(MSG)}</div>`:""}
+ <label>Utilisateur<select name="u">${cs.map((c,i)=>`<option value="${i}">${esc(c.nom)} — ${esc(c.app)} (${esc(RLN[c.role]||c.role)})</option>`).join("")}</select></label>
+ <label>Mot de passe<input type="password" name="pwd" autocomplete="current-password" required></label><button type="submit">🔓 Se connecter</button></form>`}
+function montrer(){if(!garde()){gate();return}render();const a=document.getElementById("app");a.insertAdjacentHTML("afterbegin",`<div class="bar card" style="padding:10px 14px"><span>👤 <b>${esc(SESS.nom)}</b> — ${esc(SESS.app)}</span><button type="button" id="out">Se déconnecter</button></div>`)}
+document.addEventListener("submit",e=>{if(e.target.id!=="gate")return;e.preventDefault();const d=new FormData(e.target),c=comptes()[+d.get("u")];
+ if(TRY.until>Date.now()){MSG="Trop d'essais : patientez "+Math.ceil((TRY.until-Date.now())/1000)+" s.";return gate()}
+ const G=c&&lireJ0(CLES[c.key]),u=G&&(G.users||[]).find(x=>x.id===c.id&&x.actif!==false&&ROLES_OK.includes(x.role));
+ (async()=>{let r={ok:false};try{if(u)r=await ANGELS_AUTH.connecter(u,String(d.get("pwd")))}catch(x){}
+  if(r.ok&&r.legacy)MSG="Les codes PIN ne sont plus acceptés : connectez-vous une fois à l'application pour créer votre mot de passe.";
+  else if(r.ok&&u.chg)MSG="Votre mot de passe est temporaire : ouvrez l'application et connectez-vous une fois pour le remplacer.";
+  else if(r.ok){TRY={n:0,until:0};MSG=null;SESS={key:c.key,app:c.app,id:c.id,nom:c.nom,exp:Date.now()+DUREE};try{sessionStorage.setItem(SK,JSON.stringify(SESS))}catch(x){}}
+  else{TRY.n++;if(TRY.n>=5){TRY.n=0;TRY.until=Date.now()+60000}MSG="Utilisateur ou mot de passe incorrect."}
+  montrer()})()});
+document.addEventListener("click",e=>{if(e.target.id==="out"){SESS=null;try{sessionStorage.removeItem(SK)}catch(x){}MSG=null;montrer()}});
+addEventListener("storage",()=>{if(garde())montrer()});montrer();
 </script>
 <p style="text-align:center;font-size:12px;opacity:.8;margin:18px 8px">Logiciel développé par <b>Sanix Africa Division Technologies</b> · Contact (WhatsApp) : +225 0779181075 / 0140017751</p>
 </body>
