@@ -182,3 +182,22 @@ Un refus côté bureau (doublon, montant trop élevé, course en cours) est sign
 ## Facturation normalisée (FNE)
 
 Fonction `fne` (migration `025_fne.sql`) : certification des factures auprès de la DGI. Secrets : `FNE_TEST_KEY`, `FNE_PROD_KEY`, `FNE_PROD_URL` (ou par division `FNE_<DISTRIBUTION|TRANSPORT|AGRO>_<TEST|PROD>_KEY/URL`), `FNE_TEST_URL` (défaut plateforme de test). Voir le README principal.
+
+## Comptabilité du groupe protégée côté serveur
+
+| Fichier | Rôle |
+|---|---|
+| `migrations/033_compta_groupe.sql` | Tables `compta_synthese` (synthèses publiées), `compta_droits`, `compta_essais`, `compta_journal` ; RLS sans politique : seule la fonction y accède |
+| `functions/compta-groupe/` | `publier` (applications, clé de synchronisation) · `login` · `lire` · `droits` · `droits_ecrire` · `journal` |
+| `functions/_shared/compta-groupe.js` | Logique pure, testée par `node tests/compta-groupe-serveur.js` (34 contrôles) |
+| `../compta-pub.js` | Envoi des synthèses des applications au serveur (clé de synchronisation : écriture seulement) |
+
+Principe : la personne se connecte avec son mot de passe (vérifié sur le serveur contre les comptes synchronisés), reçoit un jeton signé de 2 h, et le serveur ne renvoie que les sections autorisées à son profil **actuel** (revérifié à chaque appel). Les droits par section sont tenus par le serveur et modifiables par l'administrateur (Paramètres › Droits comptabilité).
+
+Mise en service :
+1. Appliquer `033_compta_groupe.sql`.
+2. Secret **distinct de `SYNC_KEY`** : `supabase secrets set COMPTA_KEY=<32+ caractères aléatoires>`. Les appareils ne le connaissent pas : détenir la clé de synchronisation ne permet pas de fabriquer un jeton.
+3. Déployer : `supabase functions deploy compta-groupe --no-verify-jwt`.
+4. Ouvrir chaque application une fois : elle publie ses synthèses. Tant que la fonction n'est pas déployée ou configurée, la page reste en mode local (droits appliqués sur l'appareil seulement, avec un bandeau d'avertissement).
+
+Limite : la synchronisation entre postes reste protégée par la seule clé partagée ; un poste qui la détient peut toujours lire les données brutes des applications (voir « Accès chauffeur » pour le même constat). La protection de cette page ne couvre donc pas un utilisateur technique détenant cette clé.
