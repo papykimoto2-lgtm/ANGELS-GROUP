@@ -55,7 +55,7 @@ async function lireJeton(cfg, jeton, now) {
   if (!egal(s, await signer(cfg, p))) return null;
   try { const d = JSON.parse(new TextDecoder().decode(unb64u(p))); return d && d.e > now ? d : null; } catch (e) { return null; }
 }
-const plat = (x) => String(x == null ? "" : x).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const plat = (x) => String(x == null ? "" : x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /* ---- droits : matrice enregistrée sur le serveur, complétée par les droits d'origine ; l'administrateur voit toujours tout ---- */
 export function droitsEffectifs(brut) {
