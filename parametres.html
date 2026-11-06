@@ -135,7 +135,7 @@ function uView(){
  const nAd=admins(G,m).length;
  const rows=G.users.map(u=>{const lie=R.lie.includes(u.role),act=u.actif!==false,last=u.role==="admin"&&act&&nAd<=1;
   const role=lie?`${E(R.roles[u.role]||u.role)} <span class="note">(fiche liée)</span>`:`<select data-ur="${E(u.id)}" aria-label="Rôle de ${E(u.nom)}">${Object.entries(R.roles).filter(([k])=>!R.lie.includes(k)).map(([k,v])=>`<option value="${k}"${k===u.role?" selected":""}>${E(v)}</option>`).join("")}${R.roles[u.role]?"":`<option value="${E(u.role)}" selected>${E(u.role)}</option>`}</select>`;
-  const ed="";
+  const ed=lie?"":UEDIT===u.id?`<form class="uf" id="uedit" data-id="${E(u.id)}" style="margin-top:6px"><label>Nom<input name="nom" value="${E(u.nom)}" required minlength="2" maxlength="80"></label><button class="sb" type="submit">Enregistrer</button> <button class="sb g" type="button" data-ux="1">Annuler</button></form>`:` <button class="sb g" data-ue="${E(u.id)}">✏️ Modifier</button>`;
   return`<tr class="${act?"":"off"}"><td><b>${E(u.nom)}</b>${last?' <span class="note">(dernier administrateur)</span>':""}</td><td>${role}</td><td>${act?'<span class="ok">Actif</span>':'<span class="er">Désactivé</span>'}</td>
    <td><button class="sb g" data-up="${E(u.id)}">🔑 Mot de passe</button> <button class="sb g" data-ut="${E(u.id)}">${act?"Désactiver":"Réactiver"}</button>${ed}</td></tr>`}).join("");
  box.innerHTML=msg+`<p class="note" style="margin:0 0 8px">Autorisé par <b>${E(au.nom)}</b> (administrateur ${E(mod.nom)}) · <a href="#" data-ulock="1">Verrouiller</a> · <button type="button" class="sb g" data-rl="1">🛡️ Rôles et droits</button></p>
@@ -160,11 +160,12 @@ async function uReset(id){const mdp=ANGELS_AUTH.generer(),rec=await ANGELS_AUTH.
  uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");u.pwd=rec;u.chg=true;delete u.h;delete u.pin_h;if(G.tries&&typeof G.tries==="object")G.tries[u.id]={n:0,until:0};nom0=u.nom;R.aud(G,"Mot de passe réinitialisé (via Hub)",u.nom,me);return u.nom+" : mot de passe temporaire généré."});
  if(UMSG&&!UMSG.er&&nom0)await ANGELS_AUTH.afficherTemp({titre:"Mot de passe réinitialisé",nom:nom0,mdp})}
 document.addEventListener("click",e=>{
- const t=e.target.closest("[data-um],[data-up],[data-ut],[data-ux],[data-ulock]");if(!t)return;
+ const t=e.target.closest("[data-um],[data-up],[data-ut],[data-ux],[data-ue],[data-ulock]");if(!t)return;
  if(t.dataset.um){UM=t.dataset.um;UEDIT=null;UMSG=null;try{sessionStorage.setItem("hub_umod",UM)}catch(x){}return uView()}
  e.preventDefault();
  if(t.dataset.ulock){delete AUTH[UM];UMSG=null;UEDIT=null;return uView()}
  if(t.dataset.ux){UEDIT=null;return uView()}
+ if(t.dataset.ue){UEDIT=t.dataset.ue;UMSG=null;return uView()}
  if(t.dataset.up){const id=t.dataset.up,G0=uEtat(UM),u0=G0&&G0.users.find(x=>x.id===id);if(!u0)return;if(!confirm('Réinitialiser le mot de passe de '+u0.nom+' ? Un mot de passe temporaire sera généré et montré une seule fois.'))return;UMSG=null;return uReset(id)}
  if(t.dataset.ut){const id=t.dataset.ut;uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");
   const act=u.actif!==false;if(act){if(u.id===me.id)throw new Error("Impossible de désactiver le compte qui vous autorise.");if(u.role==="admin"&&admins(G,UM).length<=1)throw new Error("Impossible : c'est le dernier administrateur actif.")}
@@ -174,7 +175,11 @@ document.addEventListener("change",e=>{const s=e.target.closest("[data-ur]");if(
  uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");if(R.lie.includes(u.role)||R.lie.includes(nv)||!R.roles[nv])throw new Error("Ce profil se gère dans l'application.");
   if(u.role==="admin"&&nv!=="admin"&&u.actif!==false&&admins(G,UM).length<=1)throw new Error("Impossible : c'est le dernier administrateur actif.");
   const av=u.role;u.role=nv;R.aud(G,"Rôle modifié (via Hub)",u.nom+" : "+av+" → "+nv,me);return u.nom+" : rôle « "+R.roles[nv]+" »."})});
-document.addEventListener("submit",e=>{const f=e.target;if(f.id==="ugate"){e.preventDefault();const m=UM,G=uEtat(m);if(!G)return uView();
+document.addEventListener("submit",e=>{const f=e.target;if(f.id==="uedit"){e.preventDefault();const id=f.dataset.id,nom=String(f.elements.nom.value||"").trim();
+  return uAgir(UM,(G,R,me)=>{const u=G.users.find(x=>x.id===id);if(!u)throw new Error("Compte introuvable.");if(R.lie.includes(u.role))throw new Error("Ce compte se gère dans l'application (fiche liée).");
+   if(nom.length<2)throw new Error("Nom obligatoire (2 caractères minimum).");if(G.users.some(x=>x.id!==u.id&&String(x.nom).toLowerCase()===nom.toLowerCase()))throw new Error("Un utilisateur porte déjà ce nom.");
+   if(nom===u.nom)return"Aucun changement.";const av=u.nom;u.nom=nom;R.aud(G,"Utilisateur modifié (via Hub)",av+" → "+nom,me);return av+" renommé en « "+nom+" »."})}
+ if(f.id==="ugate"){e.preventDefault();const m=UM,G=uEtat(m);if(!G)return uView();
   const tr=TRY[m]||(TRY[m]={n:0,until:0});if(tr.until>Date.now()){UMSG={er:1,t:"Trop d'essais : patientez "+Math.ceil((tr.until-Date.now())/1000)+" s."};return uView()}
   const d=new FormData(f),u=G.users.find(x=>x.id===d.get("u")&&x.role==="admin"&&x.actif!==false),pwd=String(d.get("pwd"));
   (async()=>{let r={ok:false};try{if(u)r=await ANGELS_AUTH.connecter(u,pwd)}catch(x){UMSG={er:1,t:x.message};return uView()}
