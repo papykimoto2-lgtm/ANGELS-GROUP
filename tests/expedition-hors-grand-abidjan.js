@@ -1,4 +1,4 @@
-/* Une expédition se fait hors d'Abidjan : Abidjan et ses communes relèvent de la livraison.
+/* Une expédition se fait hors du Grand Abidjan (Abidjan, communes, Bingerville, Anyama, Songon) ; le reste relève de la livraison.
    Usage : PLAYWRIGHT=/chemin/playwright [CHROMIUM=/chemin/chromium] node tests/expedition-hors-abidjan.js */
 const {chromium}=require(process.env.PLAYWRIGHT||"playwright");
 const http=require("http"),fs=require("fs"),path=require("path");const root=path.resolve(__dirname,"..");
@@ -11,10 +11,11 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await p.goto(base+"/distribution.html");await p.waitForTimeout(600);
  const essai=v=>p.evaluate(v=>{try{ME=ME||S.users.find(u=>u.role==="admin");expCreer({type:"client",dest:{nom:"Test",ville:v}});return"ok"}catch(e){return e.message}},v);
  t("EHA-1","ville vide : refusée",/obligatoire/.test(await essai(""))?true:await essai(""));
- t("EHA-2","Abidjan : refusée",/hors d'Abidjan/.test(await essai("Abidjan"))?true:"acceptée");
+ t("EHA-2","Abidjan : refusée",/hors du Grand Abidjan/.test(await essai("Abidjan"))?true:"acceptée");
  const zone=await p.evaluate(()=>S.config.zones[0].nom);
- t("EHA-3","commune d'Abidjan ("+zone+") : refusée",/hors d'Abidjan/.test(await essai(zone))?true:"acceptée");
- t("EHA-4","« ABIDJAN » avec accents/majuscules : refusée",/hors d'Abidjan/.test(await essai(" ÀBIDJAN "))?true:"acceptée");
+ t("EHA-3","commune d'Abidjan ("+zone+") : refusée",/hors du Grand Abidjan/.test(await essai(zone))?true:"acceptée");
+ t("EHA-4","« ABIDJAN » avec accents/majuscules : refusée",/hors du Grand Abidjan/.test(await essai(" ÀBIDJAN "))?true:"acceptée");
+ for(const v of["Bingerville","Anyama","Songon"])t("EHA-4b",v+" (Grand Abidjan) : refusée",/hors du Grand Abidjan/.test(await essai(v))?true:"acceptée");
  t("EHA-5","Bouaké : acceptée",(await essai("Bouaké"))==="ok"?true:await essai("Bouaké"));
  t("EHA-6","Accra (sous-régional) : acceptée",(await essai("Accra"))==="ok"?true:await essai("Accra"));
  console.log(`\n${ok} PASS / ${ko} FAIL`);await b.close();srv.close();process.exit(ko?1:0)})();
