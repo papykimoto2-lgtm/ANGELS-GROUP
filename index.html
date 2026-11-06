@@ -99,7 +99,7 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:12px 12px 90px}
 <section class="prio" id="prio" hidden aria-label="Priorités commerciales"></section>
 <div id="demo-alerte" hidden role="alert" style="background:#fff1d6;border:1px solid #e0b34a;color:#6b4a00;border-radius:12px;padding:12px 14px;margin:14px 0 0;font-size:14px"></div>
 <section class="cons" id="cons"><div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:12px 0 10px">Vue consolidée du groupe</h2><button class="btn" id="maj" style="padding:6px 12px;min-height:0;background:var(--b)">Actualiser</button></div><div class="big" id="big"></div><div class="fil" id="tcons"></div><p class="note" id="ncons"></p></section>
-<h2 style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
+<h2 id="tdbh" style="margin:22px 0 10px;font-size:16px">Tableau de bord par module</h2>
 <div class="tabs" id="tabs"></div><section id="tdb"></section>
 <h3 id="fil" style="margin-top:22px">Filiales</h3>
 <div class="cards">
@@ -283,6 +283,8 @@ function assurance(G){
   act:P.length+" police(s) · "+ren+" à renouveler · "+sin+" sinistre(s)"};
 }
 function consolide(){
+ if(!finOk()){verrou();return}
+ $("tdbh").hidden=false;
  const X=REG.map(r=>[r.nom,r.fn(lire(r.cle))]);
  const tot=k=>som(X.filter(x=>x[1]&&x[1][k]!=null),x=>x[1][k]),cell=(x,k,f)=>!x?'<span class="nd">non ouvert</span>':x[k]==null?'<span class="nd">—</span>':(f?f(x[k]):F(x[k]));
  $("big").innerHTML=[["💰","Trésorerie du groupe",tot("tres")],["📈","Chiffre d'affaires du mois",tot("ca")],["💵","Encaissé du mois",tot("enc")],["🧾","Créances à recouvrer",tot("cre")]].map(([i,l,v])=>`<div><i class="ic">${i}</i><b>${F(v)}</b><span>${l}</span></div>`).join("");
@@ -300,6 +302,21 @@ function consolide(){
 /* ---------- Tableau de bord par module ---------- */
 const TOUS=[{id:"dist",mod:"distribution",nom:"Distributions",ic:"🏍️",href:"distribution.html",c:"var(--g1)",cle:"angels_erp_v1",fn:distribution},{id:"trans",mod:"transport",nom:"Transport",ic:"🚚",href:"transport.html",c:"var(--g2)",cle:"angels_transport_v3",fn:transport},{id:"agro",mod:"agro",nom:"Agro",ic:"🐔",href:"agro.html",c:"var(--g3)",cle:"angels_agro_v1",fn:agro},{id:"plac",mod:"placement",nom:"Placement",ic:"👷",href:"placement.html",c:"#b45309",cle:"angels_placement_v1",fn:placement},{id:"assu",mod:"assurance",nom:"Assurance",ic:"🛡️",href:"assurance.html",c:"#1e6ea0",cle:"angels_assurance_v1",fn:assurance}];
 const REG=TOUS.filter(r=>ACTIF(r.mod)),MODS=REG;
+/* ---------- Verrou des chiffres comptables : réservé aux rôles de direction (admin, direction, directeur) ---------- */
+const HAUT=["admin","direction","directeur"],FIN_DUREE=10*60*1000,FTRY={n:0,until:0};
+const finOk=()=>{try{const s=JSON.parse(sessionStorage.getItem("hub_fin")||"null");if(s&&s.exp>Date.now())return true;sessionStorage.removeItem("hub_fin")}catch(e){}return false};
+const hautUsers=()=>TOUS.flatMap(r=>((lire(r.cle)||{}).users||[]).filter(u=>HAUT.includes(u.role)&&u.actif!==false));
+function verrou(msg){
+ if(!msg&&$("fgate"))return;
+ const e=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+ $("tcons").innerHTML="";$("tabs").innerHTML="";$("tdb").innerHTML="";$("tdbh").hidden=true;$("prio").hidden=true;$("ncons").textContent="";
+ $("big").innerHTML=`<form id="fgate" style="grid-column:1/-1;background:#fff;border-radius:16px;padding:18px;display:grid;gap:10px;max-width:420px"><b>🔒 Chiffres comptables réservés</b><span class="note">Accès : administrateur ou direction. Saisissez votre nom et votre mot de passe.</span><input name="nom" placeholder="Nom" autocomplete="username" required maxlength="60"><input name="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password" required><button class="btn" type="submit">Déverrouiller</button><span class="note" id="fmsg" role="alert" style="color:#b42318">${msg?e(msg):""}</span></form>`}
+document.addEventListener("submit",e=>{if(e.target.id!=="fgate")return;e.preventDefault();
+ if(FTRY.until>Date.now())return verrou("Trop d'essais : patientez "+Math.ceil((FTRY.until-Date.now())/1000)+" s.");
+ const d=new FormData(e.target),nom=String(d.get("nom")||"").trim().toLowerCase(),pwd=String(d.get("pwd")||"");
+ (async()=>{let ok=false;try{for(const u of hautUsers().filter(x=>String(x.nom).trim().toLowerCase()===nom)){const r=await ANGELS_AUTH.connecter(u,pwd);if(r.ok&&!r.legacy&&!u.chg){ok=true;break}}}catch(x){}
+  if(ok){FTRY.n=0;try{sessionStorage.setItem("hub_fin",JSON.stringify({nom,exp:Date.now()+FIN_DUREE}))}catch(x){}return consolide()}
+  if(++FTRY.n>=5){FTRY.n=0;FTRY.until=Date.now()+60000}verrou("Nom ou mot de passe incorrect, ou accès non autorisé.")})()});
 let MOD=(()=>{try{return sessionStorage.getItem("hub_mod")||REG[0].id}catch(e){return REG[0].id}})();
 function tdb(X){
  const i=Math.max(0,MODS.findIndex(m=>m.id===MOD)),m=MODS[i],d=X[i][1];
