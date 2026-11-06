@@ -10,6 +10,6 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");const path=requir
   cenBordereauLivreur(lv.id);const f=document.querySelector("#docf"),h=f?f.srcdoc:"";closeModal();
   ME=S.users.find(u=>u.role==="livreur");__T.length=0;cenBordereauLivreur(lv.id);const refuse=__T.some(m=>/Accès refusé/.test(m));
   ME=S.users.find(u=>u.role==="admin"&&u.actif);
-  return{sans,aff:!!l,h:/Bordereau de livraison/.test(h)&&h.includes("CMD-BD-1")&&/TOTAL/.test(h)&&/Livreur — signature/.test(h)&&h.includes(lv.nom),refuse,btn:cenLivCard(lv).includes("cenBordereau")}});
- const o=r.sans&&r.aff&&r.h&&r.refuse&&r.btn;console.log(o?"PASS":"FAIL","BL-1",JSON.stringify(r));
+  return{sans,aff:!!l,h:/Bordereau de livraison/.test(h)&&h.includes("CMD-BD-1")&&/TOTAL/.test(h)&&/Livreur — signature/.test(h)&&h.includes(lv.nom),refuse,btn:cenLivCard(lv).includes("cenBordereau"),btn2:(ui.cdt="liv",view="livraisons",VIEWS.livraisons().includes("cenBordereau"))}});
+ const o=r.sans&&r.aff&&r.h&&r.refuse&&r.btn&&r.btn2;console.log(o?"PASS":"FAIL","BL-1",JSON.stringify(r));
  const e=errs.length===0;console.log(e?"PASS":"FAIL","BL-2 aucune erreur JS",errs.join("|"));await b.close();process.exit(o&&e?0:1)})();
