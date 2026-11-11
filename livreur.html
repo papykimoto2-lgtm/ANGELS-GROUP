@@ -391,6 +391,18 @@ function controleForm(){const E=(PL().moto||{}).engin;if(!E||!(E.items||[]).leng
 function panneForm(){formModal("Signaler une panne",`<label>Que se passe-t-il ?<input name="sujet" required minlength="3" maxlength="80" placeholder="Ex. Pneu crevé, freins, moteur qui cale…"></label><label>Situation<select name="g"><option value="roule">Je peux encore rouler (à faire réparer)</option><option value="arret">Ma moto est à l'arrêt</option></select></label><label>Précision (facultatif)<input name="note" maxlength="200"></label><div class="sm mu">Si la moto est à l'arrêt, le bureau est prévenu en urgence. En danger : utilisez l'alerte SOS.</div>`,"Envoyer au bureau",async d=>{
   const s=String(d.sujet||"").trim();if(s.length<3)return toast("Décrivez la panne","err");await envoyer(refSos(),"incident",{nature:"ENGIN_PANNE",sujet:s,gravite:d.g==="arret"?"arret":"roule",note:String(d.note||"").trim()},"Panne signalée : le bureau est prévenu")})}
 const minTxt=v=>v?Math.round(v)+" min":"—";
+const aRetirer=L=>L.filter(m=>m.statut==="acceptee"&&!(m.payload||{}).collecte_at),aAccepter=L=>L.filter(m=>m.statut==="affectee");
+function retraitHtml(){const L=lesActives(),R=aRetirer(L),A=aAccepter(L),ok=L.filter(m=>(m.statut==="acceptee"&&(m.payload||{}).collecte_at)||m.statut==="en_cours").length;
+ const nb=m=>{const p=m.payload||{};return p.colis_total>0?p.colis_total:p.nb_colis||(p.lignes||[]).reduce((a,x)=>a+(+x.qte||1),0)||1};
+ const fiche=(m,bt)=>{const p=m.payload||{},a=p.adr||{};return`<div class="card"><div class="between"><b>${esc(p.numero||m.livraison_ref)}</b><span class="bd">${nb(m)} colis</span></div><div class="sm">${esc(p.client_nom||"")}${a.quartier||a.zone?" · "+esc([a.quartier,a.zone].filter(Boolean).join(", ")):""}</div><ul class="sm" style="margin:6px 0 8px 18px;padding:0">${(p.lignes||[]).map(x=>`<li>${esc(x.desig||"Article")} × ${+x.qte||1}</li>`).join("")}</ul>${bt}</div>`};
+ return`<h2 class="pg">📦 Salle de retrait</h2><div class="card" style="background:#0b3c4f;color:#fff;border:0;text-align:center"><div style="font-size:13px;opacity:.8">Colis à retirer au centre</div><div style="font-size:34px;font-weight:800">${R.reduce((t,m)=>t+nb(m),0)}</div><div class="sm" style="opacity:.85">${R.length} commande(s) à retirer${A.length?" · "+A.length+" à accepter":""}${ok?" · "+ok+" déjà en main":""}</div></div>`
+ +(R.length?`<div class="sm mu" style="margin:6px 0">Comptez les colis au comptoir, vérifiez les articles, puis touchez « Je prends les colis ».</div>`+R.map(m=>fiche(m,`<button class="btn" data-a="prise" data-r="${esc(m.livraison_ref)}">📦 Je prends les colis</button>`)).join(""):ANGELS_UI.vide("missions","Rien à retirer pour le moment",A.length?"Acceptez d'abord vos nouvelles commandes ci-dessous.":"Les commandes que vous acceptez apparaissent ici, prêtes à être retirées."))
+ +(A.length?`<h2 class="pg">À accepter avant le retrait (${A.length})</h2>`+A.map(m=>fiche(m,`<button class="btn ok" data-a="accepter" data-r="${esc(m.livraison_ref)}">✔ Accepter</button>`)).join(""):"")}
+function classementHtml(){const C=((STATS||{}).payload||{}).classement,mois=new Date().toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+ if(!C||!C.top||!C.top.length)return`<h2 class="pg">🏆 Classement du mois</h2>`+ANGELS_UI.vide("missions","Classement pas encore disponible","Il apparaît dès que le bureau a synchronisé les statistiques du mois.");
+ const med=r=>r===1?"🥇":r===2?"🥈":r===3?"🥉":r,ligne=x=>`<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px;${x.moi?"border:2px solid #0b3c4f;background:#eef6f9":""}"><div style="min-width:34px;text-align:center;font-size:${x.r<=3?"24":"16"}px;font-weight:800">${med(x.r)}</div><div style="flex:1"><b>${esc(x.n)}${x.moi?" (vous)":""}</b><div class="sm mu">${x.t!=null?x.t+" % de réussite":"—"}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:800">${x.l}</div><div class="sm mu">livraison(s)</div></div></div>`;
+ const moi=C.top.find(x=>x.moi)||C.moi;
+ return`<h2 class="pg">🏆 Classement du mois</h2><div class="sm mu" style="margin:-6px 0 8px;text-transform:capitalize">${esc(mois)} · ${C.total} livreur(s)</div>${moi?`<div class="card" style="background:#0b3c4f;color:#fff;border:0;text-align:center"><div style="font-size:13px;opacity:.8">Votre rang</div><div style="font-size:34px;font-weight:800">${moi.r}<span style="font-size:16px;opacity:.8"> / ${C.total}</span></div><div class="sm" style="opacity:.85">${moi.l} livraison(s) ce mois</div></div>`:""}${C.top.map(ligne).join("")}${C.moi?`<div class="sm mu" style="text-align:center">…</div>`+ligne(C.moi):""}<div class="sm mu" style="margin-top:8px">Classement par nombre de livraisons réussies depuis le 1er du mois ; à égalité, le meilleur taux de réussite passe devant.</div>`}
 function statsHtml(){const P=((STATS||{}).payload||{}).p,j7=((STATS||{}).payload||{}).jours7||[],X=P&&P[SP],lab={j:"Aujourd'hui",s7:"7 jours",m30:"30 jours",mois:"Ce mois"};
  const chips=`<div class="chips">${Object.keys(lab).map(k=>`<button type="button" class="chip ${SP===k?"on":""}" data-a="sp" data-r="${k}">${lab[k]}</button>`).join("")}</div>`;
  if(!X)return`<h2 class="pg">Mes statistiques</h2><div class="card mu">Vos statistiques ne sont pas encore disponibles : le bureau les publie dès que votre compte est relié (quelques minutes après la première course ou la prochaine synchronisation).</div>`;
@@ -440,11 +452,34 @@ const drawerHtml=(n,f)=>`<div class="dr"><div class="bk" data-a="menu"></div><na
  <button class="mi ${PAGE==="chat"?"on":""}" data-a="page" data-r="chat">💬 Messages du centre${chatNonLus()?`<span class="bd">${chatNonLus()}</span>`:""}</button>
  <button class="mi ${PAGE==="plan"?"on":""}" data-a="page" data-r="plan">📅 Planning et pauses</button>
  <button class="mi ${PAGE==="gains"?"on":""}" data-a="page" data-r="gains">💰 Mes gains et ma prime</button>
+ <button class="mi ${PAGE==="retrait"?"on":""}" data-a="page" data-r="retrait">📦 Salle de retrait</button>
+ <button class="mi ${PAGE==="classement"?"on":""}" data-a="page" data-r="classement">🏆 Classement du mois</button>
  <button class="mi ${PAGE==="stats"?"on":""}" data-a="page" data-r="stats">📊 Mes statistiques</button>
  <button class="mi ${PAGE==="reglages"?"on":""}" data-a="page" data-r="reglages">⚙ GPS, mot de passe et alertes</button>
  <button class="mi" data-a="incident">⚠ Signaler un incident</button>
  ${peutInstaller()?'<button class="mi" data-a="installer">📲 Installer l\'application</button>':""}<button class="mi er" data-a="quitter">⏻ Déconnexion</button><div class="sm mu sanix" style="padding:10px 14px">Logiciel développé par <b>Sanix Africa Division Technologies</b> · WhatsApp : +225 0779181075 / 0140017751</div></nav></div>`;
 const aujourdhui=t=>{const d=new Date(t),n=new Date();return d.toDateString()===n.toDateString()};
+const MOBILE_RE=/(wave|orange|mtn|moov|momo|mobile)/i;
+function encaissementJour(fait){let esp=0,mob=0;fait.forEach(m=>{const q=m.payload||{},v=q.recu!=null&&q.recu!==""?+q.recu||0:+q.montant_attendu||0;if(MOBILE_RE.test(q.mode_recu||""))mob+=v;else esp+=v});return{total:esp+mob,esp,mob}}
+function livraisonsMois(){const P=((STATS||{}).payload||{}).p,X=P&&P.mois;return X&&X.livrees!=null?X.livrees:null}
+let RECH="";
+function appliquerRech(){const q=RECH.trim().toLowerCase();let n=0;document.querySelectorAll(".cq").forEach(e=>{const ok=!q||(e.dataset.q||"").includes(q);e.style.display=ok?"":"none";if(ok)n++});const v=document.querySelector("#rechv");if(v)v.textContent=q?n+" résultat(s)":"";const i=document.querySelector("#rech");if(i&&i.value!==RECH)i.value=RECH}
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="rech"){RECH=e.target.value;appliquerRech()}});
+const LSMQ="ang_lv_marq";let VUEL=lsGet("ang_lv_vue","liste"),FILT="toutes",ONE_REF=null;
+const marques=()=>new Set(lsGet(LSMQ,[]));
+const lesActives=()=>missions.map(surcouche).filter(m=>ACTIFS.includes(m.statut)).sort((a,b)=>(a.statut==="affectee"?0:1)-(b.statut==="affectee"?0:1));
+function pasUn(d){const MQ=marques(),L=lesActives(),sh=FILT==="marq"?L.filter(m=>MQ.has(m.livraison_ref)):L;let k=sh.findIndex(m=>m.livraison_ref===ONE_REF);k=Math.max(0,Math.min(sh.length-1,(k<0?0:k)+d));if(sh[k])ONE_REF=sh[k].livraison_ref;vueMissions()}
+function listeCours(act){
+ if(!act.length)return ANGELS_UI.vide("missions","Aucune mission pour le moment","Les nouvelles missions apparaissent ici automatiquement.");
+ const MQ=marques(),nm=act.filter(m=>MQ.has(m.livraison_ref)).length,vue=VUEL==="un"?"un":"liste",filt=FILT==="marq"?"marq":"toutes";
+ const shown=filt==="marq"?act.filter(m=>MQ.has(m.livraison_ref)):act;
+ const chip=(on,a,r,t)=>`<button type="button" class="btn ${on?"":"ghost"}" style="flex:1;margin:0;padding:8px 6px" data-a="${a}" data-r="${r}" aria-pressed="${on}">${t}</button>`;
+ const bar=`<div class="card" style="padding:8px"><div style="display:flex;gap:6px">${chip(vue==="liste","vuel","liste","☰ Liste")}${chip(vue==="un","vuel","un","1 par 1")}</div><div style="display:flex;gap:6px;margin-top:6px">${chip(filt==="toutes","filt","toutes","Toutes ("+act.length+")")}${chip(filt==="marq","filt","marq","★ Marquées ("+nm+")")}</div></div>`;
+ const star=m=>`<div style="text-align:right;margin:0 0 -6px"><button type="button" class="btn ghost" style="margin:0;padding:4px 10px;width:auto" data-a="marq" data-r="${esc(m.livraison_ref)}" aria-pressed="${MQ.has(m.livraison_ref)}">${MQ.has(m.livraison_ref)?"★ Marquée":"☆ Marquer"}</button></div>`;
+ if(!shown.length)return bar+ANGELS_UI.vide("missions","Aucune commande marquée","Touchez « ☆ Marquer » sur une commande pour la retrouver ici (marque gardée sur ce téléphone).");
+ if(vue==="un"){let k=shown.findIndex(m=>m.livraison_ref===ONE_REF);if(k<0)k=0;ONE_REF=shown[k].livraison_ref;const m=shown[k];
+  return bar+`<div class="card" style="padding:8px"><div style="display:flex;gap:6px;align-items:center"><button type="button" class="btn ghost" style="margin:0;width:auto" data-a="prec" data-r="x" ${k?"":"disabled"} aria-label="Commande précédente">◀</button><b style="flex:1;text-align:center">Commande ${k+1} / ${shown.length}</b><button type="button" class="btn ghost" style="margin:0;width:auto" data-a="suiv" data-r="x" ${k<shown.length-1?"":"disabled"} aria-label="Commande suivante">▶</button></div></div>`+star(m)+`<div class="cu">${carte(m,k,shown)}</div>`}
+ return bar+`<div class="card" style="padding:8px"><input id="rech" type="search" placeholder="Rechercher : n° de commande ou nom du client" autocomplete="off" style="width:100%;margin:0" value="${esc(RECH)}"><div id="rechv" class="sm mu"></div></div>`+shown.map((m,i,ar)=>{const p=m.payload||{},a=p.adr||{};return`<div class="cq" data-q="${esc([m.livraison_ref,p.numero,p.client_nom,a.quartier,a.zone].filter(Boolean).join(" ").toLowerCase())}">${star(m)}${carte(m,i,ar)}</div>`}).join("")}
 function enteteLivreur(L,act){
  const z=typeof pauseActive==="function"?pauseActive():null,A=PL().argent,fait=L.filter(m=>m.statut==="livree"&&m.maj_le&&aujourdhui(m.maj_le)),coll=fait.reduce((a,m)=>{const q=m.payload||{};return a+(q.recu!=null&&q.recu!==""?+q.recu||0:+q.montant_attendu||0)},0),nonEnc=act.filter(m=>m.statut==="en_cours").length;
  const stat=z?`⏸ En pause jusqu'à ${heureC(Date.parse(z.fin))}`:"🟢 Disponible";
@@ -452,6 +487,7 @@ function enteteLivreur(L,act){
  return`<div class="card" style="background:#0b3c4f;color:#fff;border:0"><div class="between"><b>${stat}</b><span class="sm" style="opacity:.8">${enLigne()?"":"📡 hors ligne"}</span></div>
  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px">${tu(act.length,"à faire")}${tu(fait.length,"livrées aujourd'hui")}${tu(A?fcfa(A.solde):"—","à reverser")}</div></div>
  ${cloturePanel()}
+ ${(()=>{const E=encaissementJour(fait),M=livraisonsMois(),k=(v,l,c)=>`<div style="text-align:center"><div style="font-size:20px;font-weight:800;color:${c}">${fcfa(v)}</div><div class="sm mu">${l}</div></div>`;return`<div class="card"><b>💵 Encaissement du jour</b><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">${k(E.total,"Total","inherit")}${k(E.esp,"Espèces","#118a4b")}${k(E.mob,"Mobile Money","#1a5fd1")}</div><div class="sm mu" style="margin-top:8px;text-align:center">${fait.length} livraison(s) aujourd'hui${M!=null?" · ce mois : <b>"+M+"</b>":""}</div></div>`})()}
  <div class="card"><b>🏁 Ma tournée</b><div class="sm" style="margin-top:4px">${fait.length} course(s) livrée(s) aujourd'hui · montants des livraisons du jour : <b>${fcfa(coll)}</b><br>À remettre au caissier : <b>${A?fcfa(A.solde):"—"}</b>${A&&A.attente?` · ${fcfa(A.attente)} en validation par la caisse`:""}</div>
  <div class="sm mu" style="margin-top:4px">${act.length?act.length+" course(s) restante(s)"+(nonEnc?" dont "+nonEnc+" en cours":"")+" : terminez-les pour clôturer votre tournée.":A&&A.solde>0?"Tournée terminée : remettez l'argent au caissier ou déclarez le versement (Mes gains).":"Tournée terminée."}</div></div>`}
 /* Aide courte de chaque page (ouverte la première fois, repliée ensuite ; masquable dans « GPS, mot de passe et alertes ») */
@@ -469,10 +505,12 @@ function vueMissions(){if(!user)return;const L=missions.map(surcouche),act=L.fil
  const corps=PAGE==="recent"?`<h2 class="pg">Traitées récemment</h2>${fin.length?fin.map(carte).join(""):'<div class="card mu">Aucune commande traitée récemment.</div>'}`
   :PAGE==="reglages"?reglagesHtml()
   :PAGE==="stats"?statsHtml()
+  :PAGE==="classement"?classementHtml()
+  :PAGE==="retrait"?retraitHtml()
   :PAGE==="gains"?gainsHtml()
   :PAGE==="plan"?planHtml()
   :PAGE==="chat"?chatHtml()
-  :`<h2 class="pg">Commandes en cours</h2>${enteteLivreur(L,act)}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${colsHtml()}${act.length?act.map(carte).join(""):ANGELS_UI.vide("missions","Aucune mission pour le moment","Les nouvelles missions apparaissent ici automatiquement.")}${itinCard()}${(setTimeout(itinAuto,0),"")}`;
+  :`<div class="between" style="align-items:center"><h2 class="pg" style="margin:0">Commandes en cours</h2><button type="button" class="btn" style="width:auto;margin:0;background:#f39b1c;border-color:#f39b1c;color:#fff" data-a="page" data-r="retrait">📦 Salle de retrait${aRetirer(act).length?" ("+aRetirer(act).length+")":""}</button></div>${enteteLivreur(L,act)}${aEnc?`<div class="al">Montants à encaisser : <b>${fcfa(aEnc)}</b></div>`:""}${colsHtml()}${listeCours(act)}${itinCard()}${(setTimeout(itinAuto,0),setTimeout(appliquerRech,0),"")}`;
  $("#app").innerHTML=`<div class="hd"><div><b>${esc((moi&&moi.nom)||"Livreur")}</b><small>${act.length} mission(s) à faire</small></div><button class="btn ghost bg" data-a="menu" aria-label="Ouvrir le menu" aria-expanded="${MENU}">☰</button></div>${MENU?drawerHtml(act.length,fin.length):""}<div class="wrap">${PAGE==="reglages"?"":'<div class="inst"></div>'}${alertes}${aideL()}${corps}</div><button type="button" class="sosb" data-a="sos" aria-label="Alerte SOS">🆘<small>SOS</small></button>${tabsLiv(act.length)}`;ANGELS_UI.monter(true)}
 document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.it!=null){ITIN.sel=ITIN.sel||new Set();if(t.checked){if(ITIN.sel.size>=10){t.checked=false;return toast("10 commandes au plus par itinéraire","err")}ITIN.sel.add(t.dataset.it)}else ITIN.sel.delete(t.dataset.it);ITIN.res=null}
  else if(t.dataset&&t.dataset.gp!=null){lsSet(LS.g,{on:t.checked});if(!t.checked&&watch!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watch);watch=null}else suivi();toast(t.checked?"Partage de la position activé pendant les courses":"Partage de la position coupé","ok")}});
@@ -611,6 +649,8 @@ const ACT={
  sos:()=>sosOuvrir(),
  pushon:async()=>{await pushActiver();vueMissions()},pushoff:async()=>{await pushCouper();vueMissions()},pushnon:()=>{lsSet(LS.d,1);vueMissions()},
  pushtest:async()=>{try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("🔔 Test",{body:"Les notifications fonctionnent sur ce téléphone.",tag:"test",icon:"icons/livreur-192.png",data:{u:"livreur.html"}})}catch(e){toast("Test impossible : "+e.message,"err")}},
+ marq:r=>{const q=marques();q.has(r)?q.delete(r):q.add(r);lsSet(LSMQ,[...q]);vueMissions()},vuel:r=>{VUEL=r==="un"?"un":"liste";lsSet("ang_lv_vue",VUEL);vueMissions()},filt:r=>{FILT=r==="marq"?"marq":"toutes";vueMissions()},
+ suiv:()=>pasUn(1),prec:()=>pasUn(-1),
  msgc:r=>msgClient(r),chatsend:()=>{const i=document.getElementById("chin");if(i)chatEnvoyer(i.value)},chatq:r=>chatEnvoyer(QCH[+r]),
  plan:r=>{const a=String(r).split("|");if(a.length===3)plReserverApp(a[0],a[1],a[2])},pause:r=>pauseApp(+r),reprise:()=>reprendreApp(),
  voix:()=>{const d=ANGELS_SIGNAL.dev();ANGELS_SIGNAL.setDev({voice:!d.voice});if(!d.voice)ANGELS_SIGNAL.parler("Lecture vocale activée",{force:true});vueMissions()},
@@ -618,7 +658,7 @@ const ACT={
  posclient:async r=>{const t=Date.now();const x=await envoyer(r,"incident",{nature:"Position du client",description:"Demande de la position GPS du client (envoyer le lien de partage)"},"Demande envoyée au bureau : vous pouvez partir, la position s'affichera ici.");if(x!==undefined){const P=lsGet(LS.p,{});P[r]=t;lsSet(LS.p,P)}vueMissions()},
  menu:()=>{MENU=!MENU;vueMissions()},
  sp:r=>{SP=["j","s7","m30","mois"].includes(r)?r:"s7";vueMissions()},
- page:r=>{PAGE=["cours","recent","reglages","stats","gains","plan","chat"].includes(r)?r:"cours";if(PAGE==="reglages")pushEtat().then(()=>{if(PAGE==="reglages"&&!ouvert&&user)vueMissions()});if(PAGE==="chat")lsSet(LS.v,Math.max(Date.now(),...CHAT().map(m=>Date.parse(m.ts)||0)));MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
+ page:r=>{PAGE=["cours","recent","reglages","stats","classement","retrait","gains","plan","chat"].includes(r)?r:"cours";if(PAGE==="reglages")pushEtat().then(()=>{if(PAGE==="reglages"&&!ouvert&&user)vueMissions()});if(PAGE==="chat")lsSet(LS.v,Math.max(Date.now(),...CHAT().map(m=>Date.parse(m.ts)||0)));MENU=false;vueMissions();try{window.scrollTo(0,0)}catch(e){}},
  gpsact:()=>{if(!navigator.geolocation)return toast("GPS indisponible sur cet appareil","err");
   navigator.geolocation.getCurrentPosition(()=>{lsSet(LS.g,{on:true});GPSST="granted";toast("GPS activé : votre position est disponible","ok");suivi();vueMissions()},e=>{if(e&&e.code===1)GPSST="denied";toast(e&&e.code===1?"GPS refusé : autorisez la localisation dans les réglages du navigateur":"Position introuvable : sortez à l'air libre ou activez la localisation du téléphone","err");vueMissions()},{enableHighAccuracy:true,timeout:15000})},
  itincalc:()=>itinCalculer(false),
