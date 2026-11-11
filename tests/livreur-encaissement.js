@@ -68,6 +68,15 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const vide=await p.evaluate(()=>document.body.innerText);
  chk("SR-4","Salle vide : message clair, pas d'erreur",/Rien à retirer pour le moment/.test(vide)&&!/undefined|NaN/.test(vide),vide.slice(0,200));
  await p.evaluate(()=>{PAGE="cours";vueMissions()});
+
+ await p.evaluate(()=>{const mk=(r)=>({livraison_ref:r,commande_ref:"CMD-"+r,statut:"acceptee",maj_le:new Date().toISOString(),payload:{numero:"CMD-"+r,client_nom:"Client "+r,adr:{zone:"Cocody",quartier:"Angré"},lignes:[{desig:"Portefeuille cuir",qte:1}],montant_attendu:5000,photos_colis:1}});
+  missions=[mk("ph1"),mk("ph2")];CPH={ph1:{n:1,t:Date.now(),L:[{n:1,photo:"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="}]},ph2:{n:1,t:Date.now(),L:[]}};PAGE="cours";VUEL="liste";FILT="toutes";vueMissions()});await p.waitForTimeout(200);
+ const th=await p.evaluate(()=>({n:document.querySelectorAll(".cphm").length,ref:(document.querySelector(".cphm")||{dataset:{}}).dataset.r,txt:document.body.innerText}));
+ chk("PH-1","Miniature de l'article sur la carte qui a une photo (et pas sur l'autre), articles toujours listés",th.n===1&&th.ref==="ph1|1"&&/1 × Portefeuille cuir/.test(th.txt),JSON.stringify(th).slice(0,200));
+ await p.click(".cphm");await p.waitForTimeout(200);
+ const zm=await p.evaluate(()=>!!document.querySelector(".cphz img"));
+ chk("PH-2","Toucher la miniature agrandit la photo",zm,"");
+ await p.evaluate(()=>{document.querySelectorAll(".ov").forEach(e=>e.remove());CPH={};missions=[];PAGE="cours";vueMissions()});
  await p.evaluate(()=>{missions=[];vueMissions()});await p.waitForTimeout(300);
  const t3=await p.evaluate(()=>document.body.innerText);
  chk("EN-6","aucune mission : pas d'erreur ni NaN",!/undefined|NaN/.test(t3),t3.slice(0,200));
