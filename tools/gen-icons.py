@@ -6,7 +6,7 @@ CLIENT=sys.argv[1] if len(sys.argv)>1 else ""
 OUT=os.path.join(os.path.dirname(__file__),"..","clients",CLIENT,"icons") if CLIENT else os.path.join(os.path.dirname(__file__),"..","icons")
 os.makedirs(OUT,exist_ok=True)
 FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-APPS={"hub":("AG",(11,59,76),(14,116,144)),"transport":("T",(124,45,18),(194,65,12)),"agro":("A",(26,71,49),(45,106,79)),"livreur":("L",(8,58,70),(8,145,178)),"centre":("C",(6,78,59),(5,150,105)),"onzebarre":("11",(13,27,42),(30,64,96))}
+APPS={"hub":("AG",(11,59,76),(14,116,144)),"transport":("T",(124,45,18),(194,65,12)),"agro":("A",(26,71,49),(45,106,79)),"livreur":("L",(8,58,70),(8,145,178)),"centre":("C",(6,78,59),(5,150,105))}
 def grad(size,c1,c2):
     im=Image.new("RGB",(size,size));px=im.load()
     for y in range(size):
