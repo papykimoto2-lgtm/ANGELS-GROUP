@@ -45,6 +45,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await p.click('[data-a="vuel"][data-r="liste"]');await p.waitForTimeout(150);
  const u3=await p.evaluate(()=>({n:document.querySelectorAll(".cq").length,v:localStorage.getItem("ang_lv_vue")}));
  chk("UN-3","Retour en liste : 2 cartes, choix de vue mémorisé",u3.n===2&&u3.v==='"liste"',JSON.stringify(u3));
+
+ await p.evaluate(()=>{STATS.payload.classement={total:12,rang:11,top:[1,2,3,4,5,6,7,8,9,10].map(r=>({r,n:"Livreur "+r,l:60-r,t:99-r,moi:false})),moi:{r:11,n:"Livreur Test",l:40,t:90,moi:true}};missions=[];PAGE="classement";vueMissions()});await p.waitForTimeout(200);
+ const cl=await p.evaluate(()=>document.body.innerText.replace(/\s+/g," "));
+ chk("CL-1","Classement : rang 11 / 12, top 10 avec médailles, ligne « vous » ajoutée sous le top",/Votre rang\s*11\s*\/ 12/.test(cl)&&cl.includes("🥇")&&cl.includes("🥉")&&/Livreur 10/.test(cl)&&/Livreur Test \(vous\)/.test(cl)&&!/Livreur 11\b/.test(cl),cl.slice(0,400));
+ await p.evaluate(()=>{delete STATS.payload.classement;vueMissions()});
+ const cl2=await p.evaluate(()=>document.body.innerText);
+ chk("CL-2","Sans données : message d'attente, pas d'erreur",/pas encore disponible/.test(cl2)&&!/undefined|NaN/.test(cl2),cl2.slice(0,200));
+ await p.evaluate(()=>{PAGE="cours";vueMissions()});
  await p.evaluate(()=>{missions=[];vueMissions()});await p.waitForTimeout(300);
  const t3=await p.evaluate(()=>document.body.innerText);
  chk("EN-6","aucune mission : pas d'erreur ni NaN",!/undefined|NaN/.test(t3),t3.slice(0,200));
