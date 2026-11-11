@@ -1074,6 +1074,18 @@ Une commande à portée nationale / sous-régionale / internationale crée son d
 
 La version de l'application (cache actif du service worker) est affichée sous l'écran de connexion et dans ☰ → « GPS, mot de passe et alertes » : elle permet de vérifier ce que le téléphone a réellement chargé. Au retour au premier plan (et toutes les 30 minutes) l'application cherche une nouvelle version ; dès qu'elle prend la main la page se recharge toute seule, sauf pendant une saisie ou une fenêtre ouverte. Test : `tests/livreur-version.js`.
 
+## Purger avant une date : supprimer l'ancien (purge-date-engine.js, tests/purge-date.js, tests/purge-date-ecran.js)
+
+**Distributions → Administration → « 🧹 Purger avant une date »** (administrateur seulement) supprime les **commandes, livraisons et la caisse** (sessions, mouvements, remises, réapprovisionnements, file d'attente) dont **toute l'activité** est antérieure à une date. Par défaut : début d'hier, donc **hier et aujourd'hui sont conservés**.
+
+1. **Sauvegarde obligatoire** (même fichier que le passage en production, restaurable par « Importer »).
+2. Date de coupure (jamais postérieure à hier) puis **aperçu chiffré** : ce qui sera supprimé et conservé, par type.
+3. Confirmation par la saisie de **PURGER** ; une ligne « Purge avant le … » est inscrite au journal d'audit.
+
+Règles de prudence : la date d'un élément est sa **dernière activité** (le plus récent de ses horodatages, historique compris) ; sans horodatage il est conservé ; une commande liée à une livraison récente est conservée ; une livraison suit sa commande ; une caisse encore ouverte (ou clôturée à partir de la coupure) est conservée avec tous ses mouvements. Clients, produits, stock, comptabilité, comptes, paramétrage et audit ne sont **pas** touchés. Les données conservées qui référencent un élément supprimé (encaissements livreurs, retours, incidents, avis, notifications) restent en place et sont signalées dans l'aperçu ; les écrans les affichent sans erreur.
+
+Plusieurs postes : la suppression est transmise aux autres postes par la synchronisation (confirmation « suppression massive »). Les missions anciennes déjà envoyées aux livreurs sur le serveur se purgent avec `supabase/purge-avant-date.sql` (aperçu, puis suppression). Mode serveur (`CL.on`) : l'écran renvoie vers ce script.
+
 ## Passage en production : vider les données d'exercice après la formation (production-engine.js, tests/passage-production.js)
 
 Après la formation, les applications contiennent des données d'exercice. **Distributions** (Administration → « 🚀 Passage en production »), **Transport** (Audit et paramètres → onglet « Passage en production ») et **Agro** (Paramétrage → onglet « Passage en production ») proposent la même procédure, réservée à l'administrateur :
