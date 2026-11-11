@@ -53,6 +53,21 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const cl2=await p.evaluate(()=>document.body.innerText);
  chk("CL-2","Sans données : message d'attente, pas d'erreur",/pas encore disponible/.test(cl2)&&!/undefined|NaN/.test(cl2),cl2.slice(0,200));
  await p.evaluate(()=>{PAGE="cours";vueMissions()});
+
+ await p.evaluate(()=>{const mk=(r,st,col)=>({livraison_ref:r,commande_ref:"CMD-"+r,statut:st,maj_le:new Date().toISOString(),payload:{numero:"CMD-"+r,client_nom:"Client "+r,adr:{zone:"Cocody",quartier:"Angré"},lignes:[{desig:"Portefeuille cuir",qte:2},{desig:"Bracelet",qte:1}],montant_attendu:5000,collecte_at:col||null}});
+  missions=[mk("r1","acceptee"),mk("r2","acceptee"),mk("r3","acceptee","2026-01-01T10:00:00Z"),mk("r4","affectee"),mk("r5","en_cours","2026-01-01T10:00:00Z")];PAGE="cours";VUEL="liste";FILT="toutes";vueMissions()});await p.waitForTimeout(200);
+ const bt=await p.evaluate(()=>document.querySelector('[data-a="page"][data-r="retrait"]').innerText);
+ chk("SR-1","Bouton « Salle de retrait (2) » sur l'écran principal : 2 commandes acceptées pas encore retirées",/Salle de retrait \(2\)/.test(bt),bt);
+ await p.click('[data-a="page"][data-r="retrait"]');await p.waitForTimeout(200);
+ const sr=await p.evaluate(()=>({t:document.body.innerText.replace(/\s+/g," "),prise:document.querySelectorAll('.card [data-a="prise"]').length,acc:document.querySelectorAll('.card [data-a="accepter"]').length}));
+ chk("SR-2","Salle de retrait : 6 colis (2×3 articles) à retirer, 2 fiches avec bouton, 1 à accepter, 2 déjà en main",/Colis à retirer au centre\s*6/.test(sr.t)&&/2 commande\(s\) à retirer · 1 à accepter · 2 déjà en main/.test(sr.t)&&sr.prise===2&&sr.acc===1&&/Portefeuille cuir × 2/.test(sr.t),JSON.stringify(sr).slice(0,300));
+ await p.click('[data-a="prise"][data-r="r1"]');await p.waitForTimeout(250);
+ const mo=await p.evaluate(()=>/Colis pris en charge/.test(document.body.innerText));
+ chk("SR-3","« Je prends les colis » ouvre le formulaire de prise en charge depuis la salle de retrait",mo,"");
+ await p.evaluate(()=>{document.querySelectorAll(".ov").forEach(e=>e.remove());missions=[];PAGE="retrait";vueMissions()});
+ const vide=await p.evaluate(()=>document.body.innerText);
+ chk("SR-4","Salle vide : message clair, pas d'erreur",/Rien à retirer pour le moment/.test(vide)&&!/undefined|NaN/.test(vide),vide.slice(0,200));
+ await p.evaluate(()=>{PAGE="cours";vueMissions()});
  await p.evaluate(()=>{missions=[];vueMissions()});await p.waitForTimeout(300);
  const t3=await p.evaluate(()=>document.body.innerText);
  chk("EN-6","aucune mission : pas d'erreur ni NaN",!/undefined|NaN/.test(t3),t3.slice(0,200));
