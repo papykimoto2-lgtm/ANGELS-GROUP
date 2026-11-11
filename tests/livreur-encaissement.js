@@ -11,7 +11,7 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const p=await ctx.newPage();p.on("pageerror",e=>errs.push(e.message));await p.goto(base+"/livreur.html");await p.waitForTimeout(600);
  const today=new Date().toISOString();
  const mk=(ref,num,st,nom,mode,recu)=>({livraison_ref:ref,commande_ref:num,statut:st,maj_le:today,payload:{numero:num,client_nom:nom,adr:{zone:"Yopougon",quartier:"Niangon",gps:null},lignes:[{desig:"Article",qte:1}],montant_attendu:5000,recu:recu==null?null:recu,mode_recu:mode||null}});
- await p.evaluate(({M})=>{user={id:"u"};moi={nom:"Livreur Test",livreur_ref:"l1"};missions=M;STATS={maj_le:new Date().toISOString(),payload:{argent:{solde:0,produits:0,frais:0,gardes:0,rev:0,attente:0,comptes:[]},p:{mois:{livrees:56,echecs:0,taux:100,duree:0,delais:0,nnotes:0,note:0,encaisse:0,gains:0}}}};PAGE="cours";MENU=false;RECH="";vueMissions()},{M:[
+ await p.evaluate(({M})=>{user={id:"u"};moi={nom:"Livreur Test",livreur_ref:"l1"};missions=M;STATS={maj_le:new Date().toISOString(),payload:{argent:{solde:0,produits:0,frais:0,gardes:0,rev:0,attente:0,comptes:[]},p:{mois:{livrees:56,echecs:0,taux:100,duree:0,delais:0,nnotes:0,note:0,encaisse:0,gains:0}}}};PAGE="cours";MENU=false;RECH="";VUEL="liste";FILT="toutes";ONE_REF=null;localStorage.removeItem("ang_lv_marq");vueMissions()},{M:[
   mk("a","CMD-A","en_cours","Awa Kone"),mk("b","CMD-B","acceptee","Banhiet Stephane"),
   mk("d","CMD-D","livree","Client D","Espèces",30000),mk("e","CMD-E","livree","Client E","Wave",20000),mk("f","CMD-F","livree","Client F","",7000)]});
  await p.waitForTimeout(700);
@@ -27,6 +27,24 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  await p.evaluate(()=>{vueMissions()});await p.waitForTimeout(300);
  const r3=await p.evaluate(()=>({v:document.querySelector("#rech").value,vis:[...document.querySelectorAll(".cq")].filter(e=>e.style.display!=="none").length}));
  chk("EN-5","le filtre survit au rafraîchissement de la liste",r3.v==="cmd-a"&&r3.vis===1,JSON.stringify(r3));
+
+ await p.fill("#rech","");await p.waitForTimeout(150);
+ await p.click('[data-a="marq"][data-r="b"]');await p.waitForTimeout(150);
+ await p.click('[data-a="filt"][data-r="marq"]');await p.waitForTimeout(150);
+ const m1=await p.evaluate(()=>({n:document.querySelectorAll(".cq").length,t:document.body.innerText,ls:localStorage.getItem("ang_lv_marq")}));
+ chk("MQ-1","Marquer une commande : filtre Marquées (1) n'affiche qu'elle, marque gardée sur le téléphone",m1.n===1&&/Marquées \(1\)/.test(m1.t)&&/Toutes \(2\)/.test(m1.t)&&m1.ls==='["b"]',JSON.stringify(m1).slice(0,200));
+ await p.click('[data-a="marq"][data-r="b"]');await p.waitForTimeout(150);
+ const m2=await p.evaluate(()=>document.body.innerText);
+ chk("MQ-2","Démarquer : filtre Marquées vide, message explicite",/Aucune commande marquée/.test(m2)&&/Marquées \(0\)/.test(m2),m2.slice(0,200));
+ await p.click('[data-a="filt"][data-r="toutes"]');await p.click('[data-a="vuel"][data-r="un"]');await p.waitForTimeout(150);
+ const u1=await p.evaluate(()=>({t:document.body.innerText,cartes:document.querySelectorAll(".cu").length,prec:document.querySelector('[data-a="prec"]').disabled}));
+ chk("UN-1","Mode 1 par 1 : une seule carte, « Commande 1 / 2 », précédent désactivé",u1.cartes===1&&/Commande 1 \/ 2/.test(u1.t)&&u1.prec===true&&/Awa Kone/.test(u1.t)&&!/Banhiet/.test(u1.t),u1.t.slice(0,300));
+ await p.click('[data-a="suiv"]');await p.waitForTimeout(150);
+ const u2=await p.evaluate(()=>({t:document.body.innerText,suiv:document.querySelector('[data-a="suiv"]').disabled}));
+ chk("UN-2","Suivante : « Commande 2 / 2 », autre client affiché, suivant désactivé",/Commande 2 \/ 2/.test(u2.t)&&/Banhiet/.test(u2.t)&&u2.suiv===true,u2.t.slice(0,300));
+ await p.click('[data-a="vuel"][data-r="liste"]');await p.waitForTimeout(150);
+ const u3=await p.evaluate(()=>({n:document.querySelectorAll(".cq").length,v:localStorage.getItem("ang_lv_vue")}));
+ chk("UN-3","Retour en liste : 2 cartes, choix de vue mémorisé",u3.n===2&&u3.v==='"liste"',JSON.stringify(u3));
  await p.evaluate(()=>{missions=[];vueMissions()});await p.waitForTimeout(300);
  const t3=await p.evaluate(()=>document.body.innerText);
  chk("EN-6","aucune mission : pas d'erreur ni NaN",!/undefined|NaN/.test(t3),t3.slice(0,200));
