@@ -1,0 +1,291 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Manuel de procédure — ANGEL'S GROUP</title>
+<style>
+@page{size:A4;margin:18mm 15mm 18mm}
+*{box-sizing:border-box}body{font:10.5pt/1.45 Helvetica,Arial,sans-serif;color:#1b2430;margin:0}
+h1{font-size:19pt;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:4px;margin:0 0 10px;page-break-before:always}
+h1.nb{page-break-before:avoid}
+h2{font-size:13pt;color:#1F3864;margin:16px 0 6px;page-break-after:avoid}
+h3{font-size:11pt;margin:12px 0 4px;page-break-after:avoid}
+table{border-collapse:collapse;width:100%;margin:6px 0 10px;font-size:9.5pt;page-break-inside:auto}
+tr{page-break-inside:avoid}th{background:#1F3864;color:#fff;text-align:left}
+th,td{border:1px solid #9aa5b5;padding:4px 6px;vertical-align:top}tbody tr:nth-child(even){background:#f2f5fa}
+ol,ul{margin:4px 0 8px;padding-left:20px}li{margin:2px 0}
+.box{border-left:4px solid #c0392b;background:#fdf0ee;padding:6px 10px;margin:8px 0;page-break-inside:avoid}
+.ok{border-left-color:#2e7d32;background:#eef7ee}
+.cover{height:255mm;display:flex;flex-direction:column;justify-content:center;text-align:center}
+.cover h1{border:0;font-size:30pt;page-break-before:avoid}.cover p{font-size:13pt;margin:4px}
+.flow{font-weight:bold;background:#eaf0fb;padding:6px 10px;border-radius:4px;margin:6px 0}
+code{background:#eef;padding:0 3px;border-radius:2px}
+</style></head><body>
+
+<div class="cover">
+<p style="color:#1F3864;font-weight:bold;letter-spacing:3px">ANGEL'S GROUP</p>
+<h1 class="nb" style="border:0">MANUEL DE PROCÉDURE</h1>
+<p><b>Livraison (Angel's Distributions)</b><br><b>Gestion de taxi (Angel's &amp; Co Transport)</b></p>
+<p style="margin-top:30px">Version 1 · Octobre 2026</p>
+<p style="margin-top:40px;font-size:10pt">Public : administrateur, direction, superviseur, commercial, préparateur, caissier, comptable, contrôleur, gestionnaire de flotte, livreur, chauffeur, vendeur partenaire</p>
+</div>
+
+<h1 class="nb" style="page-break-before:always">Sommaire</h1>
+<table><tbody>
+<tr><td><b>0</b></td><td>Objet, acteurs, règles générales</td></tr>
+<tr><td><b>A</b></td><td><b>LIVRAISON</b> — A1 Commande · A2 Collecte vendeur · A3 Préparation · A4 Affectation et suivi · A5 Livreur sur le terrain · A6 Échecs, retours, incidents · A7 Argent · A8 Clôture de journée</td></tr>
+<tr><td><b>B</b></td><td><b>GESTION DE TAXI</b> — B1 Véhicule · B2 Chauffeur · B3 Contrat · B4 Versements et reçus · B5 Caisse et dépenses · B6 Entretien et maintenance · B7 Sinistre · B8 GPS · B9 Documents et alertes · B10 Portail chauffeur · B11 Comptabilité et clôture · B12 Fin de contrat</td></tr>
+<tr><td><b>C</b></td><td>Annexes — Règles d'or · Escalade · Tableaux de contrôle · Documents liés</td></tr>
+</tbody></table>
+
+<h1>0. Objet, acteurs, règles générales</h1>
+<h2>0.1 Objet</h2>
+<p>Décrire, pas à pas, qui fait quoi, dans quel écran et avec quelle preuve, pour les deux activités : <b>livraison de colis à moto</b> (<code>distribution.html</code>, <code>livreur.html</code>, <code>vendeur.html</code>, <code>portail.html</code>) et <b>gestion du parc de taxis</b> (<code>transport.html</code>).</p>
+<h2>0.2 Acteurs et responsabilités</h2>
+<table><thead><tr><th>Activité</th><th>Acteur</th><th>Responsabilité principale</th></tr></thead><tbody>
+<tr><td rowspan="8">Livraison</td><td>Administrateur</td><td>Utilisateurs, droits, paramètres, audit, corrections exceptionnelles</td></tr>
+<tr><td>Direction générale</td><td>Valide mouvements de caisse, écarts, opérations RH ; lit tableaux de bord</td></tr>
+<tr><td>Superviseur des livraisons</td><td>Planifie collectes, affecte livreurs, traite échecs, incidents, SOS ; clôture la journée</td></tr>
+<tr><td>Responsable commercial</td><td>Clients, vendeurs, commandes, produits, documents</td></tr>
+<tr><td>Préparateur</td><td>Réception collectes et retours, préparation, étiquettes, stock</td></tr>
+<tr><td>Caissier</td><td>Caisse, versements livreurs, reversements vendeurs</td></tr>
+<tr><td>Livreur</td><td>Collecte, livraison, preuve, encaissement, versement</td></tr>
+<tr><td>Vendeur partenaire / Client</td><td>Publie et expédie ses colis / programme et reçoit sa livraison</td></tr>
+<tr><td rowspan="6">Taxi</td><td>Administrateur général</td><td>Utilisateurs, matrice de droits, sauvegarde, audit</td></tr>
+<tr><td>Directeur / propriétaire</td><td>Contrats, exonérations, rapports, décisions</td></tr>
+<tr><td>Gestionnaire de flotte</td><td>Véhicules, chauffeurs, affectations, maintenance, GPS, sinistres</td></tr>
+<tr><td>Caissier</td><td>Encaissements, reçus, caisse, dépenses</td></tr>
+<tr><td>Contrôleur / Comptable</td><td>Validations, pointage banque / écritures SYSCOHADA, périodes</td></tr>
+<tr><td>Chauffeur taxi</td><td>Verse sa recette ou son loyer, déclare incidents, consulte reçus</td></tr>
+</tbody></table>
+<h2>0.3 Règles générales (tous acteurs)</h2>
+<ol>
+<li><b>Identifiants personnels</b> : jamais de partage de mot de passe ou PIN. Blocage après 5 échecs (60 s côté hub) ; réinitialisation par l'administrateur.</li>
+<li><b>Droits</b> : chacun ne voit et ne fait que ce que son rôle autorise. Personne ne valide ce qu'il a saisi.</li>
+<li><b>Journal d'audit</b> : toute action sensible (annulation, validation, correction, planification) est tracée. Tout motif demandé est <b>obligatoire</b>.</li>
+<li><b>Application installable</b> : Android/Chrome « Installer l'application » ; iPhone Safari → Partager → Sur l'écran d'accueil. Hors ligne : les actions du livreur restent en file et repartent seules.</li>
+<li><b>Argent</b> : tout encaissement est enregistré le jour même, avec référence pour Mobile Money / virement. Aucun justificatif, aucune dépense au-dessus du seuil.</li>
+<li><b>Sauvegarde</b> : l'administrateur exporte la sauvegarde signée à la fréquence fixée par la direction et teste la restauration.</li>
+</ol>
+
+<h1>A. LIVRAISON</h1>
+<div class="flow">Commande reçue → Confirmée → Préparation → Prête → En livraison → Livrée (issues : échec, retour, annulée)</div>
+
+<h2>A1. Prise et confirmation de commande</h2>
+<table><thead><tr><th>#</th><th>Acteur</th><th>Action</th><th>Preuve / contrôle</th></tr></thead><tbody>
+<tr><td>1</td><td>Client / Commercial</td><td>Le client programme via le portail ; ou le commercial crée / importe la commande (<i>Commandes → Créer</i>).</td><td>Numéro de commande généré</td></tr>
+<tr><td>2</td><td>Commercial</td><td>Vérifier client, adresse (zone, quartier, repère), articles, prix, mode de paiement ; <b>Confirmer</b>.</td><td>Statut Confirmée</td></tr>
+<tr><td>3</td><td>Commercial</td><td>Acompte espèces : encaisser à la création ; il entre en caisse (« Avance client »). Caisse fermée : mis en attente, rangé à l'ouverture.</td><td>Reçu</td></tr>
+<tr><td>4</td><td>Commercial</td><td>Envoyer le lien de suivi au client (WhatsApp). Le lien expire 48 h après la fin de la commande.</td><td>Suivi en direct</td></tr>
+</tbody></table>
+<div class="box"><b>Une seule action principale</b> par commande selon l'étape ; les autres sont sous « ⋯ Plus d'actions ».</div>
+
+<h2>A2. Collecte chez un vendeur partenaire</h2>
+<p>Commandes de vendeurs partenaires uniquement. Procédure détaillée : <code>docs/MANUEL_COLLECTE.pdf</code>.</p>
+<div class="flow">Planifiée → Acceptée → En route → Collectée → Réceptionnée</div>
+<ol>
+<li><b>Superviseur</b> : <i>Centre de livraison → Collectes → Planifier</i> ; choisir commandes, livreur, créneau, adresse ; la collecte reçoit un numéro COL-AAAA-NNNN et un <b>code à 4 chiffres</b> vu du vendeur seul. Imprimer le bon de collecte.</li>
+<li><b>Livreur</b> : Accepter ou « Impossible » (motif obligatoire) ; <i>Je pars</i> ; vérifier les articles avec le vendeur ; le vendeur remet les colis <b>puis</b> donne son code ; saisir code et nombre de colis par commande.</li>
+<li><b>Préparateur</b> : <i>Commandes → Collectes à réceptionner</i> ; compter ; écart ⇒ incident automatique (colis manquant / écart de colis).</li>
+</ol>
+
+<h2>A3. Préparation et étiquetage</h2>
+<ol>
+<li>Préparateur : <b>Démarrer la préparation</b> (désactivé tant qu'une collecte est ouverte pour la commande).</li>
+<li>Prélever les articles, contrôler quantités ; le stock décroît ; ajuster par une saisie d'inventaire si écart.</li>
+<li>Imprimer les <b>étiquettes QR</b> des colis ; coller sur chaque colis.</li>
+<li><b>Marquer prête</b>. Imprimer le <b>bon de livraison</b>.</li>
+</ol>
+
+<h2>A4. Affectation et suivi des livraisons</h2>
+<ol>
+<li><b>Superviseur</b> : <i>Centre de livraison → Affecter</i> ; choisir un livreur disponible (courses en cours visibles), dossier complet et valide si l'option est active.</li>
+<li>Remise des colis au livreur contre signature / scan des étiquettes.</li>
+<li>Suivi : <i>Tour de contrôle</i> et <i>Carte en direct</i> ; alertes de retard, SOS.</li>
+<li>Réaffecter si le livreur refuse ou tarde ; motif obligatoire pour toute annulation.</li>
+</ol>
+
+<h2>A5. Livreur sur le terrain</h2>
+<table><thead><tr><th>Étape</th><th>Action du livreur</th><th>Règle</th></tr></thead><tbody>
+<tr><td>Connexion</td><td>Ouvrir l'application (<code>livreur.html</code>) ; identifiant ou lien WhatsApp</td><td>Téléphone chargé, position activée</td></tr>
+<tr><td>Mission</td><td><b>Je prends les colis</b> / « Je ne peux pas la prendre »</td><td>Refus impossible après prise des colis</td></tr>
+<tr><td>Route</td><td>Appeler le client ; partager la position</td><td>Le client voit la position en direct (15 s)</td></tr>
+<tr><td>Remise</td><td>Contrôler le colis, remettre au client, saisir le nom</td><td>Photo et/ou <b>signature du client</b> (vraies images)</td></tr>
+<tr><td>Encaissement</td><td>Espèces : saisir le montant ; Mobile Money : référence</td><td>Écart expliqué ; Mobile Money direct « à rapprocher du relevé »</td></tr>
+<tr><td>Échec</td><td><b>Livraison impossible</b> + motif (client absent, injoignable, refus…)</td><td>Colis gardés, retour au dépôt</td></tr>
+<tr><td>Danger</td><td><b>SOS</b></td><td>Alerte immédiate au superviseur</td></tr>
+<tr><td>Hors ligne</td><td>Continuer à travailler</td><td>Actions mises en file, rejouées sans doublon</td></tr>
+</tbody></table>
+<div class="box">Signature client faite depuis la <b>même connexion</b> que la confirmation du livreur : marquée « à vérifier » (jamais bloquante).</div>
+
+<h2>A6. Échecs, retours et incidents</h2>
+<ol>
+<li>Superviseur : <i>Centre → Échecs et retours</i> ; choisir : <b>reprogrammer</b> (nouvelle date/livreur) ou <b>retour</b>.</li>
+<li>Préparateur : <b>Réceptionner le retour</b> ; compter, remettre en stock.</li>
+<li>Tout écart ou colis manquant ⇒ incident INC-NNNN ; le superviseur instruit (responsabilité, dédommagement) et clôt avec décision écrite.</li>
+</ol>
+
+<h2>A7. Argent : de l'encaissement au reversement</h2>
+<div class="flow">Livreur encaisse → déclare → Caissier valide → Clôture de tournée → Reversement vendeur / règlement fournisseur</div>
+<table><thead><tr><th>#</th><th>Acteur</th><th>Action</th></tr></thead><tbody>
+<tr><td>1</td><td>Caissier</td><td><b>Ouvrir la caisse</b> chaque matin. Fermée : les espèces sont mises en attente et rangées à l'ouverture.</td></tr>
+<tr><td>2</td><td>Livreur</td><td>Remet l'argent au caissier en fin de tournée (écran « À remettre au caissier », reliquat des tournées précédentes inclus).</td></tr>
+<tr><td>3</td><td>Caissier</td><td><i>Argent → Trésorerie → À traiter maintenant</i> : <b>✔ Encaissé</b> / ✖ Rejeter les versements Mobile Money ; <b>🏁 Clôturer</b> la tournée.</td></tr>
+<tr><td>4</td><td>Caissier</td><td>Verser aux vendeurs (<i>Versements vendeurs</i>) ; payer fournisseurs.</td></tr>
+<tr><td>5</td><td>Superviseur / Direction</td><td>Accepter ou refuser les écarts de livraison et de caisse.</td></tr>
+<tr><td>6</td><td>Direction</td><td>Valider bons de caisse et règlements selon la hiérarchie de validation (si activée).</td></tr>
+<tr><td>7</td><td>Caissier</td><td><b>Clôturer la caisse</b> : compter, saisir, expliquer tout écart.</td></tr>
+</tbody></table>
+<h3>Hiérarchie de validation (si activée)</h3>
+<table><thead><tr><th>Niveau</th><th>Seuil</th><th>Valideur</th></tr></thead><tbody>
+<tr><td>1</td><td>sous 50 000 F (par défaut)</td><td>Administrateur ou direction (superviseur pour écarts livreurs)</td></tr>
+<tr><td>2</td><td>à partir du 1<sup>er</sup> seuil</td><td>Direction</td></tr>
+<tr><td>3</td><td>à partir du seuil DG</td><td>DG titulaire ou suppléant</td></tr>
+</tbody></table>
+<div class="box"><b>Encaissement refusé</b> (commande réaffectée, référence en double…) : il n'est pas perdu ; il apparaît « à régulariser » jusqu'à ce qu'un responsable le marque « Traité ».</div>
+
+<h2>A8. Clôture de la journée du centre</h2>
+<ol>
+<li>Toutes les missions du jour sont terminées, reprogrammées ou en retour.</li>
+<li>Versements validés ; tournées clôturées ; écarts traités.</li>
+<li>Superviseur : <i>Centre → Clôture</i> ; relire alertes (collectes non planifiées, signatures à vérifier, incidents ouverts).</li>
+<li>Caissier : clôture de caisse ; Direction : lit le tableau de bord.</li>
+</ol>
+
+<h1>B. GESTION DE TAXI</h1>
+<div class="flow">Véhicule + Chauffeur → Contrat → Échéances journalières → Versement → Reçu → Caisse → Comptabilité</div>
+
+<h2>B1. Entrée d'un véhicule dans le parc</h2>
+<ol>
+<li>Gestionnaire de flotte : <i>Véhicules → Créer</i> : immatriculation, marque, type, année, kilométrage.</li>
+<li>Joindre les documents : <b>carte grise, assurance, visite technique, carte de transport</b> (PNG, JPEG, WebP, PDF ≤ 300 Ko). Badge « dossier incomplet » tant qu'il manque une pièce.</li>
+<li>Programmer le plan d'entretien préventif (B6) et la pose du boîtier GPS (B8).</li>
+<li>Statuts : disponible, en service, <b>immobilisé</b> (maintenance / sinistre), sorti du parc (historique conservé).</li>
+</ol>
+
+<h2>B2. Enregistrement d'un chauffeur</h2>
+<ol>
+<li><i>Chauffeurs → Créer</i> : identité, téléphone, adresse.</li>
+<li>Pièces : <b>photo, permis, carte d'identité</b> ; vérifier la validité du permis.</li>
+<li>Créer son compte pour le portail chauffeur (code PIN) ; le remettre en main propre.</li>
+<li>Affecter le chauffeur à un véhicule (<i>Affectations</i>) ; l'historique est conservé.</li>
+</ol>
+
+<h2>B3. Contrat d'exploitation</h2>
+<table><thead><tr><th>Mode</th><th>Principe</th></tr></thead><tbody>
+<tr><td>A — Recette journalière</td><td>Montant dû chaque jour d'exploitation ; jour de repos : aucune recette due</td></tr>
+<tr><td>B — Location périodique</td><td>Loyer selon périodicité fixée au contrat</td></tr>
+</tbody></table>
+<ol>
+<li>Directeur / flotte : <i>Contrats → Nouveau</i> : véhicule, chauffeur, mode, montant, jours de repos, <b>dépôt de garantie</b>, dates.</li>
+<li>Imprimer le contrat (9 articles, modèle modifiable) en deux exemplaires ; faire <b>signer</b> ; saisir la date et scanner le contrat signé.</li>
+<li>Changement de tarif : <b>avenant</b> (versionné). Changement de mode : procédure dédiée, historique conservé.</li>
+<li><b>Exonération</b> ou journée exceptionnelle : décision du directeur, <b>motif obligatoire</b>.</li>
+<li>Le planning et les <b>échéances</b> sont générés ; contrôler le planning chaque semaine.</li>
+</ol>
+
+<h2>B4. Versements et reçus</h2>
+<ol>
+<li>Le chauffeur verse sa recette / son loyer au bureau (espèces, Mobile Money, virement).</li>
+<li>Caissier : <i>Encaissements</i> → choisir le chauffeur, l'échéance, le moyen ; Mobile Money / virement : saisir la <b>référence</b> et la vérifier.</li>
+<li>Paiement partiel autorisé : imputé sur les plus anciennes échéances. Le système refuse un <b>doublon</b>.</li>
+<li>Émettre et remettre le <b>reçu</b> ; le chauffeur le retrouve sur son portail et le confirme.</li>
+<li>Erreur : <b>annulation motivée</b> uniquement (jamais de suppression) ; trace dans l'audit.</li>
+</ol>
+<div class="box">Relance : arriérés suivis dans <i>Échéances</i> et <i>Rapports</i> (ancienneté des impayés). Rappel WhatsApp au chauffeur avant toute suspension.</div>
+
+<h2>B5. Caisse et dépenses</h2>
+<ol>
+<li>Caissier : <b>ouvrir</b> la caisse (fonds de départ) ; toutes les opérations du jour y passent.</li>
+<li>Dépense : saisir catégorie, montant, véhicule concerné ; <b>justificatif obligatoire</b> au-dessus du seuil ; <b>validation</b> par le contrôleur / direction au-dessus du seuil de validation.</li>
+<li>Fin de journée : <b>clôturer</b> ; compter ; écart expliqué ; le contrôleur le valide.</li>
+<li>Remise en banque : opération « Versement en banque » ; <b>pointage banque</b> par le contrôleur avec le relevé.</li>
+</ol>
+
+<h2>B6. Entretien préventif et maintenance</h2>
+<ol>
+<li>Plan par véhicule en <b>km et en jours</b> : vidange, plaquettes, pneus, batterie, courroie, révision. États : à prévoir / en retard.</li>
+<li>Rappel WhatsApp au chauffeur ; programmer le passage au garage dans l'<i>Agenda atelier</i>.</li>
+<li>Ouvrir un <b>ordre de maintenance</b> : le véhicule passe <b>immobilisé</b> ; saisir pièces utilisées (stock de pièces, coût moyen pondéré) et main-d'œuvre.</li>
+<li>Clore l'ordre : remise en service, consommation des pièces, <b>dépense liée</b> créée (à valider).</li>
+<li>Inventaire des pièces : périodique ; seuils d'alerte de réapprovisionnement.</li>
+</ol>
+
+<h2>B7. Sinistre</h2>
+<ol>
+<li>Chauffeur : déclarer l'incident dans le portail (photos, lieu, circonstances) et prévenir le bureau.</li>
+<li>Flotte : ouvrir le <b>sinistre</b> ; workflow demande → expertise → réparation → clos ; <b>immobiliser</b> le véhicule.</li>
+<li>Déclaration à l'assureur dans le délai du contrat ; joindre PV / constat.</li>
+<li>Dépense de réparation liée au sinistre ; décider de la responsabilité du chauffeur (directeur).</li>
+</ol>
+
+<h2>B8. Suivi GPS</h2>
+<ul>
+<li>Carte : position, fraîcheur du signal, historique de trajet.</li>
+<li>Zones autorisées ; alerte de sortie de zone.</li>
+<li>Boîtier injoignable ou retiré : mise en <b>quarantaine</b> et enquête du gestionnaire de flotte.</li>
+</ul>
+
+<h2>B9. Documents et alertes</h2>
+<ol>
+<li>Contrôleur : lire chaque semaine <i>Documents et alertes</i> : assurance, visite technique, carte de transport, permis arrivant à échéance.</li>
+<li>Renouveler avant la date ; scanner la nouvelle pièce.</li>
+<li>Traiter les demandes chauffeurs (congé, changement de profil) ; la modification du profil est validée par le bureau.</li>
+</ol>
+
+<h2>B10. Portail chauffeur (pour le chauffeur)</h2>
+<table><thead><tr><th>Besoin</th><th>Où</th></tr></thead><tbody>
+<tr><td>Voir ses reçus et son solde</td><td>Compte / Reçus (confirmer chaque reçu)</td></tr>
+<tr><td>Voir son véhicule et ses échéances</td><td>Véhicule</td></tr>
+<tr><td>Déclarer une panne ou un accident</td><td>Incident (avec photo)</td></tr>
+<tr><td>Demander un congé, un changement</td><td>Demandes</td></tr>
+<tr><td>Modifier ses coordonnées</td><td>Profil (validé par le bureau)</td></tr>
+</tbody></table>
+
+<h2>B11. Comptabilité et clôture mensuelle (SYSCOHADA)</h2>
+<ol>
+<li>Comptable : vérifier que tous les encaissements, reçus et dépenses de la période sont comptabilisés (partie double).</li>
+<li>Rapprocher caisse, banque et comptes tiers ; <b>lettrer</b> ; corriger par <b>extourne</b> (jamais de suppression).</li>
+<li>Éditer balance, grand livre, journaux ; faire valider par le directeur.</li>
+<li><b>Clôturer la période</b> ; les écritures de la période deviennent immuables.</li>
+<li>Faire une <b>sauvegarde signée</b> et la ranger hors de l'appareil.</li>
+</ol>
+<p><i>Le plan de comptes est indicatif : à valider par le comptable avant production.</i></p>
+
+<h2>B12. Fin de contrat</h2>
+<ol>
+<li>Constater les arriérés ; imprimer le <b>décompte de fin</b> (solde dû, retenue sur dépôt, reste à payer ou dépôt à restituer).</li>
+<li>Dépôt versé : le <b>rembourser</b> avant résiliation, ou le compenser selon le décompte.</li>
+<li>Résilier le contrat (motif) ; récupérer clés et documents ; état des lieux du véhicule.</li>
+<li>Véhicule : retour à « disponible » ou maintenance ; chauffeur : désactiver l'accès au portail.</li>
+<li>Possibilité de créer un <b>nouveau contrat</b> à partir du contrat résilié.</li>
+</ol>
+
+<h1>C. ANNEXES</h1>
+<h2>C1. Règles d'or</h2>
+<ol>
+<li>Pas de preuve, pas de validation (code vendeur, signature, justificatif, référence).</li>
+<li>On ne supprime pas : on annule avec motif, on extourne.</li>
+<li>Un encaissement = une écriture le jour même.</li>
+<li>Personne ne valide ce qu'il a saisi.</li>
+<li>Un document expiré = un véhicule ou un chauffeur à l'arrêt.</li>
+<li>Toute anomalie est signalée au responsable dans la journée.</li>
+</ol>
+<h2>C2. Escalade</h2>
+<table><thead><tr><th>Situation</th><th>Premier contact</th><th>Ensuite</th></tr></thead><tbody>
+<tr><td>Danger, accident, SOS</td><td>Superviseur / gestionnaire de flotte</td><td>Direction, assureur</td></tr>
+<tr><td>Écart de caisse</td><td>Contrôleur / superviseur</td><td>Direction</td></tr>
+<tr><td>Colis manquant, litige client</td><td>Superviseur</td><td>Commercial, direction</td></tr>
+<tr><td>Impayé de taxi</td><td>Caissier / flotte</td><td>Directeur</td></tr>
+<tr><td>Accès, mot de passe, panne logicielle</td><td>Administrateur</td><td>Support technique</td></tr>
+</tbody></table>
+<h2>C3. Tableaux de contrôle (périodicité)</h2>
+<table><thead><tr><th>Fréquence</th><th>Contrôle</th><th>Responsable</th></tr></thead><tbody>
+<tr><td>Quotidien</td><td>Ouverture / clôture caisse ; versements validés ; tournées clôturées ; incidents ouverts</td><td>Caissier, superviseur</td></tr>
+<tr><td>Quotidien</td><td>Échéances taxi encaissées ; arriérés relancés</td><td>Caissier, flotte</td></tr>
+<tr><td>Hebdomadaire</td><td>Alertes documents ; entretiens en retard ; stock pièces ; signatures « à vérifier »</td><td>Contrôleur, flotte, superviseur</td></tr>
+<tr><td>Mensuel</td><td>Clôture comptable ; rapports de recouvrement ; sauvegarde signée ; revue des droits</td><td>Comptable, directeur, administrateur</td></tr>
+</tbody></table>
+<h2>C4. Documents liés</h2>
+<ul>
+<li><code>docs/MANUEL_COLLECTE.pdf</code> — collecte chez les vendeurs, détail complet.</li>
+<li><code>docs/checklist-fin-formation.pdf</code> / <code>.xlsx</code> — validation des acquis par module et par acteur.</li>
+<li><code>docs/transport-couverture.md</code> — couverture fonctionnelle Transport et points à valider avant production.</li>
+</ul>
+</body></html>
