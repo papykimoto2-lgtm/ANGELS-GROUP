@@ -21,5 +21,12 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("VE-3","filtre partenaire : collecté exact, versé au prorata (60 % de 5 000)",r.vend.collecte===6000&&r.vend.verse===3000&&r.vend.reste===null,JSON.stringify(r.vend));
  chk("VE-4","partenaire direct ANGEL'S",r.own.collecte===6000&&r.own.verse===4000,JSON.stringify(r.own));
  chk("VE-5","écran rendu",r.html,JSON.stringify(r));
+ const r2=await D.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");const [l1]=S.livreurs,v=S.vendeurs[0],iso=n=>new Date(Date.now()-n*864e5).toISOString();
+  S.fonds=[];S.versements=[];S.commandes=[{id:"cA",vendeur_id:v.id},{id:"cB",vendeur_id:null}];
+  S.fonds.push({id:"e1",type:"encaissement",livreur_id:l1.id,commande_id:"cA",montant:6000,mode:"Espèces",ts:iso(1)},{id:"e2",type:"encaissement",livreur_id:l1.id,commande_id:"cB",montant:4000,mode:"Espèces",ts:iso(1)});
+  reverserLivreur(l1,3000,"Espèces","","t",v.id);reverserLivreur(l1,1000,"Espèces","","t","");reverserLivreur(l1,500,"Espèces","","t","faux");
+  const o={du:ANGELS_VERS_ETAT.jour(iso(2)),au:ANGELS_VERS_ETAT.jour(iso(0))},C=ANGELS_VERS_ETAT.calculer;
+  return{pv:C(S,Object.assign({vendeur:v.id},o)).total.verse,po:C(S,Object.assign({vendeur:"own"},o)).total.verse,all:C(S,o).total.verse,tags:S.fonds.filter(f=>f.type==="reversement").map(f=>f.part_id||"-"),form:/name="part"/.test(partSel())}});
+ chk("VE-7","partenaire choisi : 100 % au vendeur (3 000 + 60 % de 1 500), invalide ignoré",r2.pv===3900&&r2.po===600&&r2.all===4500&&r2.tags[2]==="-"&&r2.form,JSON.stringify(r2));
  chk("VE-6","aucune erreur JS",errs.length===0,errs.join("|"));
  console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0)})();
