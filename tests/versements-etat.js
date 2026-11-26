@@ -34,5 +34,8 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
   S.versements=[{id:"a",livreur_id:l1.id,montant:3000,mode:"Wave",ref:"W-OK",statut:"valide",cree_le:iso(2),traite_le:iso(1)},{id:"b",livreur_id:l1.id,montant:900,mode:"Wave",ref:"W-NO",statut:"rejete",cree_le:iso(1),motif:"introuvable"},{id:"c",livreur_id:l1.id,montant:500,mode:"Orange",ref:"O-1",statut:"declare",cree_le:iso(0)}];
   const E=ANGELS_VERS_ETAT.calculer(S,{du:ANGELS_VERS_ETAT.jour(iso(5)),au:ANGELS_VERS_ETAT.jour(iso(0))});return{n:E.detail.length,st:E.detail.map(d=>d.statut).sort().join(),verse:E.total.verse,att:E.total.attente}});
  chk("VE-10","détail : versements Mobile Money encaissé / rejeté / en validation listés même sans reversement en caisse",r3.n===3&&r3.st==="declare,rejete,valide"&&r3.verse===3000&&r3.att===500,JSON.stringify(r3));
+ const r4=await D.evaluate(()=>{const o={};ME=S.users.find(u=>u.role==="caissier");S.droits_roles={caissier:["v.tresorerie","v.finance","v.caisse","v.versements"]};view="tresorerie";render();ACT.nav("etatvers");o.herite=view;
+  S.droits_roles={caissier:["v.tresorerie","v.finance"]};view="tresorerie";render();o.bouton=!!document.querySelector('[data-id="etatvers"]');delete S.droits_roles;return o});
+ chk("VE-11","rôle à droits personnalisés : accès hérité de « Versements vendeurs » ; sans ce droit, ni bouton ni redirection trompeuse",r4.herite==="etatvers"&&r4.bouton===false,JSON.stringify(r4));
  chk("VE-6","aucune erreur JS",errs.length===0,errs.join("|"));
  console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0)})();
