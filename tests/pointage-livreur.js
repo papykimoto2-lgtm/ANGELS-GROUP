@@ -1,0 +1,20 @@
+/* Feuille de pointage de tournée (nouvel état) à côté du bordereau de livraison (inchangé). Usage : NODE_OPTIONS="--require ./tests/demo-hook.js" node tests/pointage-livreur.js */
+const {chromium}=require(process.env.PLAYWRIGHT||"playwright");const path=require("path");
+(async()=>{const b=await chromium.launch(process.env.CHROMIUM?{executablePath:process.env.CHROMIUM}:{});const p=await (await b.newContext({viewport:{width:1200,height:900}})).newPage(),errs=[];let ok=0,ko=0;
+ const chk=(id,label,o,info)=>{console.log(o===true?"PASS":"FAIL",id,label,o===true?"":"-> "+(info||o));o===true?ok++:ko++};
+ p.on("pageerror",e=>errs.push(e.message));await p.goto("file://"+path.resolve(__dirname,"../distribution.html"));await p.waitForTimeout(500);
+ const r=await p.evaluate(()=>{window.__T=[];toast=m=>{__T.push(m)};ME=S.users.find(u=>u.role==="admin"&&u.actif);S.config.signature_seuil=99999999;
+  const base=S.commandes.find(c=>c.statut==="prete")||S.commandes[0],c=JSON.parse(JSON.stringify(base));c.id="pt_1";c.numero="CMD-PT-1";c.statut="prete";c.colis=null;c.hist=[];S.commandes.push(c);
+  const lv=S.livreurs.filter(l=>!l.archive)[0];CEN_DIRECT=true;const l=affecter(c,lv.id,"");CEN_DIRECT=false;
+  cenBordereauLivreur(lv.id);const ancien=document.querySelector("#docf").srcdoc;closeModal();
+  cenPointageLivreur(lv.id);const neuf=document.querySelector("#docf").srcdoc;closeModal();
+  cenBordereauChoix(lv.id);const choix=document.querySelector("#mf")?document.querySelector("#mf").innerHTML:"";const f=document.querySelector("#mf");
+  const bt=[...document.querySelectorAll("#mf button")].find(x=>/feuille de pointage/i.test(x.textContent));if(bt)bt.click();const viaBtn=document.querySelector("#docf")?document.querySelector("#docf").srcdoc.includes("CMD-PT-1"):false;closeModal();
+  ME=S.users.find(u=>u.role==="livreur");__T.length=0;cenPointageLivreur(lv.id);const refuse=__T.some(m=>/Accès refusé/.test(m));
+  return{ancienOk:/Bordereau de livraison/.test(ancien)&&!/Encaissé \(F\)/.test(ancien)&&/Résultat/.test(ancien),neuf:/Feuille de pointage/.test(neuf)&&neuf.includes("CMD-PT-1")&&/Encaissé \(F\)/.test(neuf)&&/Écart \/ motif/.test(neuf)&&/Pointage de retour/.test(neuf)&&/Reste dû par le livreur/.test(neuf)&&/Dépenses de mission/.test(neuf),choix:/feuille de pointage/i.test(choix),viaBtn,refuse}});
+ chk("PT-1","ancien bordereau inchangé (sans colonne Encaissé)",r.ancienOk,JSON.stringify(r));
+ chk("PT-2","feuille de pointage : colonnes Encaissé / Mode / Écart et bloc de retour",r.neuf,JSON.stringify(r));
+ chk("PT-3","bouton dans la fenêtre du bordereau et génération depuis ce bouton",r.choix&&r.viaBtn,JSON.stringify(r));
+ chk("PT-4","accès refusé au livreur",r.refuse,JSON.stringify(r));
+ chk("PT-5","aucune erreur JS",errs.length===0,errs.join("|"));
+ console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();process.exit(ko?1:0)})();
