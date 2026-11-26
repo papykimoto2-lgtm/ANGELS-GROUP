@@ -224,6 +224,7 @@ body.appc{padding-bottom:0}body.appc .fab{bottom:14px;right:12px;padding:10px 14
 <script src="cascade-engine.js"></script>
 <script src="production-engine.js"></script>
 <script src="purge-date-engine.js"></script>
+<script src="versements-etat-engine.js"></script>
 <script src="fne-engine.js"></script>
 <script src="print-engine.js"></script>
 <script src="rh-engine.js"></script>
@@ -295,6 +296,7 @@ const NAV=[   // rangés dans l'ordre de la marche en avant : tiers → commande
  {v:"finance",l:"Finance",i:"💰",g:"Argent",r:["admin","direction","caissier"]},
  {v:"caisse",l:"Caisse",i:"💵",g:"Argent",r:["admin","direction","caissier"]},
  {v:"versements",l:"Versements vendeurs",i:"🏪",g:"Argent",r:["admin","direction","caissier"]},
+ {v:"etatvers",l:"États des versements livreurs",i:"🧮",g:"Argent",r:["admin","direction","caissier"]},
  {v:"compta",l:"Comptabilité",i:"📚",g:"Argent",r:["admin","direction"]},
  {v:"etats",l:"États périodiques",i:"🧾",g:"Contrôle & documents",r:["admin","direction","superviseur","commercial","caissier"]},
  {v:"documents",l:"Documents",i:"📄",g:"Contrôle & documents",r:["admin","direction","commercial","caissier","superviseur"]},
@@ -6394,6 +6396,25 @@ Object.assign(ACT,{essaiToggle:()=>{try{tdDroit();S.config.mode_essai=!S.config.
  tdDl:id=>{const e=tdCorbeille().find(x=>x.id===id);if(!e)return;const b=new Blob([JSON.stringify(e.snap)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sauvegarde-suppression-"+e.le.slice(0,10)+".json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)},
  tdPurge:()=>{try{tdDroit()}catch(e){return toast(e.message,"err")}const St=tdStats(),tot=Object.values(St).reduce((a,x)=>a+x.test,0);if(!tot)return toast("Aucune donnée de test","err");
   modal("Supprimer toutes les données de test",`<div class="al er"><b>${tot}</b> enregistrement(s) marqué(s) Test vont être supprimés avec leurs dépendances. Ce qui dépend d'une donnée réelle ou d'une période clôturée est conservé et signalé. Tout reste dans la corbeille.</div><label>Tapez <b>SUPPRIMER</b> pour confirmer<input name="conf" autocomplete="off" required></label>`,{label:"Supprimer",cls:"danger",onSubmit:d=>{if(String(d.conf).trim()!=="SUPPRIMER"){toast("Saisissez SUPPRIMER pour confirmer","err");return false}try{const r=tdPurgerTout();save();toast(r.supprimes+" enregistrement(s) supprimé(s)"+(r.bloques.length?", "+r.bloques.length+" conservé(s) (bloqués)":""),"ok");if(r.bloques.length)setTimeout(()=>modal("Éléments conservés",`<div class="sm">${r.bloques.slice(0,15).map(b=>`<p><b>${esc((TD_DEF[b.type]||{l:b.type}).l)} « ${esc(b.libelle)} »</b><br>${esc(b.raison)}</p>`).join("")}</div>`,{label:"Fermer",notice:false}),50);render();return true}catch(e){toast(e.message,"err");return false}}})}});
+/* ================= État des versements des livreurs : filtres période / livreur / partenaire (moteur : versements-etat-engine.js) ================= */
+function evCalc(){const r=perRange("ev");return Object.assign(ANGELS_VERS_ETAT.calculer(S,{du:r.du,au:r.au,livreur:ui.evl||"",vendeur:ui.evv||""}),{r})}
+function evPeriodeTxt(E){return "du "+fdj(E.du)+" au "+fdj(E.au)+(ui.evl?" · livreur : "+((liv(ui.evl)||{}).nom||"?"):"")+(ui.evv?" · partenaire : "+(ui.evv==="own"?"ANGEL'S (direct)":(vendOf(ui.evv)||{}).nom||"?"):"")}
+function evCorps(E){const T=E.total,pr=E.prorata?" <span class='sm mu'>(au prorata)</span>":"";
+ return`<table><tr><th>Livreur</th><th class="n">Collecté</th><th class="n">Versé${pr}</th><th class="n">dont espèces</th><th class="n">dont Mobile Money</th><th class="n">En validation</th>${E.prorata?"":'<th class="n">Reste à reverser</th>'}</tr>
+ ${E.lignes.map(l=>`<tr><td>${esc(l.nom)}</td><td class="n">${fcfa(l.collecte)}</td><td class="n">${fcfa(l.verse)}</td><td class="n">${fcfa(l.especes)}</td><td class="n">${fcfa(l.momo)}</td><td class="n">${fcfa(l.attente)}</td>${E.prorata?"":`<td class="n">${fcfa(l.reste)}</td>`}</tr>`).join("")||`<tr><td colspan="7">Aucun versement sur la période</td></tr>`}
+ <tr class="tot"><td>TOTAL</td><td class="n">${fcfa(T.collecte)}</td><td class="n">${fcfa(T.verse)}</td><td class="n">${fcfa(T.especes)}</td><td class="n">${fcfa(T.momo)}</td><td class="n">${fcfa(T.attente)}</td>${E.prorata?"":`<td class="n">${fcfa(T.reste)}</td>`}</tr></table>
+ <h2>Par fournisseur / client partenaire</h2><table><tr><th>Partenaire</th><th class="n">Collecté</th><th class="n">Versé (au prorata)</th></tr>${E.partenaires.map(v=>`<tr><td>${esc(v.nom)}</td><td class="n">${fcfa(v.collecte)}</td><td class="n">${fcfa(v.verse)}</td></tr>`).join("")||'<tr><td colspan="3">Aucune donnée</td></tr>'}</table>
+ <h2>Détail des versements</h2><table><tr><th>Date</th><th>Livreur</th><th class="n">Montant${E.prorata?" (part)":""}</th><th>Mode</th><th>Référence</th><th>Reçu par</th><th>Statut</th></tr>${E.detail.map(d=>`<tr><td>${fdt(d.ts)}</td><td>${esc(d.livreur)}</td><td class="n">${fcfa(d.montant)}${d.prorata?` <span class="sm">/ ${fcfa(d.total)}</span>`:""}</td><td>${esc(d.mode)}</td><td>${esc(d.ref)}</td><td>${esc(d.par)}</td><td>${d.statut==="valide"?"Encaissé":"En validation"}</td></tr>`).join("")||'<tr><td colspan="7">Aucun versement</td></tr>'}</table>
+ ${E.prorata?'<p class="sub">Un versement n\'est pas rattaché à une commande : il est réparti entre partenaires au prorata de l\'argent encaissé par le livreur pour chacun.</p>':""}`}
+VIEWS.etatvers=()=>{
+ if(!can("admin","direction","caissier"))return'<h1>États des versements</h1><div class="al warn">Accès refusé pour votre profil.</div>';
+ const E=evCalc(),T=E.total;
+ return`<div class="between"><div><h1>🧮 États des versements des livreurs</h1><div class="mu sm">${esc(evPeriodeTxt(E))}</div></div><div class="flex noprint"><button class="btn" data-act="evPrint">🖨 Imprimer / PDF</button><button class="btn ghost" data-act="evCsv">⬇ CSV</button></div></div>
+ <div class="flex noprint" style="gap:8px;flex-wrap:wrap;margin:8px 0">${perSel2("ev")}<select data-f="evl" style="width:auto">${opts([{v:"",t:"Tous les livreurs"}].concat(S.livreurs.map(l=>({v:l.id,t:l.nom}))),ui.evl||"")}</select><select data-f="evv" style="width:auto">${opts([{v:"",t:"Tous les partenaires"},{v:"own",t:"ANGEL'S (direct)"}].concat(S.vendeurs.map(v=>({v:v.id,t:"🏪 "+v.nom}))),ui.evv||"")}</select></div>
+ <div class="grid">${kpi("Collecté par les livreurs",fcfa(T.collecte))}${kpi("Versé (encaissé)",fcfa(T.verse),"o")}${kpi("En validation",fcfa(T.attente),T.attente?"w":"")}${kpi("Reste à reverser",T.reste==null?"—":fcfa(T.reste),T.reste>0?"w":"")}</div>
+ <div class="card" style="margin-top:10px">${evCorps(E)}</div>`};
+Object.assign(ACT,{evPrint:()=>{const E=evCalc();rapport("États des versements livreurs",`${rptHead("État des versements des livreurs",evPeriodeTxt(E))}${evCorps(E)}`,{paysage:true})},
+ evCsv:()=>{const E=evCalc();csvDown("versements_livreurs",["Date","Livreur","Montant","Montant total du versement","Mode","Référence","Reçu par","Statut"],E.detail.map(d=>[new Date(d.ts).toLocaleString("fr-FR"),d.livreur,d.montant,d.total,d.mode,d.ref,d.par,d.statut==="valide"?"Encaissé":"En validation"]))}});
 /* ================= Purge par date : supprimer commandes, livraisons et caisse antérieures à une date (moteur : purge-date-engine.js) =================
    Sauvegarde obligatoire, aperçu chiffré, confirmation par saisie. Par défaut : on garde hier et aujourd'hui. Clients, stock, comptabilité, comptes, paramétrage et audit sont conservés. */
 const purgeJour=()=>ui.purgeJ||(ui.purgeJ=ANGELS_PURGE.ymd(ANGELS_PURGE.coupureHier()));
