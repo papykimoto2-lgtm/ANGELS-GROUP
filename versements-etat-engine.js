@@ -62,13 +62,18 @@
       else if (!o.vendeur) ligV("own").verse += +x.montant || 0;
       detail.push({ ts: x.ts, livreur_id: x.livreur_id, livreur: L.nom, montant: r0(m), total: +x.montant || 0, mode: x.mode || "", ref: x.ref || "", note: x.note || "", par: x.par || "", statut: "valide", part: x.part_id ? nomV(x.part_id) : "", prorata: !!o.vendeur && !x.part_id && cf < 1 });
     });
-    // Déclarations Mobile Money en validation
+    // Versements Mobile Money déclarés (S.versements) : en validation, encaissés non encore présents en caisse, rejetés
+    var vus = {}; (S.fonds || []).forEach(function (x) { if (x.type === "reversement") vus[x.livreur_id + "|" + (+x.montant || 0) + "|" + String(x.ref || "").toUpperCase()] = 1; });
     (S.versements || []).forEach(function (v) {
-      if (v.statut !== "declare" || !dans(v.cree_le, o)) return;
+      var st = v.statut === "valide" || v.statut === "rejete" ? v.statut : "declare", tv = st === "declare" ? v.cree_le : (v.traite_le || v.cree_le);
+      if (!dans(tv, o) && !dans(v.cree_le, o)) return;
       if (o.livreur && v.livreur_id !== o.livreur) return;
+      if (st === "valide" && vus[v.livreur_id + "|" + (+v.montant || 0) + "|" + String(v.ref || "").toUpperCase()]) return;
       var cf = coef(v.livreur_id, v.part_id); if (o.vendeur && cf <= 0) return;
-      var m = (+v.montant || 0) * cf, L = ligL(v.livreur_id); L.attente += m;
-      detail.push({ ts: v.cree_le, livreur_id: v.livreur_id, livreur: L.nom, montant: r0(m), total: +v.montant || 0, mode: v.mode || "", ref: v.ref || "", note: v.note || "", par: "", statut: "declare", part: v.part_id ? nomV(v.part_id) : "", prorata: !!o.vendeur && !v.part_id && cf < 1 });
+      var m = (+v.montant || 0) * cf, L = ligL(v.livreur_id);
+      if (st === "declare") L.attente += m;
+      else if (st === "valide") { L.verse += m; L.nb++; if (MOMO.test(v.mode || "")) L.momo += m; else L.especes += m; if (v.part_id) ligV(v.part_id).verse += +v.montant || 0; }
+      detail.push({ ts: tv, livreur_id: v.livreur_id, livreur: L.nom, montant: r0(m), total: +v.montant || 0, mode: v.mode || "", ref: v.ref || "", note: v.note || v.motif || "", par: v.traite_par_nom || "", statut: st, part: v.part_id ? nomV(v.part_id) : "", prorata: !!o.vendeur && !v.part_id && cf < 1 });
     });
 
     var lignes = Object.keys(parLiv).map(function (k) {
