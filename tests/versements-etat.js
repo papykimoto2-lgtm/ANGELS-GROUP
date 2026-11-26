@@ -30,5 +30,9 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  chk("VE-7","partenaire choisi : 100 % au vendeur (3 000 + 60 % de 1 500), invalide ignoré",r2.pv===3900&&r2.po===600&&r2.all===4500&&r2.tags[2]==="-"&&r2.form,JSON.stringify(r2));
  chk("VE-8","ventilation : 6 000 collectés pour partenaire = 1 000 livraison + 5 000 produits ; 4 000 produits ANGEL'S",r.ventil&&r.ventil.frais===1000&&r.ventil.prodPart===5000&&r.ventil.prodOwn===6000&&r.ventil.collecte===12000,JSON.stringify(r.ventil));
  chk("VE-9","détail par colis : 1 ligne/commande, 2 colis, 6 000 = 1 000 livraison + 5 000 produits",r.colisA&&r.colisA.nb===2&&r.colisA.collecte===6000&&r.colisA.frais===1000&&r.colisA.produits===5000&&r.colisA.partenaire&&r.nbc===3,JSON.stringify(r.colisA)+r.nbc);
+ const r3=await D.evaluate(()=>{const l1=S.livreurs[0],iso=n=>new Date(Date.now()-n*864e5).toISOString();S.fonds=[];S.commandes=[];
+  S.versements=[{id:"a",livreur_id:l1.id,montant:3000,mode:"Wave",ref:"W-OK",statut:"valide",cree_le:iso(2),traite_le:iso(1)},{id:"b",livreur_id:l1.id,montant:900,mode:"Wave",ref:"W-NO",statut:"rejete",cree_le:iso(1),motif:"introuvable"},{id:"c",livreur_id:l1.id,montant:500,mode:"Orange",ref:"O-1",statut:"declare",cree_le:iso(0)}];
+  const E=ANGELS_VERS_ETAT.calculer(S,{du:ANGELS_VERS_ETAT.jour(iso(5)),au:ANGELS_VERS_ETAT.jour(iso(0))});return{n:E.detail.length,st:E.detail.map(d=>d.statut).sort().join(),verse:E.total.verse,att:E.total.attente}});
+ chk("VE-10","détail : versements Mobile Money encaissé / rejeté / en validation listés même sans reversement en caisse",r3.n===3&&r3.st==="declare,rejete,valide"&&r3.verse===3000&&r3.att===500,JSON.stringify(r3));
  chk("VE-6","aucune erreur JS",errs.length===0,errs.join("|"));
  console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0)})();
