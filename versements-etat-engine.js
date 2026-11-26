@@ -99,6 +99,38 @@
       total: { collecte: sum("collecte"), frais: sum("frais"), prodPart: sum("prodPart"), prodOwn: sum("prodOwn"), verse: sum("verse"), especes: sum("especes"), momo: sum("momo"), attente: sum("attente"), reste: o.vendeur ? null : sum("reste"), nb: sum("nb") },
       prorata: !!o.vendeur };
   }
-  G.ANGELS_VERS_ETAT = { calculer: calculer, jour: jour };
+  /* État de tournée consolidé : une ligne par livraison affectée dans la période (commande, course, argent), filtres livreur / partenaire.
+     Regroupe ce que montrent le bordereau de commandes, le bordereau de livraison et l'état des versements. */
+  function tournee(S, o) {
+    o = o || {};
+    var cmds = {}, cli = {}, prod = {}, liv = {}, vend = {};
+    (S.commandes || []).forEach(function (x) { cmds[x.id] = x; });
+    (S.clients || []).forEach(function (x) { cli[x.id] = x; });
+    (S.produits || []).forEach(function (x) { prod[x.id] = x; });
+    (S.livreurs || []).forEach(function (x) { liv[x.id] = x; });
+    (S.vendeurs || []).forEach(function (x) { vend[x.id] = x; });
+    var rows = [], T = { n: 0, livrees: 0, echecs: 0, encours: 0, total: 0, frais: 0, produits: 0, attendu: 0, collecte: 0, collFrais: 0, collProd: 0 };
+    (S.livraisons || []).forEach(function (l) {
+      if (l.statut === "reaffectee" || l.statut === "annulee" || l.statut === "refusee") return;
+      if (!dans(l.affectee_at || l.ts, o)) return;
+      if (o.livreur && l.livreur_id !== o.livreur) return;
+      var c = cmds[l.commande_id]; if (!c) return;
+      var k = c.vendeur_id || "own"; if (o.vendeur && k !== o.vendeur) return;
+      var cl = cli[c.client_id] || {}, a = c.adr || {}, m = 0, fr = 0;
+      (S.fonds || []).forEach(function (f) { if (f.livraison_id === l.id && f.type === "encaissement" && !f.direct) { var x = +f.montant || 0, p = c.total > 0 && c.frais > 0 ? Math.min(x, Math.round(x * c.frais / c.total)) : 0; m += x; fr += p; } });
+      var pay = 0; (S.fonds || []).forEach(function (f) { if (f.commande_id === c.id && (f.type === "acompte" || f.type === "encaissement")) pay += +f.montant || 0; });
+      var r = { ts: l.affectee_at || l.ts, numero: c.numero || "", client: cl.nom || "", tel: cl.tel || "", adr: [a.zone, a.quartier, a.repere].filter(Boolean).join(" · "), zone: a.zone || "—",
+        articles: (c.lignes || []).map(function (x) { return (x.qte || 1) + "× " + (x.desig || (prod[x.produit_id] || {}).nom || "Article"); }).join(" ; "),
+        nb: c.colis && c.colis.length ? c.colis.length : (l.nb_colis || 1), partenaire: k === "own" ? "ANGEL'S" : (vend[k] ? vend[k].nom : "Vendeur"),
+        livreur: (liv[l.livreur_id] || {}).nom || "", statutCmd: c.statut, statutLiv: l.statut, total: +c.total || 0, frais: +c.frais || 0, produits: +c.montant_produits || 0,
+        attendu: +l.montant_attendu || 0, collecte: m, collFrais: fr, collProd: m - fr, reste: Math.max(0, (+c.total || 0) - pay) };
+      rows.push(r); T.n++; T.total += r.total; T.frais += r.frais; T.produits += r.produits; T.collecte += m; T.collFrais += fr; T.collProd += m - fr;
+      if (l.statut === "livree") T.livrees++; else if (l.statut === "echouee") T.echecs++; else T.encours++;
+      if (l.statut === "affectee" || l.statut === "acceptee" || l.statut === "en_cours") T.attendu += r.attendu;
+    });
+    rows.sort(function (a, b) { return new Date(a.ts) - new Date(b.ts); });
+    return { rows: rows, total: T };
+  }
+  G.ANGELS_VERS_ETAT = { calculer: calculer, tournee: tournee, jour: jour };
   if (typeof module !== "undefined") module.exports = G.ANGELS_VERS_ETAT;
 })(typeof window !== "undefined" ? window : globalThis);

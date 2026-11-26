@@ -37,5 +37,14 @@ const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split("?")[0]
  const r4=await D.evaluate(()=>{const o={};ME=S.users.find(u=>u.role==="caissier");S.droits_roles={caissier:["v.tresorerie","v.finance","v.caisse","v.versements"]};view="tresorerie";render();ACT.nav("etatvers");o.herite=view;
   S.droits_roles={caissier:["v.tresorerie","v.finance"]};view="tresorerie";render();o.bouton=!!document.querySelector('[data-id="etatvers"]');delete S.droits_roles;return o});
  chk("VE-11","rôle à droits personnalisés : accès hérité de « Versements vendeurs » ; sans ce droit, ni bouton ni redirection trompeuse",r4.herite==="etatvers"&&r4.bouton===false,JSON.stringify(r4));
+ const r5=await D.evaluate(()=>{ME=S.users.find(u=>u.role==="admin");const l1=S.livreurs[0],v=S.vendeurs[0],iso=n=>new Date(Date.now()-n*864e5).toISOString();
+  const mk=(id,vid,total,frais)=>({id,numero:id.toUpperCase(),statut:"livree",total,frais,montant_produits:total-frais,client_id:S.clients[0].id,adr:{zone:"Abobo"},lignes:[{desig:"Robe",qte:1,pu:total-frais}],vendeur_id:vid,colis:[{n:1}],hist:[],date:iso(1)});
+  S.commandes=[mk("c1",v.id,6000,1000),mk("c2",null,9000,1500),mk("c3",v.id,12000,2000)];S.versements=[];
+  S.livraisons=[{id:"l1",commande_id:"c1",livreur_id:l1.id,statut:"livree",affectee_at:iso(1),montant_attendu:6000},{id:"l2",commande_id:"c2",livreur_id:l1.id,statut:"echouee",affectee_at:iso(1),montant_attendu:9000},{id:"l3",commande_id:"c3",livreur_id:l1.id,statut:"en_cours",affectee_at:iso(1),montant_attendu:12000}];
+  S.fonds=[{id:"e1",type:"encaissement",livreur_id:l1.id,livraison_id:"l1",commande_id:"c1",montant:6000,mode:"Espèces",ts:iso(1)},{id:"r1",type:"reversement",livreur_id:l1.id,montant:2000,mode:"Espèces",ts:iso(0)}];
+  const o={du:ANGELS_VERS_ETAT.jour(iso(3)),au:ANGELS_VERS_ETAT.jour(iso(0))},Z=ANGELS_VERS_ETAT.tournee(S,o),Zv=ANGELS_VERS_ETAT.tournee(S,Object.assign({vendeur:v.id},o));
+  ui.evl="";ui.evv="";ui.evp="30";ACT.evTournee();const h=document.getElementById("modal").innerHTML;
+  return{t:Z.total,nv:Zv.rows.length,h:/État de tournée/.test(h)&&/Commandes et livraisons/.test(h)&&/Versements du livreur/.test(h)}});
+ chk("VE-12","état de tournée : 3 courses (1 livrée, 1 échec, 1 en cours), collecté 6 000 dont 1 000 livraison, à encaisser en cours 12 000 ; filtre partenaire = 2 courses",r5.t.n===3&&r5.t.livrees===1&&r5.t.echecs===1&&r5.t.encours===1&&r5.t.collecte===6000&&r5.t.collFrais===1000&&r5.t.attendu===12000&&r5.nv===2&&r5.h,JSON.stringify(r5));
  chk("VE-6","aucune erreur JS",errs.length===0,errs.join("|"));
  console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();srv.close();process.exit(ko?1:0)})();
