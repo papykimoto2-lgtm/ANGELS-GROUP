@@ -16,5 +16,12 @@ const {chromium}=require(process.env.PLAYWRIGHT||"playwright");const path=requir
  chk("PT-2","feuille de pointage : colonnes Encaissé / Mode / Écart et bloc de retour",r.neuf,JSON.stringify(r));
  chk("PT-3","bouton dans la fenêtre du bordereau et génération depuis ce bouton",r.choix&&r.viaBtn,JSON.stringify(r));
  chk("PT-4","accès refusé au livreur",r.refuse,JSON.stringify(r));
+ const r2=await p.evaluate(()=>{ME=S.users.find(u=>u.role==="admin"&&u.actif);const lv=S.livreurs.filter(l=>!l.archive)[0],mk=(id,st)=>{const base=S.commandes[0],c=JSON.parse(JSON.stringify(base));c.id=id;c.numero=id.toUpperCase();c.statut=st==="livree"?"livree":"affectee";c.colis=null;c.hist=[];S.commandes.push(c);const l={id:"l_"+id,commande_id:id,livreur_id:lv.id,statut:st,affectee_at:new Date().toISOString(),montant_attendu:1000,hist:[]};S.livraisons.push(l);return l};
+  mk("rx1","en_cours");mk("rx2","livree");mk("rx3","echouee");mk("rx4","reaffectee");
+  const h=o=>{cenBordereauLivreur(lv.id,o);const x=document.querySelector("#docf").srcdoc;closeModal();return x};
+  const sans=h({}),avec=h({tout:true});cenPointageLivreur(lv.id,{tout:true});const pt=document.querySelector("#docf").srcdoc;closeModal();
+  cenBordereauChoix(lv.id);const box=!!document.querySelector("#mf input[name=tout]");closeModal();
+  return{sans:["RX1","RX2","RX3","RX4"].map(n=>sans.includes(n)),avec:["RX1","RX2","RX3","RX4"].map(n=>avec.includes(n)),statut:/<th>Statut<\/th>/.test(avec)&&!/<th>Statut<\/th>/.test(sans)&&/Livrée/.test(avec)&&/Échouée/.test(avec),pt:/RX2/.test(pt)&&/Livrée/.test(pt),box}});
+ chk("PT-6","réimpression : par défaut seulement les courses actives ; case « courses terminées » ajoute livrées et échouées (pas les réaffectées) avec colonne Statut, bordereau et pointage",JSON.stringify(r2.sans)==="[true,false,false,false]"&&JSON.stringify(r2.avec)==="[true,true,true,false]"&&r2.statut&&r2.pt&&r2.box,JSON.stringify(r2));
  chk("PT-5","aucune erreur JS",errs.length===0,errs.join("|"));
  console.log("RÉSULTAT :",ok,"réussis,",ko,"échecs");await b.close();process.exit(ko?1:0)})();
