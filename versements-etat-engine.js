@@ -1,8 +1,8 @@
 /* Moteur « ÉTAT DES VERSEMENTS DES LIVREURS » — pur, sans DOM (Distributions).
    Versement = reversement d'un livreur à ANGEL'S (S.fonds, type "reversement"). Filtres : période (du/au, AAAA-MM-JJ inclus), livreur, partenaire.
    Partenaire : "" = tous · "own" = ANGEL'S (commandes sans vendeur) · id = vendeur partenaire (fournisseur / client partenaire).
-   Un versement n'est pas rattaché à une commande : il est réparti entre les partenaires AU PRORATA de l'argent encaissé par le livreur pour chacun
-   (encaissements hors paiements directs). Le collecté, lui, est exact (commande → vendeur). */
+   Un versement porte le partenaire choisi à la saisie (part_id) : attribué à 100 % à ce partenaire. Sans choix (anciens versements, « non précisé »),
+   il est réparti AU PRORATA de l'argent encaissé par le livreur pour chacun (encaissements hors paiements directs). Le collecté est exact (commande → vendeur). */
 (function (G) {
   "use strict";
   var MOMO = /(wave|orange|mtn|moov|momo|mobile)/i;
@@ -30,7 +30,7 @@
     });
     var part = function (lid, k) { return encTot[lid] > 0 ? ((enc[lid] || {})[k] || 0) / encTot[lid] : 0; };
     // Coefficient d'un livreur selon le filtre partenaire (1 = tout)
-    var coef = function (lid) { return o.vendeur ? part(lid, o.vendeur) : 1; };
+    var coef = function (lid, pid) { return !o.vendeur ? 1 : pid ? (pid === o.vendeur ? 1 : 0) : part(lid, o.vendeur); };
 
     var parLiv = {}, parVend = {}, detail = [];
     var ligL = function (lid) { return parLiv[lid] || (parLiv[lid] = { livreur_id: lid, nom: (liv[lid] || {}).nom || "Livreur inconnu", collecte: 0, verse: 0, especes: 0, momo: 0, attente: 0, nb: 0 }); };
@@ -47,20 +47,21 @@
     (S.fonds || []).forEach(function (x) {
       if (x.type !== "reversement" || !x.livreur_id || !dans(x.ts, o)) return;
       if (o.livreur && x.livreur_id !== o.livreur) return;
-      var cf = coef(x.livreur_id); if (o.vendeur && cf <= 0) return;
+      var cf = coef(x.livreur_id, x.part_id); if (o.vendeur && cf <= 0) return;
       var m = (+x.montant || 0) * cf, L = ligL(x.livreur_id), esp = !MOMO.test(x.mode || "");
       L.verse += m; L.nb++; if (esp) L.especes += m; else L.momo += m;
-      if (encTot[x.livreur_id] > 0) Object.keys(enc[x.livreur_id]).forEach(function (k) { if (!o.vendeur || k === o.vendeur) ligV(k).verse += (+x.montant || 0) * part(x.livreur_id, k); });
+      if (x.part_id) ligV(x.part_id).verse += +x.montant || 0;
+      else if (encTot[x.livreur_id] > 0) Object.keys(enc[x.livreur_id]).forEach(function (k) { if (!o.vendeur || k === o.vendeur) ligV(k).verse += (+x.montant || 0) * part(x.livreur_id, k); });
       else if (!o.vendeur) ligV("own").verse += +x.montant || 0;
-      detail.push({ ts: x.ts, livreur_id: x.livreur_id, livreur: L.nom, montant: r0(m), total: +x.montant || 0, mode: x.mode || "", ref: x.ref || "", note: x.note || "", par: x.par || "", statut: "valide", prorata: !!o.vendeur && cf < 1 });
+      detail.push({ ts: x.ts, livreur_id: x.livreur_id, livreur: L.nom, montant: r0(m), total: +x.montant || 0, mode: x.mode || "", ref: x.ref || "", note: x.note || "", par: x.par || "", statut: "valide", part: x.part_id ? nomV(x.part_id) : "", prorata: !!o.vendeur && !x.part_id && cf < 1 });
     });
     // Déclarations Mobile Money en validation
     (S.versements || []).forEach(function (v) {
       if (v.statut !== "declare" || !dans(v.cree_le, o)) return;
       if (o.livreur && v.livreur_id !== o.livreur) return;
-      var cf = coef(v.livreur_id); if (o.vendeur && cf <= 0) return;
+      var cf = coef(v.livreur_id, v.part_id); if (o.vendeur && cf <= 0) return;
       var m = (+v.montant || 0) * cf, L = ligL(v.livreur_id); L.attente += m;
-      detail.push({ ts: v.cree_le, livreur_id: v.livreur_id, livreur: L.nom, montant: r0(m), total: +v.montant || 0, mode: v.mode || "", ref: v.ref || "", note: v.note || "", par: "", statut: "declare", prorata: !!o.vendeur && cf < 1 });
+      detail.push({ ts: v.cree_le, livreur_id: v.livreur_id, livreur: L.nom, montant: r0(m), total: +v.montant || 0, mode: v.mode || "", ref: v.ref || "", note: v.note || "", par: "", statut: "declare", part: v.part_id ? nomV(v.part_id) : "", prorata: !!o.vendeur && !v.part_id && cf < 1 });
     });
 
     var lignes = Object.keys(parLiv).map(function (k) {
