@@ -32,7 +32,8 @@
     // Coefficient d'un livreur selon le filtre partenaire (1 = tout)
     var coef = function (lid, pid) { return !o.vendeur ? 1 : pid ? (pid === o.vendeur ? 1 : 0) : part(lid, o.vendeur); };
 
-    var parLiv = {}, parVend = {}, detail = [];
+    var parLiv = {}, parVend = {}, detail = [], colis = {};
+    var cli = {}; (S.clients || []).forEach(function (x) { cli[x.id] = x; });
     var ligL = function (lid) { return parLiv[lid] || (parLiv[lid] = { livreur_id: lid, nom: (liv[lid] || {}).nom || "Livreur inconnu", collecte: 0, frais: 0, prodPart: 0, prodOwn: 0, verse: 0, especes: 0, momo: 0, attente: 0, nb: 0 }); };
     var ligV = function (k) { return parVend[k] || (parVend[k] = { cle: k, nom: nomV(k), collecte: 0, frais: 0, prod: 0, verse: 0, attente: 0 }); };
 
@@ -44,6 +45,10 @@
       var m = +x.montant || 0, cm = cmds[x.commande_id], fr = cm && cm.total > 0 && cm.frais > 0 ? Math.min(m, Math.round(m * cm.frais / cm.total)) : 0, L = ligL(x.livreur_id);
       L.collecte += m; L.frais += fr; if (k === "own") L.prodOwn += m - fr; else L.prodPart += m - fr;
       var V = ligV(k); V.collecte += m; V.frais += fr; V.prod += m - fr;
+      // Détail par colis : une ligne par commande (ses colis) et par livreur
+      var ck = (x.commande_id || "?") + "|" + x.livreur_id, C = colis[ck];
+      if (!C) { var cl = (cm && cli[cm.client_id]) || {}; C = colis[ck] = { ts: x.ts, commande_id: x.commande_id || "", numero: (cm && cm.numero) || "", nb: cm && cm.colis && cm.colis.length ? cm.colis.length : 1, client: cl.nom || "", livreur_id: x.livreur_id, livreur: L.nom, partenaire: nomV(k), collecte: 0, frais: 0, produits: 0, mode: {} }; }
+      C.collecte += m; C.frais += fr; C.produits += m - fr; C.mode[x.mode || ""] = 1; if (new Date(x.ts) > new Date(C.ts)) C.ts = x.ts;
     });
     // Versements validés (reversements) répartis au prorata
     (S.fonds || []).forEach(function (x) {
@@ -82,9 +87,10 @@
     }).sort(function (a, b) { return b.verse - a.verse || a.nom.localeCompare(b.nom); });
     var partenaires = Object.keys(parVend).map(function (k) { var V = parVend[k]; V.collecte = r0(V.collecte); V.frais = r0(V.frais); V.prod = r0(V.prod); V.verse = r0(V.verse); return V; })
       .filter(function (V) { return V.collecte || V.verse; }).sort(function (a, b) { return b.collecte - a.collecte; });
+    var colisL = Object.keys(colis).map(function (k) { var C = colis[k]; C.mode = Object.keys(C.mode).join(", "); return C; }).sort(function (a, b) { return new Date(b.ts) - new Date(a.ts); });
     detail.sort(function (a, b) { return new Date(b.ts) - new Date(a.ts); });
     var sum = function (k) { return lignes.reduce(function (t, l) { return t + (l[k] || 0); }, 0); };
-    return { du: o.du || "", au: o.au || "", lignes: lignes, partenaires: partenaires, detail: detail,
+    return { du: o.du || "", au: o.au || "", lignes: lignes, partenaires: partenaires, detail: detail, colis: colisL,
       total: { collecte: sum("collecte"), frais: sum("frais"), prodPart: sum("prodPart"), prodOwn: sum("prodOwn"), verse: sum("verse"), especes: sum("especes"), momo: sum("momo"), attente: sum("attente"), reste: o.vendeur ? null : sum("reste"), nb: sum("nb") },
       prorata: !!o.vendeur };
   }
